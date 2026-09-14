@@ -1,5 +1,6 @@
 using System.Text;
 using TinadecCore.DmaEA;
+using TinadecCore.DmaEA.Orchestration;
 
 namespace TinadecCore.AgentFramework.Tests;
 

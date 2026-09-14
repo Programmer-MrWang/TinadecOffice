@@ -94,6 +94,26 @@ public sealed class GraphOrchestrationArchitectureTests
             $"Abstractions is the port layer and must not depend on the Tools implementation.\n{FormatFailures(abstractionsResult)}");
     }
 
+    /// <summary>
+    /// ④ The DmaEA orchestration namespace (lane model, protocol constants and the
+    ///    directive validator split out of the run engine in WS-9) must stay a pure
+    ///    model/policy module: no MAF, no hosting base classes, no runtime or
+    ///    AgentConfiguration reach-back.
+    /// </summary>
+    [Fact]
+    public void OrchestrationNamespace_StaysAPureModelModule()
+    {
+        var result = Types.InAssembly(DmaEAAssembly)
+            .That().ResideInNamespace("TinadecCore.DmaEA.Orchestration")
+            .Should().NotHaveDependencyOn("Microsoft.Agents")
+            .And().NotHaveDependencyOn("Microsoft.Extensions.Hosting")
+            .And().NotHaveDependencyOn("TinadecCore.Runtime")
+            .And().NotHaveDependencyOn("TinadecCore.AgentConfiguration")
+            .GetResult();
+        Assert.True(result.IsSuccessful,
+            $"TinadecCore.DmaEA.Orchestration must stay a pure model/policy module.\n{FormatFailures(result)}");
+    }
+
     private static string FormatFailures(TestResult result) =>
         result.IsSuccessful ? "" : string.Join("\n", result.FailingTypeNames);
 }
