@@ -216,6 +216,15 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                 await FailLegacyRunAsync(runId, run, "legacy_run_not_resumable", "The run has no frozen full-duplex configuration.", stoppingToken).ConfigureAwait(false);
                 return;
             }
+            // R5 clean break: bodies frozen under a superseded schema are audit
+            // records, not resumable state. Fail closed with an explicit code
+            // instead of double-reading old shapes into the current model.
+            if (!string.Equals(frozen.SchemaVersion, FrozenRunConfigurationV1.CurrentSchemaVersion, StringComparison.Ordinal))
+            {
+                await FailLegacyRunAsync(runId, run, "run_schema_superseded",
+                    $"The run was admitted under frozen-configuration schema '{frozen.SchemaVersion}' (superseded by '{FrozenRunConfigurationV1.CurrentSchemaVersion}') and cannot resume.", stoppingToken).ConfigureAwait(false);
+                return;
+            }
 
             FrozenRunConfigurationV1 configuration;
             try
@@ -224,11 +233,18 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                     ?? throw new InvalidDataException("Frozen configuration is empty.");
                 if (!string.Equals(configuration.ContentHash, frozen.ContentHash, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Frozen configuration hash does not match its stored body.");
-                // Gate 3 re-verification on recovery: the operation deny floor and
-                // roster topology must hold for the resumed document too. Session
-                // identity re-lock happens through the frozen bindings (null here
-                // keeps the legacy semantics for pre-identity runs).
-                RunFreezeGate.Validate(null, configuration.OperationAgents, configuration.ExecutionAgents);
+                // Gate 3 re-verification on recovery: the operation deny floor, roster
+                // topology and graph shape must hold for the resumed document too.
+                // Session identity re-lock happens through the frozen bindings (null
+                // here keeps the legacy semantics for pre-identity runs).
+                RunFreezeGate.Validate(null, configuration.OperationAgents, configuration.ExecutionAgents, configuration.Graph);
+            }
+            catch (RunAdmissionException ex) when (string.Equals(ex.Code, "run_schema_superseded", StringComparison.Ordinal))
+            {
+                // R5 clean break: the lifecycle read already rejected the superseded
+                // schema; record it on the run so the failure is self-explanatory.
+                await FailLegacyRunAsync(runId, run, "run_schema_superseded", "The run was admitted under a superseded frozen-configuration schema and cannot resume.", stoppingToken).ConfigureAwait(false);
+                return;
             }
             catch (Exception ex) when (ex is JsonException or InvalidDataException)
             {
@@ -256,6 +272,11 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             var interrupted = checkpoint.Tasks
                 .Where(item => item.Status == "running" && string.IsNullOrWhiteSpace(item.PendingToolExecutionId))
                 .ToList();
+            // A run parked on a user decision (supervision escalation or a
+            // graph-tier approval expiry) must not re-dispatch its tasks through
+            // recovery compensation: the parked task is already terminal and the
+            // run waits on an explicit user choice.
+            if (run.Status == RunStatus.AwaitingUser || checkpoint.AwaitingApprovalExpiryReview) interrupted.Clear();
             if (interrupted.Count > 0)
             {
                 foreach (var task in interrupted) task.Status = "pending";
@@ -270,11 +291,21 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             // A supervision checkpoint is written before its run status. If a host
             // stops in that small window, repair the status before considering the
             // phase. Never let a recovered escalation fall through to finalization.
+            // A graph-tier approval-expiry review is the same shape but NOT a
+            // supervision escalation: it stays parked on the user decision no
+            // matter how many stray ticks wake the run.
             if (!IsTerminal(run.Status)
                 && checkpoint.Phase == "awaiting_user"
                 && run.Status is not RunStatus.AwaitingUser and not RunStatus.Executing)
             {
                 await TrySetRunStatusAsync(run.RunId, "awaiting_user", "Supervision requires user review.", stoppingToken).ConfigureAwait(false);
+                return;
+            }
+            // A wake while the review is parked must re-park, never fall through to
+            // the awaiting_user switch (which reads as "user chose continue").
+            if (checkpoint.AwaitingApprovalExpiryReview && checkpoint.Phase == "awaiting_user")
+            {
+                await TrySetRunStatusAsync(run.RunId, "awaiting_user", null, stoppingToken).ConfigureAwait(false);
                 return;
             }
 
@@ -293,6 +324,16 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                     return;
                 }
                 if (IsTerminal(run.Status)) return;
+
+                // A graph-tier approval-expiry review parks the checkpoint on
+                // awaiting_user even though the run status could not move there
+                // (executing → awaiting_user is not a legal transition). Stay
+                // parked until an explicit user decision clears the flag.
+                if (checkpoint.AwaitingApprovalExpiryReview)
+                {
+                    await TrySetRunStatusAsync(run.RunId, "awaiting_user", null, stoppingToken).ConfigureAwait(false);
+                    return;
+                }
 
                 if (await ApplyPendingContextPatchesAsync(run, checkpoint, stoppingToken).ConfigureAwait(false))
                 {
@@ -430,38 +471,27 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             checkpoint.PlanRevision == 0 ? "understanding" : "replanning",
             null, cancellationToken).ConfigureAwait(false);
 
-        RuntimeAgentDefinition plannerDefinition;
-        if (configuration.Graph is not null)
+        // The CONVERSATION IDENTITY authors the task graph (PlannerAgentId
+        // semantics = task-graph author instance). Schema v2 freezes a Graph
+        // section for every mode, so there is no legacy planner fallback.
+        var graph = configuration.Graph
+            ?? throw new InvalidDataException("Frozen run configuration carries no declared graph (schema v2 freezes one for every mode).");
+        var author = await EnsureConversationAuthorAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
+        checkpoint.MeetingAgentId = author.Id;
+        checkpoint.PlannerAgentId = author.Id;
+        var plannerDefinition = RequiredConversationAgent(configuration);
+        if (!checkpoint.GraphTierAnnounced)
         {
-            // Declared-graph tier: the CONVERSATION IDENTITY authors the task graph
-            // (PlannerAgentId semantics = task-graph author instance). The planning
-            // machinery is unchanged — the dispatch side constrains the output to
-            // the declared edges. The tier event commits under the same checkpoint
-            // CAS as the planning result, guarded by GraphTierAnnounced.
-            var author = await EnsureConversationAuthorAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
-            checkpoint.MeetingAgentId = author.Id;
-            checkpoint.PlannerAgentId = author.Id;
-            plannerDefinition = RequiredConversationAgent(configuration);
-            if (!checkpoint.GraphTierAnnounced)
-            {
-                var graphRunId = Guid.Parse(run.RunId);
-                await AppendEventAsync(graphRunId, "orchestration.mode_tier_decided",
-                    "Declared-graph tier decided at admission.", new
-                    {
-                        run_id = run.RunId,
-                        tier = configuration.Graph.Tier,
-                        conversation_slug = configuration.Graph.ConversationTemplateSlug,
-                        edge_count = configuration.Graph.Edges.Count
-                    }, cancellationToken, idempotencyKey: $"run:{run.RunId}:tier").ConfigureAwait(false);
-                checkpoint.GraphTierAnnounced = true;
-            }
-        }
-        else
-        {
-            var agents = await EnsureRootAgentsAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
-            checkpoint.MeetingAgentId = agents.Meeting.Id;
-            checkpoint.PlannerAgentId = agents.Planner.Id;
-            plannerDefinition = RequiredAgent(configuration.ExecutionAgents, "task_planner");
+            var graphRunId = Guid.Parse(run.RunId);
+            await AppendEventAsync(graphRunId, "orchestration.mode_tier_decided",
+                "Declared-graph tier decided at admission.", new
+                {
+                    run_id = run.RunId,
+                    tier = graph.Tier,
+                    conversation_slug = graph.ConversationTemplateSlug,
+                    edge_count = graph.Edges.Count
+                }, cancellationToken, idempotencyKey: $"run:{run.RunId}:tier").ConfigureAwait(false);
+            checkpoint.GraphTierAnnounced = true;
         }
         var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
         var assembly = await AssemblePromptAsync(plannerDefinition, context, cancellationToken).ConfigureAwait(false);
@@ -567,6 +597,12 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
 
         if (ready.Count == 0)
         {
+            // A graph-tier approval expiry with no lane row marks its task failed
+            // and parks the checkpoint on awaiting_user. Keep that boundary: the
+            // engine must not finalize past a pending user review (a stray wake
+            // would otherwise swallow the escalation).
+            if (string.Equals(checkpoint.Phase, "awaiting_user", StringComparison.Ordinal))
+                throw new RunAwaitingExternalDecisionException();
             if (checkpoint.Tasks.All(item => item.Status is "completed" or "failed" or "blocked"))
             {
                 checkpoint.Phase = "reviewing";
@@ -1555,11 +1591,24 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                     var parkedLane = checkpoint.Lanes.FirstOrDefault(lane =>
                         string.Equals(lane.LaneKey, LaneKeyOf(task), StringComparison.OrdinalIgnoreCase));
                     // The parked execution is dead: detach it so later ticks never
-                    // resume it (the lane escalation is the durable wake-up), and
+                    // resume it (the escalation is the durable wake-up), and
                     // annotate the unresolved turn for audit.
                     ClearPendingToolExecution(task, RunErrorTaxonomy.ApprovalExpired);
+                    // Graph tiers carry no authoring lane of their own: the run
+                    // parks directly on the escalation review and the task is
+                    // terminal, so a stray tick can never re-dispatch it into a
+                    // fresh approval loop (the approval row is already expired).
+                    if (configuration.Graph is not null && parkedLane is not null)
+                    {
+                        task.Status = "failed";
+                        task.ResultStatus = "failed";
+                        task.ResultSummary = "Approval expired while the run was unattended.";
+                        task.CompletedAt = DateTimeOffset.UtcNow;
+                        checkpoint.Phase = "awaiting_user";
+                        checkpoint.AwaitingApprovalExpiryReview = true;
+                    }
                     checkpoint = await SaveCheckpointAsync(checkpoint, checkpoint.CheckpointRevision, "tool-park-expired", cancellationToken).ConfigureAwait(false);
-                    if (parkedLane is not null)
+                    if (parkedLane is not null && configuration.Graph is null)
                     {
                         await EscalateLaneAsync(Guid.Parse(run.RunId), run, parkedLane,
                             $"Approval for tool '{pendingTurn.ToolId}' expired its decision window while the run was unattended.",
@@ -1568,6 +1617,18 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                         // overwrite the escalated run status with awaiting_approval.
                         return new ToolTaskExecutionResult(checkpoint, Waiting: true, Result: null);
                     }
+                    // Graph tiers: park the run directly on the escalation review so
+                    // an unattended expiry never fails the run silently — the user
+                    // decides whether to continue (replan the rest) or cancel.
+                    var expiryReason = $"Approval for tool '{pendingTurn.ToolId}' expired its decision window while the run was unattended.";
+                    await TrySetRunStatusAsync(run.RunId, "awaiting_user", expiryReason, cancellationToken).ConfigureAwait(false);
+                    await AppendEventAsync(Guid.Parse(run.RunId), "worker.failed",
+                        "The tool task failed after its approval expired unattended.",
+                        new { run_id = run.RunId, task_id = task.TaskId, task_key = task.TaskKey, error_category = RunErrorTaxonomy.ApprovalExpired }, cancellationToken).ConfigureAwait(false);
+                    await AppendEventAsync(Guid.Parse(run.RunId), "supervision.user_review.requested",
+                        "The run is waiting for a user decision after an approval expiry.",
+                        new { run_id = run.RunId, lane_key = "main", decision = "escalate", reasons = new[] { expiryReason }, options = new[] { "continue", "correct", "cancel" } }, cancellationToken).ConfigureAwait(false);
+                    return new ToolTaskExecutionResult(checkpoint, Waiting: true, Result: null);
                 }
                 if (dispatch.Status is ToolDispatchStatus.AwaitingApproval or ToolDispatchStatus.AwaitingResume
                     or ToolDispatchStatus.AwaitingDelegate or ToolDispatchStatus.AwaitingUser)
@@ -1755,36 +1816,60 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         CancellationToken cancellationToken)
     {
         var runId = Guid.Parse(run.RunId);
-        WorkerSelection selected;
-        try
-        {
-            selected = ResolveOrSelectWorker(configuration, task);
-        }
-        catch (WorkerUnavailableException)
-        {
-            await EvaluateAndDispatchOperationsAsync(OperationalTriggerPoint.CapabilityMissing, run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
-            throw;
-        }
-        catch (InvalidDataException ex)
-        {
-            // Frozen manifest/roster drift against the persisted assignment is a
-            // configuration failure scoped to this task, not an engine invariant.
-            throw new WorkerAssignmentException(ex.Message, ex);
-        }
-
-        // Graph-tier dispatch authority and budget run BEFORE the assignment is
-        // persisted: a doomed selection must never reach the checkpoint. The
-        // instance population also feeds the graph-tier budget guard, so it is
-        // loaded before the assignment write instead of after it.
         var graph = configuration.Graph;
         var instances = await _instances.ListByRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        if (graph is not null)
+
+        // Resolve the dispatch target: a persisted spawnable-template assignment
+        // wins, then the frozen roster, then (graph tiers) the spawnable whitelist
+        // for tasks the roster cannot cover — that fallback IS the spawn demand.
+        var spawnable = ResolvePersistedSpawnable(configuration, task);
+        WorkerSelection selected;
+        if (spawnable is not null)
         {
-            if (!GraphEdgeAuthority.IsDispatchAllowed(graph, selected.Agent.Id))
-                throw new WorkerAssignmentException(
-                    $"Task '{task.TaskKey}' worker '{selected.Agent.Id}' is not a declared dispatch target of the mode graph (tier {graph.Tier}).");
-            EnsureGraphWorkerBudget(instances, configuration.Spawn.MaxAgentsPerRun, task.TaskKey);
+            selected = new WorkerSelection(SpawnableDefinition(spawnable, configuration), task.WorkerAssignmentReason ?? "spawnable_whitelist");
         }
+        else
+        {
+            try
+            {
+                selected = ResolveOrSelectWorker(configuration, task);
+            }
+            catch (WorkerUnavailableException)
+            {
+                await EvaluateAndDispatchOperationsAsync(OperationalTriggerPoint.CapabilityMissing, run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
+                // A task no roster worker covers is a spawn demand. The frozen
+                // spawnable whitelist decides what it means: nothing covers it →
+                // the loud worker_unavailable failure (run-level, unchanged); a
+                // template covers it but the tier forbids spawn → the explicit
+                // graph_tier_spawn_denied rejection; otherwise spawn it.
+                var coverage = GraphSpawnAuthority.FindCoverage(graph, task.RequiredTools, task.RequiredCapabilities);
+                if (coverage is null) throw;
+                var tierCarriesSpawnAuthority = graph is not null
+                    && (string.Equals(graph.Tier, FrozenGraphTiers.SelfDispatch, StringComparison.Ordinal)
+                        || string.Equals(graph.Tier, FrozenGraphTiers.FreeForm, StringComparison.Ordinal));
+                if (!tierCarriesSpawnAuthority)
+                    throw new WorkerAssignmentException(
+                        $"Task '{task.TaskKey}' matches spawnable template '{coverage.Slug}', but the {graph?.Tier ?? "declared-graph"} tier denies spawn (graph_tier_spawn_denied).");
+                spawnable = coverage;
+                selected = new WorkerSelection(SpawnableDefinition(spawnable, configuration), "spawnable_whitelist");
+            }
+            catch (InvalidDataException ex)
+            {
+                // Frozen manifest/roster drift against the persisted assignment is a
+                // configuration failure scoped to this task, not an engine invariant.
+                throw new WorkerAssignmentException(ex.Message, ex);
+            }
+        }
+
+        // Dispatch authority and budget run BEFORE the assignment is persisted: a
+        // doomed selection must never reach the checkpoint. The instance
+        // population also feeds the graph-tier budget guard, so it is loaded
+        // before the assignment write instead of after it.
+        if (spawnable is null && graph is not null
+            && !GraphEdgeAuthority.IsDispatchAllowed(graph, selected.Agent.Id))
+            throw new WorkerAssignmentException(
+                $"Task '{task.TaskKey}' worker '{selected.Agent.Id}' is not a declared dispatch target of the mode graph (tier {graph.Tier}).");
+        EnsureGraphWorkerBudget(instances, configuration.Spawn.MaxAgentsPerRun, task.TaskKey);
         if (string.IsNullOrWhiteSpace(task.WorkerAgentSlug))
         {
             task.WorkerAgentSlug = selected.Agent.Id;
@@ -1826,29 +1911,53 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                 || selected.Agent.AgentVersionId is not { } versionId
                 || string.IsNullOrWhiteSpace(selected.Agent.VersionContentHash))
                 throw new WorkerAssignmentException($"Frozen specialist '{selected.Agent.Id}' has no immutable version binding.");
-            if (graph is not null)
+
+            // Engine-authoritative root path for declared-graph tiers: the
+            // worker's authority comes from the frozen roster definition or the
+            // frozen spawnable template (the seed carries it), NOT from a parent
+            // grant — meeting as parent would fail SpawnAsync's layer and subset
+            // gates by construction. Budget already guarded above; lineage audit
+            // carries the author.
+            IReadOnlyList<string> seedTools;
+            if (spawnable is not null)
             {
-                // Engine-authoritative root path for declared-graph tiers: the
-                // worker's authority comes from the frozen roster definition (the
-                // seed carries it), NOT from a parent grant — meeting as parent
-                // would fail SpawnAsync's layer and subset gates by construction.
-                // Budget already guarded above; lineage audit carries the author.
-                worker = await _instances.CreateRootAsync(new RuntimeAgentSeed(
-                    Guid.Parse(run.SessionId),
-                    runId,
-                    selected.Agent.Id,
-                    selected.Agent.Layer,
-                    selected.Agent.Role,
-                    "chat",
-                    selected.Agent.Capabilities,
-                    selected.Agent.AllowedTools,
-                    ["workspace"],
-                    configuration.Context.DefaultTokenBudget,
-                    TaskId: task.TaskId,
-                    AgentDefinitionId: definitionId,
-                    AgentVersionId: versionId,
-                    VersionContentHash: selected.Agent.VersionContentHash), cancellationToken).ConfigureAwait(false);
-                await AppendEventAsync(runId, "agent.created", "Graph-tier execution worker created.", new
+                // The author narrows within the frozen template ceiling: every
+                // required tool must sit inside it (spawn_tool_ceiling_exceeded);
+                // a task with no required tools gets the whole ceiling.
+                var required = task.RequiredTools
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+                var outside = spawnable.ToolCeiling.Contains("*", StringComparer.Ordinal)
+                    ? []
+                    : required.Where(tool => !spawnable.ToolCeiling.Contains(tool, StringComparer.OrdinalIgnoreCase)).ToArray();
+                if (outside.Length > 0)
+                    throw new WorkerAssignmentException(
+                        $"Task '{task.TaskKey}' requires tools outside the spawnable template '{spawnable.Slug}' ceiling: {string.Join(", ", outside)} (spawn_tool_ceiling_exceeded).");
+                seedTools = required.Length > 0 ? required : spawnable.ToolCeiling;
+            }
+            else
+            {
+                seedTools = selected.Agent.AllowedTools;
+            }
+            worker = await _instances.CreateRootAsync(new RuntimeAgentSeed(
+                Guid.Parse(run.SessionId),
+                runId,
+                selected.Agent.Id,
+                selected.Agent.Layer,
+                selected.Agent.Role,
+                "chat",
+                selected.Agent.Capabilities,
+                seedTools,
+                ResourceSeed(spawnable?.ResourceGrants ?? selected.Agent.ResourceGrants),
+                configuration.Context.DefaultTokenBudget,
+                TaskId: task.TaskId,
+                AgentDefinitionId: definitionId,
+                AgentVersionId: versionId,
+                VersionContentHash: selected.Agent.VersionContentHash), cancellationToken).ConfigureAwait(false);
+            await AppendEventAsync(runId, "agent.created",
+                spawnable is null ? "Graph-tier execution worker created." : $"Spawnable worker '{spawnable.Slug}' created from the frozen whitelist.",
+                new
                 {
                     agent_instance_id = worker.Id,
                     agent_slug = selected.Agent.Id,
@@ -1858,74 +1967,6 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                     role = worker.Role,
                     author_instance_id = plannerId
                 }, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-            var parent = instances.FirstOrDefault(item => item.Id == plannerId)
-                ?? throw new InvalidDataException("Planner instance is missing from the run lineage.");
-            // A task with no required_tools still needs an instance grant that matches
-            // the declaration surface: with an empty grant the frozen-catalog fallback
-            // could only ever advertise zero tools, so a worker improvising a call
-            // would fail as "not advertised". Grant the template's frozen scope
-            // (concrete ids expanded against the run-frozen manifest, additionally
-            // bounded by the parent instance's own envelope). Dispatch authority is
-            // unchanged — every call still passes scope, approval, and budget gates;
-            // this widens only what the worker may be told about.
-            IReadOnlyList<string> spawnTools = task.RequiredTools;
-            if (spawnTools.Count == 0)
-            {
-                var manifestTools = configuration.ToolManifest.Select(tool => tool.Id)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var templateScope = ExpandFrozenTools(selected.Agent.AllowedTools, manifestTools);
-                var parentScope = ExpandFrozenTools(parent.AllowedTools, manifestTools);
-                spawnTools = templateScope.Where(parentScope.Contains)
-                    .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-            }
-            try
-            {
-                worker = await _instances.SpawnAsync(new AgentSpawnRequest(
-                    parent.Id,
-                    string.IsNullOrWhiteSpace(task.Description) ? task.Title : task.Description,
-                    task.SuccessCriteria,
-                    ["session_history", "task_context", "reviewed_memory"],
-                    "chat",
-                    spawnTools,
-                    ["workspace"],
-                    configuration.Context.DefaultTokenBudget,
-                    task.TaskId,
-                    selected.Agent.Role,
-                    new AgentSpawnLimits(configuration.Spawn.MaxDepth, configuration.Spawn.MaxAgentsPerRun, configuration.Spawn.MaxParallelWorkers),
-                    Template: new FrozenAgentTemplate(
-                        selected.Agent.Id,
-                        selected.Agent.Layer,
-                        selected.Agent.Role,
-                        selected.Agent.Capabilities,
-                        selected.Agent.AllowedTools,
-                        definitionId,
-                        versionId,
-                        selected.Agent.VersionContentHash)), cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or UnauthorizedAccessException)
-            {
-                // Grant/subset/budget/template rejections are configuration failures
-                // scoped to this task; the run keeps the rest of its graph.
-                throw new WorkerAssignmentException(
-                    $"The frozen specialist '{selected.Agent.Id}' could not be spawned for task '{task.TaskKey}': {ex.Message}", ex);
-            }
-            await AppendEventAsync(runId, "agent.created", "Execution worker created.", new
-            {
-                agent_instance_id = worker.Id,
-                parent_instance_id = worker.ParentInstanceId,
-                task_id = task.TaskId,
-                agent_slug = selected.Agent.Id,
-                agent_definition_id = worker.AgentDefinitionId,
-                agent_version_id = worker.AgentVersionId,
-                layer = worker.Layer,
-                role = worker.Role
-            }, cancellationToken, task.TaskId).ConfigureAwait(false);
-            try { await _lifecycle.AppendRunStreamAsync(runId.ToString(), new DurableRunStreamAppend(checkpoint.TurnId, "ephemeral_agent", null, IdempotencyKey: $"run:{runId}:ephemeral:{worker.Id}"), cancellationToken).ConfigureAwait(false); } catch { }
-            }
         }
         VerifyWorkerInstance(worker, selected.Agent, task);
 
@@ -1949,6 +1990,65 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         if (instances.Count >= maxAgentsPerRun)
             throw new WorkerAssignmentException(
                 $"Graph-tier worker budget exhausted for task '{taskKey}': the run already carries {instances.Count} instances (ceiling {maxAgentsPerRun}).");
+    }
+
+    /// <summary>
+    /// Serializes frozen resource grants into the instance grant strings the Tools
+    /// layer consumes ("read:prefix" / "write:prefix"; write implies read at the
+    /// PDP resource_access boundary). Empty grants seed an empty list — the
+    /// instance then holds no workspace authorization and provider tool calls are
+    /// denied (fail-closed WS-4 semantics; the historical "workspace" coarse
+    /// token is retired).
+    /// </summary>
+    private static IReadOnlyList<string> ResourceSeed(IReadOnlyList<FrozenResourceGrant> grants) =>
+        grants.Count == 0
+            ? []
+            : grants.Select(grant => $"{grant.Level}:{grant.PathPrefix}").Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+    /// <summary>
+    /// A persisted assignment naming a spawnable-template slug routes to that
+    /// template instead of the roster; version binding drift still fails closed.
+    /// </summary>
+    private static FrozenSpawnableTemplate? ResolvePersistedSpawnable(FrozenRunConfigurationV1 configuration, DurableTaskNode task)
+    {
+        if (string.IsNullOrWhiteSpace(task.WorkerAgentSlug)) return null;
+        var template = configuration.Graph?.SpawnableTemplates.FirstOrDefault(item =>
+            string.Equals(item.Slug, task.WorkerAgentSlug, StringComparison.OrdinalIgnoreCase));
+        if (template is null) return null;
+        if ((task.WorkerAgentDefinitionId is { } persistedDefinition && persistedDefinition != template.AgentDefinitionId)
+            || (task.WorkerAgentVersionId is { } persistedVersion && persistedVersion != template.AgentVersionId)
+            || (task.WorkerAgentVersionHash is { } persistedHash && !string.Equals(persistedHash, template.VersionHash, StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException($"Persisted worker assignment for task '{task.TaskKey}' does not match the frozen spawnable template.");
+        return template;
+    }
+
+    /// <summary>
+    /// Materializes a spawnable template as the worker definition the downstream
+    /// flows (tool surface, model turn, instance verification) already consume.
+    /// Its authority is the frozen template itself: ceiling as AllowedTools,
+    /// on_demand lifecycle, execution layer. The template's model strategy is
+    /// "inherit" by construction, so the model plan is the session default — the
+    /// conversation identity's frozen plan.
+    /// </summary>
+    private static RuntimeAgentDefinition SpawnableDefinition(FrozenSpawnableTemplate template, FrozenRunConfigurationV1 configuration)
+    {
+        var conversation = RequiredConversationAgent(configuration);
+        return new RuntimeAgentDefinition(
+            template.Slug,
+            "execution",
+            template.Role,
+            "on_demand",
+            template.Capabilities,
+            DirectUserOutput: false,
+            ContextAccess: "read")
+        {
+            AgentDefinitionId = template.AgentDefinitionId,
+            AgentVersionId = template.AgentVersionId,
+            VersionContentHash = template.VersionHash,
+            AllowedTools = template.ToolCeiling,
+            ModelPlan = conversation.ModelPlan,
+            Enabled = true
+        };
     }
 
     private async Task<WorkerModelTurn> GetWorkerModelTurnAsync(
@@ -2017,10 +2117,11 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         var hasGeneralWorker = configuration.ExecutionAgents.Any(agent =>
             agent.Enabled && string.Equals(agent.Id, "worker.general", StringComparison.Ordinal));
         var unclassifiedTask = requiredTools.Count == 0 && requiredCapabilities.Count == 0;
+        // Every enabled execution-roster member is a worker candidate; the
+        // execution layer holds no planner (excluded explicitly) and no other
+        // non-worker role, so the old worker.*/role-prefix filter is gone.
         var candidates = configuration.ExecutionAgents
             .Where(agent => agent.Enabled && !string.Equals(agent.Id, "task_planner", StringComparison.Ordinal))
-            .Where(agent => agent.Id.StartsWith("worker.", StringComparison.Ordinal)
-                || agent.Role is "task_executor" or "git_specialist")
             .Select(agent =>
             {
                 ValidateFrozenAgent(agent, "worker");
@@ -2101,7 +2202,15 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             && agent.AgentDefinitionId == task.WorkerAgentDefinitionId
             && agent.AgentVersionId == task.WorkerAgentVersionId
             && string.Equals(agent.VersionContentHash, task.WorkerAgentVersionHash, StringComparison.OrdinalIgnoreCase));
-        return definition ?? throw new InvalidDataException($"Task '{task.TaskKey}' worker assignment is not present in the frozen roster.");
+        if (definition is not null) return definition;
+        var template = configuration.Graph?.SpawnableTemplates.SingleOrDefault(item =>
+            string.Equals(item.Slug, task.WorkerAgentSlug, StringComparison.OrdinalIgnoreCase)
+            && item.AgentDefinitionId == task.WorkerAgentDefinitionId
+            && item.AgentVersionId == task.WorkerAgentVersionId
+            && string.Equals(item.VersionHash, task.WorkerAgentVersionHash, StringComparison.OrdinalIgnoreCase));
+        return template is not null
+            ? SpawnableDefinition(template, configuration)
+            : throw new InvalidDataException($"Task '{task.TaskKey}' worker assignment is not present in the frozen roster.");
     }
 
     private static void VerifyWorkerInstance(
@@ -2466,23 +2575,12 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         // tasks the user is about to judge. Leave those runs on retry semantics.
         if (checkpoint.Lanes.Any(lane => lane.Escalated)) return false;
 
-        RuntimeAgentDefinition plannerDefinition;
-        if (configuration.Graph is not null)
-        {
-            // Declared-graph replan: the conversation identity stays the task-graph
-            // author (same author instance, no task_planner requirement).
-            var author = await EnsureConversationAuthorAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
-            checkpoint.MeetingAgentId = author.Id;
-            checkpoint.PlannerAgentId = author.Id;
-            plannerDefinition = RequiredConversationAgent(configuration);
-        }
-        else
-        {
-            var agents = await EnsureRootAgentsAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
-            checkpoint.MeetingAgentId = agents.Meeting.Id;
-            checkpoint.PlannerAgentId = agents.Planner.Id;
-            plannerDefinition = RequiredAgent(configuration.ExecutionAgents, "task_planner");
-        }
+        // Declared-graph replan: the conversation identity stays the task-graph
+        // author (same author instance, no task_planner requirement).
+        var author = await EnsureConversationAuthorAsync(run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
+        checkpoint.MeetingAgentId = author.Id;
+        checkpoint.PlannerAgentId = author.Id;
+        var plannerDefinition = RequiredConversationAgent(configuration);
 
         var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
         var assembly = await AssemblePromptAsync(plannerDefinition, context, cancellationToken).ConfigureAwait(false);
@@ -2635,7 +2733,7 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         FullDuplexCheckpointV1 checkpoint,
         CancellationToken cancellationToken)
     {
-        var meetingDefinition = RequiredAgent(configuration.OperationAgents, "meeting");
+        var meetingDefinition = RequiredConversationAgent(configuration);
         var context = await BuildContextAsync(run, configuration, meetingDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
@@ -2932,7 +3030,7 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
                 await FinalizeCancellationAsync(runId, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
                 return;
             }
-            var meetingDefinition = RequiredAgent(configuration.OperationAgents, "meeting");
+            var meetingDefinition = RequiredConversationAgent(configuration);
             var context = await BuildContextAsync(run, configuration, meetingDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
             checkpoint.MeetingResponse = await GenerateMeetingResponseAsync(configuration, checkpoint, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
             var stateAfterMeeting = await _lifecycle.GetRunStateAsync(run.RunId, cancellationToken).ConfigureAwait(false);
@@ -3296,7 +3394,7 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         var instance = await _instances.CreateRootAsync(new RuntimeAgentSeed(
             Guid.Parse(run.SessionId), Guid.Parse(run.RunId), plannerDefinition.Id, plannerDefinition.Layer,
             plannerDefinition.Role, "chat", plannerDefinition.Capabilities, plannerDefinition.AllowedTools,
-            ["workspace"], configuration.Context.DefaultTokenBudget,
+            ResourceSeed(plannerDefinition.ResourceGrants), configuration.Context.DefaultTokenBudget,
             AgentDefinitionId: plannerDefinition.AgentDefinitionId,
             AgentVersionId: plannerDefinition.AgentVersionId,
             VersionContentHash: plannerDefinition.VersionContentHash,
@@ -3531,11 +3629,12 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             "chat",
             conversationDefinition.Capabilities,
             conversationDefinition.AllowedTools,
-            ["workspace"],
+            ResourceSeed(conversationDefinition.ResourceGrants),
             configuration.Context.DefaultTokenBudget,
             AgentDefinitionId: conversationDefinition.AgentDefinitionId,
             AgentVersionId: conversationDefinition.AgentVersionId,
-            VersionContentHash: conversationDefinition.VersionContentHash), cancellationToken).ConfigureAwait(false);
+            VersionContentHash: conversationDefinition.VersionContentHash,
+            DirectUserOutput: true), cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(runId, "agent.created", "Conversation author agent created.", new
         {
             agent_instance_id = author.Id,
@@ -3557,44 +3656,6 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
         return configuration.OperationAgents.SingleOrDefault(item =>
             string.Equals(item.Id, slug, StringComparison.Ordinal))
             ?? throw new InvalidDataException($"The frozen operation roster has no conversation agent '{slug}'.");
-    }
-
-    private async Task<(RuntimeAgentInstance Meeting, RuntimeAgentInstance Planner)> EnsureRootAgentsAsync(
-        RunState run,
-        FrozenRunConfigurationV1 configuration,
-        FullDuplexCheckpointV1 checkpoint,
-        CancellationToken cancellationToken)
-    {
-        var runId = Guid.Parse(run.RunId);
-        var sessionId = Guid.Parse(run.SessionId);
-        var all = await _instances.ListByRunAsync(runId, cancellationToken).ConfigureAwait(false);
-        var meeting = checkpoint.MeetingAgentId is { } meetingId ? all.FirstOrDefault(item => item.Id == meetingId) : null;
-        var planner = checkpoint.PlannerAgentId is { } plannerId ? all.FirstOrDefault(item => item.Id == plannerId) : null;
-        var meetingDefinition = RequiredAgent(configuration.OperationAgents, "meeting");
-        var plannerDefinition = RequiredAgent(configuration.ExecutionAgents, "task_planner");
-        meeting ??= all.FirstOrDefault(item => !item.Generated && item.AgentVersionId == meetingDefinition.AgentVersionId);
-        planner ??= all.FirstOrDefault(item => !item.Generated && item.AgentVersionId == plannerDefinition.AgentVersionId);
-        if (meeting is not null) VerifyRootInstance(meeting, meetingDefinition, checkpoint.MeetingAgentId, "meeting");
-        if (planner is not null) VerifyRootInstance(planner, plannerDefinition, checkpoint.PlannerAgentId, "task planner");
-        if (meeting is null)
-        {
-            meeting = await _instances.CreateRootAsync(new RuntimeAgentSeed(sessionId, runId, meetingDefinition.Id, meetingDefinition.Layer,
-                meetingDefinition.Role, "chat", meetingDefinition.Capabilities, meetingDefinition.AllowedTools, ["workspace"], configuration.Context.DefaultTokenBudget,
-                AgentDefinitionId: meetingDefinition.AgentDefinitionId,
-                AgentVersionId: meetingDefinition.AgentVersionId,
-                VersionContentHash: meetingDefinition.VersionContentHash), cancellationToken).ConfigureAwait(false);
-            await AppendEventAsync(runId, "agent.created", "Meeting agent created.", new { agent_instance_id = meeting.Id, layer = meeting.Layer, role = meeting.Role }, cancellationToken).ConfigureAwait(false);
-        }
-        if (planner is null)
-        {
-            planner = await _instances.CreateRootAsync(new RuntimeAgentSeed(sessionId, runId, plannerDefinition.Id, plannerDefinition.Layer,
-                plannerDefinition.Role, "chat", plannerDefinition.Capabilities, plannerDefinition.AllowedTools, ["workspace"], configuration.Context.DefaultTokenBudget,
-                AgentDefinitionId: plannerDefinition.AgentDefinitionId,
-                AgentVersionId: plannerDefinition.AgentVersionId,
-                VersionContentHash: plannerDefinition.VersionContentHash), cancellationToken).ConfigureAwait(false);
-            await AppendEventAsync(runId, "agent.created", "Task planning agent created.", new { agent_instance_id = planner.Id, layer = planner.Layer, role = planner.Role }, cancellationToken).ConfigureAwait(false);
-        }
-        return (meeting, planner);
     }
 
     private sealed record WorkerCandidate(
@@ -3634,7 +3695,7 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             "chat",
             definition.Capabilities,
             definition.AllowedTools,
-            ["workspace"],
+            ResourceSeed(definition.ResourceGrants),
             configuration.Context.DefaultTokenBudget,
             AgentDefinitionId: definition.AgentDefinitionId,
             AgentVersionId: definition.AgentVersionId,
@@ -4284,7 +4345,7 @@ internal sealed class FullDuplexRunEngine : BackgroundService, IFullDuplexRunEng
             "chat",
             definition.Capabilities,
             definition.AllowedTools,
-            ["workspace"],
+            ResourceSeed(definition.ResourceGrants),
             configuration.Context.DefaultTokenBudget,
             AgentDefinitionId: definition.AgentDefinitionId,
             AgentVersionId: definition.AgentVersionId,
@@ -4633,6 +4694,14 @@ internal sealed class FullDuplexCheckpointV1
     /// machine; no reliance on event-dedupe). Absent on pre-graph checkpoints.
     /// </summary>
     public bool GraphTierAnnounced { get; set; }
+
+    /// <summary>
+    /// Set when a graph-tier (lane-less) approval expiry parks the run on the
+    /// user-review escalation. Unlike a supervision escalation, a stray wake must
+    /// NOT be read as "user chose continue": the flag keeps the run parked until
+    /// an explicit user decision clears it. Absent on non-graph checkpoints.
+    /// </summary>
+    public bool AwaitingApprovalExpiryReview { get; set; }
 }
 
 /// <summary>

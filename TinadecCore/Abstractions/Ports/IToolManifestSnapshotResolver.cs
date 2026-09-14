@@ -20,12 +20,15 @@ public interface IToolManifestSnapshotResolver
 /// <summary>
 /// The only authorization input accepted while freezing a manifest.  An explicit
 /// wildcard is expanded against the v2 process manifest; an empty list authorizes
-/// no tools.
+/// no tools. <paramref name="SpawnableToolIds"/> carries the graph-tier spawnable
+/// templates' tool ceilings: they join the frozen manifest even though they are
+/// not part of any roster node's effective tool surface.
 /// </summary>
 public sealed record ToolManifestSnapshotRequest(
     Guid SessionId,
     IReadOnlyList<string> AllowedToolIds,
-    bool AllowAllTools);
+    bool AllowAllTools,
+    IReadOnlyList<string>? SpawnableToolIds = null);
 
 /// <summary>
 /// Immutable v2 tool metadata retained in the run's frozen configuration.  It is

@@ -352,7 +352,8 @@ public sealed class GovernanceService : IAuthorizationService, IPolicyDecisionPo
             command.ExpectedCost,
             command.Rationale,
             command.IdempotencyKey,
-            command.PermissionMode), cancellationToken).ConfigureAwait(false);
+            command.PermissionMode,
+            command.ResourceClaim), cancellationToken).ConfigureAwait(false);
         var status = resolution.Decision.Outcome switch
         {
             GovernanceOutcomes.Allowed => "allowed",
@@ -422,9 +423,13 @@ public sealed class GovernanceService : IAuthorizationService, IPolicyDecisionPo
         var now = UtcNow;
         var expiresAt = now.Add(command.RequestedDuration);
         var idempotencyKey = CapabilityRuleMatcher.Required(command.IdempotencyKey, nameof(command.IdempotencyKey), 256);
+        // WS-8: an optional resource claim carries the concrete workspace target
+        // of this tool call. It only feeds the resource_access boundary; the
+        // permission request, lease and decision all stay bound to the tool claim.
+        var resourceClaim = command.ResourceClaim is null ? null : CapabilityRuleMatcher.NormalizeClaim(command.ResourceClaim);
         var boundaries = NormalizeBoundaries(await _authorizationContextResolver.ResolveBoundariesAsync(new AuthorizationContextRequest(
             scope.TenantId, scope.WorkspaceId, command.SubjectPrincipalId, command.SubjectAgentInstanceId,
-            claim, command.RunId, command.TaskId), cancellationToken).ConfigureAwait(false));
+            claim, command.RunId, command.TaskId, resourceClaim), cancellationToken).ConfigureAwait(false));
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         // Resolve and hash the effective boundaries before the idempotency lookup.
         // A replay must compare the complete request, including the policy

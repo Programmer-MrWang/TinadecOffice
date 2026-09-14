@@ -1,4 +1,4 @@
-import type { AgentPackEnvelope } from '@/agentPacks/OfficeAgentPack'
+import type { AgentPackEnvelope } from '@/agentPacks/GraphSeedPack'
 
 export interface ProjectDto {
   id: string;
@@ -1724,6 +1724,8 @@ export interface DeclaredGraphEdgeDto {
 
 /** Declared mode graph (DmaEA graph orchestration): the published mode-version snapshot projected as base layer. */
 export interface DeclaredModeGraphDto {
+  /** The run's frozen orchestration tier (deterministic | self_dispatch | free_form); null at session scope. */
+  tier?: string | null;
   nodes: DeclaredGraphNodeDto[];
   edges: DeclaredGraphEdgeDto[];
 }

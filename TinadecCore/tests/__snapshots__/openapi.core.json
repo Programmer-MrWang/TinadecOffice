@@ -489,6 +489,12 @@
       },
       "AgentPackMetadataDto": {
         "properties": {
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "name": {
             "type": [
               "null",

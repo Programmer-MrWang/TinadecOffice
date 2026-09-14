@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => ({
   listAgents: vi.fn(),
   getAgent: vi.fn(),
   getAgentPack: vi.fn(),
+  listAgentPacks: vi.fn(),
+  installOrUpgradeGraphSeedPack: vi.fn(),
+  refreshGraphSeedPack: vi.fn(),
 }))
 
 vi.mock('../api', () => ({
@@ -18,6 +21,7 @@ vi.mock('../api', () => ({
       if (property === 'listAgents') return mocks.listAgents
       if (property === 'getAgent') return mocks.getAgent
       if (property === 'getAgentPack') return mocks.getAgentPack
+      if (property === 'listAgentPacks') return mocks.listAgentPacks
       if (property === 'getHarnessManifest') return vi.fn().mockResolvedValue({ tools: [] })
       if (property === 'getToolLayerReadiness'
         || property === 'getModelReadiness'
@@ -40,18 +44,18 @@ vi.mock('@/components/ui', () => ({
   UiDropdownMenu: { template: '<div><slot /></div>' },
 }))
 
-vi.mock('@/agentPacks/officeAgentPackBootstrap', async () => {
+vi.mock('@/agentPacks/graphSeedPackBootstrap', async () => {
   const { ref } = await vi.importActual<typeof import('vue')>('vue')
   return {
-    officeAgentPackState: ref({
+    graphSeedPackState: ref({
       phase: 'up_to_date',
       preview: null,
       active_version: '0.1.0',
       error: null,
       checked_at: Date.now(),
     }),
-    installOrUpgradeOfficeAgentPack: vi.fn(),
-    refreshOfficeAgentPack: vi.fn(),
+    installOrUpgradeGraphSeedPack: mocks.installOrUpgradeGraphSeedPack,
+    refreshGraphSeedPack: mocks.refreshGraphSeedPack,
   }
 })
 
@@ -98,7 +102,7 @@ const managedAgent = {
   layer: 'operation',
   role: 'session_coordinator',
   source_kind: 'pack',
-  source_key: 'tinadec.office.agent-pack:meeting',
+  source_key: 'tinadec.graph.seed-pack:meeting',
   managed: true,
   // Pack ownership is authoritative even when an older projection reports false.
   writable: false,
@@ -169,6 +173,9 @@ beforeEach(() => {
       disposition: 'reused',
     }],
   })
+  mocks.listAgentPacks.mockReset().mockResolvedValue([])
+  mocks.installOrUpgradeGraphSeedPack.mockReset()
+  mocks.refreshGraphSeedPack.mockReset()
 
   const stored = new Map<string, string>()
   const storage = {
@@ -199,7 +206,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('SettingsPage OfficeAgentPack clone flow', () => {
+describe('SettingsPage GraphSeedPack clone flow', () => {
   it('opens a Pack-managed agent and clones it through the existing custom-agent flow', async () => {
     const transitionStub = { template: '<slot />' }
     const wrapper = mount(SettingsPage, {
@@ -224,7 +231,7 @@ describe('SettingsPage OfficeAgentPack clone flow', () => {
     }
     expect(wrapper.find('.agent-detail-panel').text()).toContain('Custom Helper')
 
-    const packCloneButton = wrapper.findAll('[data-testid="office-agent-pack-status"] button')
+    const packCloneButton = wrapper.findAll('[data-testid="graph-seed-pack-status"] button')
       .find((button) => button.text().includes('agentPack.cloneAction'))
     expect(packCloneButton).toBeDefined()
     await packCloneButton!.trigger('click')
@@ -249,6 +256,89 @@ describe('SettingsPage OfficeAgentPack clone flow', () => {
       system_prompt: 'Managed prompt',
       enabled: true,
     }))
+
+    wrapper.unmount()
+  })
+})
+
+describe('SettingsPage installed Agent Pack inventory', () => {
+  async function mountAgentCenter() {
+    const transitionStub = { template: '<slot />' }
+    const wrapper = mount(SettingsPage, {
+      global: {
+        stubs: {
+          Transition: transitionStub,
+          transition: transitionStub,
+          GeneralSection: true,
+        },
+      },
+    })
+    await flushPromises()
+    const agentCenterNav = wrapper.findAll('.settings-nav-item')
+      .find((item) => item.text().includes('settings.agentCenter'))
+    expect(agentCenterNav).toBeDefined()
+    await agentCenterNav!.trigger('click')
+    await flushPromises()
+    return wrapper
+  }
+
+  it('lists installed packs read-only and flags a retired pack with the GraphSeedPack install prompt', async () => {
+    mocks.listAgentPacks.mockResolvedValue([
+      {
+        pack_id: 'tinadec.office.agent-pack',
+        owner: 'tinadec.office',
+        name: 'OfficeAgentPack',
+        status: 'active',
+        active_version: '0.2.4',
+        integrity_digest: 'a'.repeat(64),
+        revision: 1,
+        installed_at: '2026-08-25T12:00:00Z',
+        updated_at: '2026-08-25T12:00:00Z',
+      },
+      {
+        pack_id: 'tinadec.graph.seed-pack',
+        owner: 'tinadec',
+        name: 'GraphSeedPack',
+        status: 'active',
+        active_version: '2.0.1',
+        integrity_digest: 'b'.repeat(64),
+        revision: 1,
+        installed_at: '2026-09-13T12:00:00Z',
+        updated_at: '2026-09-13T12:00:00Z',
+      },
+    ])
+
+    const wrapper = await mountAgentCenter()
+
+    const inventory = wrapper.find('[data-testid="installed-agent-packs"]')
+    expect(inventory.exists()).toBe(true)
+    expect(inventory.text()).toContain('tinadec.office.agent-pack')
+    expect(inventory.text()).toContain('tinadec.graph.seed-pack')
+    expect(inventory.text()).toContain('agentPack.retiredBadge')
+    expect(inventory.text()).not.toContain('agentPack.installedEmpty')
+
+    const notice = wrapper.find('[data-testid="retired-pack-notice"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text()).toContain('agentPack.retiredNotice')
+
+    const installButton = wrapper.find('[data-testid="retired-pack-install"]')
+    expect(installButton.exists()).toBe(true)
+    await installButton.trigger('click')
+    expect(mocks.installOrUpgradeGraphSeedPack).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('degrades to an empty inventory instead of failing when the listing route rejects', async () => {
+    mocks.listAgentPacks.mockRejectedValue(new Error('404 not found'))
+
+    const wrapper = await mountAgentCenter()
+
+    const inventory = wrapper.find('[data-testid="installed-agent-packs"]')
+    expect(inventory.exists()).toBe(true)
+    expect(inventory.text()).toContain('agentPack.installedEmpty')
+    expect(wrapper.find('[data-testid="retired-pack-notice"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="graph-seed-pack-status"]').exists()).toBe(true)
 
     wrapper.unmount()
   })

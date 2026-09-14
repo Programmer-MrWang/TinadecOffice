@@ -232,6 +232,13 @@ public static class InteractionsEndpoints
         {
             return Results.Conflict(new { code = "context_conflict", message = ex.Message });
         }
+        catch (RunAdmissionException ex)
+        {
+            // Fail-closed admission rejections (graph_tier_lanes_unsupported,
+            // run freeze rules, spawn ceilings) surface as structured 409s with
+            // the snake_case code instead of a bare 500.
+            return Results.Conflict(new { code = ex.Code, message = ex.Message });
+        }
         catch (InvalidDataException ex)
         {
             // 会话绑定/请求指定的 mode version 不可用（未发布、缺失、跨工作区、快照

@@ -729,18 +729,28 @@ public sealed class AgentPackService : IAgentPackService
                 item => ReferenceKey(item.AgentRef!, "agent", $"mode '{resource.ResourceKey}' node '{item.NodeKey}' agent_ref"),
                 StringComparer.Ordinal);
             var agentResourceByKey = agentResources.ToDictionary(item => item.ResourceKey!, StringComparer.Ordinal);
-            var subjects = resource.Bindings!.Select(binding =>
-            {
-                var agentKey = nodeAgentKey[binding.NodeKey!];
-                var agent = agentResourceByKey[agentKey];
-                return new ModePublishGate.BindingSubject(
-                    binding.NodeKey!, agent.Slug ?? agentKey, agent.Layer ?? string.Empty,
-                    agent.Capabilities, agent.ToolScope, binding.ToolSwitches, binding.Envelope);
-            }).ToArray();
+            var subjects = resource.Bindings!
+                .Where(binding => binding.NodeKey is { Length: > 0 })
+                .Select(binding =>
+                {
+                    var agentKey = nodeAgentKey[binding.NodeKey!];
+                    var agent = agentResourceByKey[agentKey];
+                    return new ModePublishGate.BindingSubject(
+                        binding.NodeKey!, agent.Slug ?? agentKey, agent.Layer ?? string.Empty,
+                        agent.Capabilities, agent.ToolScope, binding.ToolSwitches, binding.Envelope);
+                }).ToArray();
             ModePublishGate.ValidateBindings(resource.ResourceKey!, subjects, ceilings: null);
         }
 
         var agentDefinitions = agentResources.ToDictionary(item => item.ResourceKey!, StringComparer.Ordinal);
+        // Binding tool_switches are part of the effective tool surface (narrowing
+        // only — ModePublishGate enforces the same view): a switched-off tool must
+        // not survive into the frozen roster's authority.
+        var switchesByNode = (resource.Bindings ?? [])
+            .Where(binding => binding.NodeKey is { Length: > 0 }
+                && binding.ToolSwitches is { } switches && switches.ValueKind == JsonValueKind.Object)
+            .GroupBy(binding => binding.NodeKey!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().ToolSwitches!.Value, StringComparer.Ordinal);
         var snapshotNodes = resource.Nodes.OrderBy(item => item.NodeKey, StringComparer.Ordinal).Select(node =>
         {
             var agentKey = ReferenceKey(node.AgentRef, "agent", $"mode '{resource.ResourceKey}' node '{node.NodeKey}' agent_ref");
@@ -749,6 +759,13 @@ public sealed class AgentPackService : IAgentPackService
             PublishedResource? prompt = agentResource.BasePromptPipelineRef is { Length: > 0 } promptRef
                 ? prompts[ReferenceKey(promptRef, "prompt", $"agent '{agentResource.ResourceKey}' base_prompt_pipeline_ref")]
                 : null;
+            var effectiveTools = EffectiveTools(agentResource.ToolScope, node.Config);
+            if (switchesByNode.TryGetValue(node.NodeKey!, out var switches))
+            {
+                effectiveTools = effectiveTools
+                    .Where(tool => !IsSwitchedOff(switches, tool))
+                    .ToArray();
+            }
             return new
             {
                 node_key = node.NodeKey,
@@ -759,7 +776,7 @@ public sealed class AgentPackService : IAgentPackService
                 label = node.Label,
                 config = NormalizeObject(node.Config),
                 relationship = node.Relationship is { } relationshipElement ? (object?)NormalizeObject(relationshipElement) : null,
-                effective_tools = EffectiveTools(agentResource.ToolScope, node.Config),
+                effective_tools = effectiveTools,
                 prompt_pipeline_id = prompt?.LogicalId,
                 prompt_version_id = prompt?.VersionId,
                 prompt_version_hash = prompt?.ContentHash
@@ -776,15 +793,24 @@ public sealed class AgentPackService : IAgentPackService
             item => item.NodeKey!,
             item => ReferenceKey(item.AgentRef!, "agent", $"mode '{resource.ResourceKey}' node '{item.NodeKey}' agent_ref"),
             StringComparer.Ordinal);
-        var snapshotBindings = (resource.Bindings ?? []).OrderBy(item => item.NodeKey, StringComparer.Ordinal).Select(binding => new
+        var snapshotBindings = (resource.Bindings ?? []).OrderBy(item => item.NodeKey, StringComparer.Ordinal).Select(binding =>
         {
-            node_key = binding.NodeKey,
-            agent_ref = agentKeyByNode[binding.NodeKey!],
-            duty_description_ref = binding.DutyDescriptionRef,
-            tool_switches = binding.ToolSwitches is { } switchesElement ? (object?)NormalizeObject(switchesElement) : null,
-            envelope = binding.Envelope is { } envelopeElement ? (object?)NormalizeObject(envelopeElement) : null,
-            includes_core_reserved = binding.IncludesCoreReserved,
-            instance_naming = binding.InstanceNaming is { } namingElement ? (object?)NormalizeObject(namingElement) : null,
+            // Node-less bindings attach an envelope to a spawnable template
+            // (agent_ref only) — the free_form director's buildable workers are
+            // not mode nodes, yet their frozen envelopes must ship with the mode.
+            var agentRef = binding.NodeKey is { Length: > 0 } nodeKey
+                ? agentKeyByNode[nodeKey]
+                : ReferenceKey(RequiredText(binding.AgentRef, $"mode '{resource.ResourceKey}' binding agent_ref", 256), "agent", $"mode '{resource.ResourceKey}' node-less binding agent_ref");
+            return new
+            {
+                node_key = binding.NodeKey,
+                agent_ref = agentRef,
+                duty_description_ref = binding.DutyDescriptionRef,
+                tool_switches = binding.ToolSwitches is { } switchesElement ? (object?)NormalizeObject(switchesElement) : null,
+                envelope = binding.Envelope is { } envelopeElement ? (object?)NormalizeObject(envelopeElement) : null,
+                includes_core_reserved = binding.IncludesCoreReserved,
+                instance_naming = binding.InstanceNaming is { } namingElement ? (object?)NormalizeObject(namingElement) : null,
+            };
         }).ToArray();
         var snapshotElement = JsonSerializer.SerializeToElement(new
         {
@@ -885,6 +911,12 @@ public sealed class AgentPackService : IAgentPackService
         else effective = agent.Intersect(mode, StringComparer.OrdinalIgnoreCase).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return effective.OrderBy(item => item, StringComparer.Ordinal).ToArray();
     }
+
+    private static bool IsSwitchedOff(JsonElement switches, string toolId) =>
+        switches.ValueKind == JsonValueKind.Object
+        && switches.TryGetProperty(toolId, out var state)
+        && (state.ValueKind == JsonValueKind.False
+            || (state.ValueKind == JsonValueKind.String && string.Equals(state.GetString(), "false", StringComparison.OrdinalIgnoreCase)));
 
     private static JsonElement NormalizeObject(JsonElement value) => value.ValueKind == JsonValueKind.Object
         ? value
@@ -1232,10 +1264,21 @@ public sealed class AgentPackService : IAgentPackService
             }
             try { GraphValidation.ValidateModeGraph(mode.ResourceKey!, nodeRefs, edgeRefs, agentRefs); }
             catch (InvalidDataException graphError) { Invalid(graphError.Message); }
-            if (!nodeRefs.Any(node => string.Equals(node.Layer, "execution", StringComparison.Ordinal)))
-                Invalid($"mode '{mode.ResourceKey}' requires at least one execution-layer agent.");
+            // The free_form single-director shape is publishable: a mode with no
+            // execution-layer node is legal when its relationship files declare a
+            // spawnable agent_types whitelist (the director builds its execution
+            // layer at runtime from the frozen whitelist).
+            var declaresSpawnable = nodeRefs
+                .Select(node => node.Relationship)
+                .Where(relationship => relationship is { } relationshipElement && relationshipElement.ValueKind == JsonValueKind.Object)
+                .SelectMany(relationship => relationship!.Value.TryGetProperty("agent_types", out var agentTypes) && agentTypes.ValueKind == JsonValueKind.Array
+                    ? agentTypes.EnumerateArray()
+                    : Enumerable.Empty<JsonElement>())
+                .Any(entry => entry.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(entry.GetString()));
+            if (!nodeRefs.Any(node => string.Equals(node.Layer, "execution", StringComparison.Ordinal)) && !declaresSpawnable)
+                Invalid($"mode '{mode.ResourceKey}' requires at least one execution-layer agent (or a relationship agent_types whitelist for a free-form director).");
 
-            ValidateModeBindings(mode);
+            ValidateModeBindings(mode, resources.Agents.Select(agent => agent.Slug!).ToHashSet(StringComparer.Ordinal));
             foreach (var edge in mode.Edges)
             {
                 if (edge.Condition.ValueKind is not (JsonValueKind.Object or JsonValueKind.Undefined)) Invalid($"mode '{mode.ResourceKey}' edge '{edge.EdgeKey}' condition must be an object.");
@@ -1260,20 +1303,34 @@ public sealed class AgentPackService : IAgentPackService
     /// narrowing-only envelope semantics are enforced by the mode publish gate
     /// (ModePublishGate), not here — pack admission has no TOML ceiling context.
     /// </summary>
-    private static void ValidateModeBindings(AgentPackModeResourceDto mode)
+    private static void ValidateModeBindings(AgentPackModeResourceDto mode, IReadOnlySet<string> packAgentSlugs)
     {
         if (mode.Bindings is not { Count: > 0 }) return;
         var nodeKeys = mode.Nodes.Select(item => item.NodeKey!).ToHashSet(StringComparer.Ordinal);
         var agentKeyByNode = mode.Nodes.ToDictionary(item => item.NodeKey!, item => ReferenceKey(item.AgentRef!, "agent", $"mode '{mode.ResourceKey}' node '{item.NodeKey}' agent_ref"), StringComparer.Ordinal);
-        EnsureUnique(mode.Bindings.Select(item => RequiredToken(item.NodeKey, $"mode '{mode.ResourceKey}' binding node_key", 128)), $"mode '{mode.ResourceKey}' binding node_key");
+        var packAgentKeys = packAgentSlugs.ToHashSet(StringComparer.Ordinal);
+        EnsureUnique(mode.Bindings.Where(item => item.NodeKey is { Length: > 0 }).Select(item => item.NodeKey!), $"mode '{mode.ResourceKey}' binding node_key");
         foreach (var binding in mode.Bindings)
         {
-            if (!nodeKeys.Contains(binding.NodeKey!)) Invalid($"mode '{mode.ResourceKey}' binding references unknown node '{binding.NodeKey}'.");
-            if (binding.AgentRef is { Length: > 0 } bindingAgentRef)
+            if (binding.NodeKey is not { Length: > 0 } nodeKey)
             {
-                var bindingAgentKey = ReferenceKey(bindingAgentRef, "agent", $"mode '{mode.ResourceKey}' binding '{binding.NodeKey}' agent_ref");
-                if (!string.Equals(bindingAgentKey, agentKeyByNode[binding.NodeKey!], StringComparison.Ordinal))
-                    Invalid($"mode '{mode.ResourceKey}' binding '{binding.NodeKey}' agent_ref does not match the node's agent.");
+                // Node-less binding: attaches an envelope to a spawnable template
+                // (the free_form director's buildable workers are not mode nodes).
+                if (binding.AgentRef is not { Length: > 0 } nodelessAgentRef)
+                    throw InvalidException($"mode '{mode.ResourceKey}' node-less binding requires agent_ref.");
+                var nodelessAgentKey = ReferenceKey(binding.AgentRef!, "agent", $"mode '{mode.ResourceKey}' node-less binding agent_ref");
+                if (!packAgentKeys.Contains(nodelessAgentKey))
+                    throw InvalidException($"mode '{mode.ResourceKey}' node-less binding agent_ref '{nodelessAgentRef}' does not reference an agent of this pack.");
+            }
+            else
+            {
+                if (!nodeKeys.Contains(nodeKey)) Invalid($"mode '{mode.ResourceKey}' binding references unknown node '{nodeKey}'.");
+                if (binding.AgentRef is { Length: > 0 } bindingAgentRef)
+                {
+                    var bindingAgentKey = ReferenceKey(bindingAgentRef, "agent", $"mode '{mode.ResourceKey}' binding '{nodeKey}' agent_ref");
+                    if (!string.Equals(bindingAgentKey, agentKeyByNode[nodeKey], StringComparison.Ordinal))
+                        Invalid($"mode '{mode.ResourceKey}' binding '{nodeKey}' agent_ref does not match the node's agent.");
+                }
             }
             if (binding.Envelope is { } envelopeElement && envelopeElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null)) Invalid($"mode '{mode.ResourceKey}' binding '{binding.NodeKey}' envelope must be an object.");
             if (binding.ToolSwitches is { } switchesElement && switchesElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null)) Invalid($"mode '{mode.ResourceKey}' binding '{binding.NodeKey}' tool_switches must be an object.");

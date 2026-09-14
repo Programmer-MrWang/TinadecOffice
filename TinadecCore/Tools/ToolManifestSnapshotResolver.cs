@@ -117,6 +117,18 @@ public sealed class ToolManifestSnapshotResolver : IToolManifestSnapshotResolver
         }
         catch { }
 
+        // Graph-tier spawnable templates are not roster nodes, so their tool
+        // ceilings never appear in the mode's effective-tool union — yet the
+        // spawned workers need them authorized. Join them into the authoritative
+        // set (they are still trimmed to the live manifest offering below).
+        if (formalEffective is { } effective && !effective.Contains("*")
+            && request.SpawnableToolIds is { } spawnableToolIds && spawnableToolIds.Count > 0)
+        {
+            formalEffective = effective
+                .Union(spawnableToolIds, StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
         var byId = manifest.Tools.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
         var available = manifest.Tools.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 

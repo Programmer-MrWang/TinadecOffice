@@ -42,7 +42,11 @@ public sealed record RuntimeAgentSeed(
     Guid? AgentDefinitionId = null,
     Guid? AgentVersionId = null,
     string VersionContentHash = "",
-    string? LaneKey = null);
+    string? LaneKey = null,
+    // DirectUserOutput is true only for the conversation-identity instance, which
+    // the engine derives from the frozen graph's conversation template slug — the
+    // seed never infers identity from a slug literal.
+    bool DirectUserOutput = false);
 
 public enum AgentCreationIntent
 {
@@ -164,7 +168,7 @@ internal sealed class AgentInstanceService : IAgentInstanceService, IAgentToolAu
         var now = DateTimeOffset.UtcNow;
         var definition = new AgentInstanceDefinition(
             seed.Id, seed.Layer, seed.Role, seed.ModelRoutePurpose, Normalize(seed.Capabilities), Normalize(seed.AllowedTools),
-            Normalize(seed.AllowedResources), Math.Max(0, seed.BudgetTokens), DirectUserOutput: seed.Id == "meeting", FormalMemoryWrite: false,
+            Normalize(seed.AllowedResources), Math.Max(0, seed.BudgetTokens), DirectUserOutput: seed.DirectUserOutput, FormalMemoryWrite: false,
             Goal: null, SuccessCriteria: [], ContextSelectors: []);
         var stored = await PutDefinitionAsync(scope.TenantId, scope.WorkspaceId, definition, cancellationToken).ConfigureAwait(false);
         var binding = ResolveBinding(definition.Id, seed.AgentDefinitionId, seed.AgentVersionId, seed.VersionContentHash, stored.Sha256);

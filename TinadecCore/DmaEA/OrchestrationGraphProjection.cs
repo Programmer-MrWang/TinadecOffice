@@ -13,7 +13,12 @@ namespace TinadecCore.DmaEA;
 /// </summary>
 internal static class OrchestrationGraphProjection
 {
-    public static object? FromSnapshot(string? snapshotJson)
+    /// <summary>
+    /// <paramref name="tier"/> is the run's frozen graph tier (deterministic |
+    /// self_dispatch | free_form); null at session scope where no frozen
+    /// configuration exists yet.
+    /// </summary>
+    public static object? FromSnapshot(string? snapshotJson, string? tier = null)
     {
         if (string.IsNullOrWhiteSpace(snapshotJson)) return null;
         JsonElement snapshot;
@@ -72,7 +77,7 @@ internal static class OrchestrationGraphProjection
             }
         }
 
-        return new { nodes, edges };
+        return new { tier, nodes, edges };
     }
 
     /// <summary>

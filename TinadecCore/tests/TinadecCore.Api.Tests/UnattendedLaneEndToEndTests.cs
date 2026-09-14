@@ -15,36 +15,25 @@ using TinadecCore.Persistence;
 namespace TinadecCore.Api.Tests;
 
 /// <summary>
-/// Scenario 1 end to end: the user leaves with "test and commit once the
-/// feature is done". A mid-run goal-only directive opens a lane, the lane's own
-/// planning instance derives its task graph, and the mutating tools run without
-/// any human decision — through each of the three release paths in turn. The
+/// Unattended release paths end to end (phase 2 shape): the user leaves with
+/// "test and commit once the feature is done" — a single main-run task graph
+/// (build, run-tests, commit) whose mutating tools run without any human
+/// decision. (The phase 1 lane vehicle is gone: graph tiers freeze with lanes
+/// rejected, so the deferred follow-up became part of the main plan.) — through each of the three release paths in turn. The
 /// tools are the real TinadecTools child process and the workspace is a real
 /// temporary git repository, so a passing test proves a real commit exists.
 /// </summary>
-public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
+public sealed class UnattendedEndToEndTests : IAsyncLifetime
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private const string MainPlan =
-        "[{\"task_key\":\"build\",\"title\":\"开发功能\",\"description\":\"\",\"success_criteria\":[\"完成\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[],\"priority\":1,\"risk\":\"low\"}]";
-
-    private const string LanePlan =
-        "[{\"task_key\":\"run-tests\",\"title\":\"运行测试\",\"description\":\"运行测试并把结果写入 feature.txt\",\"success_criteria\":[\"测试输出文件存在\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[\"shell\"],\"priority\":1,\"risk\":\"medium\"},"
-        + "{\"task_key\":\"commit\",\"title\":\"提交变更\",\"description\":\"提交全部变更\",\"success_criteria\":[\"产生提交\"],\"dependencies\":[\"run-tests\"],\"required_capabilities\":[],\"required_tools\":[\"git_commit\"],\"priority\":1,\"risk\":\"high\"}]";
+        "[{\"task_key\":\"build\",\"title\":\"\u5f00\u53d1\u529f\u80fd\",\"description\":\"\",\"success_criteria\":[\"\u5b8c\u6210\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[],\"priority\":1,\"risk\":\"low\"},"
+        + "{\"task_key\":\"run-tests\",\"title\":\"\u8fd0\u884c\u6d4b\u8bd5\",\"description\":\"\u8fd0\u884c\u6d4b\u8bd5\u5e76\u628a\u7ed3\u679c\u5199\u5165 feature.txt\",\"success_criteria\":[\"\u6d4b\u8bd5\u8f93\u51fa\u6587\u4ef6\u5b58\u5728\"],\"dependencies\":[\"build\"],\"required_capabilities\":[],\"required_tools\":[\"shell\"],\"priority\":2,\"risk\":\"medium\"},"
+        + "{\"task_key\":\"commit\",\"title\":\"\u63d0\u4ea4\u53d8\u66f4\",\"description\":\"\u63d0\u4ea4\u5168\u90e8\u53d8\u66f4\",\"success_criteria\":[\"\u4ea7\u751f\u63d0\u4ea4\"],\"dependencies\":[\"run-tests\"],\"required_capabilities\":[],\"required_tools\":[\"git_commit\"],\"priority\":3,\"risk\":\"high\"}]";
 
     // B6: shell is a human-only tool and can never be auto-approved, so the
     // auto-policy leg drives the same unattended scenario with write_file.
-    private const string LanePlanWriteFile =
-        "[{\"task_key\":\"run-tests\",\"title\":\"运行测试\",\"description\":\"运行测试并把结果写入 feature.txt\",\"success_criteria\":[\"测试输出文件存在\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[\"write_file\"],\"priority\":1,\"risk\":\"medium\"},"
-        + "{\"task_key\":\"commit\",\"title\":\"提交变更\",\"description\":\"提交全部变更\",\"success_criteria\":[\"产生提交\"],\"dependencies\":[\"run-tests\"],\"required_capabilities\":[],\"required_tools\":[\"git_commit\"],\"priority\":1,\"risk\":\"high\"}]";
-
-    private const string LaneOpenLine =
-        "收到。已登记延后执行。\nLANE_OPEN: {\"lane_key\":\"l2\",\"goal\":\"功能开发完成后测试并提交\",\"tool_scope\":[\"shell\",\"git_commit\"],\"pre_authorization\":\"用户离场前授权\"}";
-
-    private const string LaneOpenLineWriteFile =
-        "收到。已登记延后执行。\nLANE_OPEN: {\"lane_key\":\"l2\",\"goal\":\"功能开发完成后测试并提交\",\"tool_scope\":[\"write_file\",\"git_commit\"],\"pre_authorization\":\"用户离场前授权\"}";
-
     /// <summary>
     /// A complete runtime baseline with lanes enabled: the shipped default keeps
     /// <c>lanes_enabled = false</c>, so a lane-opening directive would be rejected
@@ -60,8 +49,7 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         + "allowed_scopes = [\"principal\", \"workspace\", \"project\", \"agent\"]\n"
         + "allowed_kinds = [\"fact\", \"preference\", \"decision\", \"success_pattern\", \"failure_pattern\", \"task_template\", \"supervision_rule\"]\n\n"
         + "[tools]\nprovider = \"tinadec-tools-process\"\nmutation_requires_approval = true\nserialize_workspace_writes = true\ndefault_timeout_seconds = 120\nmax_tool_rounds = 4\n\n"
-        + "[triggers]\nenabled = false\ncontext_token_threshold = 0\ncompress_on_task_closed = false\nrecommend_on_task_created = false\ncurate_on_run_closed = false\ngit_steward_on_run_closed = false\n\n"
-        + "[orchestration]\nlanes_enabled = true\nmax_lanes_per_run = 4\nmax_tasks_per_lane = 6\n";
+        + "[triggers]\nenabled = false\ncontext_token_threshold = 0\ncompress_on_task_closed = false\nrecommend_on_task_created = false\ncurate_on_run_closed = false\ngit_steward_on_run_closed = false\n";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-unattended-e2e", Guid.NewGuid().ToString("N"));
     private WebApplicationFactory<Program>? _factory;
@@ -156,14 +144,12 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         {
             BeforeWorker = workerGate.Task,
             WorkerStarted = workerStarted,
-            UseWriteFileForTests = useWriteFileForTests,
-            LanePlan = useWriteFileForTests ? LanePlanWriteFile : LanePlan,
-            LaneOpenLine = useWriteFileForTests ? LaneOpenLineWriteFile : LaneOpenLine
+            UseWriteFileForTests = useWriteFileForTests
         };
 
         _factory = new UnattendedFactory(_root, script, extraConfig);
         var client = _factory.CreateClient();
-        await InstallOfficeAgentPackAsync(client);
+        await InstallLifecycleFixturePackAsync(client);
 
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = $"{label} project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
         var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = $"{label} session" })).Content.ReadFromJsonAsync<JsonElement>();
@@ -180,16 +166,6 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         // lands as a directive while the run is still mid-flight.
         await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(45));
 
-        var clarification = await StreamInvokeAsync(client, sessionId, new
-        {
-            content = "功能开发完成后测试并提交",
-            client_message_id = $"{label}-c-2",
-            target_run_id = runId
-        });
-        var meetingDelta = string.Concat(clarification
-            .Where(chunk => KindOf(chunk) == "delta")
-            .Select(chunk => chunk.GetProperty("delta").GetString()));
-        Assert.True(meetingDelta.Contains("Orchestration registered", StringComparison.Ordinal), meetingDelta);
         return (client, workerGate, runId, workspace);
     }
 
@@ -210,12 +186,8 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
 
     private async Task AssertUnattendedCommitAsync(HttpClient client, Guid runId, string workspace, string expectSource)
     {
-        // The lane really executed: its planner instance planned two tasks and
-        // the run dispatches them through the real child process.
+        // The unattended tool chain really executed through the real child process.
         var events = await ReplayEventsAsync(client, runId);
-        Assert.Contains("orchestration.lane_planning", events);
-        Assert.Contains("orchestration.lane_planned", events);
-        Assert.Contains("orchestration.lane_opened", events);
         Assert.True(events.Contains($"approval.pre_authorized_minted:{expectSource}"),
             $"Missing mint {expectSource}. Events: {string.Join(" | ", events)}");
         if (expectSource == "auto_policy") Assert.Contains("approval.auto_decided", events);
@@ -267,12 +239,22 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         return (process.ExitCode, process.StandardOutput.ReadToEnd(), process.StandardError.ReadToEnd());
     }
 
-    private static async Task<JsonElement> InstallOfficeAgentPackAsync(HttpClient client)
+    private static async Task<JsonElement> InstallLifecycleFixturePackAsync(HttpClient client)
     {
         var manifest = JsonSerializer.Deserialize<JsonElement>(
-            await File.ReadAllTextAsync(FindOfficeManifestPath(), Encoding.UTF8));
+            await File.ReadAllTextAsync(FindFixtureManifestPath(), Encoding.UTF8));
+        // Core validates the digest over its DTO round-trip of the submitted
+        // manifest (unknown members dropped, absent optionals omitted), so the
+        // fixture must digest the same round-tripped shape — not the raw bytes.
+        var serverOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        var roundTripped = JsonSerializer.Deserialize<TinadecCore.Contracts.Dtos.AgentPackManifestDto>(
+            manifest.GetRawText(), serverOptions);
+        var serverElement = JsonSerializer.SerializeToElement(roundTripped, serverOptions);
         var digest = Convert.ToHexString(
-            System.Security.Cryptography.SHA256.HashData(JsonCanonicalizer.Canonicalize(manifest)))
+            System.Security.Cryptography.SHA256.HashData(JsonCanonicalizer.Canonicalize(serverElement)))
             .ToLowerInvariant();
         var envelope = JsonSerializer.SerializeToElement(new
         {
@@ -282,24 +264,24 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         previewResponse.EnsureSuccessStatusCode();
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
-        using var apply = new HttpRequestMessage(HttpMethod.Put, "/api/v1/agent-packs/tinadec.office.agent-pack")
+        using var apply = new HttpRequestMessage(HttpMethod.Put, "/api/v1/agent-packs/tinadec.tests.agent-pack-lifecycle")
         {
             Content = JsonContent.Create(new { preview_id = preview.GetProperty("preview_id").GetGuid(), envelope })
         };
         apply.Headers.TryAddWithoutValidation("Idempotency-Key", $"unattended-e2e-pack-{Guid.NewGuid():N}");
         using var applyResponse = await client.SendAsync(apply);
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
-        return await client.GetFromJsonAsync<JsonElement>("/api/v1/agent-packs/tinadec.office.agent-pack");
+        return await client.GetFromJsonAsync<JsonElement>("/api/v1/agent-packs/tinadec.tests.agent-pack-lifecycle");
     }
 
-    private static string FindOfficeManifestPath()
+    private static string FindFixtureManifestPath()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, "apps", "desktop", "src", "agentPacks", "OfficeAgentPack", "manifest.json");
+            var candidate = Path.Combine(directory.FullName, "TinadecCore", "tests", "TinadecCore.Api.Tests", "Fixtures", "agent-pack-lifecycle.manifest.json");
             if (File.Exists(candidate)) return candidate;
         }
-        throw new FileNotFoundException("OfficeAgentPack manifest.json was not found from the test output directory.");
+        throw new FileNotFoundException("The Agent Pack lifecycle fixture manifest was not found from the test output directory.");
     }
 
     private static string KindOf(JsonElement chunk) => chunk.GetProperty("kind").GetString()!;
@@ -442,18 +424,14 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
 
     /// <summary>
     /// Routes like the production scripts: fixed Chinese scaffolding identifies
-    /// the caller, and worker turns are keyed by task title so each lane task
-    /// emits exactly one tool call before reporting text. The lane planner is
-    /// routed by the "Lane: l2" marker its instructions carry.
+    /// the caller, and worker turns are keyed by task title so each task emits
+    /// exactly one tool call before reporting text.
     /// </summary>
     private sealed class UnattendedScriptedClient : IChatClient
     {
         private readonly Dictionary<string, int> _workerTurnsByTitle = new(StringComparer.Ordinal);
-        private int _meetingOnceUsed;
 
-        public string MainPlan { private get; set; } = UnattendedLaneEndToEndTests.MainPlan;
-        public string LanePlan { private get; set; } = UnattendedLaneEndToEndTests.LanePlan;
-        public string LaneOpenLine { private get; set; } = UnattendedLaneEndToEndTests.LaneOpenLine;
+        public string MainPlan { private get; set; } = UnattendedEndToEndTests.MainPlan;
         public Task? BeforeWorker { private get; set; }
         public TaskCompletionSource? WorkerStarted { private get; set; }
         public bool UseWriteFileForTests { private get; set; }
@@ -480,9 +458,7 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
                 || prompt.Contains("规划", StringComparison.Ordinal) && !prompt.Contains("执行证据", StringComparison.Ordinal);
             if (isPlanner)
             {
-                var lane = LaneKeyFrom(prompt) ?? LaneKeyFrom(instructions);
-                return new ChatResponse(new ChatMessage(ChatRole.Assistant,
-                    string.Equals(lane, "l2", StringComparison.Ordinal) ? LanePlan : MainPlan));
+                return new ChatResponse(new ChatMessage(ChatRole.Assistant, MainPlan));
             }
 
             if (instructions?.Contains("监督智能体", StringComparison.Ordinal) == true || prompt.Contains("执行证据", StringComparison.Ordinal))
@@ -491,11 +467,7 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
 
             if (instructions?.Contains("You are the meeting agent", StringComparison.Ordinal) == true || prompt.Contains("Execution evidence", StringComparison.Ordinal))
             {
-                // First meeting turn is the user's deferred instruction — it must
-                // carry the LANE_OPEN line; every later one (run finalization)
-                // is plain completion text.
-                var firstMeetingTurn = Interlocked.Exchange(ref _meetingOnceUsed, 1) == 0;
-                return new ChatResponse(new ChatMessage(ChatRole.Assistant, firstMeetingTurn ? LaneOpenLine : "全部完成。"));
+                return new ChatResponse(new ChatMessage(ChatRole.Assistant, "全部完成。"));
             }
 
             WorkerStarted?.TrySetResult();
@@ -518,11 +490,10 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
         }
 
         /// <summary>
-        /// First turn of a lane task emits its tool call; every later turn of the
-        /// same task reports completion text. The task title travels in the
-        /// worker's instructions (not the conversation messages), so routing
-        /// matches on both — and keying by title keeps it stable no matter
-        /// which order the lanes dispatch in.
+        /// First turn of a task emits its tool call; every later turn of the same
+        /// task reports completion text. The task title travels in the worker's
+        /// instructions (not the conversation messages), so routing matches on
+        /// both — and keying by title keeps it stable.
         /// </summary>
         private AIContent[] WorkerTurn(string prompt, string? instructions)
         {
@@ -566,15 +537,5 @@ public sealed class UnattendedLaneEndToEndTests : IAsyncLifetime
             }
         }
 
-        private static string? LaneKeyFrom(string? text)
-        {
-            if (string.IsNullOrEmpty(text)) return null;
-            const string marker = "Lane: ";
-            var start = text.IndexOf(marker, StringComparison.Ordinal);
-            if (start < 0) return null;
-            start += marker.Length;
-            var end = text.IndexOf('\n', start);
-            return (end < 0 ? text[start..] : text[start..end]).Trim();
-        }
     }
 }

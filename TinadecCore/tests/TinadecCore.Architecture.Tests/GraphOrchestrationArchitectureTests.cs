@@ -67,6 +67,33 @@ public sealed class GraphOrchestrationArchitectureTests
             $"AgentConfiguration must not depend on the DmaEA runtime.\n{FormatFailures(agentConfigResult)}");
     }
 
+    /// <summary>
+    /// ③ The WS-8 resource decision step (ToolResourcePathRegistry /
+    ///    ToolResourceAllowList) is a Tools-module concern: it may use Abstractions
+    ///    ports, but never the DmaEA runtime, the Runtime composition root, the
+    ///    Governance implementation or MAF. The port layer itself stays free of the
+    ///    Tools implementation, so Runtime can consume the decision step one-way.
+    /// </summary>
+    [Fact]
+    public void ResourceEnvelopeDecisionStep_StaysInsideToolsAndItsPorts()
+    {
+        var toolsAssembly = typeof(TinadecCore.Tools.ToolsModuleRegistrar).Assembly;
+        var toolsResult = Types.InAssembly(toolsAssembly)
+            .Should().NotHaveDependencyOn("TinadecCore.DmaEA")
+            .And().NotHaveDependencyOn("TinadecCore.Runtime")
+            .And().NotHaveDependencyOn("TinadecCore.Governance")
+            .And().NotHaveDependencyOn("Microsoft.Agents")
+            .GetResult();
+        Assert.True(toolsResult.IsSuccessful,
+            $"The resource decision step must stay inside Tools + Abstractions.\n{FormatFailures(toolsResult)}");
+
+        var abstractionsResult = Types.InAssembly(typeof(Abstractions.ITinadecCoreBuilder).Assembly)
+            .Should().NotHaveDependencyOn("TinadecCore.Tools")
+            .GetResult();
+        Assert.True(abstractionsResult.IsSuccessful,
+            $"Abstractions is the port layer and must not depend on the Tools implementation.\n{FormatFailures(abstractionsResult)}");
+    }
+
     private static string FormatFailures(TestResult result) =>
         result.IsSuccessful ? "" : string.Join("\n", result.FailingTypeNames);
 }

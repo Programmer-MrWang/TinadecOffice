@@ -4,6 +4,7 @@ using TinadecCore.Abstractions.Ports;
 using TinadecCore.AgentConfiguration;
 using TinadecCore.DmaEA;
 using TinadecCore.Persistence;
+using TinadecCore.Tools;
 
 namespace TinadecCore.Runtime;
 
@@ -85,7 +86,13 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
             // The persisted instance definition is a narrower child scope than
             // the published AgentVersion. Keep it as an independent boundary so
             // a generated worker cannot inherit a parent's wildcard tools.
-            new("agent_instance", AgentRules(instance, claim))
+            new("agent_instance", AgentRules(instance, claim)),
+            // WS-4/WS-8 resource envelope: the instance's frozen resource grants
+            // authorize provider-backed tool claims. Read/write levels come from
+            // the grant strings ("read:prefix"/"write:prefix"), and — when the
+            // call carries a resource claim — the concrete target must fall
+            // inside a matching prefix.
+            new("resource_access", await ResourceRulesAsync(instance, claim, request.ResourceClaim, cancellationToken).ConfigureAwait(false))
         };
 
         if (await TryInstanceDefinitionRulesAsync(instance, claim, cancellationToken).ConfigureAwait(false) is { } instanceScopeRules)
@@ -174,6 +181,61 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
 
     private static IReadOnlyList<CapabilityRule> AgentRules(AgentInstanceRecord instance, CapabilityClaim claim) =>
         [new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)];
+
+    /// <summary>
+    /// WS-4/WS-8 resource envelope at the PDP. The instance's resource grants
+    /// (seeded from the frozen binding envelopes as "read:prefix"/"write:prefix"
+    /// strings) authorize provider-backed tool claims: any grant allows read
+    /// claims; only a write grant allows mutate claims (write implies read).
+    /// When the call carries a resource claim, the concrete workspace target must
+    /// additionally fall inside a matching prefix — the WS-8 prefix enforcement.
+    /// An instance with no grants holds no workspace authorization — fail closed.
+    /// Core-reserved virtual tools (create_workspace) are the projectless
+    /// bootstrap channel and are exempt: the approval gate authorizes them.
+    /// </summary>
+    private async Task<IReadOnlyList<CapabilityRule>> ResourceRulesAsync(
+        AgentInstanceRecord instance,
+        CapabilityClaim claim,
+        CapabilityClaim? resourceClaim,
+        CancellationToken cancellationToken)
+    {
+        if (IsCoreReservedClaim(claim.Resource))
+            return [new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)];
+
+        var grants = await ReadInstanceResourceGrantsAsync(instance, cancellationToken).ConfigureAwait(false);
+        var mutating = string.Equals(claim.Action, "mutate", StringComparison.OrdinalIgnoreCase);
+        var target = ToolResourcePathRegistry.TryReadResourceClaimPath(resourceClaim);
+        var decision = ToolResourceAllowList.Evaluate(grants, target, mutating);
+        return
+        [
+            decision.Allowed
+                ? new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)
+                : new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)
+        ];
+    }
+
+    private async Task<IReadOnlyList<string>> ReadInstanceResourceGrantsAsync(
+        AgentInstanceRecord instance,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(instance.DefinitionReference) || string.IsNullOrWhiteSpace(instance.DefinitionHash)) return [];
+        try
+        {
+            await using var stream = await _content.OpenReadAsync(
+                new ContentReference(instance.DefinitionReference, instance.DefinitionHash, instance.DefinitionLength, "application/json"),
+                cancellationToken).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return ReadStringArray(doc.RootElement, "AllowedResources");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static bool IsCoreReservedClaim(string resource) =>
+        resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(resource[7..], CoreVirtualToolPolicy.CreateWorkspaceToolId, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<CapabilityRule> ManifestRules(string content, CapabilityClaim claim)
     {

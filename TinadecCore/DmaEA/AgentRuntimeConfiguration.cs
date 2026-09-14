@@ -159,6 +159,13 @@ public sealed record RuntimeAgentDefinition(
     /// </summary>
     public IReadOnlyList<string> AllowedTools { get; init; } = [];
 
+    /// <summary>
+    /// Resource-path grants frozen from the node's binding envelope (WS-4 resource
+    /// envelope). Empty = no workspace authorization for provider tools; the PDP
+    /// resource_access boundary enforces read/write levels from these grants.
+    /// </summary>
+    public IReadOnlyList<FrozenResourceGrant> ResourceGrants { get; init; } = [];
+
     /// <summary>Optional prompt profile for deterministic prompt assembly.</summary>
     public string PromptProfile { get; init; } = string.Empty;
 
@@ -216,13 +223,6 @@ public sealed record AgentRuntimeConfigurationSnapshot(
 
     /// <summary>Lane master switch and ceilings; absent TOML keeps lanes off.</summary>
     public OrchestrationPolicy Orchestration { get; init; } = OrchestrationPolicy.Disabled;
-
-    /// <summary>
-    /// Dual-write resolver mode for declared-graph modes ("shadow" | "active");
-    /// absent TOML keeps shadow — legacy roster wins and drift is only reported.
-    /// Not frozen into run configurations: the flip is a deployment decision.
-    /// </summary>
-    public string GraphResolverMode { get; init; } = "shadow";
 
     public (string ApplicationMode, string AgentMode, RuntimeProfileDefinition Profile) Resolve(string? applicationMode, string? agentMode)
     {
@@ -407,14 +407,9 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
             new Dictionary<string, RuntimeAgentDefinition>(StringComparer.OrdinalIgnoreCase))
         {
             Triggers = triggersPolicy,
-            Orchestration = orchestrationPolicy,
-            GraphResolverMode = NormalizeGraphResolverMode(orchestration is null ? null : OptionalString(orchestration, "graph_resolver"))
+            Orchestration = orchestrationPolicy
         };
     }
-
-    /// <summary>Unknown or absent values stay on shadow; only "active" flips the dual-write.</summary>
-    private static string NormalizeGraphResolverMode(string? value) =>
-        string.Equals(value, "active", StringComparison.OrdinalIgnoreCase) ? "active" : "shadow";
 
     private static string? OptionalString(TomlTable table, string key) =>
         table.TryGetValue(key, out var value) && value is string text ? text : null;

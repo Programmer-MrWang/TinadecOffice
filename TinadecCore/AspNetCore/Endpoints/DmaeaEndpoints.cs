@@ -339,7 +339,16 @@ public static class DmaeaEndpoints
 
             // Declared graph + observed flows (additive-only): the session's
             // published mode-version snapshot is the base layer; flows come from
-            // the durable task graph, the same source /replay rebuilds from.
+            // the durable task graph, the same source /replay rebuilds from. The
+            // tier comes from the run's frozen graph section (schema v2 freezes
+            // one for every mode).
+            var frozen = await manager.GetFrozenRunConfigurationAsync(runGuid.ToString(), ct);
+            FrozenRunConfigurationV1? parsedFrozen = null;
+            if (frozen is not null)
+            {
+                try { parsedFrozen = System.Text.Json.JsonSerializer.Deserialize<FrozenRunConfigurationV1>(frozen.Content, CheckpointJsonOptions); } catch { }
+            }
+
             var declaredGraph = (object?)null;
             string? conversationTemplateSlug = null;
             if (await sessionStore.FindAsync(run.SessionId, ct) is { } orchestrationSession)
@@ -352,15 +361,8 @@ public static class DmaeaEndpoints
                         .Where(x => x.Id == modeVersionId && x.TenantId == orchestrationSession.TenantId && x.WorkspaceId == orchestrationSession.WorkspaceId)
                         .Select(x => x.SnapshotJson)
                         .FirstOrDefaultAsync(ct);
-                    declaredGraph = OrchestrationGraphProjection.FromSnapshot(snapshotJson);
+                    declaredGraph = OrchestrationGraphProjection.FromSnapshot(snapshotJson, parsedFrozen?.Graph?.Tier);
                 }
-            }
-
-            var frozen = await manager.GetFrozenRunConfigurationAsync(runGuid.ToString(), ct);
-            FrozenRunConfigurationV1? parsedFrozen = null;
-            if (frozen is not null)
-            {
-                try { parsedFrozen = System.Text.Json.JsonSerializer.Deserialize<FrozenRunConfigurationV1>(frozen.Content, CheckpointJsonOptions); } catch { }
             }
             var checkpointRow = await lifecycle.GetCurrentRunCheckpointAsync(runGuid, ct);
             FullDuplexCheckpointV1? checkpoint = null;

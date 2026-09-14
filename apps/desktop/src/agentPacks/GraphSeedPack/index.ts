@@ -3,6 +3,16 @@ import manifestJson from './manifest.json'
 export type AgentPackLayer = 'operation' | 'execution'
 export type AgentPackReference<Kind extends 'agent' | 'mode' | 'prompt'> = `${Kind}:${string}`
 
+/** Five-field per-node duty contract compiled into the role system prompt. */
+export interface AgentPackNodeRelationship {
+  duty: string
+  inputs_outputs: Record<string, unknown>
+  allowed_dispatch_targets: string[]
+  success_criteria: string[]
+  /** Spawn whitelist: the only agent slugs a node may create at runtime. */
+  agent_types: string[]
+}
+
 export interface AgentPackAgentResource {
   resource_key: string
   slug: string
@@ -35,6 +45,7 @@ export interface AgentPackModeNodeResource {
   layer: AgentPackLayer
   label: string
   config: Record<string, unknown>
+  relationship?: AgentPackNodeRelationship | null
   position: Record<string, unknown> | null
 }
 
@@ -45,6 +56,21 @@ export interface AgentPackModeEdgeResource {
   condition: Record<string, unknown>
 }
 
+export interface AgentPackModeBindingResource {
+  /** Absent for a binding that attaches an envelope to a spawnable template. */
+  node_key?: string | null
+  agent_ref: AgentPackReference<'agent'>
+  duty_description_ref?: string | null
+  tool_switches?: Record<string, boolean>
+  envelope?: {
+    spawn?: { max_depth: number; max_agents_per_run: number; max_parallel_workers: number }
+    capabilities?: string[]
+    tools?: string[]
+    resources?: { read?: string[]; write?: string[] }
+  }
+  includes_core_reserved: boolean
+}
+
 export interface AgentPackModeResource {
   resource_key: string
   slug: string
@@ -52,6 +78,7 @@ export interface AgentPackModeResource {
   description: string | null
   nodes: AgentPackModeNodeResource[]
   edges: AgentPackModeEdgeResource[]
+  bindings?: AgentPackModeBindingResource[]
   canvas_layout: Record<string, unknown>
 }
 
@@ -64,6 +91,7 @@ export interface AgentPackManifest {
     product_id: string
     name: string
     version: string
+    description?: string
   }
   compatibility: {
     minimum_core_version: string
@@ -73,6 +101,7 @@ export interface AgentPackManifest {
     agents: AgentPackAgentResource[]
     prompt_pipelines: AgentPackPromptPipelineResource[]
     modes: AgentPackModeResource[]
+    tools?: Record<string, unknown>[]
   }
   activation: {
     workspace_defaults: {
@@ -91,50 +120,26 @@ export interface AgentPackEnvelope {
   }
 }
 
-export const OFFICE_AGENT_PACK_ID = 'tinadec.office.agent-pack'
-export const OFFICE_AGENT_PACK_VERSION = '0.2.4'
+export const GRAPH_SEED_PACK_ID = 'tinadec.graph.seed-pack'
+export const GRAPH_SEED_PACK_VERSION = '2.0.1'
 
-export const officeAgentPackManifest = manifestJson as AgentPackManifest
+export const graphSeedPackManifest = manifestJson as AgentPackManifest
 
 // Filled from the RFC 8785 canonical manifest bytes. A test recalculates this
 // value so any manifest edit must intentionally publish a new digest.
 // The manifest's own metadata.version must move with every digest change: Core
 // keys installs by version and rejects a re-publish of an already installed
 // version whose digest differs (agent_pack_version_hash_conflict).
-export const OFFICE_AGENT_PACK_DIGEST = 'e99cd56747cd96fb9d89b5a9082a1b00f54c3622620ce43fb676e3551216f2e9'
+//
+// The digest must be computed over the DTO-closed manifest, i.e. the raw file as
+// written — Core canonicalizes its DTO round-trip of this same body. See
+// packIntegrity.ts for the invariant and the gates that enforce it.
+export const GRAPH_SEED_PACK_DIGEST = '12aeecf0fd42f594cc8efc6f0fcbce76eb9226e85fe9decb36b23f9550103c8e'
 
-export const officeAgentPackEnvelope: AgentPackEnvelope = {
-  manifest: officeAgentPackManifest,
+export const graphSeedPackEnvelope: AgentPackEnvelope = {
+  manifest: graphSeedPackManifest,
   integrity: {
     algorithm: 'sha256',
-    digest: OFFICE_AGENT_PACK_DIGEST,
+    digest: GRAPH_SEED_PACK_DIGEST,
   },
-}
-
-type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
-
-/** RFC 8785 JSON Canonicalization Scheme for manifest integrity checks. */
-export function canonicalizeAgentPackManifest(value: unknown): string {
-  return canonicalize(value as JsonValue)
-}
-
-function canonicalize(value: JsonValue): string {
-  if (value === null || typeof value === 'boolean' || typeof value === 'string') {
-    return JSON.stringify(value)
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new TypeError('Agent pack manifest contains a non-finite number.')
-    return JSON.stringify(value)
-  }
-  if (Array.isArray(value)) return `[${value.map(canonicalize).join(',')}]`
-  return `{${Object.keys(value)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key]!)}`)
-    .join(',')}}`
-}
-
-export async function digestAgentPackManifest(manifest: AgentPackManifest): Promise<string> {
-  const bytes = new TextEncoder().encode(canonicalizeAgentPackManifest(manifest))
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

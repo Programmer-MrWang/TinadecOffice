@@ -56,10 +56,23 @@ public static class RunFreezeGate
                     $"Conversation identity holder '{holder.Id}' does not carry a conversation capability.");
         }
 
-        // ② topology: execution roster must exist (legacy invariant)
+        // ② topology: the frozen roster must retain an execution layer, unless the
+        // graph is the free_form shape (no declared edges) and the conversation
+        // identity holds dispatchable-worker spawn authority — the single-director
+        // mode builds its own execution layer at runtime from the spawnable
+        // templates frozen into the graph.
         if (execution.Count == 0)
-            throw new RunAdmissionException("mode_topology_invalid",
-                "The frozen roster has no execution-layer agent.");
+        {
+            var freeFormWithSpawnAuthority = graph is { Tier: FrozenGraphTiers.FreeForm }
+                && operation.FirstOrDefault(agent =>
+                    string.Equals(agent.Id, graph.ConversationTemplateSlug, StringComparison.OrdinalIgnoreCase)) is { } director
+                && director.Capabilities.Any(capability =>
+                    string.Equals(capability, ThreeNamespaceMap.SpawnTemporaryCapability, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(capability, ThreeNamespaceMap.SpawnAliasCapability, StringComparison.OrdinalIgnoreCase));
+            if (!freeFormWithSpawnAuthority)
+                throw new RunAdmissionException("mode_topology_invalid",
+                    "The frozen roster has no execution-layer agent (and the mode is not a free-form director with spawn authority).");
+        }
 
         // ③ lanes × declared-graph tiers — fail fast at admission (the frozen
         // configuration is the authority; a mid-run rejection here would mean the

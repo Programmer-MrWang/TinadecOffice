@@ -104,7 +104,7 @@ Api (AspNetCore, Web SDK)
 - Runtime's module and migration project references are packable implementation dependencies so a Runtime nuspec can be restored from one internal feed. They are not additional stable product APIs.
 - `Api` remains `IsPackable=false` and is delivered with `dotnet publish` as an executable service directory. Tests remain non-packable.
 - MAF 1.18 dependencies may appear in the Runtime implementation dependency graph, but MAF types must remain behind the DmaEA adapter and never enter Contracts, HTTP DTOs, events, or stable SDKs.
-- Core packages and Api publish output contain the generic Agent Pack DTO/service/migrations only. `OfficeAgentPack` and other App-owned manifests must not be embedded in Core delivery artifacts.
+- Core packages and Api publish output contain the generic Agent Pack DTO/service/migrations only. App-owned manifests (`GraphSeedPack`, previously `OfficeAgentPack`) must not be embedded in Core delivery artifacts; test fixtures are self-contained under `tests/TinadecCore.Api.Tests/Fixtures/` or inlined rosters.
 
 ## PERSISTENCE (DATABASE ABSTRACTION)
 - Default provider: **SQLite** local file (`TinadecPersistence:Sqlite:DatabasePath`, default `data/tinadec.db`). No Docker required.

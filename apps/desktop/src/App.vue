@@ -10,7 +10,7 @@ import {
   retryConnection,
 } from '@/composables/useConnection'
 import { useNotifications, startStatusSync } from '@/composables/useNotifications'
-import { ensureOfficeAgentPack, setOfficeAgentPackTranslator } from '@/agentPacks/officeAgentPackBootstrap'
+import { ensureGraphSeedPack, setGraphSeedPackTranslator } from '@/agentPacks/graphSeedPackBootstrap'
 import AppSplash from '@/components/AppSplash.vue'
 import NotificationIslandHost from '@/components/NotificationIslandHost.vue'
 import NotificationDetailDialog from '@/components/NotificationDetailDialog.vue'
@@ -38,7 +38,7 @@ watch(backgroundSettings, () => applyBackground(), { deep: true, immediate: true
 const isChildWindow = new URLSearchParams(window.location.search).get('splash') === '0'
 const isPetWindow = window.location.hash.startsWith('#/pet')
 const { t } = useI18n()
-setOfficeAgentPackTranslator((key, params) => String(t(key, params ?? {})))
+setGraphSeedPackTranslator((key, params) => String(t(key, params ?? {})))
 const { connectionState, start: startConnection } = useConnection()
 const { status, dismissByKey } = useNotifications()
 let unsubscribeStatusSync: (() => void) | undefined
@@ -48,7 +48,7 @@ watch(connectionState, (state) => {
   if (isPetWindow || isChildWindow) return
   if (state === 'connected') {
     dismissByKey(CONNECTION_BANNER_KEY)
-    void ensureOfficeAgentPack()
+    void ensureGraphSeedPack()
     return
   }
   if (state === 'timeout') {

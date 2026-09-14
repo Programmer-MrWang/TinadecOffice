@@ -286,7 +286,8 @@ public sealed record PermissionRequestCommand(
     decimal ExpectedCost,
     string Rationale,
     string IdempotencyKey,
-    string? PermissionMode = null);
+    string? PermissionMode = null,
+    CapabilityClaim? ResourceClaim = null);
 
 public sealed record PermissionRequestSnapshot(
     Guid Id,
@@ -387,6 +388,13 @@ public sealed record LeaseConsumptionResult(
     CapabilityLeaseSnapshot? Lease,
     AuthorizationDecisionSnapshot Decision);
 
+/// <summary>
+/// Boundary-resolution request. <c>ResourceClaim</c> is the WS-8 optional
+/// resource dimension: the concrete workspace target the claim acts on
+/// (<c>resource.access</c> / <c>path://&lt;workspace-relative&gt;</c>). Absent
+/// means "no path dimension" — the resource boundary then decides on the
+/// read/write level alone, exactly as before.
+/// </summary>
 public sealed record AuthorizationContextRequest(
     Guid TenantId,
     Guid WorkspaceId,
@@ -394,7 +402,8 @@ public sealed record AuthorizationContextRequest(
     Guid? SubjectAgentInstanceId,
     CapabilityClaim Claim,
     Guid? RunId,
-    Guid? TaskId);
+    Guid? TaskId,
+    CapabilityClaim? ResourceClaim = null);
 
 public sealed record ToolAuthorizationCommand(
     Guid SubjectPrincipalId,
@@ -408,7 +417,8 @@ public sealed record ToolAuthorizationCommand(
     TimeSpan RequestedDuration,
     string Rationale,
     string IdempotencyKey,
-    string? PermissionMode = null);
+    string? PermissionMode = null,
+    CapabilityClaim? ResourceClaim = null);
 
 /// <summary>Publicly safe result for tool authorization; lease nonce is never returned.</summary>
 public sealed record ToolAuthorizationResult(

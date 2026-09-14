@@ -4904,6 +4904,91 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
   }
 }
 
+/* Read-only installed-pack inventory: a retired pack row stays visible and is
+   flagged, because its published resources outlive the bundled manifest. */
+.agent-pack-inventory {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface-chrome);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.agent-pack-inventory-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.agent-pack-inventory-head strong {
+  font-size: 13px;
+}
+
+.agent-pack-inventory-count {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.agent-pack-inventory-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.agent-pack-inventory-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-pack-inventory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+}
+
+.agent-pack-inventory-row[data-retired='true'] {
+  border-color: color-mix(in srgb, var(--accent-warning) 40%, var(--border-default));
+  background: color-mix(in srgb, var(--accent-warning) 7%, var(--surface-raised));
+}
+
+.agent-pack-inventory-copy {
+  min-width: 0;
+}
+
+.agent-pack-inventory-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-pack-inventory-title strong {
+  font-size: 12px;
+}
+
+.agent-pack-inventory-copy p {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.agent-pack-inventory-retired {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .agent-center-merged .center-command-bar,
 .agent-center-merged .center-overview-receipt {
   margin-bottom: 0;

@@ -86,7 +86,8 @@ import {
   type ToolLayerReadinessReceiptDto,
   type ToolDescriptorDto,
   type ToolSearchResultDto,
-  type AgentModeTopologyDto
+  type AgentModeTopologyDto,
+  type AgentPackDto
 } from '../api'
 import {
   PROVIDER_CATEGORIES,
@@ -134,14 +135,15 @@ import PanelStyleControl from '@/components/ui/panel-style-control.vue'
 import { usePanelStyles } from '@/composables/usePanelStyles'
 import { useNotifications } from '@/composables/useNotifications'
 import {
-  installOrUpgradeOfficeAgentPack,
-  officeAgentPackState,
-  refreshOfficeAgentPack,
-} from '@/agentPacks/officeAgentPackBootstrap'
+  installOrUpgradeGraphSeedPack,
+  graphSeedPackState,
+  refreshGraphSeedPack,
+} from '@/agentPacks/graphSeedPackBootstrap'
 import {
-  OFFICE_AGENT_PACK_VERSION,
-  officeAgentPackManifest,
-} from '@/agentPacks/OfficeAgentPack'
+  GRAPH_SEED_PACK_VERSION,
+  graphSeedPackManifest,
+} from '@/agentPacks/GraphSeedPack'
+import { isRetiredAgentPack } from '@/agentPacks/retiredPacks'
 
 type SettingsSection = 'general' | 'model' | 'agentCenter' | 'tools' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
 
@@ -151,22 +153,33 @@ const modePanelRef = ref<InstanceType<typeof AgentModesPanel> | null>(null)
 const promptsPanelRef = ref<InstanceType<typeof PromptEngineeringMerged> | null>(null)
 const evolutionPanelRef = ref<InstanceType<typeof AgentEvolutionPanel> | null>(null)
 
-const officeAgentPackBusy = computed(() => officeAgentPackState.value.phase === 'checking' || officeAgentPackState.value.phase === 'installing')
-const officeAgentPackCanApply = computed(() => ['idle', 'install', 'upgrade', 'deferred', 'conflict', 'error'].includes(officeAgentPackState.value.phase))
-const officeAgentPackCanClone = computed(() => ['up_to_date', 'newer_installed'].includes(officeAgentPackState.value.phase))
-const officeAgentPackStatusLabel = computed(() => t(`agentPack.status.${officeAgentPackState.value.phase}`))
-const officeAgentPackActionLabel = computed(() => officeAgentPackState.value.phase === 'upgrade'
+const graphSeedPackBusy = computed(() => graphSeedPackState.value.phase === 'checking' || graphSeedPackState.value.phase === 'installing')
+const graphSeedPackCanApply = computed(() => ['idle', 'install', 'upgrade', 'deferred', 'conflict', 'error'].includes(graphSeedPackState.value.phase))
+const graphSeedPackCanClone = computed(() => ['up_to_date', 'newer_installed'].includes(graphSeedPackState.value.phase))
+const graphSeedPackStatusLabel = computed(() => t(`agentPack.status.${graphSeedPackState.value.phase}`))
+const graphSeedPackActionLabel = computed(() => graphSeedPackState.value.phase === 'upgrade'
   ? t('agentPack.upgradeAction')
-  : officeAgentPackState.value.phase === 'error' || officeAgentPackState.value.phase === 'conflict'
+  : graphSeedPackState.value.phase === 'error' || graphSeedPackState.value.phase === 'conflict'
     ? t('settings.retry')
-  : officeAgentPackState.value.phase === 'idle'
+  : graphSeedPackState.value.phase === 'idle'
     ? t('agentPack.checkAction')
     : t('agentPack.installAction'))
-const officeAgentPackBadgeVariant = computed<'default' | 'secondary' | 'outline'>(() => {
-  if (officeAgentPackState.value.phase === 'up_to_date') return 'default'
-  if (officeAgentPackState.value.phase === 'install' || officeAgentPackState.value.phase === 'upgrade') return 'secondary'
+const graphSeedPackBadgeVariant = computed<'default' | 'secondary' | 'outline'>(() => {
+  if (graphSeedPackState.value.phase === 'up_to_date') return 'default'
+  if (graphSeedPackState.value.phase === 'install' || graphSeedPackState.value.phase === 'upgrade') return 'secondary'
   return 'outline'
 })
+
+// Installed-pack inventory (read-only). A workspace that still carries a retired
+// pack keeps its published resources; the band below the GraphSeedPack card names
+// it and routes the user to the supported pack.
+const installedAgentPacks = ref<AgentPackDto[]>([])
+const retiredAgentPacks = computed(() =>
+  installedAgentPacks.value.filter((pack) => isRetiredAgentPack(pack.pack_id)),
+)
+const retiredAgentPackLabel = computed(() =>
+  retiredAgentPacks.value.map((pack) => pack.pack_id).join(', '),
+)
 
 /** Lazily refresh per-tab data when a tab becomes active. */
 function switchAgentCenterTab(tab: AgentCenterTab) {
@@ -1130,12 +1143,15 @@ async function loadAgentCenter() {
   // Load the versioned directory + full definitions directly; overview-only projections degrade.
   loading.value = true
   try {
-      const [directory, modes, candidates, toolReadiness, packDetail] = await Promise.all([
+      const [directory, modes, candidates, toolReadiness, packDetail, installedPacks] = await Promise.all([
         api.listAgents().catch(() => [] as AgentDirectoryItemDto[]),
         api.listAgentModes().catch(() => [] as AgentModeDto[]),
         api.listAgentCandidates().catch(() => [] as AgentCandidateDto[]),
         api.getToolLayerReadiness().catch(() => null),
-        api.getAgentPack(officeAgentPackManifest.metadata.pack_id).catch(() => null),
+        api.getAgentPack(graphSeedPackManifest.metadata.pack_id).catch(() => null),
+        // Advisory: a workspace with no packs — or an older Core without the
+        // listing route — degrades to an empty list instead of failing the page.
+        api.listAgentPacks().catch(() => [] as AgentPackDto[]),
       ])
       const managedAgentIds = new Set(
         (packDetail?.resources ?? [])
@@ -1185,6 +1201,7 @@ async function loadAgentCenter() {
       })
       agentCandidates.value = candidates as unknown as AgentCandidateDto[]
       toolLayerReadiness.value = toolReadiness
+      installedAgentPacks.value = installedPacks
       // Harness manifest is non-critical: fall back to the legacy tool list for older Core builds.
       api.getHarnessManifest()
         .then((manifest) => {
@@ -1337,17 +1354,17 @@ async function cloneAgent() {
   }
 }
 
-async function openOfficeAgentPackCloneFlow() {
+async function openGraphSeedPackCloneFlow() {
   agentCenterTab.value = 'agents'
   if (!agents.value.some((agent) => agent.is_built_in)) await loadAgentCenter()
-  const officeSlugs = new Set(officeAgentPackManifest.resources.agents.map((agent) => agent.slug))
+  const packSlugs = new Set(graphSeedPackManifest.resources.agents.map((agent) => agent.slug))
   const managedAgent = agents.value.find((agent) =>
-    agent.is_built_in && officeSlugs.has(agent.slug ?? agent.name),
+    agent.is_built_in && packSlugs.has(agent.slug ?? agent.name),
   )
   if (!managedAgent) {
     status.warning({
-      key: 'office-agent-pack-clone',
-      source: 'OfficeAgentPack',
+      key: 'graph-seed-pack-clone',
+      source: 'GraphSeedPack',
       message: t('agentPack.managedReadOnly'),
     })
     return
@@ -2637,51 +2654,100 @@ import '../settings/settings.css'
                 </UiButton>
               </div>
             </div>
-            <section class="agent-pack-status-band" data-testid="office-agent-pack-status">
+            <section class="agent-pack-status-band" data-testid="graph-seed-pack-status">
               <PackageCheck class="agent-pack-status-icon" aria-hidden="true" />
               <div class="agent-pack-status-copy">
                 <div class="agent-pack-status-title">
                   <strong>{{ t('agentPack.name') }}</strong>
-                  <UiBadge :variant="officeAgentPackBadgeVariant">{{ officeAgentPackStatusLabel }}</UiBadge>
+                  <UiBadge :variant="graphSeedPackBadgeVariant">{{ graphSeedPackStatusLabel }}</UiBadge>
                   <UiBadge variant="outline">{{ t('agentPack.managed') }}</UiBadge>
                 </div>
                 <p>
                   {{ t('agentPack.versionSummary', {
-                    bundled: OFFICE_AGENT_PACK_VERSION,
-                    installed: officeAgentPackState.active_version ?? t('agentPack.notInstalled'),
+                    bundled: GRAPH_SEED_PACK_VERSION,
+                    installed: graphSeedPackState.active_version ?? t('agentPack.notInstalled'),
                   }) }}
                 </p>
               </div>
               <div class="agent-pack-status-actions">
                 <UiButton
-                  v-if="officeAgentPackCanClone"
+                  v-if="graphSeedPackCanClone"
                   variant="outline"
                   size="sm"
-                  @click="openOfficeAgentPackCloneFlow"
+                  @click="openGraphSeedPackCloneFlow"
                 >
                   <CopyPlus data-icon="inline-start" />
                   {{ t('agentPack.cloneAction') }}
                 </UiButton>
                 <UiButton
-                  v-if="officeAgentPackCanApply"
+                  v-if="graphSeedPackCanApply"
                   size="sm"
-                  :disabled="officeAgentPackBusy"
-                  @click="installOrUpgradeOfficeAgentPack"
+                  :disabled="graphSeedPackBusy"
+                  @click="installOrUpgradeGraphSeedPack"
                 >
                   <PackagePlus data-icon="inline-start" />
-                  {{ officeAgentPackActionLabel }}
+                  {{ graphSeedPackActionLabel }}
                 </UiButton>
                 <UiButton
                   variant="ghost"
                   size="icon"
-                  :disabled="officeAgentPackBusy"
+                  :disabled="graphSeedPackBusy"
                   :title="t('agentPack.refreshStatus')"
                   :aria-label="t('agentPack.refreshStatus')"
-                  @click="refreshOfficeAgentPack"
+                  @click="refreshGraphSeedPack"
                 >
                   <RefreshCw data-icon="inline-start" />
                 </UiButton>
               </div>
+            </section>
+            <section class="agent-pack-inventory" data-testid="installed-agent-packs">
+              <div class="agent-pack-inventory-head">
+                <strong>{{ t('agentPack.installedTitle') }}</strong>
+                <span class="agent-pack-inventory-count">
+                  {{ t('agentPack.installedCount', { count: installedAgentPacks.length }) }}
+                </span>
+              </div>
+              <p v-if="installedAgentPacks.length === 0" class="agent-pack-inventory-empty">
+                {{ t('agentPack.installedEmpty') }}
+              </p>
+              <ul v-else class="agent-pack-inventory-list">
+                <li
+                  v-for="pack in installedAgentPacks"
+                  :key="pack.pack_id"
+                  class="agent-pack-inventory-row"
+                  :data-retired="isRetiredAgentPack(pack.pack_id) ? 'true' : 'false'"
+                >
+                  <div class="agent-pack-inventory-copy">
+                    <div class="agent-pack-inventory-title">
+                      <strong>{{ pack.name ?? pack.pack_id }}</strong>
+                      <UiBadge variant="outline">{{ pack.pack_id }}</UiBadge>
+                      <UiBadge v-if="isRetiredAgentPack(pack.pack_id)" variant="secondary">
+                        {{ t('agentPack.retiredBadge') }}
+                      </UiBadge>
+                    </div>
+                    <p>
+                      {{ t('agentPack.installedVersion', { version: pack.active_version ?? t('agentPack.notInstalled') }) }}
+                    </p>
+                  </div>
+                  <UiButton
+                    v-if="isRetiredAgentPack(pack.pack_id)"
+                    size="sm"
+                    :disabled="graphSeedPackBusy"
+                    data-testid="retired-pack-install"
+                    @click="installOrUpgradeGraphSeedPack"
+                  >
+                    <PackagePlus data-icon="inline-start" />
+                    {{ t('agentPack.retiredInstallAction') }}
+                  </UiButton>
+                </li>
+              </ul>
+              <p
+                v-if="retiredAgentPacks.length > 0"
+                class="agent-pack-inventory-retired"
+                data-testid="retired-pack-notice"
+              >
+                {{ t('agentPack.retiredNotice', { pack: retiredAgentPackLabel }) }}
+              </p>
             </section>
             <div class="ac-subtabs" role="tablist" data-testid="agent-center-subtabs">
               <button :class="['ac-subtab', { active: agentCenterTab === 'agents' }]" role="tab" :aria-selected="agentCenterTab === 'agents'" @click="agentCenterTab = 'agents'">{{ t('settings.agents') }}</button>

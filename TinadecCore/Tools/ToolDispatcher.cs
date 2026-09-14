@@ -612,14 +612,13 @@ public sealed class ToolDispatcher : IToolDispatcher
             return new ToolWireResponseDto { CallId = wire.ToolCallId, IsSuccess = false, Error = "create_workspace requires non-empty 'name' and 'path' parameters." };
         }
 
-        // The invocation-scope resolver skips project-root checks for a projectless
-        // scope, so the agent's declared resource grant must be evaluated against the
-        // requested target here — otherwise this is the one tool that could act
-        // outside its allow list. An undeclared (empty) grant stays unrestricted.
-        if (!ToolResourceAllowList.IsAllowed(scope.AllowedResources, path))
-        {
-            return new ToolWireResponseDto { CallId = wire.ToolCallId, IsSuccess = false, Error = "create_workspace path is outside the agent's allowed resources." };
-        }
+        // WS-4: create_workspace is the Core-reserved projectless bootstrap channel
+        // (IncludesCoreReserved). Its authorization is the approval gate (the tool
+        // is RequiresApproval/high-risk) plus the workspace binder's own path
+        // validation — the resource envelope governs provider-backed workspace
+        // tools and deliberately does not gate the bootstrap tool that CREATES the
+        // workspace a grant would be relative to. (The historical grant check here
+        // was a no-op under the coarse ["workspace"] seeds.)
 
         try
         {
@@ -814,7 +813,8 @@ public sealed class ToolDispatcher : IToolDispatcher
             TimeSpan.FromMinutes(30),
             $"Tool '{descriptor.Id}' requested by agent {scope.AgentInstanceId}.",
             $"tool-auth:{execution.Id:N}",
-            scope.PermissionMode), cancellationToken).ConfigureAwait(false);
+            scope.PermissionMode,
+            ResourceClaim(descriptor, execution, scope)), cancellationToken).ConfigureAwait(false);
         var status = result.Status switch
         {
             "awaiting_delegate" => ToolDispatchStatus.AwaitingDelegate,
@@ -831,6 +831,21 @@ public sealed class ToolDispatcher : IToolDispatcher
         "tool.invoke",
         descriptor.MutatesWorkspace ? "mutate" : "read",
         $"tool://{descriptor.Id}");
+
+    /// <summary>
+    /// WS-8 resource dimension: the concrete workspace target of a file tool, so
+    /// the PDP can enforce the instance's resource prefix grants. Tools without a
+    /// single path (shell, mcp_*, git_*) yield null and keep the level-only rule.
+    /// A target that cannot be expressed workspace-relative also yields null —
+    /// the tool process resolves it against the same workspace root and refuses
+    /// anything outside, so the fallback still cannot widen access.
+    /// </summary>
+    private static CapabilityClaim? ResourceClaim(
+        ToolManifestEntryDto descriptor,
+        ToolExecutionSnapshot execution,
+        ToolInvocationScope scope) =>
+        ToolResourcePathRegistry.TryBuildResourceClaim(
+            descriptor.Id, execution.ParametersJson, scope.WorkspaceRoot, descriptor.MutatesWorkspace);
 
     private static ToolDispatchResultDto PreparedResult(ToolExecutionSnapshot execution, bool existing, DispatchAuthorization? authorization)
     {
