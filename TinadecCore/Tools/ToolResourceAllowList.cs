@@ -108,6 +108,45 @@ internal static class ToolResourceAllowList
     }
 }
 
+/// <summary>
+/// Operator- and model-facing explanation of a resource denial. It is surfaced as
+/// the tool execution's safe error message (and, from there, to the model), so it
+/// names the missing level, the frozen grants and the workspace root instead of
+/// leaving a bare "denied" that a caller cannot act on.
+/// </summary>
+internal static class ResourceDenialExplanation
+{
+    public static string Describe(
+        ResourceAllowDecision decision,
+        IReadOnlyList<string> grants,
+        string? toolId,
+        string? workspaceRoot,
+        string? relativePath)
+    {
+        var tool = string.IsNullOrWhiteSpace(toolId) ? "the tool" : $"'{toolId}'";
+        var workspace = string.IsNullOrWhiteSpace(workspaceRoot)
+            ? "the run workspace"
+            : $"the workspace rooted at '{workspaceRoot}'";
+        var frozen = grants.Count == 0 ? "(none)" : string.Join(", ", grants.Select(grant => $"'{grant}'"));
+        var target = string.IsNullOrWhiteSpace(relativePath) ? "the workspace" : $"'{relativePath}'";
+
+        return decision.Basis switch
+        {
+            ResourceAllowBasis.NoGrant =>
+                $"{tool} was denied: this agent instance holds no workspace resource grant, so it cannot access {workspace}. "
+                + "No grants were frozen for the instance; workspace read access must be granted at admission.",
+            ResourceAllowBasis.LevelDenied when grants.Any(grant => grant.StartsWith("read:", StringComparison.OrdinalIgnoreCase)) =>
+                $"{tool} was denied: it changes {workspace} but the instance holds read-level grants only ({frozen}). "
+                + "A write-level grant (write:<prefix>) is required, and the write still needs its approval.",
+            ResourceAllowBasis.LevelDenied =>
+                $"{tool} was denied: no frozen grant covers the requested level for {workspace}. Frozen grants: {frozen}.",
+            ResourceAllowBasis.PathDenied =>
+                $"{tool} was denied: it targets {target}, which no frozen prefix grant covers. Frozen grants: {frozen}.",
+            _ => $"{tool} was denied by the resource boundary for {workspace}. Frozen grants: {frozen}."
+        };
+    }
+}
+
 internal enum ResourceAllowBasis
 {
     Granted,

@@ -99,6 +99,18 @@ public sealed record FrozenRunConfigurationV1(
     public FrozenGraph? Graph { get; init; }
 
     /// <summary>
+    /// The workspace this run is bound to, frozen at admission (root absolute
+    /// path, extra read-only roots, git facts, top-level listing, path contract).
+    /// Null means "this run has no workspace": projectless free-conversation
+    /// sessions, and every body frozen before the section existed. Recovery treats
+    /// a missing section as no workspace rather than failing the schema gate, and
+    /// it never re-resolves the binding — the model prompt and the tool boundary
+    /// both read this section as the single authority for "where am I".
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FrozenWorkspaceBinding? Workspace { get; init; }
+
+    /// <summary>
     /// The frozen-body schema this Core writes and reads. v2 introduced the
     /// always-present Graph section (free_form tier on disk) and spawnable
     /// templates; v1 bodies are superseded and fail closed on resume.
@@ -214,6 +226,10 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             ?? throw new KeyNotFoundException("Session was not found.");
         if (session.ModeVersionId is null)
             throw new RunAdmissionException("agent_mode_not_configured", "A published default Agent Mode must be configured before creating a run.");
+        // The workspace is resolved exactly once, here, from Core-owned records and
+        // a cheap filesystem probe. Everything downstream (prompt, tool boundary,
+        // resource claims) reads the frozen section instead of re-resolving it.
+        var workspace = await WorkspaceBindingFactory.TryCreateAsync(_sessions, session, cancellationToken).ConfigureAwait(false);
         var snapshot = _baseline.Current;
         var (app, mode, profile) = snapshot.Resolve(applicationMode, agentMode);
         var policySnapshot = _policySnapshots is null
@@ -240,6 +256,20 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         var execution = relational.Execution.Select(ToRuntimeAgentDefinition).ToArray();
         operation = (await FreezeModelPlansAsync(operation, sessionId, modeVersionId, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
         execution = (await FreezeModelPlansAsync(execution, sessionId, modeVersionId, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
+
+        // Workspace baseline: a bound workspace gives every agent that holds a
+        // provider tool face the whole-root read level, so read-only work never
+        // fails for "no workspace authorization". An envelope that declared
+        // grants keeps them verbatim (narrowing only), and write stays
+        // envelope-declared plus approval-gated.
+        operation = operation.Select(agent => agent with
+        {
+            ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, agent.ResourceGrants, agent.AllowedTools)
+        }).ToArray();
+        execution = execution.Select(agent => agent with
+        {
+            ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, agent.ResourceGrants, agent.AllowedTools)
+        }).ToArray();
 
         // Declared graph freeze (DmaEA graph orchestration): every mode freezes a
         // Graph section under schema v2 — free_form is a tier on disk, not the
@@ -273,7 +303,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
                 template.ToolScope,
                 template.Capabilities)
             {
-                ResourceGrants = template.ResourceGrants
+                ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, template.ResourceGrants, template.ToolScope)
             }).ToArray()
         };
 
@@ -335,7 +365,8 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             PolicyBundles = policySnapshot?.Bundles ?? [],
             Triggers = snapshot.Triggers,
             Orchestration = snapshot.Orchestration,
-            Graph = graph
+            Graph = graph,
+            Workspace = workspace
         };
         return frozen;
     }

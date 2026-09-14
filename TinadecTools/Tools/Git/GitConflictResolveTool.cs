@@ -37,7 +37,7 @@ internal static class GitConflictResolveTool
     public static async ValueTask<GitConflictResolveResult> ResolveAsync(GitConflictResolveArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmResolve, nameof(args.ConfirmResolve));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure(error);
         var path = GitCli.ResolveRepositoryRelativePath(repo, args.Path);
         var strategy = args.Strategy.Trim().ToLowerInvariant();

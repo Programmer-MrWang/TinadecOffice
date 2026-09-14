@@ -62,6 +62,49 @@ public sealed class McpPassThroughTests : IAsyncLifetime
         Assert.Contains("echo:hello", response.Result.GetRawText());
     }
 
+    [Fact]
+    public async Task McpSearch_WithoutConfiguredServers_ExplainsWhyTheResultIsEmpty()
+    {
+        // An unexplained empty result is what makes an agent report "the tool
+        // returned nothing" and then guess a server id that never existed.
+        var missing = Path.Combine(Path.GetTempPath(), $"tinadec-tools-mcp-missing-{Guid.NewGuid():N}.json");
+        McpRuntime.ConfigureForTests(missing);
+
+        var response = await McpSearchTool.HandleAsync(new McpSearchParams { Query = "项目" }, CancellationToken.None);
+
+        Assert.Empty(response.Results);
+        Assert.NotNull(response.Reason);
+        Assert.Contains("No MCP server is configured", response.Reason!, StringComparison.Ordinal);
+        Assert.Contains("ls, file_search", response.Reason!, StringComparison.Ordinal);
+        Assert.Equal(missing, response.ConfigPath);
+        Assert.Equal(0, response.ServersQueried);
+    }
+
+    [Fact]
+    public async Task McpSearch_QueryMatchingNothing_ExplainsTheMiss()
+    {
+        ConfigureRuntime();
+
+        var response = await McpSearchTool.HandleAsync(
+            new McpSearchParams { Query = "zzz-nonexistent-term-zzz" }, CancellationToken.None);
+
+        Assert.Empty(response.Results);
+        Assert.NotNull(response.Reason);
+        Assert.Contains("No MCP tool matched", response.Reason!, StringComparison.Ordinal);
+        Assert.Equal(1, response.ServersQueried);
+        Assert.True(response.ToolsListed > 0, "the reachable server listed tools, so the miss is a scoring miss");
+        Assert.Empty(response.Failures);
+    }
+
+    [Fact]
+    public async Task McpSearch_BlankQuery_ExplainsTheMiss()
+    {
+        ConfigureRuntime();
+        var response = await McpSearchTool.HandleAsync(new McpSearchParams { Query = "   " }, CancellationToken.None);
+        Assert.Empty(response.Results);
+        Assert.Contains("query is required", response.Reason!, StringComparison.Ordinal);
+    }
+
     private void ConfigureRuntime()
     {
         _configPath = Path.Combine(Path.GetTempPath(), $"tinadec-tools-mcp-{Guid.NewGuid():N}.json");

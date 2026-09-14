@@ -32,6 +32,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
     private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _defaultTimeout;
     private readonly string? _defaultWorkspaceRoot;
+    private readonly string? _additionalReadRoots;
 
     private readonly object _stateLock = new();
     private readonly Dictionary<string, ManagedProcess> _processes = new(StringComparer.OrdinalIgnoreCase);
@@ -52,6 +53,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
         _startupTimeout = TimeSpan.FromSeconds(Double(configuration, "TinadecTools:StartupTimeoutSeconds", 30));
         _defaultTimeout = TimeSpan.FromSeconds(Double(configuration, "TinadecTools:DefaultTimeoutSeconds", 120));
         _defaultWorkspaceRoot = configuration["TinadecTools:DefaultWorkspaceRoot"];
+        _additionalReadRoots = configuration[ToolHostEnvironment.AdditionalReadRootsConfigurationKey];
     }
 
     /// <summary>
@@ -255,6 +257,14 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
             StandardInputEncoding = Utf8NoBom,
             CreateNoWindow = true
         };
+
+        // The child is scoped to its working directory as the single writable root;
+        // extra readable roots travel as an environment variable the tool-side
+        // resolver reads at startup.
+        if (!string.IsNullOrWhiteSpace(_additionalReadRoots))
+        {
+            startInfo.Environment[ToolHostEnvironment.AdditionalReadRootsVariable] = _additionalReadRoots;
+        }
 
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start the TinadecTools process.");
         var managed = new ManagedProcess(process, root, _logger, RaiseBroadcast);

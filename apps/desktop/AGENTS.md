@@ -1,7 +1,7 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-09-10
-**Last Updated By:** dev 启动的 ELECTRON_RUN_AS_NODE 防护 + dev 启动等待 Core/Gateway 就绪（避免 502 CORE_UNREACHABLE）+ OfficeAgentPack 版本号修正（0.2.3 → 0.2.4，digest 同步、测试改为断言与常量一致）
+**Last Updated:** 2026-09-14
+**Last Updated By:** GraphSeedPack 2.1.0（search/global_engineering 补内置只读工具面与路径契约提示语，meeting 保持空工具面；version + digest 常量同步）+ api.ts 错误提取回退（error/summary，消除 "Unprocessable Entity" 裸状态文本）；本批改动尚未提交，`Last Verified Commit` 待提交时刷新
 **Last Verified Commit:** 6e29e86
 **Branch:** Astra
 
@@ -135,6 +135,7 @@ npm run rebuild:native -w @tinadec/desktop  # rebuild node-pty for Electron (req
 ```
 
 ## NOTES
+- **GraphSeedPack 2.1.0 工具面（2026-09-14）**：`search` 模板声明 `ls/stat/read_file/file_search/git_status/git_diff/git_log/git_branch_list/mcp_search/mcp_invoke`，`global_engineering` 在其上叠加 `write_file/shell/git_commit/git_push`；`meeting` 保持 `[]`（Core 的 ModePublishGate 闸①禁止 operation 层持有工具，别再往 meeting 里加工具）。模板 system_prompt 已写明"路径参数传工作区内绝对路径，工作区根见运行时注入的工作区段"。**改 manifest 必须三处同步**：`GraphSeedPack/index.ts` 的 `GRAPH_SEED_PACK_VERSION` 与 `GRAPH_SEED_PACK_DIGEST`（digest 用 `GraphSeedPack.test.ts` 里的 `digestAgentPackManifest` 算出，跑一次测试从失败信息里抄实际值即可），Core 侧 E2E 的假 provider manifest（`TinadecCore.Api.Tests/ToolChainEndpointTests.CreateManifest`）也要覆盖种子包工具面，否则准入报 `spawnable_template_tools_unauthorized`。规则③：保留 mutating 工具面的 binding 必须声明 `envelope.resources.write`。
 - **`ELECTRON_RUN_AS_NODE` 继承防护**: 从 Electron 宿主（VS Code / CodeBuddy 等）的终端启动 dev 时，`ELECTRON_RUN_AS_NODE` 会随环境继承到 `electron.exe`，使其退化为纯 Node 运行时——`require('electron')` 只返回 `electron.exe` 路径字符串，`app`/`BrowserWindow`/`protocol` 全为 `undefined`，主进程在 `protocol.registerSchemesAsPrivileged` 处抛 `TypeError: Cannot read properties of undefined`，窗口永远不出现（`.cjs` 主进程本身没问题）。修复分两层：`scripts/dev.mjs` 的 `createSpawnOpts()` 从子进程环境里 `delete ELECTRON_RUN_AS_NODE` / `ELECTRON_NO_ATTACH_CONSOLE`（覆盖 `npm run dev` 路径），`electron/main.cjs` 在顶部检测 `require('electron')` 非对象或缺少 `app` 时直接打印修复指引并 `exit(1)`（覆盖直接用 `npm run electron -w @tinadec/desktop` 或裸 `electron .` 的路径；该变量只要存在即生效，设为空串不解除）。排查命令：`echo $env:ELECTRON_RUN_AS_NODE`。
 - **dev 启动等后端就绪**: `scripts/dev.mjs` 在 `waitForVite()` 之后（与 Vite 并行）追加 `waitForBackend()`：轮询 Gateway `/api/v1/health` 直到 `200 + core_status:"ready"`，Gateway 不存在时退回 Core `/api/v1/health`（`name:"tinadec-core"`），默认上限 120s（`TINADEC_DEV_BACKEND_WAIT_MS`，`0` 跳过）。原因：Vite/Electron 约 2–10s 起来，而 `dotnet run` 冷启动常要 60s+，两者并行时窗口会在 Core 监听之前加载数据，Gateway 代理返回 502 `CORE_UNREACHABLE`（`TinadecGateway/src/coreClient.ts`），应用内表现为「系统状态 / 加载失败 / 加载数据失败 / Cannot reach Core at http://127.0.0.1:48731」。Gateway 在自身健康但上游不可达时返回 `503 + core_status:"unreachable"`，所以它是现成的就绪信号。
 - **Stale nested Vue copies**: root `overrides` pin `vue`/`@vue/compiler-sfc` to `3.6.0-rc.7`, but a bare `npm install` can (re)create physical `apps/desktop/node_modules/vue@3.5.x` + `node_modules/@vue/*` nested copies that shadow the override and break ~25 component tests (`insertBefore` null, boundary/css-contract assertion failures). Fix: delete `apps/desktop/node_modules/vue` and `apps/desktop/node_modules/@vue`, then re-run tests — resolution falls through to the root 3.6.0-rc.7. Do not "fix" the failing tests themselves for this cause.

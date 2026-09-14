@@ -51,7 +51,7 @@ internal static class GitDiscardTools
     public static async ValueTask<GitDiscardResult> DiscardAsync(GitDiscardArgs args, CancellationToken cancellationToken)
     {
         ToolConfirmations.Require(args.ConfirmDiscard, nameof(args.ConfirmDiscard));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError, writable: true);
         if (repo is null) return Failure(repoError, GitCli.NotARepoCode);
 
         var rawPaths = args.Paths?.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.Ordinal).ToList() ?? [];

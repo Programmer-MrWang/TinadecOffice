@@ -79,6 +79,14 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         if (string.Equals(instance.Layer, "operation", StringComparison.Ordinal))
             return [DenyBoundary("operation_layer_cannot_invoke_tools", claim)];
 
+        var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
+        if (frozen is null) return [DenyBoundary("frozen_configuration_missing", claim)];
+        // A resource denial quotes the frozen root so the message stays actionable;
+        // a body without the workspace section (projectless) simply omits it.
+        var workspaceRoot = ReadFrozenWorkspaceRoot(frozen.Content);
+        var (resourceRules, resourceDenyReason) = await ResourceRulesAsync(
+            instance, claim, request.ResourceClaim, workspaceRoot, cancellationToken).ConfigureAwait(false);
+
         var rules = new List<AuthorizationBoundary>
         {
             new("run", RunRules(run.PermissionMode, claim)),
@@ -92,7 +100,7 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
             // the grant strings ("read:prefix"/"write:prefix"), and — when the
             // call carries a resource claim — the concrete target must fall
             // inside a matching prefix.
-            new("resource_access", await ResourceRulesAsync(instance, claim, request.ResourceClaim, cancellationToken).ConfigureAwait(false))
+            new("resource_access", resourceRules) { DenyReason = resourceDenyReason }
         };
 
         if (await TryInstanceDefinitionRulesAsync(instance, claim, cancellationToken).ConfigureAwait(false) is { } instanceScopeRules)
@@ -100,8 +108,6 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         else
             rules.Add(DenyBoundary("agent_instance_scope_missing", claim));
 
-        var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
-        if (frozen is null) return [DenyBoundary("frozen_configuration_missing", claim)];
         rules.Add(new AuthorizationBoundary("tool_manifest", ManifestRules(frozen.Content, claim)));
         rules.AddRange(FrozenPolicyRules(frozen.Content, claim));
 
@@ -193,25 +199,58 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
     /// Core-reserved virtual tools (create_workspace) are the projectless
     /// bootstrap channel and are exempt: the approval gate authorizes them.
     /// </summary>
-    private async Task<IReadOnlyList<CapabilityRule>> ResourceRulesAsync(
+    private async Task<(IReadOnlyList<CapabilityRule> Rules, string? DenyReason)> ResourceRulesAsync(
         AgentInstanceRecord instance,
         CapabilityClaim claim,
         CapabilityClaim? resourceClaim,
+        string? workspaceRoot,
         CancellationToken cancellationToken)
     {
         if (IsCoreReservedClaim(claim.Resource))
-            return [new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)];
+            return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null);
 
         var grants = await ReadInstanceResourceGrantsAsync(instance, cancellationToken).ConfigureAwait(false);
         var mutating = string.Equals(claim.Action, "mutate", StringComparison.OrdinalIgnoreCase);
         var target = ToolResourcePathRegistry.TryReadResourceClaimPath(resourceClaim);
         var decision = ToolResourceAllowList.Evaluate(grants, target, mutating);
-        return
-        [
-            decision.Allowed
-                ? new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)
-                : new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)
-        ];
+        if (decision.Allowed)
+            return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null);
+
+        var toolId = claim.Resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)
+            ? claim.Resource[7..]
+            : claim.Resource;
+        return (
+            [new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)],
+            ResourceDenialExplanation.Describe(decision, grants, toolId, workspaceRoot, target));
+    }
+
+    /// <summary>The frozen workspace root, when the run carries one (projectless runs do not).</summary>
+    private static string? ReadFrozenWorkspaceRoot(string content)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(content);
+            if (!document.RootElement.TryGetProperty("workspace", out var workspace)
+                || workspace.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var name in new[] { "rootPath", "root_path" })
+            {
+                if (workspace.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    var text = value.GetString();
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private async Task<IReadOnlyList<string>> ReadInstanceResourceGrantsAsync(

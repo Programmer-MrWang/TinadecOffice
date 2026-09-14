@@ -158,7 +158,7 @@ public sealed class ToolDispatcher : IToolDispatcher
                         authorization.CapabilityLeaseId,
                         "blocked",
                         cancellationToken).ConfigureAwait(false);
-                    await _executions.FailAsync(execution.Id, "failed", authorization.ErrorCategory ?? "not_authorized", authorization.Message ?? "Tool authorization was denied.", cancellationToken).ConfigureAwait(false);
+                    await _executions.FailAsync(execution.Id, "failed", authorization.ErrorCategory ?? RunErrorTaxonomy.NotAuthorized, authorization.Message ?? "Tool authorization was denied.", cancellationToken).ConfigureAwait(false);
                     return DispatchBlocked(execution, authorization);
                 }
                 execution = await _executions.BindAuthorizationAsync(execution.Id,
@@ -290,7 +290,7 @@ public sealed class ToolDispatcher : IToolDispatcher
                     authorization.CapabilityLeaseId,
                     "blocked",
                     cancellationToken).ConfigureAwait(false);
-                var denied = await _executions.FailAsync(execution.Id, "failed", authorization.ErrorCategory ?? "not_authorized", authorization.Message ?? "Tool authorization was denied.", cancellationToken).ConfigureAwait(false);
+                var denied = await _executions.FailAsync(execution.Id, "failed", authorization.ErrorCategory ?? RunErrorTaxonomy.NotAuthorized, authorization.Message ?? "Tool authorization was denied.", cancellationToken).ConfigureAwait(false);
                 return DispatchBlocked(denied, authorization);
             }
             execution = await _executions.BindAuthorizationAsync(execution.Id,

@@ -78,7 +78,7 @@ internal partial class CommandRunnerJsonContext : JsonSerializerContext { }
 
 public static class CommandRunner
 {
-    [ToolFunction("command_run", RequiresApproval = true)]
+    [ToolFunction("command_run", RequiresApproval = true, Description = "Run one executable with arguments (no shell parsing). working_directory must be an absolute path inside the run workspace. Approval-gated.")]
     public static async ValueTask<CommandRunResponse> HandleAsync(
         CommandRunParams args,
         CancellationToken cancellationToken)

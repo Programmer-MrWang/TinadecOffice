@@ -1821,6 +1821,14 @@ function extractErrorMessage(data: unknown, fallback: string): string {
     if (typeof nestedMessage === 'string' && nestedMessage.length > 0) return nestedMessage;
   }
 
+  // Tool execute results (CodeToolExecuteResultDto) fail with a 4xx/422 body that
+  // carries summary/error instead of a message envelope. Without these fallbacks
+  // the user only sees the raw HTTP status text (e.g. "Unprocessable Entity").
+  if (typeof nestedError === 'string' && nestedError.length > 0) return nestedError;
+
+  const summary = record.summary;
+  if (typeof summary === 'string' && summary.length > 0) return summary;
+
   // RFC 9457 problem+json bodies (gateway / backend errors) carry detail/title instead of message.
   const detail = record.detail;
   if (typeof detail === 'string' && detail.length > 0) return detail;

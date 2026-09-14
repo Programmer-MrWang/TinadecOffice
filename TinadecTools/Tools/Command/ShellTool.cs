@@ -36,7 +36,7 @@ internal static class ShellToolRegistration
             ShellToolId,
             HandleShellAsync,
             requiresApproval: true,
-            description: "Run a shell command in the workspace. Output streams to the conversation terminal; pass long_lived=true for dev-server style commands that must keep running.",
+            description: "Run a shell command with the run workspace as its working directory; cwd must be an absolute path inside the workspace. Output streams to the conversation terminal; pass long_lived=true for dev-server style commands that must keep running. Approval-gated.",
             inputSchemaJson: ShellInputSchema,
             risk: "high",
             mutatesWorkspace: true,
@@ -144,14 +144,20 @@ internal static class ShellToolRegistration
     {
         var root = TinadecTools.Tools.FileRW.WorkspacePathResolver.WorkspaceRoot;
         if (string.IsNullOrWhiteSpace(requested)) return root;
-        // Constrain explicit cwd values under the workspace root when it is known.
-        if (!string.IsNullOrWhiteSpace(root))
+        // An explicit cwd goes through the same boundary as every other tool path:
+        // the workspace root set, segment-aware, with the actionable out-of-bounds
+        // message. A shell can write whatever it reaches, so it resolves against the
+        // WRITABLE root only (a read-only root is not a command home). The pre-fix
+        // version compared a raw prefix, which let 'C:\ws-other' pass as inside
+        // 'C:\ws' and skipped the link-traversal check.
+        try
         {
-            var full = Path.GetFullPath(Path.Combine(root, requested));
-            var normalizedRoot = Path.GetFullPath(root);
-            return full.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase) ? full : null;
+            return TinadecTools.Tools.FileRW.WorkspacePathResolver.ResolveDirectory(requested, writable: true);
         }
-        return Directory.Exists(requested) ? requested : null;
+        catch (Exception ex) when (ex is UnauthorizedAccessException or DirectoryNotFoundException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static async ValueTask<ToolCallResponse<JsonElement>> HandleTerminalControlAsync(

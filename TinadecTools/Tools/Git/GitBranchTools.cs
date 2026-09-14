@@ -71,7 +71,7 @@ internal static class GitBranchTools
             "rename" => nameof(args.ConfirmBranchRename),
             _ => string.Empty
         });
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure(action, error);
         var name = action == "rename" ? args.NewName?.Trim() : args.Branch?.Trim();
         if (string.IsNullOrWhiteSpace(name)) throw new InvalidOperationException(action == "rename" ? "new_name is required." : "branch is required.");

@@ -40,7 +40,7 @@ internal static class GitWorktreeMutationTools
     public static async ValueTask<GitWorktreeMutationResult> CreateAsync(GitWorktreeMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmWorktreeCreate, nameof(args.ConfirmWorktreeCreate));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure("create", error);
         var branch = args.Branch?.Trim();
         if (string.IsNullOrWhiteSpace(branch)) throw new InvalidOperationException("branch is required.");
@@ -68,7 +68,7 @@ internal static class GitWorktreeMutationTools
     public static async ValueTask<GitWorktreeMutationResult> RemoveAsync(GitWorktreeMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmWorktreeRemove, nameof(args.ConfirmWorktreeRemove));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure("remove", error);
         if (string.IsNullOrWhiteSpace(args.Path)) throw new InvalidOperationException("path is required.");
         var target = ResolveManagedPath(repo, args.Path, null);

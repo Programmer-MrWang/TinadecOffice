@@ -512,6 +512,32 @@ public sealed class FullDuplexEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task InvokeStream_PromptCarriesTheFrozenWorkspaceRootAndPathContract()
+    {
+        // Workspace baseline: a model that is never told its root cannot use any
+        // path-taking tool, which is exactly what made the agent answer "I don't
+        // know where your workspace is". Every runnable role must receive the
+        // frozen root, the path contract, and the "never ask the user" rule.
+        var script = new ScriptedChatClient()
+            .WhenPlanner("[{\"task_key\":\"task-1\",\"title\":\"任务A\",\"description\":\"\",\"success_criteria\":[\"完成\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[],\"priority\":1,\"risk\":\"low\"}]")
+            .WhenWorker("已完成任务")
+            .WhenSupervisor("{\"decision\":\"pass\",\"reasons\":[\"ok\"],\"revise_task_indexes\":[]}")
+            .WhenMeeting("全部完成。");
+        var client = CreateFactory(script).CreateClient();
+        var sessionId = await CreateSessionAsync(client);
+
+        var chunks = await StreamInvokeAsync(client, sessionId, new { content = "理解项目", client_message_id = "workspace-prompt" });
+        Assert.Equal("done", KindOf(chunks.Last(chunk => KindOf(chunk) is "done" or "error")));
+
+        var root = Path.GetFullPath(Path.Combine(_root, "workspace"));
+        Assert.Contains(script.Instructions, instructions =>
+            instructions.Contains("Workspace: exactly one workspace is in scope for this run.", StringComparison.Ordinal)
+            && instructions.Contains($"- Root (absolute): {root}", StringComparison.Ordinal)
+            && instructions.Contains(WorkspacePathContracts.AbsoluteInRoot, StringComparison.Ordinal)
+            && instructions.Contains("Never ask the user for the workspace path", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task OperationalTriggers_ActivateBypassRolesWithoutCreatingLineageInstances()
     {
         var script = new ScriptedChatClient()

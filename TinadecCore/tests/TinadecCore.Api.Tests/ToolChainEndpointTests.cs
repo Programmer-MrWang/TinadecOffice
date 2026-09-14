@@ -475,6 +475,14 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
             .ToArray();
         Assert.Single(failures);
         Assert.Equal(3, provider.CallCount);
+        // The failure names the call that failed, not just its category: without the
+        // tool id a reader (and the model reviewing the evidence) cannot tell which
+        // call did not complete, which is how a failed tool reached the conversation
+        // as "nothing came back".
+        var failedEvidence = failures[0].GetProperty("evidence").EnumerateArray()
+            .Select(item => item.GetString()).ToArray();
+        Assert.Contains("tool:write_file", failedEvidence);
+        Assert.Contains(failedEvidence, item => item!.StartsWith("error_category:", StringComparison.Ordinal));
     }
 
     /// <summary>
@@ -1303,12 +1311,22 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
                     MutatesWorkspace = true
                 },
                 new() { Id = "read_file", Description = "In-process fake read probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "ls", Description = "In-process fake directory listing probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "stat", Description = "In-process fake stat probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "file_search", Description = "In-process fake file search probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
                 new() { Id = "shell", Description = "In-process fake shell probe", RequiresApproval = true, Risk = "high", MutatesWorkspace = true },
                 new() { Id = "mcp_search", Description = "In-process fake search probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
-                new() { Id = "mcp_invoke", Description = "In-process fake mcp probe", RequiresApproval = true, Risk = "medium", MutatesWorkspace = true },
-                // The git tools are part of the GraphSeedPack engineering template's
-                // declared scope, so the spawnable-ceiling intersection needs them in
-                // the frozen manifest even though no scenario here calls them.
+                // Mirrors the real descriptor: an approved MCP call is an external
+                // surface, not a workspace mutation (declared explicitly on the tool).
+                new() { Id = "mcp_invoke", Description = "In-process fake mcp probe", RequiresApproval = true, Risk = "medium", MutatesWorkspace = false },
+                // The git tools are part of the GraphSeedPack templates' declared scope
+                // (read tooling plus the engineering write set), so the
+                // spawnable-ceiling intersection needs them in the frozen manifest even
+                // though no scenario here calls them.
+                new() { Id = "git_status", Description = "In-process fake git status probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "git_diff", Description = "In-process fake git diff probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "git_log", Description = "In-process fake git log probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
+                new() { Id = "git_branch_list", Description = "In-process fake git branch probe", RequiresApproval = false, Risk = "low", MutatesWorkspace = false },
                 new() { Id = "git_commit", Description = "In-process fake git commit probe", RequiresApproval = true, Risk = "high", MutatesWorkspace = true },
                 new() { Id = "git_push", Description = "In-process fake git push probe", RequiresApproval = true, Risk = "high", MutatesWorkspace = true }
             };

@@ -39,7 +39,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
     private const string ContextPatchMarker = "CONTEXT_PATCH:";
 
     /// <summary>Task-level failure category for a declaration surface that cannot be resolved.</summary>
-    private const string ToolManifestUnavailableCategory = "tool_manifest_unavailable";
+    private const string ToolManifestUnavailableCategory = RunErrorTaxonomy.ToolManifestUnavailable;
 
     /// <summary>
     /// Task-level failure category for worker resolution/creation failures rooted in
@@ -47,7 +47,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
     /// task; genuine engine invariants (e.g. a missing planner instance) still fail
     /// the run.
     /// </summary>
-    private const string WorkerAssignmentInvalidCategory = "worker_assignment_invalid";
+    private const string WorkerAssignmentInvalidCategory = RunErrorTaxonomy.WorkerAssignmentInvalid;
 
     private readonly ILifecycleManager _lifecycle;
     private readonly IConversationStore _conversations;
@@ -495,7 +495,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             checkpoint.GraphTierAnnounced = true;
         }
         var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(plannerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(Guid.Parse(run.RunId), "context.packed", "Planner context assembled.", new
         {
             evidence_count = context.Evidence.Count,
@@ -845,7 +845,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 {
                     if (!TryParseJsonObject(pendingTurn.ArgumentsJson, out var parameters))
                     {
-                        return FailedToolTask(checkpoint, task, worker, "invalid_tool_arguments", "The worker returned invalid tool arguments.");
+                        return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.InvalidToolArguments, "The worker returned invalid tool arguments.", pendingTurn.ToolId);
                     }
 
                     var toolCallKey = $"run:{run.RunId}:task:{task.TaskKey}:attempt:{task.Attempt}:round:{task.ToolRounds}:call:{pendingTurn.CallId}";
@@ -870,7 +870,11 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
 
                     if (string.IsNullOrWhiteSpace(dispatch.ExecutionId))
                     {
-                        return FailedToolTask(checkpoint, task, worker, dispatch.ErrorCategory ?? RunErrorTaxonomy.ToolPrepareFailed, dispatch.Message ?? "The tool call could not be prepared.");
+                        var prepareCategory = dispatch.ErrorCategory ?? RunErrorTaxonomy.ToolPrepareFailed;
+                        var prepareMessage = dispatch.Message ?? "The tool call could not be prepared.";
+                        pendingTurn.ErrorCategory ??= prepareCategory;
+                        pendingTurn.ResultJson = ToolCallFailureJson(pendingTurn.ToolId, prepareCategory, prepareMessage);
+                        return FailedToolTask(checkpoint, task, worker, prepareCategory, prepareMessage, pendingTurn.ToolId);
                     }
                 }
 
@@ -951,8 +955,16 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 }
                 if (dispatch.Status != ToolDispatchStatus.Completed)
                 {
+                    var category = dispatch.ErrorCategory ?? dispatch.Status;
                     var summary = dispatch.Message ?? $"Tool '{pendingTurn.ToolId}' returned {dispatch.Status}.";
-                    return FailedToolTask(checkpoint, task, worker, dispatch.ErrorCategory ?? dispatch.Status, summary);
+                    // A call that did not complete must come back with a reason, not as
+                    // silence: the unresolved turn keeps the structured tool error (the
+                    // provider wire contract's shape) so a replayed turn shows the model
+                    // why, and the task failure names the tool next to its category so
+                    // supervision and the final answer can state the actual cause.
+                    pendingTurn.ErrorCategory ??= category;
+                    pendingTurn.ResultJson = ToolCallFailureJson(pendingTurn.ToolId, category, summary);
+                    return FailedToolTask(checkpoint, task, worker, category, summary, pendingTurn.ToolId);
                 }
 
                 var resultJson = dispatch.Result?.GetRawText();
@@ -983,7 +995,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, model.Usage);
             if (!model.IsAvailable || model.Error is not null)
             {
-                return FailedToolTask(checkpoint, task, worker, "model_unavailable", model.Error ?? "Worker model is unavailable.");
+                return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.ModelUnavailable, model.Error ?? "Worker model is unavailable.");
             }
             if (model.Calls.Count == 0)
             {
@@ -1005,7 +1017,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             task.ToolRounds++;
             if (task.ToolRounds > roundLimit)
             {
-                return FailedToolTask(checkpoint, task, worker, "tool_round_limit", $"The worker exceeded the effective max_tool_rounds limit ({roundLimit}).");
+                return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.ToolRoundLimit, $"The worker exceeded the effective max_tool_rounds limit ({roundLimit}).");
             }
             if (_loopGuard is { } guard && task.ToolRounds > configuration.Tools.MaxToolRounds)
             {
@@ -1033,7 +1045,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                     cancellationToken).ConfigureAwait(false);
                 if (!decision.ShouldContinue)
                 {
-                    return FailedToolTask(checkpoint, task, worker, "tool_loop_detected",
+                    return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.ToolLoopDetected,
                         decision.Reason ?? "The loop guard rejected further tool rounds for this task.");
                 }
             }
@@ -1043,7 +1055,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             {
                 if (!existingCallIds.Add(call.CallId))
                 {
-                    return FailedToolTask(checkpoint, task, worker, "duplicate_tool_call", $"The worker reused tool call id '{call.CallId}'.");
+                    return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.DuplicateToolCall, $"The worker reused tool call id '{call.CallId}'.", call.ToolId);
                 }
                 task.ToolTurns.Add(new WorkerToolTurn
                 {
@@ -1360,7 +1372,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var context = await BuildContextAsync(run, configuration, workerDefinition.Id,
             $"Task: {task.Title}\nDescription: {task.Description}\nSuccess criteria: {string.Join("; ", task.SuccessCriteria)}",
             cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(workerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, workerDefinition, context, cancellationToken).ConfigureAwait(false);
         var agent = new AgentDefinition
         {
             Id = worker.Id,
@@ -1538,7 +1550,13 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             throw new InvalidDataException($"Frozen {purpose} agent '{agent.Id}' has no immutable version binding.");
     }
 
+    /// <summary>
+    /// Assembles one agent's instructions from the frozen inputs. The frozen
+    /// workspace travels with the request: every agent of the run must know the
+    /// absolute root its path arguments are validated against.
+    /// </summary>
     private async Task<PromptAssemblyResult> AssemblePromptAsync(
+        FrozenRunConfigurationV1 configuration,
         RuntimeAgentDefinition definition,
         ContextPack context,
         CancellationToken cancellationToken) =>
@@ -1551,7 +1569,10 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             definition.PromptPipelineId,
             definition.PromptVersionId,
             definition.PromptVersionContentHash,
-            definition.PromptGraphJson), cancellationToken).ConfigureAwait(false);
+            definition.PromptGraphJson)
+        {
+            Workspace = configuration.Workspace
+        }, cancellationToken).ConfigureAwait(false);
 
     private IAgentChatClientFactory CreateModelFactory(
         FrozenRunConfigurationV1 configuration,
@@ -1667,25 +1688,39 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         DurableTaskNode task,
         RuntimeAgentInstance? worker,
         string category,
-        string message)
+        string message,
+        string? toolId = null)
     {
         // A failed task is terminal: drop the pending execution linkage so later
         // ticks never resume a dead execution or re-emit the failure. The
         // unresolved turn keeps the category as audit evidence.
         ClearPendingToolExecution(task, category);
         return new(checkpoint, Waiting: false,
-            FailedTaskResult(task, worker?.Id ?? task.WorkerAgentId, category, message));
+            FailedTaskResult(task, worker?.Id ?? task.WorkerAgentId, category, message, toolId));
     }
 
-    private static TaskExecutionResult FailedTaskResult(DurableTaskNode task, Guid? workerId, string category, string message) =>
+    private static TaskExecutionResult FailedTaskResult(DurableTaskNode task, Guid? workerId, string category, string message, string? toolId = null) =>
         new(task.TaskId, workerId, "failed", new StepResult
         {
             TaskNodeId = task.TaskId,
             AgentId = workerId?.ToString("N") ?? string.Empty,
             Status = "failed",
             Summary = message,
-            Evidence = [$"error_category:{category}"]
+            // The tool id travels next to the category: "which call failed" is the
+            // first thing a reader (or the model reviewing evidence) needs, and the
+            // per-task evidence used to carry the category alone.
+            Evidence = toolId is null
+                ? [$"error_category:{category}"]
+                : [$"error_category:{category}", $"tool:{toolId}"]
         });
+
+    /// <summary>
+    /// The structured tool error stored on a turn whose call did not complete.
+    /// It mirrors the provider wire contract (<c>error_category</c> + message) so
+    /// Core, the tools process, and the model all describe a failure the same way.
+    /// </summary>
+    private static string ToolCallFailureJson(string toolId, string category, string message) =>
+        JsonSerializer.Serialize(new { tool_id = toolId, error_category = category, message });
 
     private static void ClearPendingToolExecution(DurableTaskNode task, string? category = null)
     {
@@ -1761,7 +1796,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 var supervisorInstance = await EnsureSupervisorAgentAsync(run, configuration, checkpoint, supervisorDefinition, cancellationToken).ConfigureAwait(false);
                 checkpoint.SupervisorAgentId = supervisorInstance.Id;
                 var context = await BuildContextAsync(run, configuration, supervisorDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-                var assembly = await AssemblePromptAsync(supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
+                var assembly = await AssemblePromptAsync(configuration, supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
                 var supervisor = new SupervisionAgent(CreateModelFactory(configuration, checkpoint, supervisorDefinition,
                     supervisorInstance.Id, supervisorInstance.ParentInstanceId), _logger);
                 verdict = await supervisor.ReviewAsync(checkpoint.UserGoal, plans, results, checkpoint.SupervisionRound, assembly.Instructions, cancellationToken).ConfigureAwait(false);
@@ -1879,7 +1914,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var plannerDefinition = RequiredConversationAgent(configuration);
 
         var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(plannerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         var instructions = SupervisionReplanInstructions(checkpoint, assembly.Instructions, verdict, reviseIndexes);
         // Revise indexes address the pre-replan list, which the merge below
         // replaces: capture the flagged keys now so they can be forced back to
@@ -2020,7 +2055,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(meetingDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
 
         var targetSummary = "No active target run.";
         if (checkpoint.TargetRunId is { } targetRunId)
@@ -2459,7 +2494,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(meetingDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
         var escalation = checkpoint.SupervisionDecision == "escalate"
             ? "\n\nIMPORTANT: supervision escalated this run. Explain the unresolved decision clearly and ask the user for direction."
             : string.Empty;
@@ -2764,7 +2799,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
         var evidence = string.Join("\n", context.Evidence.Select(item => $"[{item.Source}] {item.Content}"));
         var instructions = assembly.Instructions
             + "\n\nYou are the context compression agent. Compress the session context into a structured summary with these sections: 当前目标 / 关键约束 / 已完成事项 / 待处理事项 / 重要结论 / 风险点. Preserve the current goal and constraints exactly, keep approval conclusions, and never invent new facts.";
@@ -2829,7 +2864,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
         var taskSummary = checkpoint.Tasks.Count == 0
             ? "(no task graph yet)"
             : string.Join("\n", checkpoint.Tasks.Select(item =>
@@ -2939,7 +2974,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
         var evidence = string.Join("\n", checkpoint.Tasks.Select(item =>
             $"- [{item.ResultStatus ?? item.Status}] {item.ResultSummary}"));
         var instructions = assembly.Instructions
@@ -3076,7 +3111,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
         var gitTasks = checkpoint.Tasks
             .Where(task => task.RequiredTools.Any(tool => tool.StartsWith("git_", StringComparison.OrdinalIgnoreCase))
                 || task.ToolTurns.Any(turn => turn.ToolId.StartsWith("git_", StringComparison.OrdinalIgnoreCase)))

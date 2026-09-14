@@ -45,7 +45,7 @@ internal static class GitIntegrationTools
     private static async ValueTask<GitIntegrationResult> ExecuteAsync(GitIntegrationArgs args, string action, CancellationToken ct)
     {
         ToolConfirmations.Require(action == "merge" ? args.ConfirmMerge : args.ConfirmRebase, action == "merge" ? nameof(args.ConfirmMerge) : nameof(args.ConfirmRebase));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure(action, args.Operation ?? "start", error);
         var operation = string.IsNullOrWhiteSpace(args.Operation) ? "start" : args.Operation.Trim().ToLowerInvariant();
         var allowed = action == "merge" ? new[] { "start", "continue", "abort" } : new[] { "start", "continue", "abort", "skip" };

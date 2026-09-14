@@ -56,7 +56,7 @@ public static class FileReader
     private const int max_sentinel_read_lines = 150;
     private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-    [ToolFunction("read_file")]
+    [ToolFunction("read_file", Description = "Read a text file from the run workspace. filepath must be an absolute path inside the workspace (a relative path resolves against the workspace root); returns the requested line range plus the file hash.")]
     public static async ValueTask<NormalFileReadResponse> HandleAsync(
         NormalFileReadParams args,
         CancellationToken cancellationToken)

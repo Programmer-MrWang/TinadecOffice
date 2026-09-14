@@ -6,8 +6,11 @@ namespace TinadecCore.AgentFramework.Tests;
 /// <summary>
 /// Gate 2 (mode publish) pinning: binding envelopes may only narrow — capability
 /// and tool grants outside the template are rejected, spawn budgets above the
-/// runtime ceilings are rejected, and the operation-layer effective tool surface
-/// must be empty (deny floor). Tool switches legitimately remove tools.
+/// runtime ceilings are rejected, the operation-layer effective tool surface must
+/// be empty (deny floor), and a binding that keeps a workspace-mutating tool must
+/// declare a write-level resource grant (otherwise the run would freeze a mutating
+/// tool face and deny every call of it before the approval gate is consulted).
+/// Tool switches legitimately remove tools.
 /// </summary>
 public sealed class ModePublishGateTests
 {
@@ -21,7 +24,7 @@ public sealed class ModePublishGateTests
         string? switches = null) =>
         new("node1", "agent1", layer,
             capabilities ?? ["task.dispatch"],
-            tools ?? ["read_file", "write_file"],
+            tools ?? ["read_file"],
             switches is null ? default : Json(switches),
             envelope is null ? default : Json(envelope));
 
@@ -82,14 +85,52 @@ public sealed class ModePublishGateTests
     }
 
     [Fact]
-    public void ExecutionLayerWithTools_Passes()
+    public void ExecutionLayerWithReadTools_Passes()
     {
         ModePublishGate.ValidateBindings("mode", [Binding()], null);
     }
 
     [Fact]
-    public void AbsentEnvelope_IsTolerated()
+    public void AbsentEnvelope_IsToleratedForAReadOnlyFace()
     {
-        ModePublishGate.ValidateBindings("mode", [Binding(envelope: null)], null);
+        ModePublishGate.ValidateBindings("mode", [Binding(envelope: null, tools: ["read_file", "file_search"])], null);
+    }
+
+    // ── ③ mutating tool face needs a write grant (the self-contradiction guard) ──
+
+    [Fact]
+    public void MutatingToolWithoutWriteGrant_IsRejected()
+    {
+        // No envelope at all: the spawn would freeze write_file while the instance
+        // holds no workspace grant, so every call would be denied at run time.
+        var missingEnvelope = Assert.Throws<InvalidDataException>(() =>
+            ModePublishGate.ValidateBindings("mode", [Binding(tools: ["read_file", "write_file"])], null));
+        Assert.Contains("mutating_tool_without_write_grant", missingEnvelope.Message);
+        Assert.Contains("write_file", missingEnvelope.Message);
+
+        // Read-only envelope: the level, not the prefix, is what is missing.
+        var readOnlyEnvelope = Assert.Throws<InvalidDataException>(() =>
+            ModePublishGate.ValidateBindings("mode",
+                [Binding(tools: ["git_commit"], envelope: """{"resources":{"read":[""]}}""")], null));
+        Assert.Contains("mutating_tool_without_write_grant", readOnlyEnvelope.Message);
+        Assert.Contains("git_commit", readOnlyEnvelope.Message);
+    }
+
+    [Fact]
+    public void MutatingToolWithWriteGrant_Passes()
+    {
+        ModePublishGate.ValidateBindings("mode",
+            [Binding(tools: ["read_file", "write_file", "git_commit"], envelope: """{"resources":{"read":[""],"write":[""]}}""")], null);
+
+        // A prefix-scoped write grant is a write grant.
+        ModePublishGate.ValidateBindings("mode",
+            [Binding(tools: ["write_file"], envelope: """{"resources":{"write":["src"]}}""")], null);
+    }
+
+    [Fact]
+    public void MutatingToolSwitchedOff_PassesWithoutWriteGrant()
+    {
+        ModePublishGate.ValidateBindings("mode",
+            [Binding(tools: ["write_file"], envelope: null, switches: """{"write_file": false}""")], null);
     }
 }

@@ -1316,7 +1316,15 @@ public sealed class GovernanceService : IAuthorizationService, IPolicyDecisionPo
         foreach (var boundary in boundaries)
         {
             if (CapabilityRuleMatcher.HasDeny(boundary.Rules, claim))
-                return new BoundaryEvaluation(false, "explicit_deny", $"Authorization boundary '{boundary.Name}' explicitly denies the capability.", hash);
+            {
+                // A boundary that knows WHY it denied supplies the actionable text
+                // (which level or root is missing); otherwise fall back to the
+                // generic statement so the reason code still travels.
+                var reason = string.IsNullOrWhiteSpace(boundary.DenyReason)
+                    ? $"Authorization boundary '{boundary.Name}' explicitly denies the capability."
+                    : boundary.DenyReason!;
+                return new BoundaryEvaluation(false, "explicit_deny", reason, hash);
+            }
         }
         foreach (var boundary in boundaries)
         {

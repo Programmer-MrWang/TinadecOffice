@@ -178,7 +178,17 @@ public sealed record FrozenPolicySnapshot(
 /// </summary>
 public sealed record AuthorizationBoundary(
     string Name,
-    IReadOnlyList<CapabilityRule> Rules);
+    IReadOnlyList<CapabilityRule> Rules)
+{
+    /// <summary>
+    /// Actionable reason for a deny produced by this boundary. It is diagnostic,
+    /// not policy material: it is excluded from the boundary hash and only replaces
+    /// the generic "boundary explicitly denies" text, so an operator or a model can
+    /// see what was missing (which workspace root, which level, which grants).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? DenyReason { get; init; }
+}
 
 public sealed record CreatePolicyBundleCommand(
     string Slug,

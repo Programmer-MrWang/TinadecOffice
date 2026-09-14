@@ -380,7 +380,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             var supervisorInstance = await EnsureSupervisorAgentAsync(run, configuration, checkpoint, supervisorDefinition, cancellationToken).ConfigureAwait(false);
             checkpoint.SupervisorAgentId = supervisorInstance.Id;
             var context = await BuildContextAsync(run, configuration, supervisorDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-            var assembly = await AssemblePromptAsync(supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
+            var assembly = await AssemblePromptAsync(configuration, supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
             var supervisor = new SupervisionAgent(CreateModelFactory(configuration, checkpoint, supervisorDefinition,
                 supervisorInstance.Id, supervisorInstance.ParentInstanceId), _logger);
             var plans = laneTasks.Select(ToPlannedTask).ToArray();
@@ -1228,7 +1228,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
     {
         var plannerDefinition = RequiredAgent(configuration.ExecutionAgents, "task_planner");
         var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, laneGoal, cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(plannerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(Guid.Parse(run.RunId), "context.packed",
             $"Lane '{laneKey}' planner context assembled.", new
             {

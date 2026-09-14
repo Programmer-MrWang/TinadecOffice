@@ -6,8 +6,9 @@ namespace TinadecCore.AgentFramework.Tests;
 
 /// <summary>
 /// WS-8 pinning: the per-tool path extractor. Parameter names are the real
-/// TinadecTools bindings — both file tools carry the target under the JSON
-/// property "filepath" — and every unregistered or unusable shape falls back to
+/// TinadecTools bindings — file tools carry "filepath", the directory/search tools
+/// "path", the process tools "cwd"/"working_directory", and every git tool
+/// "repository_path" — and every unregistered or unusable shape falls back to
 /// "no path" (level-only decision), never to a widened grant.
 /// </summary>
 public sealed class ToolResourcePathRegistryTests
@@ -20,6 +21,34 @@ public sealed class ToolResourcePathRegistryTests
         var path = ToolResourcePathRegistry.TryExtractRelativePath(
             toolId, """{"filepath":"src/app.cs"}""", @"C:\ws");
         Assert.Equal("src/app.cs", path);
+    }
+
+    [Theory]
+    [InlineData("ls", "path")]
+    [InlineData("stat", "path")]
+    [InlineData("file_search", "path")]
+    [InlineData("shell", "cwd")]
+    [InlineData("command_run", "working_directory")]
+    [InlineData("git_status", "repository_path")]
+    [InlineData("git_commit", "repository_path")]
+    [InlineData("git_push", "repository_path")]
+    [InlineData("git_worktree_create", "repository_path")]
+    public void EveryPathTargetingTool_ContributesItsTarget(string toolId, string parameter)
+    {
+        var path = ToolResourcePathRegistry.TryExtractRelativePath(
+            toolId, $$"""{"{{parameter}}":"src/app.cs"}""", @"C:\ws");
+        Assert.Equal("src/app.cs", path);
+        Assert.True(ToolResourcePathRegistry.IsRegistered(toolId));
+    }
+
+    [Fact]
+    public void GitAndProcessTools_WithoutTheirPathArgument_YieldNoPath()
+    {
+        // A git call with no repository_path, or a shell call with no cwd, has no
+        // single target: the level-only decision applies (the tool process still
+        // refuses anything outside its own root).
+        Assert.Null(ToolResourcePathRegistry.TryExtractRelativePath("git_status", """{"max_files":10}""", @"C:\ws"));
+        Assert.Null(ToolResourcePathRegistry.TryExtractRelativePath("shell", """{"command":"ls"}""", @"C:\ws"));
     }
 
     [Fact]
@@ -49,11 +78,8 @@ public sealed class ToolResourcePathRegistryTests
     }
 
     [Theory]
-    [InlineData("shell")]
     [InlineData("mcp_search")]
     [InlineData("mcp_invoke")]
-    [InlineData("git_commit")]
-    [InlineData("git_push")]
     [InlineData("create_workspace")]
     [InlineData("some_future_tool")]
     public void ToolsWithoutASinglePath_YieldNoPath(string toolId)
@@ -108,6 +134,9 @@ public sealed class ToolResourcePathRegistryTests
 
         // A tool without a single path carries no resource dimension at all.
         Assert.Null(ToolResourcePathRegistry.TryBuildResourceClaim(
-            "shell", """{"command":"ls"}""", null, mutating: true));
+            "mcp_search", """{"query":"x"}""", null, mutating: true));
+        // A process tool carries the directory it was pointed at.
+        Assert.Equal("path://src", ToolResourcePathRegistry.TryBuildResourceClaim(
+            "command_run", """{"working_directory":"src"}""", null, mutating: true)!.Resource);
     }
 }

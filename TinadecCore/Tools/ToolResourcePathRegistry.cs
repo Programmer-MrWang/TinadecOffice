@@ -7,31 +7,56 @@ namespace TinadecCore.Tools;
 /// WS-8 per-tool resource-path extraction for the resource envelope.
 ///
 /// The envelope authorizes a workspace-relative path PREFIX per tool call, so
-/// Core has to know which argument names the target path. The table is
-/// deliberately tiny and explicit: an unregistered tool yields "no single path"
-/// and falls back to the level-only decision, which never widens anything — the
-/// tool process still refuses every path outside its own workspace root.
+/// Core has to know which argument names the target path. The table covers every
+/// provider tool that has a single workspace target; a tool with no single path
+/// (e.g. <c>mcp_search</c>, <c>mcp_invoke</c>) yields "no single path" and falls
+/// back to the level-only decision, which never widens anything — the tool process
+/// still refuses every path outside its own workspace root.
 ///
 /// Parameter names come from the real TinadecTools definitions, never guessed:
-/// <c>read_file</c> and <c>write_file</c> both bind their target to the JSON
-/// property <c>filepath</c> (<c>NormalFileReadParams.FilePath</c> /
-/// <c>WriteFileParams.FilePath</c>). <c>shell</c>, <c>mcp_search</c>,
-/// <c>mcp_invoke</c> and <c>git_*</c> have no single target path (repository- or
-/// process-scoped), so they stay unregistered on purpose.
+/// <c>read_file</c>/<c>write_file</c> bind <c>filepath</c>, <c>ls</c>/<c>stat</c>/
+/// <c>file_search</c> bind <c>path</c>, <c>shell</c> binds <c>cwd</c>,
+/// <c>command_run</c> binds <c>working_directory</c>, and every <c>git_*</c> tool
+/// binds <c>repository_path</c>.
 /// </summary>
 internal static class ToolResourcePathRegistry
 {
+    private const string GitPathParameter = "repository_path";
+
     /// <summary>Tool id -> the JSON parameter carrying the target path.</summary>
     private static readonly IReadOnlyDictionary<string, string> PathParameterByTool =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["read_file"] = "filepath",
             ["write_file"] = "filepath",
+            // The line/byte mutation family binds the same "filepath" property
+            // (FileWriter.cs): without them the WS-8 prefix narrowing silently
+            // degraded to a level-only decision for every edit after the first write.
+            ["replace_lines"] = "filepath",
+            ["replace_bytes"] = "filepath",
+            ["insert_line"] = "filepath",
+            ["insert_bytes"] = "filepath",
+            ["insert_byte"] = "filepath",
+            ["delete_line"] = "filepath",
+            ["delete_bytes"] = "filepath",
+            ["ls"] = "path",
+            ["stat"] = "path",
+            ["file_search"] = "path",
+            ["shell"] = "cwd",
+            ["command_run"] = "working_directory",
         };
 
+    /// <summary>The path parameter of a tool, or null when the tool has no single workspace target.</summary>
+    private static string? PathParameter(string? toolId)
+    {
+        if (string.IsNullOrWhiteSpace(toolId)) return null;
+        if (PathParameterByTool.TryGetValue(toolId, out var parameter)) return parameter;
+        // Every git tool targets the repository it was handed.
+        return toolId.StartsWith("git_", StringComparison.OrdinalIgnoreCase) ? GitPathParameter : null;
+    }
+
     /// <summary>Whether the tool declares a single target path enforced this phase.</summary>
-    public static bool IsRegistered(string? toolId) =>
-        !string.IsNullOrWhiteSpace(toolId) && PathParameterByTool.ContainsKey(toolId);
+    public static bool IsRegistered(string? toolId) => PathParameter(toolId) is not null;
 
     /// <summary>
     /// Extract the workspace-relative target path of a tool call.
@@ -45,13 +70,14 @@ internal static class ToolResourcePathRegistry
     /// </summary>
     public static string? TryExtractRelativePath(string? toolId, string? parametersJson, string? workspaceRoot)
     {
-        if (!IsRegistered(toolId) || string.IsNullOrWhiteSpace(parametersJson)) return null;
+        var parameter = PathParameter(toolId);
+        if (parameter is null || string.IsNullOrWhiteSpace(parametersJson)) return null;
         string? raw;
         try
         {
             using var document = JsonDocument.Parse(parametersJson);
             if (document.RootElement.ValueKind != JsonValueKind.Object) return null;
-            if (!document.RootElement.TryGetProperty(PathParameterByTool[toolId!], out var element)) return null;
+            if (!document.RootElement.TryGetProperty(parameter, out var element)) return null;
             if (element.ValueKind != JsonValueKind.String) return null;
             raw = element.GetString();
         }

@@ -6,8 +6,8 @@
     "owner": "tinadec",
     "product_id": "tinadec-core",
     "name": "GraphSeedPack",
-    "version": "2.0.1",
-    "description": "DmaEA 图编排种子包：3 模板 × 3 模式，一个模式对应一个编排档位（free_form / self_dispatch / deterministic）。"
+    "version": "2.1.0",
+    "description": "DmaEA 图编排种子包：3 模板 × 3 模式，一个模式对应一个编排档位（free_form / self_dispatch / deterministic）。执行模板自带工作区内置工具面（枚举/读取/检索/只读 git），MCP 作为可选扩展保留。"
   },
   "compatibility": {
     "minimum_core_version": "0.1.0",
@@ -43,8 +43,8 @@
         "role": "task_executor",
         "capabilities": ["task.dispatch"],
         "model_strategy": { "kind": "inherit" },
-        "tool_scope": ["mcp_search", "mcp_invoke", "read_file"],
-        "system_prompt": "你负责检索与取证：只读工作区与已接入的信息源，产出带出处的证据；不做任何写操作。",
+        "tool_scope": ["ls", "stat", "read_file", "file_search", "git_status", "git_diff", "git_log", "git_branch_list", "mcp_search", "mcp_invoke"],
+        "system_prompt": "你负责检索与取证：只读工作区与已接入的信息源，产出带出处的证据；不做任何写操作。工作区根路径与路径契约见运行时注入的工作区段，路径参数请传工作区内的绝对路径。",
         "enabled": true,
         "base_prompt_pipeline_ref": "prompt:seed-base"
       },
@@ -57,8 +57,8 @@
         "role": "task_executor",
         "capabilities": ["task.dispatch"],
         "model_strategy": { "kind": "inherit" },
-        "tool_scope": ["read_file", "write_file", "shell", "git_commit", "git_push"],
-        "system_prompt": "你负责端到端工程执行：按任务的成功判据修改工作区，写操作前确认影响面，产出处可验证的工件。",
+        "tool_scope": ["ls", "stat", "read_file", "file_search", "git_status", "git_diff", "git_log", "write_file", "shell", "git_commit", "git_push"],
+        "system_prompt": "你负责端到端工程执行：按任务的成功判据修改工作区，写操作前确认影响面，产出处可验证的工件。先枚举与读取确认现状，再动手改；路径参数请传工作区内的绝对路径（工作区根见运行时注入的工作区段）。",
         "enabled": true,
         "base_prompt_pipeline_ref": "prompt:seed-base"
       }
