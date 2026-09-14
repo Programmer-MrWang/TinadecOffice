@@ -556,10 +556,9 @@ public sealed class AgentPackService : IAgentPackService
         var managedKey = ("prompt_pipeline", resource.ResourceKey!);
         managed.TryGetValue(managedKey, out var management);
         PromptPipelineRecord? logical = management is null
-            ? await FindAdoptablePromptAsync(db, scope, resource, cancellationToken).ConfigureAwait(false)
+            ? null
             : await db.PromptPipelines.SingleAsync(item => item.Id == management.LogicalEntityId && item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
         var wasCreated = logical is null;
-        var wasAdopted = logical is not null && management is null;
         logical ??= new PromptPipelineRecord
         {
             Id = Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId,
@@ -595,7 +594,7 @@ public sealed class AgentPackService : IAgentPackService
         logical.Revision++;
         logical.UpdatedAt = now;
         logical.UpdatedByPrincipalId = scope.PrincipalId;
-        var disposition = ResolveDisposition(wasCreated, wasAdopted, unchanged);
+        var disposition = ResolveDisposition(wasCreated, unchanged);
         EnsureManaged(db, managed, installation, "prompt_pipeline", resource.ResourceKey!, logical.Id, scope, now);
         AddBinding(db, packVersion, "prompt_pipeline", resource.ResourceKey!, logical.Id, version.Id, hash, disposition, scope, now);
         return new PublishedResource(logical.Id, version.Id, hash, disposition);
@@ -615,10 +614,9 @@ public sealed class AgentPackService : IAgentPackService
         var managedKey = ("agent", resource.ResourceKey!);
         managed.TryGetValue(managedKey, out var management);
         AgentDefinitionRecord? logical = management is null
-            ? await FindAdoptableAgentAsync(db, scope, resource, cancellationToken).ConfigureAwait(false)
+            ? null
             : await db.AgentDefinitions.SingleAsync(item => item.Id == management.LogicalEntityId && item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
         var wasCreated = logical is null;
-        var wasAdopted = logical is not null && management is null;
         logical ??= new AgentDefinitionRecord
         {
             Id = Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId,
@@ -684,7 +682,7 @@ public sealed class AgentPackService : IAgentPackService
         logical.Revision++;
         logical.UpdatedAt = now;
         logical.UpdatedByPrincipalId = scope.PrincipalId;
-        var disposition = ResolveDisposition(wasCreated, wasAdopted, unchanged);
+        var disposition = ResolveDisposition(wasCreated, unchanged);
         EnsureManaged(db, managed, installation, "agent", resource.ResourceKey!, logical.Id, scope, now);
         AddBinding(db, packVersion, "agent", resource.ResourceKey!, logical.Id, version.Id, hash, disposition, scope, now);
         return new PublishedResource(logical.Id, version.Id, hash, disposition);
@@ -706,10 +704,9 @@ public sealed class AgentPackService : IAgentPackService
         var managedKey = ("mode", resource.ResourceKey!);
         managed.TryGetValue(managedKey, out var management);
         AgentModeRecord? logical = management is null
-            ? await FindAdoptableModeAsync(db, scope, resource, agentResources, cancellationToken).ConfigureAwait(false)
+            ? null
             : await db.AgentModes.SingleAsync(item => item.Id == management.LogicalEntityId && item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
         var wasCreated = logical is null;
-        var wasAdopted = logical is not null && management is null;
         logical ??= new AgentModeRecord
         {
             Id = Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId,
@@ -849,7 +846,7 @@ public sealed class AgentPackService : IAgentPackService
         logical.Revision++;
         logical.UpdatedAt = now;
         logical.UpdatedByPrincipalId = scope.PrincipalId;
-        var disposition = ResolveDisposition(wasCreated, wasAdopted, unchanged);
+        var disposition = ResolveDisposition(wasCreated, unchanged);
         EnsureManaged(db, managed, installation, "mode", resource.ResourceKey!, logical.Id, scope, now);
         AddBinding(db, packVersion, "mode", resource.ResourceKey!, logical.Id, version.Id, hash, disposition, scope, now);
         return new PublishedResource(logical.Id, version.Id, hash, disposition);
@@ -922,7 +919,7 @@ public sealed class AgentPackService : IAgentPackService
         ? value
         : JsonSerializer.SerializeToElement(new Dictionary<string, object?>(), JsonOptions);
 
-    private static string ResolveDisposition(bool created, bool adopted, bool unchanged) => created ? "created" : adopted ? "adopted" : unchanged ? "reused" : "updated";
+    private static string ResolveDisposition(bool created, bool unchanged) => created ? "created" : unchanged ? "reused" : "updated";
 
     private static void EnsureManaged(
         AgentConfigurationDbContext db,
@@ -1026,6 +1023,22 @@ public sealed class AgentPackService : IAgentPackService
         new(resource.ResourceKind, resource.ResourceKey, resource.LogicalEntityId, resource.VersionId, resource.ContentHash, resource.Disposition);
 
     private static string Sha256Hex(ReadOnlySpan<byte> value) => Convert.ToHexString(SHA256.HashData(value)).ToLowerInvariant();
+
+    /// <summary>
+    /// Wraps a manifest into an integrity-signed envelope using this Core's own
+    /// RFC 8785 digest path, so deployment-supplied bootstrap manifests are
+    /// validated exactly like an HTTP-submitted envelope.
+    /// </summary>
+    public static AgentPackEnvelopeDto CreateEnvelope(AgentPackManifestDto manifest)
+    {
+        var manifestElement = JsonSerializer.SerializeToElement(manifest, JsonOptions);
+        var digest = Convert.ToHexString(SHA256.HashData(JsonCanonicalizer.Canonicalize(manifestElement))).ToLowerInvariant();
+        return new AgentPackEnvelopeDto
+        {
+            Manifest = manifest,
+            Integrity = new AgentPackIntegrityDto { Algorithm = "sha256", Digest = digest }
+        };
+    }
 
     private Task<ResourceAnalysis> AnalyzeResourcesAsync(AgentConfigurationDbContext db, AgentPackInstallationRecord? installation, ValidatedEnvelope envelope, CancellationToken cancellationToken) =>
         AnalyzeResourcesCoreAsync(db, installation, envelope, cancellationToken);
@@ -1459,8 +1472,6 @@ public sealed class AgentPackService : IAgentPackService
                 differences.Add(new AgentPackResourceView("agent", agent.ResourceKey!, current.Id, null, null, disposition));
                 continue;
             }
-            var adoptable = await FindAdoptableAgentAsync(db, scope, agent, cancellationToken).ConfigureAwait(false);
-            if (adoptable is not null) { adopted++; differences.Add(new AgentPackResourceView("agent", agent.ResourceKey!, adoptable.Id, null, null, "adopted")); continue; }
             created++;
             differences.Add(new AgentPackResourceView("agent", agent.ResourceKey!, null, null, null, "created"));
         }
@@ -1474,8 +1485,6 @@ public sealed class AgentPackService : IAgentPackService
                 differences.Add(new AgentPackResourceView("prompt_pipeline", prompt.ResourceKey!, current.Id, null, null, disposition));
                 continue;
             }
-            var adoptable = await FindAdoptablePromptAsync(db, scope, prompt, cancellationToken).ConfigureAwait(false);
-            if (adoptable is not null) { adopted++; differences.Add(new AgentPackResourceView("prompt_pipeline", prompt.ResourceKey!, adoptable.Id, null, null, "adopted")); continue; }
             created++;
             differences.Add(new AgentPackResourceView("prompt_pipeline", prompt.ResourceKey!, null, null, null, "created"));
         }
@@ -1487,92 +1496,11 @@ public sealed class AgentPackService : IAgentPackService
                 differences.Add(new AgentPackResourceView("mode", mode.ResourceKey!, managedMode.LogicalEntityId, null, null, "updated"));
                 continue;
             }
-            var adoptable = await FindAdoptableModeAsync(db, scope, mode, resources.Agents, cancellationToken).ConfigureAwait(false);
-            if (adoptable is not null) { adopted++; differences.Add(new AgentPackResourceView("mode", mode.ResourceKey!, adoptable.Id, null, null, "adopted")); continue; }
             created++;
             differences.Add(new AgentPackResourceView("mode", mode.ResourceKey!, null, null, null, "created"));
         }
         if (installation is not null && updated != 0) warnings.Add("Pack-managed resources will receive immutable versions only when their content changed.");
         return new ResourceAnalysis(new AgentPackCounts(resources.Agents.Count, resources.PromptPipelines.Count, resources.Modes.Count, created, adopted, reused, updated), differences, warnings, conflicts);
-    }
-
-    private static async Task<AgentDefinitionRecord?> FindAdoptableAgentAsync(
-        AgentConfigurationDbContext db,
-        TenantContext scope,
-        AgentPackAgentResourceDto resource,
-        CancellationToken cancellationToken)
-    {
-        var candidates = await db.AgentDefinitions
-            .Where(item => item.TenantId == scope.TenantId
-                && item.WorkspaceId == scope.WorkspaceId
-                && item.Slug == resource.Slug
-                && item.Status != "archived"
-                && item.SourceKind != "bootstrap"
-                && item.SourceKind != "pack")
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var candidate in candidates)
-        {
-            if (await IsLegacySeedAgentAsync(db, candidate, resource, cancellationToken).ConfigureAwait(false)) return candidate;
-        }
-        return null;
-    }
-
-    private static async Task<PromptPipelineRecord?> FindAdoptablePromptAsync(
-        AgentConfigurationDbContext db,
-        TenantContext scope,
-        AgentPackPromptPipelineResourceDto resource,
-        CancellationToken cancellationToken)
-    {
-        var candidates = await db.PromptPipelines
-            .Where(item => item.TenantId == scope.TenantId
-                && item.WorkspaceId == scope.WorkspaceId
-                && item.Slug == resource.Slug
-                && item.Status != "archived")
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var candidate in candidates)
-        {
-            if (await IsBootstrapPromptAsync(db, candidate.Id, cancellationToken).ConfigureAwait(false)) continue;
-            if (await IsLegacySeedPromptAsync(db, candidate, cancellationToken).ConfigureAwait(false)) return candidate;
-        }
-        return null;
-    }
-
-    private static async Task<AgentModeRecord?> FindAdoptableModeAsync(
-        AgentConfigurationDbContext db,
-        TenantContext scope,
-        AgentPackModeResourceDto resource,
-        IReadOnlyList<AgentPackAgentResourceDto> agents,
-        CancellationToken cancellationToken)
-    {
-        var candidates = await db.AgentModes
-            .Where(item => item.TenantId == scope.TenantId
-                && item.WorkspaceId == scope.WorkspaceId
-                && item.Slug == resource.Slug
-                && item.Status != "archived")
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var candidate in candidates)
-        {
-            if (await IsBootstrapModeAsync(db, candidate.Id, cancellationToken).ConfigureAwait(false)) continue;
-            if (await IsLegacySeedModeAsync(db, candidate, resource, agents, cancellationToken).ConfigureAwait(false)) return candidate;
-        }
-        return null;
-    }
-
-    private static Task<bool> IsBootstrapPromptAsync(AgentConfigurationDbContext db, Guid promptPipelineId, CancellationToken cancellationToken) =>
-        db.AgentDefinitions.AsNoTracking().AnyAsync(
-            item => item.BasePromptPipelineId == promptPipelineId && item.SourceKind == "bootstrap",
-            cancellationToken);
-
-    private static async Task<bool> IsBootstrapModeAsync(AgentConfigurationDbContext db, Guid modeId, CancellationToken cancellationToken)
-    {
-        var definitionIds = await db.ModeNodes.AsNoTracking()
-            .Where(item => item.ModeId == modeId && item.Status != "archived")
-            .Select(item => item.AgentDefinitionId)
-            .Distinct()
-            .ToArrayAsync(cancellationToken).ConfigureAwait(false);
-        return definitionIds.Length != 0 && await db.AgentDefinitions.AsNoTracking().AnyAsync(
-            item => definitionIds.Contains(item.Id) && item.SourceKind == "bootstrap",
-            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool> DefaultsWillAdoptAsync(
@@ -1586,9 +1514,10 @@ public sealed class AgentPackService : IAgentPackService
         if (defaults is null) return true;
         if (installation is null)
         {
-            if (WorkspaceDefaultsAreEmpty(defaults)) return true;
-            if (await IsBootstrapWorkspaceDefaultsAsync(db, defaults, manifest, cancellationToken).ConfigureAwait(false)) return true;
-            return await IsLegacySeedWorkspaceDefaultsAsync(db, defaults, manifest, cancellationToken).ConfigureAwait(false);
+            // Automation stays conservative: only an empty workspace is filled by
+            // an install. Re-pointing an already-configured workspace is the
+            // explicit adopt-defaults operation, never an install side effect.
+            return WorkspaceDefaultsAreEmpty(defaults);
         }
         if (installation.ActiveVersionId is not { } activeVersionId) return false;
         var prior = await db.AgentPackDefaultAdoptions.AsNoTracking().SingleOrDefaultAsync(item => item.InstallationId == installation.Id && item.PackVersionId == activeVersionId, cancellationToken).ConfigureAwait(false);
@@ -1610,59 +1539,6 @@ public sealed class AgentPackService : IAgentPackService
         && defaults.DefaultPromptPipelineId is null
         && defaults.DefaultPromptVersionId is null;
 
-    private static async Task<bool> IsBootstrapWorkspaceDefaultsAsync(
-        AgentConfigurationDbContext db,
-        WorkspaceDefaultsRecord defaults,
-        AgentPackManifestDto manifest,
-        CancellationToken cancellationToken)
-    {
-        if (defaults.Status != "active" || defaults.ArchivedAt is not null
-            || defaults.DefaultAgentDefinitionId is not { } agentId
-            || defaults.DefaultAgentVersionId is not { } agentVersionId
-            || defaults.DefaultAgentModeId is not { } modeId
-            || defaults.DefaultModeVersionId is not { } modeVersionId
-            || defaults.DefaultPromptPipelineId is not { } promptId
-            || defaults.DefaultPromptVersionId is not { } promptVersionId)
-            return false;
-
-        var activation = manifest.Activation!.WorkspaceDefaults!;
-        var expectedAgentKey = ReferenceKey(activation.AgentRef, "agent", "activation.workspace_defaults.agent_ref");
-        var expectedModeKey = ReferenceKey(activation.ModeRef, "mode", "activation.workspace_defaults.mode_ref");
-        var agent = await db.AgentDefinitions.AsNoTracking().SingleOrDefaultAsync(item => item.Id == agentId, cancellationToken).ConfigureAwait(false);
-        var mode = await db.AgentModes.AsNoTracking().SingleOrDefaultAsync(item => item.Id == modeId, cancellationToken).ConfigureAwait(false);
-        var prompt = await db.PromptPipelines.AsNoTracking().SingleOrDefaultAsync(item => item.Id == promptId, cancellationToken).ConfigureAwait(false);
-        return agent is not null && mode is not null && prompt is not null
-            && agent.SourceKind == "bootstrap" && agent.SourceKey == expectedAgentKey
-            && mode.Slug == expectedModeKey && prompt.Slug == "baseline-prompt"
-            && await db.AgentVersions.AsNoTracking().AnyAsync(item => item.Id == agentVersionId && item.AgentDefinitionId == agentId && item.Status == "published", cancellationToken).ConfigureAwait(false)
-            && await db.ModeVersions.AsNoTracking().AnyAsync(item => item.Id == modeVersionId && item.AgentModeId == modeId && item.Status == "published", cancellationToken).ConfigureAwait(false)
-            && await db.PromptVersions.AsNoTracking().AnyAsync(item => item.Id == promptVersionId && item.PromptPipelineId == promptId && item.Status == "published", cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<bool> IsLegacySeedWorkspaceDefaultsAsync(
-        AgentConfigurationDbContext db,
-        WorkspaceDefaultsRecord defaults,
-        AgentPackManifestDto manifest,
-        CancellationToken cancellationToken)
-    {
-        if (defaults.Status != "active" || defaults.Revision != 1 || defaults.ArchivedAt is not null
-            || defaults.DefaultAgentVersionId is not null || defaults.DefaultModeVersionId is not null || defaults.DefaultPromptVersionId is not null
-            || defaults.DefaultAgentDefinitionId is not { } agentId || defaults.DefaultAgentModeId is not { } modeId || defaults.DefaultPromptPipelineId is not { } promptId)
-            return false;
-
-        var resources = manifest.Resources!;
-        var activation = manifest.Activation!.WorkspaceDefaults!;
-        var targetAgent = resources.Agents.Single(item => item.ResourceKey == ReferenceKey(activation.AgentRef, "agent", "activation.workspace_defaults.agent_ref"));
-        var targetMode = resources.Modes.Single(item => item.ResourceKey == ReferenceKey(activation.ModeRef, "mode", "activation.workspace_defaults.mode_ref"));
-        var agent = await db.AgentDefinitions.AsNoTracking().SingleOrDefaultAsync(item => item.Id == agentId, cancellationToken).ConfigureAwait(false);
-        var mode = await db.AgentModes.AsNoTracking().SingleOrDefaultAsync(item => item.Id == modeId, cancellationToken).ConfigureAwait(false);
-        var prompt = await db.PromptPipelines.AsNoTracking().SingleOrDefaultAsync(item => item.Id == promptId, cancellationToken).ConfigureAwait(false);
-        return agent is not null && mode is not null && prompt is not null
-            && await IsLegacySeedAgentAsync(db, agent, targetAgent, cancellationToken).ConfigureAwait(false)
-            && await IsLegacySeedPromptAsync(db, prompt, cancellationToken).ConfigureAwait(false)
-            && await IsLegacySeedModeAsync(db, mode, targetMode, resources.Agents, cancellationToken).ConfigureAwait(false);
-    }
-
     private static bool AgentSemanticallyMatches(AgentDefinitionRecord record, AgentPackAgentResourceDto resource, bool includePromptText) =>
         string.Equals(record.DisplayName, resource.DisplayName, StringComparison.Ordinal)
         && string.Equals(record.Layer, resource.Layer, StringComparison.Ordinal)
@@ -1672,43 +1548,6 @@ public sealed class AgentPackService : IAgentPackService
         && JsonSemanticEquals(record.ModelStrategyJson ?? "{\"kind\":\"inherit\"}", resource.ModelStrategy)
         && record.Enabled == resource.Enabled
         && (!includePromptText || (string.Equals(record.SystemPrompt, resource.SystemPrompt, StringComparison.Ordinal) && string.Equals(record.Description, resource.Description, StringComparison.Ordinal)));
-
-    private static async Task<bool> IsLegacySeedAgentAsync(AgentConfigurationDbContext db, AgentDefinitionRecord record, AgentPackAgentResourceDto resource, CancellationToken cancellationToken)
-    {
-        if (record.Version != 1 || record.Status != "published" || !LegacyAgentSlugs.Contains(record.Slug) || !AgentSemanticallyMatches(record, resource, includePromptText: false)) return false;
-        return await db.AgentVersions.AsNoTracking().CountAsync(item => item.AgentDefinitionId == record.Id, cancellationToken).ConfigureAwait(false) == 1;
-    }
-
-    private static async Task<bool> IsLegacySeedPromptAsync(AgentConfigurationDbContext db, PromptPipelineRecord record, CancellationToken cancellationToken)
-    {
-        const string legacyGraph = "{\"nodes\":[{\"id\":\"template\",\"type\":\"template\"},{\"id\":\"assemble\",\"type\":\"assemble\"}],\"edges\":[{\"source\":\"template\",\"target\":\"assemble\"}]}";
-        if (record.Version != 1 || record.Status != "published" || record.Slug != "baseline-prompt" || !JsonSemanticEquals(record.GraphJson, legacyGraph)) return false;
-        var versions = await db.PromptVersions.AsNoTracking().Where(item => item.PromptPipelineId == record.Id).ToListAsync(cancellationToken).ConfigureAwait(false);
-        return versions.Count == 1 && versions[0].Version == 1 && versions[0].Status == "published" && JsonSemanticEquals(versions[0].GraphJson, legacyGraph);
-    }
-
-    private static async Task<bool> IsLegacySeedModeAsync(AgentConfigurationDbContext db, AgentModeRecord record, AgentPackModeResourceDto resource, IReadOnlyList<AgentPackAgentResourceDto> agents, CancellationToken cancellationToken)
-    {
-        if (record.Version != 1 || record.Status != "published" || record.Slug != "default-mode"
-            || record.DisplayName != resource.DisplayName || record.Description != resource.Description) return false;
-        var definitions = await db.AgentDefinitions.AsNoTracking().Where(item => item.TenantId == record.TenantId && item.WorkspaceId == record.WorkspaceId).ToDictionaryAsync(item => item.Id, cancellationToken).ConfigureAwait(false);
-        var nodes = await db.ModeNodes.AsNoTracking().Where(item => item.ModeId == record.Id && item.Status == "published").ToListAsync(cancellationToken).ConfigureAwait(false);
-        var expected = resource.Nodes
-            .Select(item => (item.NodeKey!, ReferenceKey(item.AgentRef, "agent", $"mode '{resource.ResourceKey}' node '{item.NodeKey}' agent_ref"), item.Layer!))
-            .OrderBy(item => item.Item1, StringComparer.Ordinal)
-            .ToArray();
-        var actual = nodes.Where(item => definitions.ContainsKey(item.AgentDefinitionId)).Select(item => (item.NodeKey, definitions[item.AgentDefinitionId].Slug, item.Layer)).OrderBy(item => item.NodeKey, StringComparer.Ordinal).ToArray();
-        if (!expected.SequenceEqual(actual)) return false;
-        if (await db.ModeEdges.AsNoTracking().AnyAsync(item => item.ModeId == record.Id && item.Status == "published", cancellationToken).ConfigureAwait(false)) return false;
-        return await db.ModeVersions.AsNoTracking().CountAsync(item => item.AgentModeId == record.Id && item.Version == 1 && item.Status == "published", cancellationToken).ConfigureAwait(false) == 1
-            && await db.ModeVersions.AsNoTracking().CountAsync(item => item.AgentModeId == record.Id, cancellationToken).ConfigureAwait(false) == 1;
-    }
-
-    private static readonly HashSet<string> LegacyAgentSlugs = new(StringComparer.Ordinal)
-    {
-        "meeting", "context_compressor", "skill_recommender", "supervisor", "evolution", "git_steward", "task_planner",
-        "worker.code", "worker.document", "worker.data", "worker.browser", "worker.file", "worker.general", "worker.git"
-    };
 
     private static bool JsonStringSetEquals(string? json, IReadOnlyList<string> values)
     {

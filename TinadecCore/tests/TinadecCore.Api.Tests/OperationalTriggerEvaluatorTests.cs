@@ -156,11 +156,10 @@ public sealed class OperationalTriggerEvaluatorTests
         Agent("git_steward", "git_steward", enabled);
 
     private static FrozenRunConfigurationV1 Config(TriggersPolicy triggers, params RuntimeAgentDefinition[] operationAgents) => new(
-        "frozen-run-configuration/v1",
+        "frozen-run-configuration/v3",
         "baseline-hash",
         1,
-        "space",
-        "agent",
+        Guid.Parse("00000000-0000-0000-0000-0000000000dd"),
         "space.full_duplex",
         "ask",
         new SpawnPolicy(2, 8, 4),
@@ -171,8 +170,8 @@ public sealed class OperationalTriggerEvaluatorTests
         new ToolRuntimePolicy("tinadec-tools-process", true, true, 120, 4),
         operationAgents,
         [],
-        null,
-        [])
+        [],
+        "")
     {
         Triggers = triggers
     };

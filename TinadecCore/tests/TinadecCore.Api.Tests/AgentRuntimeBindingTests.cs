@@ -53,7 +53,7 @@ public sealed class AgentRuntimeBindingTests : IAsyncLifetime
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
         Assert.NotNull(agents);
         var target = agents!.Single(a => a.GetProperty("slug").GetString() == "meeting"
-            && a.GetProperty("source_kind").GetString() == "bootstrap");
+            && a.GetProperty("source_kind").GetString() == "pack");
         var agentId = target.GetProperty("id").GetGuid();
 
         using var putResponse = await client.PutAsJsonAsync($"/api/v1/agents/{agentId}/runtime-binding",
@@ -98,7 +98,7 @@ public sealed class AgentRuntimeBindingTests : IAsyncLifetime
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
         Assert.NotNull(agents);
         var target = agents!.Single(a => a.GetProperty("slug").GetString() == "worker.browser"
-            && a.GetProperty("source_kind").GetString() == "bootstrap");
+            && a.GetProperty("source_kind").GetString() == "pack");
         var agentId = target.GetProperty("id").GetGuid();
 
         using var putResponse = await client.PutAsJsonAsync($"/api/v1/agents/{agentId}/runtime-binding",

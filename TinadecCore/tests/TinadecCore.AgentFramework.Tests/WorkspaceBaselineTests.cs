@@ -140,10 +140,13 @@ public sealed class WorkspaceBaselineTests : IDisposable
     }
 
     [Fact]
-    public void LegacyV2Body_WithoutWorkspaceSection_ReadsAsNoWorkspace()
+    public void LegacyV2Body_WithoutWorkspaceSection_ReadsAsNoWorkspace_AndIsSuperseded()
     {
-        // A body frozen before the section existed must resume as "no workspace"
-        // instead of failing the schema gate.
+        // A body frozen before the section existed still *deserializes* — retired
+        // members (applicationMode/agentMode/workspaceOverride) are ignored — and
+        // reads as "no workspace". It is not migrated: the body keeps its own
+        // schema literal, and the engine's resume gate fails it closed with
+        // run_schema_superseded rather than re-interpreting v3 semantics onto it.
         const string legacy = """
         {"schemaVersion":"frozen-run-configuration/v2","baselineHash":"b","baselineVersion":1,
          "applicationMode":"conversation","agentMode":"vibe","runtimeProfileId":"p","permissionMode":"ask",
@@ -159,7 +162,8 @@ public sealed class WorkspaceBaselineTests : IDisposable
         var parsed = JsonSerializer.Deserialize<FrozenRunConfigurationV1>(legacy, FrozenRunConfigurationV1.JsonOptions);
         Assert.NotNull(parsed);
         Assert.Null(parsed.Workspace);
-        Assert.Equal(FrozenRunConfigurationV1.CurrentSchemaVersion, parsed.SchemaVersion);
+        Assert.Equal("frozen-run-configuration/v2", parsed.SchemaVersion);
+        Assert.NotEqual(FrozenRunConfigurationV1.CurrentSchemaVersion, parsed.SchemaVersion);
     }
 
     // ── admission factory ─────────────────────────────────────────────────────
@@ -204,7 +208,7 @@ public sealed class WorkspaceBaselineTests : IDisposable
 
     private static FrozenRunConfigurationV1 MinimalConfiguration(FrozenWorkspaceBinding? workspace) => new(
         FrozenRunConfigurationV1.CurrentSchemaVersion, "baseline-hash", 1,
-        "conversation", "vibe", "profile-id", "ask",
+        Guid.Parse("00000000-0000-0000-0000-0000000000bb"), "profile-id", "ask",
         new SpawnPolicy(2, 16, 4),
         new SchedulingPolicy(2, 2, true),
         new SupervisionPolicy(true, 2),
@@ -213,7 +217,6 @@ public sealed class WorkspaceBaselineTests : IDisposable
         new ToolRuntimePolicy("tinadec-tools-process", true, true, 120, 4),
         [],
         [],
-        null,
         [],
         "")
     { Workspace = workspace };

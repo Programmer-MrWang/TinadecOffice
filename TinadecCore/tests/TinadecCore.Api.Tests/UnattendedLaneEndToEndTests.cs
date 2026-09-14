@@ -32,6 +32,17 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         + "{\"task_key\":\"run-tests\",\"title\":\"\u8fd0\u884c\u6d4b\u8bd5\",\"description\":\"\u8fd0\u884c\u6d4b\u8bd5\u5e76\u628a\u7ed3\u679c\u5199\u5165 feature.txt\",\"success_criteria\":[\"\u6d4b\u8bd5\u8f93\u51fa\u6587\u4ef6\u5b58\u5728\"],\"dependencies\":[\"build\"],\"required_capabilities\":[],\"required_tools\":[\"shell\"],\"priority\":2,\"risk\":\"medium\"},"
         + "{\"task_key\":\"commit\",\"title\":\"\u63d0\u4ea4\u53d8\u66f4\",\"description\":\"\u63d0\u4ea4\u5168\u90e8\u53d8\u66f4\",\"success_criteria\":[\"\u4ea7\u751f\u63d0\u4ea4\"],\"dependencies\":[\"run-tests\"],\"required_capabilities\":[],\"required_tools\":[\"git_commit\"],\"priority\":3,\"risk\":\"high\"}]";
 
+    /// <summary>
+    /// The same plan with <c>write_file</c> in place of <c>shell</c>: worker
+    /// selection is driven by <c>required_tools</c>, so a leg whose script emits
+    /// write_file must declare write_file or it would be routed to a shell-only
+    /// worker whose face cannot authorize the call.
+    /// </summary>
+    private const string MainPlanWithWriteFile =
+        "[{\"task_key\":\"build\",\"title\":\"\u5f00\u53d1\u529f\u80fd\",\"description\":\"\",\"success_criteria\":[\"\u5b8c\u6210\"],\"dependencies\":[],\"required_capabilities\":[],\"required_tools\":[],\"priority\":1,\"risk\":\"low\"},"
+        + "{\"task_key\":\"run-tests\",\"title\":\"\u8fd0\u884c\u6d4b\u8bd5\",\"description\":\"\u8fd0\u884c\u6d4b\u8bd5\u5e76\u628a\u7ed3\u679c\u5199\u5165 feature.txt\",\"success_criteria\":[\"\u6d4b\u8bd5\u8f93\u51fa\u6587\u4ef6\u5b58\u5728\"],\"dependencies\":[\"build\"],\"required_capabilities\":[],\"required_tools\":[\"write_file\"],\"priority\":2,\"risk\":\"medium\"},"
+        + "{\"task_key\":\"commit\",\"title\":\"\u63d0\u4ea4\u53d8\u66f4\",\"description\":\"\u63d0\u4ea4\u5168\u90e8\u53d8\u66f4\",\"success_criteria\":[\"\u4ea7\u751f\u63d0\u4ea4\"],\"dependencies\":[\"run-tests\"],\"required_capabilities\":[],\"required_tools\":[\"git_commit\"],\"priority\":3,\"risk\":\"high\"}]";
+
     // B6: shell is a human-only tool and can never be auto-approved, so the
     // auto-policy leg drives the same unattended scenario with write_file.
     /// <summary>
@@ -144,12 +155,17 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         {
             BeforeWorker = workerGate.Task,
             WorkerStarted = workerStarted,
-            UseWriteFileForTests = useWriteFileForTests
+            UseWriteFileForTests = useWriteFileForTests,
+            // The scripted tool call must match the plan's required_tools: worker
+            // selection routes by that list, so a write_file call under a shell
+            // requirement lands on a worker whose face cannot authorize it.
+            MainPlan = useWriteFileForTests ? MainPlanWithWriteFile : MainPlan
         };
 
         _factory = new UnattendedFactory(_root, script, extraConfig);
         var client = _factory.CreateClient();
-        await InstallLifecycleFixturePackAsync(client);
+        var packDetail = await InstallLifecycleFixturePackAsync(client);
+        var modeVersionId = ModeVersionId(packDetail, "default-mode");
 
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = $"{label} project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
         var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = $"{label} session" })).Content.ReadFromJsonAsync<JsonElement>();
@@ -159,7 +175,8 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         {
             content = "开发功能 X",
             client_message_id = $"{label}-c-1",
-            permission_mode = permissionMode
+            permission_mode = permissionMode,
+            mode_version_id = modeVersionId
         });
         var runId = (await active.Acknowledgement.WaitAsync(TimeSpan.FromSeconds(30))).GetProperty("run_id").GetGuid();
         // The main worker holds the run loop open so the deferred instruction
@@ -173,30 +190,50 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(150);
         string? status = null;
+        JsonElement? lastOrchestration = null;
         while (DateTimeOffset.UtcNow < deadline)
         {
             var orchestration = await client.GetFromJsonAsync<JsonElement>($"/api/v1/runs/{runId}/orchestration");
+            lastOrchestration = orchestration;
             status = orchestration.GetProperty("run").GetProperty("status").GetString();
             if (status is "completed" or "failed" or "awaiting_user") break;
             await Task.Delay(250);
         }
-        Assert.True(status == "completed",
-            $"The unattended run should complete without a human; final status was '{status}'. Events: {string.Join(" | ", await ReplayEventsAsync(client, runId))}");
+        if (status != "completed")
+        {
+            var steps = lastOrchestration is { } body && body.TryGetProperty("step_results", out var results)
+                ? string.Join(" | ", results.EnumerateArray().Select(step =>
+                    $"{step.GetProperty("status").GetString()}: {step.GetProperty("summary").GetString()}"))
+                : "(no step results)";
+            Assert.Fail(
+                $"The unattended run should complete without a human; final status was '{status}'. "
+                + $"Steps: {steps}. Events: {string.Join(" | ", await ReplayEventsAsync(client, runId))}");
+        }
     }
 
     private async Task AssertUnattendedCommitAsync(HttpClient client, Guid runId, string workspace, string expectSource)
     {
         // The unattended tool chain really executed through the real child process.
         var events = await ReplayEventsAsync(client, runId);
+        var steps = await DescribeStepsAsync(client, runId);
         Assert.True(events.Contains($"approval.pre_authorized_minted:{expectSource}"),
-            $"Missing mint {expectSource}. Events: {string.Join(" | ", events)}");
+            $"Missing mint {expectSource}. Steps: {steps}. Events: {string.Join(" | ", events)}");
         if (expectSource == "auto_policy") Assert.Contains("approval.auto_decided", events);
 
         Assert.True(File.Exists(Path.Combine(workspace, "feature.txt")),
-            $"The unattended tool chain should have written feature.txt through the real child process. Events: {string.Join(" | ", events)}");
+            $"The unattended tool chain should have written feature.txt through the real child process. Steps: {steps}. Events: {string.Join(" | ", events)}");
         var subject = ReadGitOutput(workspace, "log", "-1", "--format=%s");
         Assert.Equal("M8 unattended commit", subject.Trim());
         Assert.Equal("1", ReadGitOutput(workspace, "rev-list", "--count", "HEAD").Trim());
+    }
+
+    /// <summary>Task outcomes with their failure summaries, for failure messages.</summary>
+    private static async Task<string> DescribeStepsAsync(HttpClient client, Guid runId)
+    {
+        var orchestration = await client.GetFromJsonAsync<JsonElement>($"/api/v1/runs/{runId}/orchestration");
+        if (!orchestration.TryGetProperty("step_results", out var results)) return "(no step results)";
+        return string.Join(" | ", results.EnumerateArray().Select(step =>
+            $"{step.GetProperty("status").GetString()}: {step.GetProperty("summary").GetString()}"));
     }
 
     private async Task<List<string>> ReplayEventsAsync(HttpClient client, Guid runId)
@@ -264,24 +301,38 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         previewResponse.EnsureSuccessStatusCode();
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
-        using var apply = new HttpRequestMessage(HttpMethod.Put, "/api/v1/agent-packs/tinadec.tests.agent-pack-lifecycle")
+        using var apply = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/agent-packs/{UnattendedPackId}")
         {
             Content = JsonContent.Create(new { preview_id = preview.GetProperty("preview_id").GetGuid(), envelope })
         };
         apply.Headers.TryAddWithoutValidation("Idempotency-Key", $"unattended-e2e-pack-{Guid.NewGuid():N}");
         using var applyResponse = await client.SendAsync(apply);
         Assert.Equal(HttpStatusCode.Created, applyResponse.StatusCode);
-        return await client.GetFromJsonAsync<JsonElement>("/api/v1/agent-packs/tinadec.tests.agent-pack-lifecycle");
+        return await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{UnattendedPackId}");
     }
+
+    private const string UnattendedPackId = "tinadec.tests.unattended-agent-pack";
+
+    /// <summary>
+    /// The published mode version the unattended runs bind to. The fixture declares
+    /// no edges (free_form tier) and every execution node carries the workspace
+    /// write envelope the mutating tool chain needs; binding the version explicitly
+    /// keeps the scenario independent of whatever the workspace default holds.
+    /// </summary>
+    private static Guid ModeVersionId(JsonElement packDetail, string resourceKey) =>
+        packDetail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "mode"
+                && resource.GetProperty("resource_key").GetString() == resourceKey)
+            .GetProperty("version_id").GetGuid();
 
     private static string FindFixtureManifestPath()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
-            var candidate = Path.Combine(directory.FullName, "TinadecCore", "tests", "TinadecCore.Api.Tests", "Fixtures", "agent-pack-lifecycle.manifest.json");
+            var candidate = Path.Combine(directory.FullName, "TinadecCore", "tests", "TinadecCore.Api.Tests", "Fixtures", "unattended-agent-pack.manifest.json");
             if (File.Exists(candidate)) return candidate;
         }
-        throw new FileNotFoundException("The Agent Pack lifecycle fixture manifest was not found from the test output directory.");
+        throw new FileNotFoundException("The unattended Agent Pack fixture manifest was not found from the test output directory.");
     }
 
     private static string KindOf(JsonElement chunk) => chunk.GetProperty("kind").GetString()!;

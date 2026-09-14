@@ -1617,24 +1617,30 @@ public sealed class FullDuplexEndpointTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AgentModes_ExposeTheBootstrapDirectory()
+    public async Task AgentModes_ListIsDrivenByTheInstalledPack()
     {
         var factory = CreateFactory();
         var client = factory.CreateClient();
 
-        var conversation = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes?application_mode=conversation");
-        Assert.Contains(conversation!, m => m.GetProperty("slug").GetString() == "conversation.auto");
-        Assert.Contains(conversation!, m => m.GetProperty("slug").GetString() == "conversation.plan");
+        // The mode directory is driven by what is installed: this host boots with
+        // the bootstrap fixture pack (14 agents / 7 modes) and nothing else.
+        var all = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        Assert.Equal(7, all!.Length);
+        Assert.All(all, mode =>
+            Assert.False(string.IsNullOrWhiteSpace(mode.GetProperty("latest_published_mode_version_id").GetString()),
+                $"{mode.GetProperty("slug").GetString()} lacks a published version id"));
+        Assert.Contains(all, m => m.GetProperty("slug").GetString() == "conversation.plan");
+        Assert.Contains(all, m => m.GetProperty("slug").GetString() == "default-mode");
 
-        var space = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes?application_mode=space");
-        Assert.Contains(space!, m => m.GetProperty("slug").GetString() == "default-mode");
+        // ?status=published is the only server-side filter left; the retired
+        // six-value application_mode selector is gone, so a stale client query
+        // degrades to the full list instead of failing the request.
+        var published = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes?status=published");
+        Assert.Equal(7, published!.Length);
+        Assert.All(published, mode => Assert.Equal("published", mode.GetProperty("status").GetString()));
 
-        // `im` remains a conversation alias.
-        var im = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes?application_mode=im");
-        Assert.Contains(im!, m => m.GetProperty("slug").GetString() == "conversation.auto");
-
-        var unknown = await client.GetAsync("/api/v1/agent-modes?application_mode=nope");
-        Assert.Equal(HttpStatusCode.BadRequest, unknown.StatusCode);
+        var ignored = await client.GetAsync("/api/v1/agent-modes?application_mode=nope");
+        Assert.Equal(HttpStatusCode.OK, ignored.StatusCode);
 
         // The TOML-era projection is gone: the mode directory is the only surface.
         var legacy = await client.GetAsync("/api/v1/application-modes");

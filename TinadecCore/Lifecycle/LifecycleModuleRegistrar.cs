@@ -85,7 +85,7 @@ internal sealed class LifecycleManager : ILifecycleManager
             var result = await storage.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(
                 Guid.TryParse(request.TurnId, out var turnId) ? turnId : null,
                 request.ContextRevision, request.ConfigurationVersion, request.ConfigurationHash,
-                request.ApplicationMode, request.AgentMode, request.PermissionMode, request.RuntimeProfileId,
+                request.PermissionMode, request.RuntimeProfileId,
                 request.InitiatedByPrincipalId), cancellationToken).ConfigureAwait(false);
             return new RunStartResult(result.Run.Id.ToString(), result.Existing);
         }
@@ -335,8 +335,6 @@ internal sealed class LifecycleManager : ILifecycleManager
         ContextRevision = run.ContextRevision,
         ConfigurationVersion = run.ConfigurationVersion,
         ConfigurationHash = run.ConfigurationHash,
-        ApplicationMode = run.ApplicationMode,
-        AgentMode = run.AgentMode,
         PermissionMode = run.PermissionMode,
         RuntimeProfileId = run.RuntimeProfileId,
         TenantId = run.TenantId.ToString(),

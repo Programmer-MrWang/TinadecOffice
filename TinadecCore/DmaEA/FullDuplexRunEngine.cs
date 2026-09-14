@@ -2475,8 +2475,6 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         await _contextProvider.BuildContextAsync(new ContextBuildRequest(
             run.SessionId,
             run.RunId,
-            config.ApplicationMode,
-            config.AgentMode,
             config.RuntimeProfileId,
             agentId,
             taskContext,

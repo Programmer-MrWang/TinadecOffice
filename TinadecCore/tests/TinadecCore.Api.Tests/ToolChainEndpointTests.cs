@@ -68,7 +68,15 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
         var packDetail = await InstallToolChainPackAsync(client);
 
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = "Tool project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
-        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = "Tool session" })).Content.ReadFromJsonAsync<JsonElement>();
+        // Bind the session to this pack's default-mode explicitly: an install no
+        // longer re-points an already-configured workspace default, so the mode
+        // must be chosen by the caller.
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title = "Tool session",
+            mode_version_id = ToolChainPackModeVersionId(packDetail, "default-mode")
+        })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
         var active = StartStreamingInvoke(client, sessionId, new { content = "写一个文件", client_message_id = "tool-c-1" });
@@ -144,8 +152,14 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
         var client = _factory.CreateClient();
         await InstallToolChainPackAsync(client);
 
+        var packDetail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{ToolChainPackId}");
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = "Fake provider project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
-        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = "Fake provider session" })).Content.ReadFromJsonAsync<JsonElement>();
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title = "Fake provider session",
+            mode_version_id = ToolChainPackModeVersionId(packDetail, "default-mode")
+        })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
         var active = StartStreamingInvoke(client, sessionId, new { content = "写一个文件", client_message_id = "fake-provider-c-1" });
@@ -205,12 +219,12 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
         var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = "Ask session" })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
-        // Mode switching is the interactions endpoint's job: it validates
-        // agent_mode and persists the ask ModeVersion onto the session.
-        // invoke-stream alone only labels the run; the frozen roster always
-        // comes from the session's persisted mode.
+        // Mode switching is the interactions endpoint's job: it validates the
+        // published mode_version_id and persists it onto the session. invoke-stream
+        // alone only labels the run; the frozen roster always comes from the
+        // session's persisted mode.
         using var modeSwitch = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions",
-            new { content = "X是什么？", client_message_id = "ask-mode-1", agent_mode = "ask", dispatch_mode = "queued" });
+            new { content = "X是什么？", client_message_id = "ask-mode-1", mode_version_id = askModeVersion, dispatch_mode = "queued" });
         Assert.True(modeSwitch.IsSuccessStatusCode, $"ask mode switch failed: {modeSwitch.StatusCode}");
 
         var active = StartStreamingInvoke(client, sessionId, new { content = "X是什么？", client_message_id = "ask-e2e-1" });
@@ -674,7 +688,17 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
     private async Task<(Guid SessionId, Guid RunId, ActiveInvoke Active)> StartRunAsync(HttpClient client, string workspace, string label, string goal)
     {
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = label + " project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
-        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = label + " session" })).Content.ReadFromJsonAsync<JsonElement>();
+        // The ToolChain pack's default-mode carries the write-capable roster;
+        // sessions bind it explicitly because installs never re-point an
+        // already-configured workspace default. The pack detail is the source of
+        // truth — the bootstrap fixture also publishes a 'default-mode' slug.
+        var packDetail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{ToolChainPackId}");
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title = label + " session",
+            mode_version_id = ToolChainPackModeVersionId(packDetail, "default-mode")
+        })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
         var active = StartStreamingInvoke(client, sessionId, new { content = goal, client_message_id = label + "-c-1" });
         var ack = await active.Acknowledgement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
@@ -755,8 +779,14 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
         var client = _factory.CreateClient();
         await InstallToolChainPackAsync(client);
 
+        var packDetail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{ToolChainPackId}");
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = label + " project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
-        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = label + " session" })).Content.ReadFromJsonAsync<JsonElement>();
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title = label + " session",
+            mode_version_id = ToolChainPackModeVersionId(packDetail, "default-mode")
+        })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
         var active = StartStreamingInvoke(client, sessionId, new { content = "写一个文件", client_message_id = label + "-c-1" });
@@ -788,8 +818,14 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
         var client = _factory.CreateClient();
         await InstallToolChainPackAsync(client);
 
+        var packDetail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{ToolChainPackId}");
         var project = await (await client.PostAsJsonAsync("/api/v1/projects", new { name = "Git steward project", path = workspace })).Content.ReadFromJsonAsync<JsonElement>();
-        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = "Git steward session" })).Content.ReadFromJsonAsync<JsonElement>();
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title = "Git steward session",
+            mode_version_id = ToolChainPackModeVersionId(packDetail, "default-mode")
+        })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
         var active = StartStreamingInvoke(client, sessionId, new { content = "查看 git 状态", client_message_id = "git-steward-c-1" });
@@ -1051,6 +1087,12 @@ public sealed class ToolChainEndpointTests : IAsyncLifetime
             integrity = new { algorithm = "sha256", digest }
         });
     }
+
+    private static Guid ToolChainPackModeVersionId(JsonElement packDetail, string modeKey) =>
+        packDetail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "mode"
+                && resource.GetProperty("resource_key").GetString() == modeKey)
+            .GetProperty("version_id").GetGuid();
 
     private static void RunGit(string workingDirectory, params string[] arguments)
     {

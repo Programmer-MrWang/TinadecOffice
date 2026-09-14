@@ -45,8 +45,6 @@ public sealed class LifecycleDbContext : DbContext
             entity.Property(x => x.TaskRevision).HasColumnName("task_revision");
             entity.Property(x => x.LastEventSequence).HasColumnName("last_event_sequence");
             entity.Property(x => x.LastEventAt).HasColumnName("last_event_at");
-            entity.Property(x => x.ApplicationMode).HasMaxLength(64).IsRequired();
-            entity.Property(x => x.AgentMode).HasMaxLength(64).IsRequired();
             entity.Property(x => x.PermissionMode).HasMaxLength(64).IsRequired();
             entity.Property(x => x.RuntimeProfileId).HasMaxLength(256).IsRequired();
             entity.Property(x => x.ConfigurationHash).HasMaxLength(128).IsRequired();
@@ -251,10 +249,8 @@ public sealed class RunRecord
     public long ContextRevision { get; set; }
     public long ConfigurationVersion { get; set; }
     public string ConfigurationHash { get; set; } = string.Empty;
-    public string ApplicationMode { get; set; } = "conversation";
-    public string AgentMode { get; set; } = "auto";
     public string PermissionMode { get; set; } = "default";
-    public string RuntimeProfileId { get; set; } = "conversation.auto";
+    public string RuntimeProfileId { get; set; } = string.Empty;
     public string? FrozenConfigurationReference { get; set; }
     public string? FrozenConfigurationHash { get; set; }
     public long? FrozenConfigurationLength { get; set; }

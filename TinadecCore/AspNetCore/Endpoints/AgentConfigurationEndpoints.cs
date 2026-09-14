@@ -532,27 +532,14 @@ public static class AgentConfigurationEndpoints
     {
         var (t,w,_) = Ctx(a);
         var status = req.Query["status"].ToString();
-        var hasApplicationFilter = req.Query.ContainsKey("application_mode") || req.Query.ContainsKey("applicationMode");
-        var applicationMode = req.Query["application_mode"].ToString();
-        if (string.IsNullOrWhiteSpace(applicationMode)) applicationMode = req.Query["applicationMode"].ToString();
-        applicationMode = AgentRuntimeConfigurationSnapshot.NormalizeApplicationMode(applicationMode);
-        if (hasApplicationFilter && applicationMode is not ("conversation" or "space"))
-            return Results.BadRequest(new { code = "UNKNOWN_APPLICATION_MODE", message = $"Application mode '{applicationMode}' is not configured." });
 
         await using var db = await f.CreateDbContextAsync(ct);
-        // 保持原始语义：不带 status 返回全部行（pack 花名册合约依赖完整清单，
-        // 包含 archived 的 bootstrap 行）；可选项的 published 过滤由客户端做。
+        // 不带 status 返回全部行（pack 花名册合约依赖完整清单）；可选项的
+        // published 过滤由客户端做（模式列表 UI 只消费 published 行）。
         var query = db.AgentModes.Where(x => x.TenantId == t && x.WorkspaceId == w
             && (string.IsNullOrEmpty(status) || x.Status == status));
-        if (hasApplicationFilter)
-            query = applicationMode == "conversation"
-                ? query.Where(x => x.Slug.StartsWith("conversation."))
-                : query.Where(x => !x.Slug.StartsWith("conversation."));
         var list = (await query.ToListAsync(ct)).OrderByDescending(x => x.UpdatedAt).ToList();
 
-        // 同 slug 可能存在多行（bootstrap + pack 安装各一条 published）：行全部返回
-        // （智能体中心的 pack 花名册合约依赖完整清单）；"哪个 slug 用哪一行"的解析规则
-        // 与 POST /interactions 一致，由客户端按 slug 分组后自行挑选。
         var modeIds = list.Select(x => x.Id).ToList();
         var latestVersions = (await db.ModeVersions.AsNoTracking()
             .Where(x => modeIds.Contains(x.AgentModeId) && x.TenantId == t && x.WorkspaceId == w && x.Status == "published")
@@ -562,10 +549,7 @@ public static class AgentConfigurationEndpoints
         return Results.Ok(list.Select(r =>
         {
             latestVersions.TryGetValue(r.Id, out var version);
-            var application = r.Slug.StartsWith("conversation.", StringComparison.Ordinal)
-                ? r.Slug["conversation.".Length..]
-                : null;
-            return ToModeDto(r, version?.Id, version?.Version, application);
+            return ToModeDto(r, version?.Id, version?.Version);
         }));
     }
     static async Task<IResult> CreateMode(HttpRequest req, IDbContextFactory<AgentConfigurationDbContext> f, ITenantContextAccessor a, CancellationToken ct)
@@ -1111,7 +1095,7 @@ static async Task<IResult> GetMode(Guid id, IDbContextFactory<AgentConfiguration
         SafeErrorMessage=value.SafeErrorMessage, InputTokens=value.InputTokens, OutputTokens=value.OutputTokens,
         TotalTokens=value.TotalTokens, StartedAt=value.StartedAt, CompletedAt=value.CompletedAt
     };
-    static object ToModeDto(AgentModeRecord r, Guid? latestPublishedVersionId = null, int? latestVersion = null, string? applicationMode = null) => new{ id=r.Id, slug=r.Slug, display_name=r.DisplayName, description=r.Description, status=r.Status, revision=r.Revision, version=r.Version, created_at=r.CreatedAt, updated_at=r.UpdatedAt, archived_at=r.ArchivedAt, latest_published_mode_version_id = latestPublishedVersionId, application_mode = applicationMode };
+    static object ToModeDto(AgentModeRecord r, Guid? latestPublishedVersionId = null, int? latestVersion = null) => new{ id=r.Id, slug=r.Slug, display_name=r.DisplayName, description=r.Description, status=r.Status, revision=r.Revision, version=r.Version, created_at=r.CreatedAt, updated_at=r.UpdatedAt, archived_at=r.ArchivedAt, latest_published_mode_version_id = latestPublishedVersionId };
 
     static IResult ManagedReadOnly(AgentPackManagedResource managed) => throw new AgentPackDomainException(
         StatusCodes.Status409Conflict,

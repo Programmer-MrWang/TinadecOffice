@@ -26,8 +26,6 @@ public sealed record FullDuplexInvocation(
     Guid SessionId,
     string Content,
     string? ClientMessageId,
-    string? ApplicationMode,
-    string? AgentMode,
     string? PermissionMode,
     Guid? TargetRunId,
     long? ExpectedContextRevision,
@@ -38,8 +36,6 @@ public sealed record RunSubmission(
     Guid TurnId,
     Guid MessageId,
     long ContextRevision,
-    string ApplicationMode,
-    string AgentMode,
     string RuntimeProfileId,
     bool Existing);
 
@@ -125,8 +121,6 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
                         existingTurn.Id,
                         existingMessage.Id,
                         existingTurn.BaseContextRevision,
-                        existingRun.ApplicationMode,
-                        existingRun.AgentMode,
                         existingRun.RuntimeProfileId,
                         Existing: true);
                 }
@@ -164,8 +158,6 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
 
         var configuration = await _configurationResolver.ResolveAsync(
             invocation.SessionId,
-            invocation.ApplicationMode,
-            invocation.AgentMode,
             invocation.PermissionMode,
             invocation.MeetingModelOverride,
             cancellationToken).ConfigureAwait(false);
@@ -197,7 +189,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
                 throw new RunAdmissionException("IDEMPOTENCY_KEY_REUSE", "The client message id was already used with a different request mode.");
             }
             return new RunSubmission(priorRunId, priorTurn.Id, userMessage.Id, priorTurn.BaseContextRevision,
-                priorRun.ApplicationMode, priorRun.AgentMode, priorRun.RuntimeProfileId, Existing: true);
+                priorRun.RuntimeProfileId, Existing: true);
         }
 
         var turn = await _conversations.CreateTurnAsync(
@@ -214,8 +206,6 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
             beforeRevision,
             configuration.BaselineVersion,
             configuration.ContentHash,
-            configuration.ApplicationMode,
-            configuration.AgentMode,
             configuration.PermissionMode,
             configuration.RuntimeProfileId), cancellationToken).ConfigureAwait(false);
         var runId = Guid.Parse(started.RunId);
@@ -229,7 +219,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
                 throw new RunAdmissionException("IDEMPOTENCY_KEY_REUSE", "The client message id was already used with a different request mode.");
             }
             return new RunSubmission(runId, turn.Id, userMessage.Id, turn.BaseContextRevision,
-                existingRun.ApplicationMode, existingRun.AgentMode, existingRun.RuntimeProfileId, Existing: true);
+                existingRun.RuntimeProfileId, Existing: true);
         }
 
         // Resolve the process manifest only after StartOrGetRun has established
@@ -262,7 +252,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
         await _engine.EnqueueAsync(runId, cancellationToken).ConfigureAwait(false);
 
         return new RunSubmission(runId, turn.Id, userMessage.Id, beforeRevision,
-            configuration.ApplicationMode, configuration.AgentMode, configuration.RuntimeProfileId, Existing: false);
+            configuration.RuntimeProfileId, Existing: false);
     }
 
     private async Task<FrozenRunConfigurationV1> FreezeToolManifestAsync(
@@ -469,8 +459,6 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
             turn.Id,
             message.Id,
             contextRevision,
-            target.ApplicationMode,
-            target.AgentMode,
             target.RuntimeProfileId,
             Existing: false);
 
@@ -650,13 +638,9 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
 
     private async Task VerifyRequestedModeAsync(FullDuplexInvocation invocation, RunState run, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(invocation.ApplicationMode)
-            && string.IsNullOrWhiteSpace(invocation.AgentMode)
-            && string.IsNullOrWhiteSpace(invocation.PermissionMode)) return;
+        if (string.IsNullOrWhiteSpace(invocation.PermissionMode)) return;
         var requested = await _configurationResolver.ResolveAsync(
             invocation.SessionId,
-            invocation.ApplicationMode,
-            invocation.AgentMode,
             invocation.PermissionMode,
             invocation.MeetingModelOverride,
             cancellationToken).ConfigureAwait(false);
@@ -667,9 +651,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
     }
 
     private static bool ModeMatches(FrozenRunConfigurationV1 configuration, RunState run) =>
-        string.Equals(configuration.ApplicationMode, run.ApplicationMode, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(configuration.AgentMode, run.AgentMode, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(configuration.PermissionMode, run.PermissionMode, StringComparison.OrdinalIgnoreCase)
+        string.Equals(configuration.PermissionMode, run.PermissionMode, StringComparison.OrdinalIgnoreCase)
         && string.Equals(configuration.RuntimeProfileId, run.RuntimeProfileId, StringComparison.OrdinalIgnoreCase);
 
     private static RunStreamChunk ToStreamChunk(DurableRunStreamChunk chunk)

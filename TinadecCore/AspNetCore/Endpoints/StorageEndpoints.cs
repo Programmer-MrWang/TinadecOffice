@@ -378,7 +378,7 @@ public static class StorageEndpoints
     private static object ToSession(SessionRecord session) => new
     {
         id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status,
-        mode = session.Mode, mode_version_id = session.ModeVersionId,
+        mode_version_id = session.ModeVersionId,
         meeting_model_override = ToMeetingModelOverride(session), summary = session.Summary,
         history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt,
         lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt
@@ -402,7 +402,7 @@ public static class StorageEndpoints
             }
         }
         catch { }
-        return new { id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status, mode = session.Mode, mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
+        return new { id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status, mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
     }
 
     private static object? ToMeetingModelOverride(SessionRecord session) =>

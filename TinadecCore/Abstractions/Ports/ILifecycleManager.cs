@@ -182,10 +182,8 @@ public sealed record RunState
     public long ContextRevision { get; init; }
     public long ConfigurationVersion { get; init; }
     public string ConfigurationHash { get; init; } = string.Empty;
-    public string ApplicationMode { get; init; } = "conversation";
-    public string AgentMode { get; init; } = "auto";
     public string PermissionMode { get; init; } = "default";
-    public string RuntimeProfileId { get; init; } = "conversation.auto";
+    public string RuntimeProfileId { get; init; } = string.Empty;
     public string? TenantId { get; init; }
     public string? WorkspaceId { get; init; }
     /// <summary>Immutable principal that admitted the run. Empty means legacy runs cannot authorize tools.</summary>
@@ -229,10 +227,8 @@ public sealed record RunStartRequest(
     long ContextRevision = 0,
     long ConfigurationVersion = 0,
     string ConfigurationHash = "",
-    string ApplicationMode = "conversation",
-    string AgentMode = "auto",
     string PermissionMode = "default",
-    string RuntimeProfileId = "conversation.auto",
+    string RuntimeProfileId = "",
     string? InitiatedByPrincipalId = null);
 
 /// <summary>Values captured when a tool call is dispatched to the tool layer.</summary>

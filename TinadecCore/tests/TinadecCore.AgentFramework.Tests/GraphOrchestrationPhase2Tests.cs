@@ -28,7 +28,7 @@ public sealed class GraphOrchestrationPhase2Tests
 
     private static FrozenRunConfigurationV1 MinimalConfiguration(FrozenGraph? graph) => new(
         FrozenRunConfigurationV1.CurrentSchemaVersion, "baseline-hash", 1,
-        "conversation", "vibe", "profile-id", "ask",
+        Guid.Parse("00000000-0000-0000-0000-0000000000cc"), "profile-id", "ask",
         new SpawnPolicy(2, 16, 4),
         new SchedulingPolicy(2, 2, true),
         new SupervisionPolicy(true, 2),
@@ -37,21 +37,20 @@ public sealed class GraphOrchestrationPhase2Tests
         new ToolRuntimePolicy("tinadec-tools-process", true, true, 120, 4),
         [Agent("meeting", "operation", ["user.respond", "agent.create_temporary"])],
         [Agent("search", "execution", tools: ["mcp_search", "read_file"])],
-        null,
         [],
         "")
     { Graph = graph };
 
-    // ── schema v2: every mode freezes a Graph section ──────────────────────────
+    // ── every mode freezes a Graph section; schema v3 replaced the mode string pair ──
 
     [Fact]
-    public void SchemaVersion_Is_V2Literal()
+    public void SchemaVersion_Is_V3Literal()
     {
-        Assert.Equal("frozen-run-configuration/v2", FrozenRunConfigurationV1.CurrentSchemaVersion);
+        Assert.Equal("frozen-run-configuration/v3", FrozenRunConfigurationV1.CurrentSchemaVersion);
     }
 
     [Fact]
-    public void V2Body_WritesGraphSection_AndRoundTripsTierNodesEdges()
+    public void GraphBody_WritesGraphSection_AndRoundTripsTierNodesEdges()
     {
         var graph = new FrozenGraph(
             FrozenGraphTiers.SelfDispatch, "meeting", "meeting-1",
@@ -60,7 +59,7 @@ public sealed class GraphOrchestrationPhase2Tests
         var body = JsonSerializer.Serialize(MinimalConfiguration(graph), FrozenRunConfigurationV1.JsonOptions);
         Assert.Contains("\"graph\":", body, StringComparison.Ordinal);
         Assert.Contains("\"tier\":\"self_dispatch\"", body, StringComparison.Ordinal);
-        Assert.Contains("\"schemaVersion\":\"frozen-run-configuration/v2\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\":\"frozen-run-configuration/v3\"", body, StringComparison.Ordinal);
 
         var roundTripped = JsonSerializer.Deserialize<FrozenRunConfigurationV1>(body, FrozenRunConfigurationV1.JsonOptions);
         Assert.NotNull(roundTripped?.Graph);

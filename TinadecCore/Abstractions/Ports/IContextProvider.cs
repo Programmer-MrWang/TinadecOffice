@@ -45,9 +45,7 @@ public sealed class ContextEvidence
 public sealed record ContextBuildRequest(
     string SessionId,
     string? RunId,
-    string ApplicationMode = "conversation",
-    string AgentMode = "auto",
-    string RuntimeProfileId = "conversation.auto",
+    string RuntimeProfileId = "",
     string AgentId = "meeting",
     string? TaskContext = null,
     int? TokenBudget = null,
