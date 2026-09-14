@@ -40,7 +40,7 @@ internal static class GitCommitTool
         CancellationToken cancellationToken)
     {
         ToolConfirmations.Require(args.ConfirmCommit, nameof(args.ConfirmCommit));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError, writable: true);
         if (repo is null) return Failure(repoError, GitCli.NotARepoCode);
 
         var message = args.Message?.Trim();

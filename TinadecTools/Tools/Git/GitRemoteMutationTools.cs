@@ -44,7 +44,7 @@ internal static class GitRemoteMutationTools
     public static async ValueTask<GitRemoteMutationResult> FetchAsync(GitRemoteMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmFetch, nameof(args.ConfirmFetch));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure("fetch", error);
         var remote = string.IsNullOrWhiteSpace(args.Remote) ? null : args.Remote.Trim();
         if (remote is not null && !await RemoteExistsAsync(repo, remote, ct).ConfigureAwait(false)) return Failure("fetch", $"Remote '{remote}' is not configured.");
@@ -62,7 +62,7 @@ internal static class GitRemoteMutationTools
     public static async ValueTask<GitRemoteMutationResult> PushAsync(GitRemoteMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmPush, nameof(args.ConfirmPush));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure("push", error);
         var status = await StatusAsync(args.RepositoryPath, ct).ConfigureAwait(false);
         if (!status.Success) return Failure("push", status.Error ?? "Unable to read Git status.");
@@ -94,7 +94,7 @@ internal static class GitRemoteMutationTools
     public static async ValueTask<GitRemoteMutationResult> PullAsync(GitRemoteMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmPull, nameof(args.ConfirmPull));
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error, writable: true);
         if (repo is null) return Failure("pull", error);
         var status = await StatusAsync(args.RepositoryPath, ct).ConfigureAwait(false);
         if (!status.Success) return Failure("pull", status.Error ?? "Unable to read Git status.");

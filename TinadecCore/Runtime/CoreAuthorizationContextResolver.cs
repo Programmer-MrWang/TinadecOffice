@@ -4,6 +4,7 @@ using TinadecCore.Abstractions.Ports;
 using TinadecCore.AgentConfiguration;
 using TinadecCore.DmaEA;
 using TinadecCore.Persistence;
+using TinadecCore.Tools;
 
 namespace TinadecCore.Runtime;
 
@@ -78,6 +79,14 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         if (string.Equals(instance.Layer, "operation", StringComparison.Ordinal))
             return [DenyBoundary("operation_layer_cannot_invoke_tools", claim)];
 
+        var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
+        if (frozen is null) return [DenyBoundary("frozen_configuration_missing", claim)];
+        // A resource denial quotes the frozen root so the message stays actionable;
+        // a body without the workspace section (projectless) simply omits it.
+        var workspaceRoot = ReadFrozenWorkspaceRoot(frozen.Content);
+        var (resourceRules, resourceDenyReason) = await ResourceRulesAsync(
+            instance, claim, request.ResourceClaim, workspaceRoot, cancellationToken).ConfigureAwait(false);
+
         var rules = new List<AuthorizationBoundary>
         {
             new("run", RunRules(run.PermissionMode, claim)),
@@ -85,7 +94,13 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
             // The persisted instance definition is a narrower child scope than
             // the published AgentVersion. Keep it as an independent boundary so
             // a generated worker cannot inherit a parent's wildcard tools.
-            new("agent_instance", AgentRules(instance, claim))
+            new("agent_instance", AgentRules(instance, claim)),
+            // WS-4/WS-8 resource envelope: the instance's frozen resource grants
+            // authorize provider-backed tool claims. Read/write levels come from
+            // the grant strings ("read:prefix"/"write:prefix"), and — when the
+            // call carries a resource claim — the concrete target must fall
+            // inside a matching prefix.
+            new("resource_access", resourceRules) { DenyReason = resourceDenyReason }
         };
 
         if (await TryInstanceDefinitionRulesAsync(instance, claim, cancellationToken).ConfigureAwait(false) is { } instanceScopeRules)
@@ -93,8 +108,6 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         else
             rules.Add(DenyBoundary("agent_instance_scope_missing", claim));
 
-        var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
-        if (frozen is null) return [DenyBoundary("frozen_configuration_missing", claim)];
         rules.Add(new AuthorizationBoundary("tool_manifest", ManifestRules(frozen.Content, claim)));
         rules.AddRange(FrozenPolicyRules(frozen.Content, claim));
 
@@ -174,6 +187,94 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
 
     private static IReadOnlyList<CapabilityRule> AgentRules(AgentInstanceRecord instance, CapabilityClaim claim) =>
         [new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)];
+
+    /// <summary>
+    /// WS-4/WS-8 resource envelope at the PDP. The instance's resource grants
+    /// (seeded from the frozen binding envelopes as "read:prefix"/"write:prefix"
+    /// strings) authorize provider-backed tool claims: any grant allows read
+    /// claims; only a write grant allows mutate claims (write implies read).
+    /// When the call carries a resource claim, the concrete workspace target must
+    /// additionally fall inside a matching prefix — the WS-8 prefix enforcement.
+    /// An instance with no grants holds no workspace authorization — fail closed.
+    /// Core-reserved virtual tools (create_workspace) are the projectless
+    /// bootstrap channel and are exempt: the approval gate authorizes them.
+    /// </summary>
+    private async Task<(IReadOnlyList<CapabilityRule> Rules, string? DenyReason)> ResourceRulesAsync(
+        AgentInstanceRecord instance,
+        CapabilityClaim claim,
+        CapabilityClaim? resourceClaim,
+        string? workspaceRoot,
+        CancellationToken cancellationToken)
+    {
+        if (IsCoreReservedClaim(claim.Resource))
+            return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null);
+
+        var grants = await ReadInstanceResourceGrantsAsync(instance, cancellationToken).ConfigureAwait(false);
+        var mutating = string.Equals(claim.Action, "mutate", StringComparison.OrdinalIgnoreCase);
+        var target = ToolResourcePathRegistry.TryReadResourceClaimPath(resourceClaim);
+        var decision = ToolResourceAllowList.Evaluate(grants, target, mutating);
+        if (decision.Allowed)
+            return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null);
+
+        var toolId = claim.Resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)
+            ? claim.Resource[7..]
+            : claim.Resource;
+        return (
+            [new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)],
+            ResourceDenialExplanation.Describe(decision, grants, toolId, workspaceRoot, target));
+    }
+
+    /// <summary>The frozen workspace root, when the run carries one (projectless runs do not).</summary>
+    private static string? ReadFrozenWorkspaceRoot(string content)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(content);
+            if (!document.RootElement.TryGetProperty("workspace", out var workspace)
+                || workspace.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            foreach (var name in new[] { "rootPath", "root_path" })
+            {
+                if (workspace.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    var text = value.GetString();
+                    if (!string.IsNullOrWhiteSpace(text)) return text;
+                }
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private async Task<IReadOnlyList<string>> ReadInstanceResourceGrantsAsync(
+        AgentInstanceRecord instance,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(instance.DefinitionReference) || string.IsNullOrWhiteSpace(instance.DefinitionHash)) return [];
+        try
+        {
+            await using var stream = await _content.OpenReadAsync(
+                new ContentReference(instance.DefinitionReference, instance.DefinitionHash, instance.DefinitionLength, "application/json"),
+                cancellationToken).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+            return ReadStringArray(doc.RootElement, "AllowedResources");
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static bool IsCoreReservedClaim(string resource) =>
+        resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(resource[7..], CoreVirtualToolPolicy.CreateWorkspaceToolId, StringComparison.OrdinalIgnoreCase);
 
     private static IReadOnlyList<CapabilityRule> ManifestRules(string content, CapabilityClaim claim)
     {

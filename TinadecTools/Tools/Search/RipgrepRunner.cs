@@ -88,6 +88,9 @@ internal static class RipgrepRunner
         var psi = BuildProcessStartInfo(rgPath, args, searchPath);
         using var process = new Process { StartInfo = psi };
         process.Start();
+        // rg reads files, never stdin, so the pipe is closed immediately: the child
+        // must not keep a handle the host still uses for its own protocol.
+        process.StandardInput.Close();
 
         // 并发读取 stderr，防止死锁
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
@@ -193,6 +196,9 @@ internal static class RipgrepRunner
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
+            // Never let rg inherit the tool host's protocol stdin: a child holding
+            // that live pipe handle can block its own exit and wedge the caller.
+            RedirectStandardInput  = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding  = Encoding.UTF8,
             CreateNoWindow         = true

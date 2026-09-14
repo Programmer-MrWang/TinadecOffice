@@ -59,6 +59,14 @@ public sealed class AgentPackMetadataDto
 
     [JsonPropertyName("version")]
     public string? Version { get; init; }
+
+    // Optional human-readable pack description (v1 additive). Omitted when absent
+    // so re-serialization — and therefore the manifest digest — stays byte-identical
+    // for packs that predate this field. Present in the bundled seed pack, whose
+    // raw JSON must equal the DTO round-trip byte-for-byte (closure invariant).
+    [JsonPropertyName("description")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 }
 
 public sealed class AgentPackCompatibilityDto
@@ -211,13 +219,18 @@ public sealed class AgentPackModeResourceDto
 
 public sealed class AgentPackModeBindingDto
 {
+    // Omitted when absent: a node-less binding attaches an envelope to a spawnable
+    // template (free_form directors), and writing an explicit null would change the
+    // digest of manifests that simply leave the key out.
     [JsonPropertyName("node_key")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? NodeKey { get; init; }
 
     [JsonPropertyName("agent_ref")]
     public string? AgentRef { get; init; }
 
     [JsonPropertyName("duty_description_ref")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? DutyDescriptionRef { get; init; }
 
     // json: { "<tool_id>": true|false } — can only narrow the template's tool scope

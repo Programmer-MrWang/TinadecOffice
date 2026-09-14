@@ -53,6 +53,16 @@ const edges = computed<Edge[]>(() =>
 )
 
 const flowSummary = computed(() => (props.flows ?? []).slice(0, 6))
+
+const tierLabel = computed(() => {
+  if (!props.graph.tier) return null
+  const names: Record<string, string> = {
+    deterministic: 'deterministic · 焊死拓扑',
+    self_dispatch: 'self_dispatch · 边内自派发',
+    free_form: 'free_form · 自由搭建',
+  }
+  return names[props.graph.tier] ?? props.graph.tier
+})
 </script>
 
 <template>
@@ -70,6 +80,7 @@ const flowSummary = computed(() => (props.flows ?? []).slice(0, 6))
       <Panel position="top-left" class="declared-graph-legend">
         <span class="legend-dot legend-dot--conversation"></span>
         {{ $t('workbench.conversationNode', 'conversation identity') }}
+        <span v-if="tierLabel" class="legend-tier" data-testid="declared-graph-tier">{{ tierLabel }}</span>
         <span class="legend-count">{{ flows?.length ?? 0 }} flows</span>
       </Panel>
       <template #node-default="nodeProps">
@@ -123,6 +134,12 @@ const flowSummary = computed(() => (props.flows ?? []).slice(0, 6))
   height: 8px;
   border-radius: 50%;
   background: var(--accent-recovery, #b18aff);
+}
+
+.legend-tier {
+  color: var(--accent-info, #4a9eff);
+  font-weight: 600;
+  margin-left: 6px;
 }
 
 .legend-count {

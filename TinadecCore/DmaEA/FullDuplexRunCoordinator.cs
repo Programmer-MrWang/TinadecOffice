@@ -272,10 +272,14 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
     {
         // The run-frozen manifest is the execution ceiling.  The governance layer never
         // contributes to it: an operation-layer declaration must not be able to widen what
-        // execution workers may reach.
+        // execution workers may reach. Spawnable worker templates (graph tiers) contribute
+        // their tool scope too — a free-form director mode has an empty execution roster,
+        // so without this the manifest would authorize nothing for its spawned workers.
         var definitions = configuration.ExecutionAgents.ToArray();
+        var spawnable = configuration.Graph?.SpawnableTemplates ?? [];
         var allowedToolIds = definitions
             .SelectMany(agent => agent.AllowedTools)
+            .Concat(spawnable.SelectMany(template => template.ToolCeiling))
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -285,7 +289,11 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
         try
         {
             var snapshot = await _toolManifestResolver.ResolveAsync(
-                new ToolManifestSnapshotRequest(sessionId, allowedToolIds, allowAll), cancellationToken).ConfigureAwait(false);
+                new ToolManifestSnapshotRequest(
+                    sessionId,
+                    allowedToolIds,
+                    allowAll,
+                    SpawnableToolIds: spawnable.SelectMany(template => template.ToolCeiling).ToList()), cancellationToken).ConfigureAwait(false);
             if (snapshot.ProtocolVersion != 2 || string.IsNullOrWhiteSpace(snapshot.ManifestHash))
             {
                 throw new ToolManifestSnapshotException(
@@ -293,11 +301,42 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
                     "TinadecTools manifest v2 is required for autonomous runs.");
             }
 
+            // Finish the spawnable tool ceilings against the frozen manifest: an
+            // explicit tool id the live manifest does not carry is a misconfiguration
+            // and fails closed at admission; a wildcard ceiling stays as-is (it is
+            // bounded by the frozen manifest at dispatch time).
+            var manifestIds = snapshot.AuthorizedTools.Select(entry => entry.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            FrozenSpawnableTemplate[] frozenSpawnable;
+            if (spawnable.Count == 0)
+            {
+                frozenSpawnable = [];
+            }
+            else
+            {
+                frozenSpawnable = new FrozenSpawnableTemplate[spawnable.Count];
+                for (var index = 0; index < spawnable.Count; index++)
+                {
+                    var template = spawnable[index];
+                    if (template.ToolCeiling.Contains("*", StringComparer.Ordinal))
+                    {
+                        frozenSpawnable[index] = template;
+                        continue;
+                    }
+                    var ceiling = template.ToolCeiling.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                    var unauthorized = ceiling.Where(id => !manifestIds.Contains(id)).ToArray();
+                    if (unauthorized.Length > 0)
+                        throw new RunAdmissionException("spawnable_template_tools_unauthorized",
+                            $"Spawnable template '{template.Slug}' declares tools the frozen manifest does not authorize: {string.Join(", ", unauthorized)}.");
+                    frozenSpawnable[index] = template with { ToolCeiling = ceiling };
+                }
+            }
+
             return configuration with
             {
                 ToolManifestHash = snapshot.ManifestHash,
                 ToolManifestProtocolVersion = snapshot.ProtocolVersion,
-                ToolManifest = snapshot.AuthorizedTools
+                ToolManifest = snapshot.AuthorizedTools,
+                Graph = configuration.Graph is null ? null : configuration.Graph with { SpawnableTemplates = frozenSpawnable }
             };
         }
         catch (ToolManifestSnapshotException ex)

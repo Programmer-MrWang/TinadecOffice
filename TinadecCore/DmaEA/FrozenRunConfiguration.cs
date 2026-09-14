@@ -88,16 +88,34 @@ public sealed record FrozenRunConfigurationV1(
 
     /// <summary>
     /// Declared mode graph frozen at admission (DmaEA graph orchestration).
-    /// Null for modes without declared edges — the canonical body then stays
-    /// byte-identical to pre-graph freezes, so stored ContentHashes never churn
-    /// and legacy runs double-read as Graph=null (legacy engine path). Tiers:
-    /// deterministic | self_dispatch — in this phase both walk the declared
-    /// edges identically (the tier is an observation label; enforcement
-    /// differences are a Phase 2 decision). The tier is derived ONLY from
-    /// frozen inputs at admission; recovery never re-derives it.
+    /// Schema v2 freezes a Graph section for EVERY mode: free_form (no declared
+    /// edges) is itself a tier and its single-director shape is enforced by the
+    /// engine. The tier is derived ONLY from frozen inputs at admission; recovery
+    /// never re-derives it. (v1 freezes omitted this section for edge-less modes;
+    /// the v1→v2 clean break supersedes those bodies — recovery fail-closes with
+    /// run_schema_superseded instead of double-reading.)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public FrozenGraph? Graph { get; init; }
+
+    /// <summary>
+    /// The workspace this run is bound to, frozen at admission (root absolute
+    /// path, extra read-only roots, git facts, top-level listing, path contract).
+    /// Null means "this run has no workspace": projectless free-conversation
+    /// sessions, and every body frozen before the section existed. Recovery treats
+    /// a missing section as no workspace rather than failing the schema gate, and
+    /// it never re-resolves the binding — the model prompt and the tool boundary
+    /// both read this section as the single authority for "where am I".
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public FrozenWorkspaceBinding? Workspace { get; init; }
+
+    /// <summary>
+    /// The frozen-body schema this Core writes and reads. v2 introduced the
+    /// always-present Graph section (free_form tier on disk) and spawnable
+    /// templates; v1 bodies are superseded and fail closed on resume.
+    /// </summary>
+    public const string CurrentSchemaVersion = "frozen-run-configuration/v2";
 
     public string ToCanonicalJson() => JsonSerializer.Serialize(this, JsonOptions);
 
@@ -115,16 +133,16 @@ public sealed record FrozenRunConfigurationV1(
     };
 }
 
-/// <summary>Observation labels for the declared-graph orchestration tier.</summary>
+/// <summary>Enforcement tiers for the declared-graph orchestration. The tier decides which dispatch/spawn authority the engine consults; it is derived only at admission.</summary>
 public static class FrozenGraphTiers
 {
-    /// <summary>Conversation identity holds no dispatchable-worker spawn authority (or holds only agent.create_persistent); the declared graph is walked.</summary>
+    /// <summary>Declared edges walked; conversation identity holds no dispatchable-worker spawn authority (or holds only agent.create_persistent). Spawn intent is denied (graph_tier_spawn_denied).</summary>
     public const string Deterministic = "deterministic";
 
-    /// <summary>Conversation identity holds agent.create_temporary (or the agent.spawn alias): dispatch happens inside the declared-edge envelope.</summary>
+    /// <summary>Declared edges walked; conversation identity holds agent.create_temporary (or the agent.spawn alias) and may additionally spawn workers from the frozen spawnable-template whitelist.</summary>
     public const string SelfDispatch = "self_dispatch";
 
-    /// <summary>No declared edges — legacy free-form orchestration; no Graph section is frozen.</summary>
+    /// <summary>No declared dispatch edges — single-director free-form orchestration; the director spawns workers from the frozen spawnable-template set and edges are prompt material only.</summary>
     public const string FreeForm = "free_form";
 }
 
@@ -137,9 +155,36 @@ public sealed record FrozenGraph(
     string? ConversationTemplateSlug,
     string? ConversationNodeKey,
     IReadOnlyList<FrozenGraphNode> Nodes,
-    IReadOnlyList<DeclaredGraphEdge> Edges);
+    IReadOnlyList<DeclaredGraphEdge> Edges)
+{
+    /// <summary>
+    /// Worker templates the conversation identity may spawn outside the declared
+    /// roster (self_dispatch whitelist; free_form director's buildable set),
+    /// hash-pinned at admission with their tool ceiling already intersected
+    /// against the frozen tool manifest.
+    /// </summary>
+    public IReadOnlyList<FrozenSpawnableTemplate> SpawnableTemplates { get; init; } = [];
+}
 
-public sealed record FrozenGraphNode(string NodeKey, string AgentSlug, string Layer, bool IsConversation);
+public sealed record FrozenGraphNode(string NodeKey, string AgentSlug, string Layer, bool IsConversation)
+{
+    /// <summary>Workspace-relative path grants frozen from the node's binding envelope resources (empty = deny path-targeting tools; WS-4 resource envelope).</summary>
+    public IReadOnlyList<FrozenResourceGrant> ResourceGrants { get; init; } = [];
+}
+
+/// <summary>A worker template the conversation identity may spawn, with its frozen tool ceiling.</summary>
+public sealed record FrozenSpawnableTemplate(
+    string Slug,
+    Guid AgentDefinitionId,
+    Guid AgentVersionId,
+    string VersionHash,
+    string Role,
+    IReadOnlyList<string> ToolCeiling,
+    IReadOnlyList<string> Capabilities)
+{
+    /// <summary>Workspace-relative path grants frozen from the template's binding envelope resources (empty = no workspace authorization).</summary>
+    public IReadOnlyList<FrozenResourceGrant> ResourceGrants { get; init; } = [];
+}
 
 internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigurationResolver
 {
@@ -181,6 +226,10 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             ?? throw new KeyNotFoundException("Session was not found.");
         if (session.ModeVersionId is null)
             throw new RunAdmissionException("agent_mode_not_configured", "A published default Agent Mode must be configured before creating a run.");
+        // The workspace is resolved exactly once, here, from Core-owned records and
+        // a cheap filesystem probe. Everything downstream (prompt, tool boundary,
+        // resource claims) reads the frozen section instead of re-resolving it.
+        var workspace = await WorkspaceBindingFactory.TryCreateAsync(_sessions, session, cancellationToken).ConfigureAwait(false);
         var snapshot = _baseline.Current;
         var (app, mode, profile) = snapshot.Resolve(applicationMode, agentMode);
         var policySnapshot = _policySnapshots is null
@@ -201,32 +250,62 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             new("agent_runtime_baseline", DeterministicGuid(snapshot.ContentHash), DeterministicGuid(snapshot.ContentHash + ":" + snapshot.Version), snapshot.ContentHash)
         };
         var modeVersionId = session.ModeVersionId.Value;
-        var relational = await _formal.ResolveRosterAsync(sessionId, snapshot.GraphResolverMode, cancellationToken).ConfigureAwait(false)
+        var relational = await _formal.ResolveRosterAsync(sessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException($"Agent mode version '{modeVersionId}' could not be resolved.");
         var operation = relational.Operation.Select(ToRuntimeAgentDefinition).ToArray();
         var execution = relational.Execution.Select(ToRuntimeAgentDefinition).ToArray();
         operation = (await FreezeModelPlansAsync(operation, sessionId, modeVersionId, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
         execution = (await FreezeModelPlansAsync(execution, sessionId, modeVersionId, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
 
-        // Declared graph freeze (DmaEA graph orchestration): only modes with
-        // declared edges carry a Graph section — the canonical body of edge-less
-        // modes stays byte-identical to pre-graph freezes, so stored hashes never
-        // churn. The tier is derived ONLY here from frozen inputs; recovery
-        // never re-derives it (configuration.Graph is the single authority).
-        FrozenGraph? graph = null;
-        if (relational.HasDeclaredEdges)
+        // Workspace baseline: a bound workspace gives every agent that holds a
+        // provider tool face the whole-root read level, so read-only work never
+        // fails for "no workspace authorization". An envelope that declared
+        // grants keeps them verbatim (narrowing only), and write stays
+        // envelope-declared plus approval-gated.
+        operation = operation.Select(agent => agent with
         {
-            graph = new FrozenGraph(
-                DeriveGraphTier(operation, relational.ConversationTemplateSlug),
-                relational.ConversationTemplateSlug,
-                relational.ConversationNodeKey,
-                relational.GraphNodes.Select(node => new FrozenGraphNode(
-                    node.NodeKey,
-                    node.AgentSlug,
-                    node.Layer,
-                    string.Equals(node.NodeKey, relational.ConversationNodeKey, StringComparison.Ordinal))).ToArray(),
-                relational.Edges);
-        }
+            ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, agent.ResourceGrants, agent.AllowedTools)
+        }).ToArray();
+        execution = execution.Select(agent => agent with
+        {
+            ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, agent.ResourceGrants, agent.AllowedTools)
+        }).ToArray();
+
+        // Declared graph freeze (DmaEA graph orchestration): every mode freezes a
+        // Graph section under schema v2 — free_form is a tier on disk, not the
+        // absence of one. The tier is derived ONLY here from frozen inputs;
+        // recovery never re-derives it (configuration.Graph is the single
+        // authority). Spawnable tool ceilings are finished in the coordinator's
+        // manifest freeze (the execution ceiling is not resolvable here yet).
+        var grantsBySlug = operation.Concat(execution)
+            .GroupBy(agent => agent.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().ResourceGrants, StringComparer.OrdinalIgnoreCase);
+        var graph = new FrozenGraph(
+            DeriveGraphTier(operation, relational.HasDeclaredEdges, relational.ConversationTemplateSlug),
+            relational.ConversationTemplateSlug,
+            relational.ConversationNodeKey,
+            relational.GraphNodes.Select(node => new FrozenGraphNode(
+                node.NodeKey,
+                node.AgentSlug,
+                node.Layer,
+                string.Equals(node.NodeKey, relational.ConversationNodeKey, StringComparison.Ordinal))
+            {
+                ResourceGrants = grantsBySlug.TryGetValue(node.AgentSlug, out var grants) ? grants : []
+            }).ToArray(),
+            relational.Edges)
+        {
+            SpawnableTemplates = relational.SpawnableTemplates.Select(template => new FrozenSpawnableTemplate(
+                template.Slug,
+                template.AgentDefinitionId,
+                template.AgentVersionId,
+                template.VersionHash,
+                template.Role,
+                template.ToolScope,
+                template.Capabilities)
+            {
+                ResourceGrants = WorkspaceGrantDefaults.Resolve(workspace, template.ResourceGrants, template.ToolScope)
+            }).ToArray()
+        };
 
         // Gate 3 (run freeze): conversation identity lock + operation deny floor,
         // fail-closed at admission. Sessions frozen before ConversationIdentity
@@ -264,7 +343,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         }
 
         var frozen = new FrozenRunConfigurationV1(
-            "frozen-run-configuration/v1",
+            FrozenRunConfigurationV1.CurrentSchemaVersion,
             snapshot.ContentHash,
             snapshot.Version,
             app,
@@ -286,19 +365,24 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             PolicyBundles = policySnapshot?.Bundles ?? [],
             Triggers = snapshot.Triggers,
             Orchestration = snapshot.Orchestration,
-            Graph = graph
+            Graph = graph,
+            Workspace = workspace
         };
         return frozen;
     }
 
     /// <summary>
-    /// self_dispatch requires a dispatchable-worker spawn authority
-    /// (agent.create_temporary, or the agent.spawn alias). A conversation identity
-    /// that only holds agent.create_persistent mints candidates, not dispatchable
-    /// workers, so it lands in the deterministic tier.
+    /// Three-branch tier derivation, decided only from frozen inputs:
+    /// no declared dispatch edges → free_form (the director builds its own
+    /// workers); declared edges + a conversation identity holding a
+    /// dispatchable-worker spawn authority (agent.create_temporary, or the
+    /// agent.spawn alias) → self_dispatch; declared edges without spawn
+    /// authority (including create_persistent-only, which mints candidates not
+    /// dispatchable workers) → deterministic.
     /// </summary>
-    internal static string DeriveGraphTier(IReadOnlyList<RuntimeAgentDefinition> operation, string? conversationSlug)
+    internal static string DeriveGraphTier(IReadOnlyList<RuntimeAgentDefinition> operation, bool hasDeclaredEdges, string? conversationSlug)
     {
+        if (!hasDeclaredEdges) return FrozenGraphTiers.FreeForm;
         var conversation = conversationSlug is { } slug
             ? operation.FirstOrDefault(agent => string.Equals(agent.Id, slug, StringComparison.OrdinalIgnoreCase))
             : null;
@@ -395,6 +479,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         AgentVersionId = e.AgentVersionId,
         VersionContentHash = e.VersionContentHash,
         AllowedTools = e.AllowedTools,
+        ResourceGrants = e.ResourceGrants,
         PromptProfile = e.PromptProfile,
         SystemPrompt = e.SystemPrompt,
         ModelStrategyJson = e.ModelStrategyJson,

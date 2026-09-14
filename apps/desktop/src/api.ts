@@ -1,4 +1,4 @@
-import type { AgentPackEnvelope } from '@/agentPacks/OfficeAgentPack'
+import type { AgentPackEnvelope } from '@/agentPacks/GraphSeedPack'
 
 export interface ProjectDto {
   id: string;
@@ -1724,6 +1724,8 @@ export interface DeclaredGraphEdgeDto {
 
 /** Declared mode graph (DmaEA graph orchestration): the published mode-version snapshot projected as base layer. */
 export interface DeclaredModeGraphDto {
+  /** The run's frozen orchestration tier (deterministic | self_dispatch | free_form); null at session scope. */
+  tier?: string | null;
   nodes: DeclaredGraphNodeDto[];
   edges: DeclaredGraphEdgeDto[];
 }
@@ -1818,6 +1820,14 @@ function extractErrorMessage(data: unknown, fallback: string): string {
     const nestedMessage = (nestedError as Record<string, unknown>).message;
     if (typeof nestedMessage === 'string' && nestedMessage.length > 0) return nestedMessage;
   }
+
+  // Tool execute results (CodeToolExecuteResultDto) fail with a 4xx/422 body that
+  // carries summary/error instead of a message envelope. Without these fallbacks
+  // the user only sees the raw HTTP status text (e.g. "Unprocessable Entity").
+  if (typeof nestedError === 'string' && nestedError.length > 0) return nestedError;
+
+  const summary = record.summary;
+  if (typeof summary === 'string' && summary.length > 0) return summary;
 
   // RFC 9457 problem+json bodies (gateway / backend errors) carry detail/title instead of message.
   const detail = record.detail;

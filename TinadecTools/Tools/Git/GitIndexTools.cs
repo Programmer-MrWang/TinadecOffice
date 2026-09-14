@@ -46,7 +46,7 @@ internal static class GitIndexTools
         string action,
         CancellationToken cancellationToken)
     {
-        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError);
+        var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var repoError, writable: true);
         if (repo is null) return Failure(repoError, GitCli.NotARepoCode);
 
         var paths = args.Paths?.Where(path => !string.IsNullOrWhiteSpace(path)).ToList() ?? [];

@@ -1,73 +1,158 @@
 namespace TinadecCore.Tools;
 
 /// <summary>
-/// Named decision step for resource-grant evaluation (S9 Phase 1: refactor-only —
-/// behavior identical to the historical boolean predicate, seeds still pass
-/// ["workspace"]). Shared by the invocation-scope resolver and the Core-owned
-/// virtual tools. The decision records WHY a path was allowed or denied:
-/// <see cref="ResourceAllowBasis.UnrestrictedEmptyGrant"/> and
-/// <see cref="ResourceAllowBasis.CoarseToken"/> are the two historical allow
-/// shortcuts; otherwise the candidate path must equal, or be nested under, a
-/// granted path.
+/// Named decision step for resource-grant evaluation (WS-4 envelope + WS-8 path
+/// prefix enforcement).
 ///
-/// Phase 1 deliberately does NOT change behavior: the six engine seeds still pass
-/// ["workspace"], so the runtime resource envelope is still the coarse token.
-/// Replacing seeds with per-instance grants (resource envelope takeover) is
-/// Phase 2 work, batched with the R5 frozen-hash changes.
+/// Grants are frozen per instance as level-prefixed, forward-slash,
+/// workspace-relative prefixes (<c>read:&lt;prefix&gt;</c> /
+/// <c>write:&lt;prefix&gt;</c>; an empty prefix means the whole workspace). Write
+/// implies read. An empty grant list is the fail-closed "no workspace
+/// authorization" state — never "unrestricted" — and the historical coarse
+/// tokens (<c>workspace</c>/<c>project</c>) are not grants at all any more.
+///
+/// Enforcement split:
+/// • here (cheap pre-check at scope resolution + PDP resource_access boundary):
+///   the grant LIST, its path PREFIXES and the read/write LEVEL decide the
+///   workspace target.
+/// • the tool process independently refuses any path outside its workspace root.
+/// A tool without a single target path (shell, mcp_*, git_*) is decided by level
+/// only; that fallback never widens a path-scoped grant, because such a tool has
+/// no path to narrow in the first place.
 /// </summary>
 internal static class ToolResourceAllowList
 {
-    /// <summary>Evaluate a candidate path against a declared resource grant list.</summary>
-    public static ResourceAllowDecision Evaluate(IReadOnlyList<string> resources, string path)
-    {
-        // Historical behaviour: an empty list means no restriction was declared.
-        if (resources.Count == 0)
-            return new ResourceAllowDecision(true, ResourceAllowBasis.UnrestrictedEmptyGrant, null);
+    /// <summary>
+    /// Boolean projection for the cheap pre-check at scope resolution: a
+    /// non-empty grant list authorizes the workspace root. Levels and prefixes
+    /// are enforced per claim by the PDP resource_access boundary.
+    /// </summary>
+    public static bool IsAllowed(IReadOnlyList<string> grants) =>
+        Evaluate(grants, relativePath: null, mutating: false).Allowed;
 
-        var normalizedPath = TryNormalize(path);
-        foreach (var resource in resources)
+    /// <summary>
+    /// Decide one workspace target. <paramref name="relativePath"/> is the
+    /// workspace-relative target normalized by <see cref="ToolResourcePathRegistry"/>;
+    /// null means the tool has no single path and only the level is checked.
+    /// </summary>
+    public static ResourceAllowDecision Evaluate(IReadOnlyList<string> grants, string? relativePath, bool mutating)
+    {
+        if (grants.Count == 0) return new ResourceAllowDecision(false, ResourceAllowBasis.NoGrant, null);
+
+        if (string.IsNullOrEmpty(relativePath))
         {
-            if (string.Equals(resource, "workspace", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(resource, "project", StringComparison.OrdinalIgnoreCase))
+            foreach (var grant in grants)
             {
-                return new ResourceAllowDecision(true, ResourceAllowBasis.CoarseToken, resource);
+                if (!TryParseGrant(grant, out var write, out _)) continue;
+                if (mutating && !write) continue;
+                return new ResourceAllowDecision(true, ResourceAllowBasis.Granted, grant);
             }
-            var root = TryNormalize(resource);
-            if (root is null || normalizedPath is null) continue;
-            if (string.Equals(normalizedPath, root, StringComparison.OrdinalIgnoreCase)
-                || normalizedPath.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            {
-                return new ResourceAllowDecision(true, ResourceAllowBasis.PathMatch, resource);
-            }
+
+            return new ResourceAllowDecision(false, ResourceAllowBasis.LevelDenied, null);
         }
 
-        return new ResourceAllowDecision(false, ResourceAllowBasis.Denied, null);
+        // A grant string carries a normalized prefix already; the target is
+        // normalized the same way so the comparison is purely ordinal.
+        var normalizedTarget = ToolResourcePathRegistry.NormalizeRelativePath(relativePath);
+        if (normalizedTarget is null) return new ResourceAllowDecision(false, ResourceAllowBasis.PathDenied, null);
+
+        var sawLevelMatch = false;
+        foreach (var grant in grants)
+        {
+            if (!TryParseGrant(grant, out var write, out var prefix)) continue;
+            if (mutating && !write) continue;
+            sawLevelMatch = true;
+            if (CoversPrefix(prefix, normalizedTarget))
+                return new ResourceAllowDecision(true, ResourceAllowBasis.Granted, grant);
+        }
+
+        // Distinguish "the level was never granted" from "the level was granted
+        // but no prefix covers this target": both deny, but the basis is the
+        // operator-visible reason.
+        return new ResourceAllowDecision(false, sawLevelMatch ? ResourceAllowBasis.PathDenied : ResourceAllowBasis.LevelDenied, null);
     }
 
-    /// <summary>Boolean projection kept for the existing call sites.</summary>
-    public static bool IsAllowed(IReadOnlyList<string> resources, string path) => Evaluate(resources, path).Allowed;
-
-    private static string? TryNormalize(string value)
+    /// <summary>Parse "read:/write:" level prefix. Unknown forms are not grants.</summary>
+    private static bool TryParseGrant(string grant, out bool write, out string prefix)
     {
-        if (string.IsNullOrWhiteSpace(value)) return null;
-        try
+        write = false;
+        prefix = string.Empty;
+        if (string.IsNullOrWhiteSpace(grant)) return false;
+        var trimmed = grant.Trim();
+        if (trimmed.StartsWith("read:", StringComparison.OrdinalIgnoreCase))
         {
-            // A malformed grant/path is simply not an authorization match.
-            return Path.GetFullPath(value);
+            prefix = trimmed[5..];
         }
-        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        else if (trimmed.StartsWith("write:", StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            write = true;
+            prefix = trimmed[6..];
         }
+        else
+        {
+            return false;
+        }
+
+        prefix = prefix.Replace('\\', '/').Trim('/');
+        return true;
+    }
+
+    /// <summary>An empty prefix covers the whole workspace; otherwise match on a path-segment boundary.</summary>
+    private static bool CoversPrefix(string prefix, string path)
+    {
+        if (prefix.Length == 0) return true;
+        if (string.Equals(prefix, path, StringComparison.OrdinalIgnoreCase)) return true;
+        return path.Length > prefix.Length
+            && path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && path[prefix.Length] == '/';
+    }
+}
+
+/// <summary>
+/// Operator- and model-facing explanation of a resource denial. It is surfaced as
+/// the tool execution's safe error message (and, from there, to the model), so it
+/// names the missing level, the frozen grants and the workspace root instead of
+/// leaving a bare "denied" that a caller cannot act on.
+/// </summary>
+internal static class ResourceDenialExplanation
+{
+    public static string Describe(
+        ResourceAllowDecision decision,
+        IReadOnlyList<string> grants,
+        string? toolId,
+        string? workspaceRoot,
+        string? relativePath)
+    {
+        var tool = string.IsNullOrWhiteSpace(toolId) ? "the tool" : $"'{toolId}'";
+        var workspace = string.IsNullOrWhiteSpace(workspaceRoot)
+            ? "the run workspace"
+            : $"the workspace rooted at '{workspaceRoot}'";
+        var frozen = grants.Count == 0 ? "(none)" : string.Join(", ", grants.Select(grant => $"'{grant}'"));
+        var target = string.IsNullOrWhiteSpace(relativePath) ? "the workspace" : $"'{relativePath}'";
+
+        return decision.Basis switch
+        {
+            ResourceAllowBasis.NoGrant =>
+                $"{tool} was denied: this agent instance holds no workspace resource grant, so it cannot access {workspace}. "
+                + "No grants were frozen for the instance; workspace read access must be granted at admission.",
+            ResourceAllowBasis.LevelDenied when grants.Any(grant => grant.StartsWith("read:", StringComparison.OrdinalIgnoreCase)) =>
+                $"{tool} was denied: it changes {workspace} but the instance holds read-level grants only ({frozen}). "
+                + "A write-level grant (write:<prefix>) is required, and the write still needs its approval.",
+            ResourceAllowBasis.LevelDenied =>
+                $"{tool} was denied: no frozen grant covers the requested level for {workspace}. Frozen grants: {frozen}.",
+            ResourceAllowBasis.PathDenied =>
+                $"{tool} was denied: it targets {target}, which no frozen prefix grant covers. Frozen grants: {frozen}.",
+            _ => $"{tool} was denied by the resource boundary for {workspace}. Frozen grants: {frozen}."
+        };
     }
 }
 
 internal enum ResourceAllowBasis
 {
-    UnrestrictedEmptyGrant,
-    CoarseToken,
-    PathMatch,
-    Denied
+    Granted,
+    NoGrant,
+    LevelDenied,
+    PathDenied
 }
 
 internal sealed record ResourceAllowDecision(bool Allowed, ResourceAllowBasis Basis, string? MatchedGrant);

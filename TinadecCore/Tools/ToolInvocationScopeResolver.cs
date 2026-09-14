@@ -83,8 +83,10 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             throw new UnauthorizedAccessException("Agent invocation scope does not match the run/session.");
         if (!IsToolAllowed(authorization.AllowedTools, request.ToolId))
             throw new UnauthorizedAccessException($"Agent instance is not allowed to invoke '{request.ToolId}'.");
-        if (project is not null && !IsResourceAllowed(authorization.AllowedResources, root))
-            throw new UnauthorizedAccessException("Agent instance is not allowed to access the project workspace.");
+        // WS-4 resource envelope: a non-empty grant list authorizes the workspace
+        // root; read/write levels are enforced by the PDP resource_access boundary.
+        if (project is not null && !IsResourceAllowed(authorization.AllowedResources))
+            throw new UnauthorizedAccessException("Agent instance holds no workspace resource grant.");
 
         var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(request.RunId.ToString(), cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Frozen run configuration body is unavailable.");
@@ -147,8 +149,8 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             : allowedTools.Any(value => string.Equals(value, "*", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value, toolId, StringComparison.OrdinalIgnoreCase));
 
-    private static bool IsResourceAllowed(IReadOnlyList<string> resources, string root) =>
-        ToolResourceAllowList.IsAllowed(resources, root);
+    private static bool IsResourceAllowed(IReadOnlyList<string> resources) =>
+        ToolResourceAllowList.IsAllowed(resources);
 
     internal static FrozenToolManifestBinding ReadFrozenToolManifest(string content)
     {

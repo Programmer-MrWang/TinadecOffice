@@ -115,7 +115,7 @@ internal partial class FileSearchJsonContext : JsonSerializerContext { }
 
 public static class FileSearch
 {
-    [ToolFunction("file_search")]
+    [ToolFunction("file_search", Description = "Search file contents in the run workspace (ripgrep). path must be an absolute directory path inside the workspace ('.' = the workspace root); results carry filepath/line_number/content plus per-file hashes.")]
     public static async ValueTask<FileSearchResponse> HandleAsync(
         FileSearchParams args,
         CancellationToken cancellationToken)

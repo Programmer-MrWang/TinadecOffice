@@ -297,7 +297,7 @@ internal partial class GitReadToolsJsonContext : JsonSerializerContext { }
 
 internal static class GitReadTools
 {
-    [ToolFunction("git_status")]
+    [ToolFunction("git_status", Description = "Git status of the run workspace repository (branch, upstream, ahead/behind, changed files). repository_path must be an absolute path inside the workspace and point at a git worktree.")]
     public static async ValueTask<GitStatusResult> StatusAsync(GitStatusArgs args, CancellationToken cancellationToken)
     {
         var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
@@ -319,7 +319,7 @@ internal static class GitReadTools
         return new GitPushReadinessResult { Success = true, Status = status, NeedsPush = status.Ahead > 0, Ready = blockers.Count == 0, Blockers = blockers };
     }
 
-    [ToolFunction("git_log")]
+    [ToolFunction("git_log", Description = "Recent git commits of the run workspace repository. repository_path must be an absolute path inside the workspace.")]
     public static async ValueTask<GitLogResult> LogAsync(GitLogArgs args, CancellationToken cancellationToken)
     {
         var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
@@ -373,7 +373,7 @@ internal static class GitReadTools
         return singleRef ?? headRef ?? "HEAD";
     }
 
-    [ToolFunction("git_diff")]
+    [ToolFunction("git_diff", Description = "Diff of the run workspace repository (target = working_tree | staged | all | ref_range). repository_path must be an absolute path inside the workspace.")]
     public static async ValueTask<GitDiffResult> DiffAsync(GitDiffArgs args, CancellationToken cancellationToken)
     {
         var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);

@@ -364,6 +364,10 @@ DmaEA 用“专业化 + 双层治理 + 受控演化”解决这一矛盾：
 - **变更泳道的授权条件（M8，2026-09-03）**：声明变更工具（mutating）的 lane 在准入时必须携带 `pre_authorization` 引用或冻结为无人值守权限模式（`full-access`）。执行期放行分两层：PDP 权限请求层在无 capability grant 时按冻结模式放行——`full-access` 直接签发 run 级 grant+lease（reason=`full_access_auto_grant`），`auto-approve` 模式且共享 auto-approve 规则命中（enabled、非 human-only、风险 ≤ 上限）时签发（reason=`auto_policy_released`，不消费预算），`ask`/未声明模式一律挂起；预授权 grant（`POST /api/v1/approvals/pre-authorizations` 同时铸造每工具一条 run 级 capability grant）由 PDP 的 grant 搜索直接命中。ActionApproval 层保持单一消费点：`approval.pre_authorized_minted`（full-access 铸造 / 预授权记录消费 / auto-policy 预算消费，`approval.auto_decided` 留痕）；两层均未命中则泊车 `approval.park_expired` 并冻结 lane 升级 `awaiting_user`。lane 内工具执行携带内部 `lane_key`（不进 HTTP DTO）。三条路已由真实 TinadecTools 子进程 + 真实临时 git 仓的 E2E 验证（scripted 模型）。
 - lane 结构是引擎内部调度状态的可观测投影，不是第三方可写资源；修改 lane 划分与门控谓词仍然只能通过 run 指令与任务图变更完成。
 
+> **Phase 2 注记（2026-09-13，lane 当前不可达）**：Phase 2 起每个模式都冻结声明图（`FrozenRunConfigurationV1.Graph` 恒非 null），`RunFreezeGate` 因此在 admission 即拒 `lanes_enabled=true`（`graph_tier_lanes_unsupported`，`RunFreezeGate.cs:77-82`）——**lane 机制在当前版本不可达**，不是静默降级（`FullDuplexEndpointTests.InvokeStream_LanesEnabled_IsRejectedAtAdmission` 钉住该行为）。lane 与智能体包**零绑定**：包 manifest（`GraphSeedPack` 及其前身 `OfficeAgentPack`）内 "lane" 命中数为 0，开关只在 TOML 运行时基线（`default-agent-runtime.toml` 的 `[orchestration]`）。其契约面（`lane_key` DTO 字段、三张表 LaneKey 列、审批 lane 匹配、replay/orchestration 的 `lanes` 投影、Desktop 任务图泳道渲染）继续在每次 run 上使用——正常 run 的 lane 缺省为隐式 `main`。本节描述的是已实现且保留的代码路径与契约面，不是出厂即可用的编排行为。
+
+> **模块边界（2026-09-14，WS-9 代码组织拆分）**：lane 编排自 `FullDuplexRunEngine.cs`（4878 行）拆出——编排成员（lane tick、lane 规划、gate review、等待汇聚、指令链、升级人工）留在同一类的 partial 文件 `DmaEA/FullDuplexRunEngine.Lanes.cs`；lane 模型与序列化契约（`DurableLane`/`LaneWait`/`LaneWaitJsonConverter`/`CriterionVerdict`）连同 `LaneStatus` 状态常量归位 `DmaEA/Orchestration/LaneModel.cs`（命名空间 `TinadecCore.DmaEA.Orchestration`，与 `OrchestrationDirectiveValidator` 同目录）。这是**纯组织拆分**：契约字段、JSON 键、事件名、DB 列、审批匹配与投影形状一律不变；lane 引擎主文件降至约 3470 行。后续若要对声明图档启用 lane，落点即 `DmaEA/Orchestration/`。
+
 ### 6.5 模型能力画像
 
 Agent 配置绑定的是可评测的能力要求，不是在产品代码里硬编码某个模型品牌。

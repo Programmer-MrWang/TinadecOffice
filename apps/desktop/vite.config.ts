@@ -47,5 +47,6 @@ export default defineConfig({
     css: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    setupFiles: ['./src/testSetup.ts'],
   }
 });

@@ -66,7 +66,7 @@ public static class FileSystemTools
     private const int MaxPageSize = 500;
     private static readonly UTF8Encoding Utf8NoBom = new(false);
 
-    [ToolFunction("ls")]
+    [ToolFunction("ls", Description = "List the entries of one directory in the run workspace. path must be an absolute path inside the workspace ('.' or omitted = the workspace root); supports pagination.")]
     public static ValueTask<ListDirectoryResponse> ListAsync(ListDirectoryParams args, CancellationToken cancellationToken)
     {
         try
@@ -102,7 +102,7 @@ public static class FileSystemTools
         }
     }
 
-    [ToolFunction("stat")]
+    [ToolFunction("stat", Description = "Return metadata (type, size, timestamps, hash) of one workspace entry. path must be an absolute path inside the run workspace.")]
     public static ValueTask<StatPathResponse> StatAsync(StatPathParams args, CancellationToken cancellationToken)
     {
         try
@@ -120,14 +120,14 @@ public static class FileSystemTools
         }
     }
 
-    [ToolFunction("write_file", RequiresApproval = true)]
+    [ToolFunction("write_file", RequiresApproval = true, Description = "Create or overwrite a file in the run workspace. filepath must be an absolute path inside the workspace; overwriting an existing file requires its current file_hash. Approval-gated.")]
     public static async ValueTask<FileMutationResponse> WriteAsync(
         WriteFileParams args,
         CancellationToken cancellationToken)
     {
         try
         {
-            var path = FileToolRuntime.ResolvePath(args.FilePath);
+            var path = FileToolRuntime.ResolvePath(args.FilePath, writable: true);
             var parent = Path.GetDirectoryName(path);
             if (string.IsNullOrEmpty(parent) || !Directory.Exists(parent))
                 throw new DirectoryNotFoundException("The parent directory must already exist.");

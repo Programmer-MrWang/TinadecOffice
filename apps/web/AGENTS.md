@@ -8,8 +8,9 @@
 ## OVERVIEW
 Browser client that reuses the Electron desktop renderer verbatim. This package contains
 NO UI code. Vite aliases `@` to `../desktop/src` and compiles the desktop sources in place.
-That shared renderer includes the App-owned `OfficeAgentPack`; Web and Desktop therefore
-ship the same manifest bytes, version, and digest.
+That shared renderer includes the App-owned `GraphSeedPack`; Web and Desktop therefore
+ship the same manifest bytes, version, and digest. (The retired `OfficeAgentPack` is no
+longer published; the settings pack manager still flags a workspace that has it installed.)
 
 The desktop renderer's only Electron coupling is the global `window.tinadec` object
 (defined by `apps/desktop/electron/preload.cjs`, typed in `apps/desktop/src/env.d.ts:105-197`).
@@ -42,7 +43,7 @@ apps/web/
 | Platform contract | `src/platform/webShim.ts` | Must satisfy every member of the `window.tinadec` type in `apps/desktop/src/env.d.ts`. |
 | Build/dev config | `vite.config.ts` | Port 5174 (5173 is reserved for desktop Vite). |
 | Backend wiring | `vite.config.ts` `server.proxy` | `/api`, `/docs`, `/ws` proxy to Gateway 48730 for same-origin dev. |
-| Shared Agent Pack | `../desktop/src/agentPacks/OfficeAgentPack/`, `../desktop/src/agentPacks/officeAgentPackBootstrap.ts` | Static renderer import; browser tabs coordinate preview/confirmation with `BroadcastChannel` and Web Locks, while Core PUT is final concurrency authority. |
+| Shared Agent Pack | `../desktop/src/agentPacks/GraphSeedPack/`, `../desktop/src/agentPacks/graphSeedPackBootstrap.ts` | Static renderer import; browser tabs coordinate preview/confirmation with `BroadcastChannel` and Web Locks, while Core PUT is final concurrency authority. |
 
 ## CONVENTIONS
 - `server.fs.allow` must include the REPO ROOT. Desktop deps (`@fontsource-variable/geist`,
@@ -70,7 +71,7 @@ apps/web/
 
 ## FEATURE PARITY
 Available: chat, sessions/projects, task graph, approvals, context packs, event SSE,
-Model/Agent Center, OfficeAgentPack bootstrap/status, Market, Settings,
+Model/Agent Center, GraphSeedPack bootstrap/status, Market, Settings,
 Debug Studio (UI only: the Core debug/trace backend is unimplemented —
 `AspNetCore/Endpoints/StubEndpoints.cs` returns empty arrays/`501`, and Gateway `/ws/debug`
 is a dead stub), Monaco code viewing.

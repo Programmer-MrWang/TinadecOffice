@@ -197,7 +197,7 @@ public static class FileWriter
     {
         try
         {
-            var path = FileToolRuntime.ResolvePath(filePath);
+            var path = FileToolRuntime.ResolvePath(filePath, writable: true);
             var slot = FileToolRuntime.GetFileHandle(path);
 
             using (await slot.RwLock.WriteLockAsync(cancellationToken).ConfigureAwait(false))

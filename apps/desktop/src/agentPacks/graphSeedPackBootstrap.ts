@@ -6,13 +6,13 @@ import {
 } from '@/api'
 import { useNotifications } from '@/composables/useNotifications'
 import {
-  OFFICE_AGENT_PACK_DIGEST,
-  OFFICE_AGENT_PACK_ID,
-  OFFICE_AGENT_PACK_VERSION,
-  officeAgentPackEnvelope,
-} from './OfficeAgentPack'
+  GRAPH_SEED_PACK_DIGEST,
+  GRAPH_SEED_PACK_ID,
+  GRAPH_SEED_PACK_VERSION,
+  graphSeedPackEnvelope,
+} from './GraphSeedPack'
 
-export type OfficeAgentPackPhase =
+export type GraphSeedPackPhase =
   | 'idle'
   | 'checking'
   | 'install'
@@ -25,8 +25,8 @@ export type OfficeAgentPackPhase =
   | 'deferred'
   | 'error'
 
-export interface OfficeAgentPackBootstrapState {
-  phase: OfficeAgentPackPhase
+export interface GraphSeedPackBootstrapState {
+  phase: GraphSeedPackPhase
   preview: AgentPackInstallPreviewDto | null
   active_version: string | null
   error: string | null
@@ -41,16 +41,16 @@ interface EnsureOptions {
 interface BootstrapBroadcast {
   type: 'handled'
   key: string
-  phase: OfficeAgentPackPhase
+  phase: GraphSeedPackPhase
   active_version: string | null
 }
 
-const NOTIFICATION_KEY = 'office-agent-pack'
-const DEFERRED_NOTIFICATION_KEY = 'office-agent-pack-deferred'
+const NOTIFICATION_KEY = 'graph-seed-pack'
+const DEFERRED_NOTIFICATION_KEY = 'graph-seed-pack-deferred'
 const CHANNEL_NAME = 'tinadec-agent-pack-bootstrap'
-const LOCK_NAME = `tinadec-agent-pack:${OFFICE_AGENT_PACK_ID}:${OFFICE_AGENT_PACK_VERSION}`
+const LOCK_NAME = `tinadec-agent-pack:${GRAPH_SEED_PACK_ID}:${GRAPH_SEED_PACK_VERSION}`
 
-const state = ref<OfficeAgentPackBootstrapState>({
+const state = ref<GraphSeedPackBootstrapState>({
   phase: 'idle',
   preview: null,
   active_version: null,
@@ -62,23 +62,23 @@ let activeEnsure: Promise<void> | null = null
 let channel: BroadcastChannel | null = null
 let translate: (key: string, params?: Record<string, unknown>) => string = (key) => key
 
-export const officeAgentPackState = readonly(state)
+export const graphSeedPackState = readonly(state)
 
 function t(key: string, params?: Record<string, unknown>): string {
   return translate(key, params)
 }
 
-export function setOfficeAgentPackTranslator(
+export function setGraphSeedPackTranslator(
   translator: (key: string, params?: Record<string, unknown>) => string,
 ): void {
   translate = translator
 }
 
 function bootstrapKey(): string {
-  return `${api.gatewayUrl}|${OFFICE_AGENT_PACK_ID}|${OFFICE_AGENT_PACK_VERSION}`
+  return `${api.gatewayUrl}|${GRAPH_SEED_PACK_ID}|${GRAPH_SEED_PACK_VERSION}`
 }
 
-function setState(patch: Partial<OfficeAgentPackBootstrapState>): void {
+function setState(patch: Partial<GraphSeedPackBootstrapState>): void {
   state.value = { ...state.value, ...patch }
 }
 
@@ -98,7 +98,7 @@ function getChannel(): BroadcastChannel | null {
   return channel
 }
 
-function broadcastHandled(phase: OfficeAgentPackPhase, activeVersion: string | null): void {
+function broadcastHandled(phase: GraphSeedPackPhase, activeVersion: string | null): void {
   getChannel()?.postMessage({
     type: 'handled',
     key: bootstrapKey(),
@@ -136,11 +136,11 @@ function isHttpStatus(error: unknown, status: number): boolean {
 }
 
 async function previewPack(): Promise<AgentPackInstallPreviewDto> {
-  const preview = await api.previewAgentPackInstall(officeAgentPackEnvelope)
+  const preview = await api.previewAgentPackInstall(graphSeedPackEnvelope)
   const expectedIdentity = {
-    pack_id: OFFICE_AGENT_PACK_ID,
-    owner: officeAgentPackEnvelope.manifest.metadata.owner,
-    bundled_version: OFFICE_AGENT_PACK_VERSION,
+    pack_id: GRAPH_SEED_PACK_ID,
+    owner: graphSeedPackEnvelope.manifest.metadata.owner,
+    bundled_version: GRAPH_SEED_PACK_VERSION,
   }
   const identityMismatch = Object.entries(expectedIdentity)
     .find(([field, expected]) => preview[field as keyof typeof expectedIdentity] !== expected)
@@ -152,7 +152,7 @@ async function previewPack(): Promise<AgentPackInstallPreviewDto> {
       actual: preview[field as keyof typeof expectedIdentity],
     })), { code: 'agent_pack_identity_mismatch', field })
   }
-  if (preview.integrity_digest !== OFFICE_AGENT_PACK_DIGEST) {
+  if (preview.integrity_digest !== GRAPH_SEED_PACK_DIGEST) {
     throw Object.assign(new Error(t('agentPack.previewDigestMismatch')), { code: 'agent_pack_digest_mismatch' })
   }
   const knownActions = new Set(['install', 'upgrade', 'up_to_date', 'newer_installed', 'conflict'])
@@ -160,7 +160,7 @@ async function previewPack(): Promise<AgentPackInstallPreviewDto> {
     throw Object.assign(new Error(t('agentPack.unsupportedPreviewAction', { action: preview.action })), { code: 'unsupported_agent_pack_action' })
   }
   setState({
-    phase: preview.action as OfficeAgentPackPhase,
+    phase: preview.action as GraphSeedPackPhase,
     preview,
     active_version: preview.installed_version,
     error: null,
@@ -198,11 +198,11 @@ async function confirmAndInstall(preview: AgentPackInstallPreviewDto): Promise<v
       key: DEFERRED_NOTIFICATION_KEY,
       title: t('agentPack.deferredTitle'),
       message: t('agentPack.deferredMessage'),
-      source: 'OfficeAgentPack',
+      source: 'GraphSeedPack',
       persistence: 'sticky',
       action: {
         label: t(isUpgrade ? 'agentPack.upgradeAction' : 'agentPack.installAction'),
-        run: () => ensureOfficeAgentPack({ force: true, prompt: true }),
+        run: () => ensureGraphSeedPack({ force: true, prompt: true }),
       },
     })
     broadcastHandled('deferred', preview.installed_version)
@@ -219,17 +219,17 @@ async function applyPreview(preview: AgentPackInstallPreviewDto): Promise<void> 
     key: `${NOTIFICATION_KEY}-task`,
     title: t(isUpgrade ? 'agentPack.upgradingTitle' : 'agentPack.installingTitle'),
     message: t('agentPack.installingMessage'),
-    source: 'OfficeAgentPack',
+    source: 'GraphSeedPack',
   })
   setState({ phase: 'installing', error: null })
 
   try {
     const result = await api.installAgentPack(
-      OFFICE_AGENT_PACK_ID,
-      { preview_id: preview.preview_id!, envelope: officeAgentPackEnvelope },
+      GRAPH_SEED_PACK_ID,
+      { preview_id: preview.preview_id!, envelope: graphSeedPackEnvelope },
       {
         if_match: isUpgrade ? (preview.etag ?? `"${preview.revision}"`) : null,
-        idempotency_key: `${OFFICE_AGENT_PACK_ID}:${OFFICE_AGENT_PACK_VERSION}:${OFFICE_AGENT_PACK_DIGEST}`,
+        idempotency_key: `${GRAPH_SEED_PACK_ID}:${GRAPH_SEED_PACK_VERSION}:${GRAPH_SEED_PACK_DIGEST}`,
       },
     )
     settleInstalled(result)
@@ -252,13 +252,13 @@ async function applyPreview(preview: AgentPackInstallPreviewDto): Promise<void> 
 
     const message = error instanceof Error ? error.message : t('agentPack.installFailed')
     setState({ phase: 'error', error: message })
-    task.fail(error, { title: t('agentPack.installFailed'), source: 'OfficeAgentPack' })
+    task.fail(error, { title: t('agentPack.installFailed'), source: 'GraphSeedPack' })
     status.error({
       key: NOTIFICATION_KEY,
       title: t('agentPack.installFailed'),
       message,
-      source: 'OfficeAgentPack',
-      action: { label: t('settings.retry'), run: () => ensureOfficeAgentPack({ force: true, prompt: true }) },
+      source: 'GraphSeedPack',
+      action: { label: t('settings.retry'), run: () => ensureGraphSeedPack({ force: true, prompt: true }) },
     })
   }
 }
@@ -307,8 +307,8 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
         key: NOTIFICATION_KEY,
         title: t('agentPack.conflictTitle'),
         message,
-        source: 'OfficeAgentPack',
-        action: { label: t('settings.retry'), run: () => ensureOfficeAgentPack({ force: true, prompt: true }) },
+        source: 'GraphSeedPack',
+        action: { label: t('settings.retry'), run: () => ensureGraphSeedPack({ force: true, prompt: true }) },
       })
       return
     }
@@ -328,7 +328,7 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
         key: NOTIFICATION_KEY,
         title: t('agentPack.ownerRequiredTitle'),
         message,
-        source: 'OfficeAgentPack',
+        source: 'GraphSeedPack',
       })
       broadcastHandled('owner_required', null)
       return
@@ -339,8 +339,8 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
       key: NOTIFICATION_KEY,
       title: t('agentPack.previewFailed'),
       message,
-      source: 'OfficeAgentPack',
-      action: { label: t('settings.retry'), run: () => ensureOfficeAgentPack({ force: true, prompt: true }) },
+      source: 'GraphSeedPack',
+      action: { label: t('settings.retry'), run: () => ensureGraphSeedPack({ force: true, prompt: true }) },
     })
   }
 }
@@ -357,7 +357,7 @@ async function withCrossWindowLock(run: () => Promise<void>): Promise<void> {
   await lockManager.request(LOCK_NAME, run)
 }
 
-export function ensureOfficeAgentPack(options: EnsureOptions = {}): Promise<void> {
+export function ensureGraphSeedPack(options: EnsureOptions = {}): Promise<void> {
   if (activeEnsure) return activeEnsure
   activeEnsure = withCrossWindowLock(() => runEnsure(options)).finally(() => {
     activeEnsure = null
@@ -365,15 +365,15 @@ export function ensureOfficeAgentPack(options: EnsureOptions = {}): Promise<void
   return activeEnsure
 }
 
-export function refreshOfficeAgentPack(): Promise<void> {
-  return ensureOfficeAgentPack({ force: true, prompt: false })
+export function refreshGraphSeedPack(): Promise<void> {
+  return ensureGraphSeedPack({ force: true, prompt: false })
 }
 
-export function installOrUpgradeOfficeAgentPack(): Promise<void> {
-  return ensureOfficeAgentPack({ force: true, prompt: true })
+export function installOrUpgradeGraphSeedPack(): Promise<void> {
+  return ensureGraphSeedPack({ force: true, prompt: true })
 }
 
-export function __resetOfficeAgentPackBootstrapForTests(): void {
+export function __resetGraphSeedPackBootstrapForTests(): void {
   state.value = { phase: 'idle', preview: null, active_version: null, error: null, checked_at: null }
   handledPromptKeys.clear()
   activeEnsure = null

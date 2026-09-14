@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TinadecCore.Abstractions.Ports;
 
 namespace TinadecCore.AgentConfiguration;
 
@@ -16,6 +17,11 @@ namespace TinadecCore.AgentConfiguration;
 /// ② envelope_exceeds_boundary — envelope.capabilities ⊆ template capabilities,
 ///    envelope.tools ⊆ template tool scope (narrowing only, never widening), and
 ///    envelope.spawn numbers must sit inside the runtime ceilings when supplied.
+/// ③ mutating_tool_without_write_grant — a binding whose EFFECTIVE tool surface
+///    still holds a workspace-mutating tool must declare a write-level resource
+///    grant. Otherwise the run freezes a mutating tool face and then denies every
+///    call of it before the approval gate is ever consulted — the contradiction
+///    that made a denied tool look like "the tool returned nothing".
 /// </summary>
 public static class ModePublishGate
 {
@@ -74,16 +80,39 @@ public static class ModePublishGate
             // envelope − switches) — enforced regardless of whether the binding
             // carries an envelope: an operation template that declares tools is
             // already a violation a binding cannot repair (it may only remove).
+            var effective = (envelopeTools ?? binding.TemplateTools.ToHashSet(StringComparer.OrdinalIgnoreCase))
+                .Where(tool => !IsSwitchedOff(binding.ToolSwitches, tool))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (string.Equals(binding.Layer, "operation", StringComparison.Ordinal))
             {
-                var effective = (envelopeTools ?? binding.TemplateTools.ToHashSet(StringComparer.OrdinalIgnoreCase))
-                    .Where(tool => !IsSwitchedOff(binding.ToolSwitches, tool))
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
                 if (effective.Count > 0)
                     throw Fail("operation_tool_floor_violation",
                         $"mode '{modeKey}' operation node '{binding.NodeKey}' has an effective tool surface ({string.Join(", ", effective.OrderBy(t => t, StringComparer.Ordinal))}); operation-layer agents cannot invoke tools.");
+                continue;
+            }
+
+            // ③ A kept mutating tool needs a write-level grant to be reachable.
+            var mutating = WorkspaceToolCatalog.MutatingMembers(effective);
+            if (mutating.Count > 0 && !DeclaresWriteGrant(binding.Envelope))
+            {
+                throw Fail("mutating_tool_without_write_grant",
+                    $"mode '{modeKey}' binding '{binding.NodeKey}' keeps workspace-mutating tool(s) {string.Join(", ", mutating)} "
+                    + "but its envelope declares no write resource grant; declare envelope.resources.write (write implies read) or switch those tools off.");
             }
         }
+    }
+
+    /// <summary>
+    /// True when the envelope declares at least one non-empty write prefix. The
+    /// prefix itself narrows the target; the level is what this gate needs.
+    /// </summary>
+    private static bool DeclaresWriteGrant(JsonElement? envelope)
+    {
+        if (envelope is not { ValueKind: JsonValueKind.Object } value) return false;
+        if (!value.TryGetProperty("resources", out var resources) || resources.ValueKind != JsonValueKind.Object) return false;
+        return resources.TryGetProperty("write", out var write)
+            && write.ValueKind == JsonValueKind.Array
+            && write.EnumerateArray().Any(prefix => prefix.ValueKind == JsonValueKind.String);
     }
 
     private static void AssertWithinCeiling(string modeKey, string nodeKey, JsonElement spawn, string key, int ceiling)

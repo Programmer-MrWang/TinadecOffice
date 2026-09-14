@@ -18,7 +18,7 @@ namespace TinadecCore.Api.Tests;
 
 public sealed class AgentPackEndpointTests
 {
-    private const string PackId = "tinadec.office.agent-pack";
+    private const string PackId = "tinadec.tests.agent-pack-lifecycle";
 
     [Theory]
     [InlineData("-0", "0")]
@@ -40,19 +40,19 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_AfterInstall_CenterListEndpointsReturnPackRoster()
+    public async Task AgentPackLifecycle_AfterInstall_CenterListEndpointsReturnPackRoster()
     {
         // Regression: SQLite cannot translate DateTimeOffset ORDER BY to SQL, so the
         // Agent Center list endpoints (agents/modes/prompt-pipelines) used to 500
         // right after a pack install while the pack detail endpoint looked healthy.
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var envelope = OfficeEnvelope();
+        var envelope = FixtureEnvelope();
 
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         Assert.Equal(HttpStatusCode.OK, previewResponse.StatusCode);
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
-        using var installResponse = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "office-install-list");
+        using var installResponse = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "lifecycle-install-list");
         Assert.Equal(HttpStatusCode.Created, installResponse.StatusCode);
 
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
@@ -118,16 +118,16 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_AgentModeSelectsPublishedConversationModeVersion()
+    public async Task AgentPackLifecycle_AgentModeSelectsPublishedConversationModeVersion()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var envelope = OfficeEnvelope();
+        var envelope = FixtureEnvelope();
 
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         Assert.Equal(HttpStatusCode.OK, previewResponse.StatusCode);
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
-        using var installResponse = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "office-install-agent-mode");
+        using var installResponse = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "lifecycle-install-agent-mode");
         Assert.Equal(HttpStatusCode.Created, installResponse.StatusCode);
 
         var detail = await (await client.GetAsync($"/api/v1/agent-packs/{PackId}")).Content.ReadFromJsonAsync<JsonElement>();
@@ -267,11 +267,11 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_InstallsIdempotently_FreezesDefaultsAndProtectsManagedResources()
+    public async Task AgentPackLifecycle_InstallsIdempotently_FreezesDefaultsAndProtectsManagedResources()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var envelope = OfficeEnvelope();
+        var envelope = FixtureEnvelope();
 
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         Assert.True(previewResponse.StatusCode == HttpStatusCode.OK, $"preview: {previewResponse.StatusCode} {await previewResponse.Content.ReadAsStringAsync()}");
@@ -283,14 +283,14 @@ public sealed class AgentPackEndpointTests
         Assert.Equal($"\"{preview.GetProperty("revision").GetInt64()}\"", previewResponse.Headers.ETag?.Tag);
 
         var previewId = preview.GetProperty("preview_id").GetGuid();
-        using var installResponse = await ApplyAsync(client, envelope, previewId, "office-install-1");
+        using var installResponse = await ApplyAsync(client, envelope, previewId, "lifecycle-install-1");
         Assert.Equal(HttpStatusCode.Created, installResponse.StatusCode);
         var installed = await installResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("installed", installed.GetProperty("status").GetString());
         Assert.True(installed.GetProperty("defaults_adopted").GetBoolean());
         Assert.Equal(26, installed.GetProperty("resources").GetArrayLength());
 
-        using var replayResponse = await ApplyAsync(client, envelope, previewId, "office-install-1");
+        using var replayResponse = await ApplyAsync(client, envelope, previewId, "lifecycle-install-1");
         Assert.Equal(HttpStatusCode.Created, replayResponse.StatusCode);
         var replay = await replayResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(installed.GetProperty("integrity_digest").GetString(), replay.GetProperty("integrity_digest").GetString());
@@ -301,7 +301,7 @@ public sealed class AgentPackEndpointTests
         using var detailResponse = await client.GetAsync($"/api/v1/agent-packs/{PackId}");
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
         var detail = await detailResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(BundledOfficePackVersion(), detail.GetProperty("active_version").GetString());
+        Assert.Equal(BundledFixturePackVersion(), detail.GetProperty("active_version").GetString());
         Assert.Equal(26, detail.GetProperty("resources").GetArrayLength());
 
         var defaults = await client.GetFromJsonAsync<JsonElement>("/api/v1/workspace-defaults");
@@ -310,7 +310,7 @@ public sealed class AgentPackEndpointTests
         Assert.NotEqual(Guid.Empty, exactModeVersionId);
         Assert.NotEqual(Guid.Empty, defaults.GetProperty("default_prompt_version_id").GetGuid());
 
-        var session = await CreateSessionAsync(client, factory.WorkspacePath, "Office session");
+        var session = await CreateSessionAsync(client, factory.WorkspacePath, "Lifecycle fixture session");
         Assert.Equal(exactModeVersionId, session.GetProperty("mode_version_id").GetGuid());
 
         var meeting = detail.GetProperty("resources").EnumerateArray().Single(resource =>
@@ -329,7 +329,7 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_PreservesUserDefaults_AndReportsPreviewImpact()
+    public async Task AgentPackLifecycle_PreservesUserDefaults_AndReportsPreviewImpact()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
@@ -358,7 +358,7 @@ public sealed class AgentPackEndpointTests
             await db.SaveChangesAsync();
         }
 
-        var envelope = OfficeEnvelope();
+        var envelope = FixtureEnvelope();
         using var previewResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", envelope);
         var preview = await previewResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.False(preview.GetProperty("defaults_will_adopt").GetBoolean());
@@ -378,11 +378,11 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_UpgradeKeepsExistingSessionOnItsExactModeVersion()
+    public async Task AgentPackLifecycle_UpgradeKeepsExistingSessionOnItsExactModeVersion()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var v1 = OfficeEnvelope();
+        var v1 = FixtureEnvelope();
         var v1Preview = await PreviewAsync(client, v1);
         using var v1Response = await ApplyAsync(client, v1, v1Preview.GetProperty("preview_id").GetGuid(), "upgrade-v1");
         Assert.Equal(HttpStatusCode.Created, v1Response.StatusCode);
@@ -391,7 +391,7 @@ public sealed class AgentPackEndpointTests
         var oldSessionId = oldSession.GetProperty("id").GetGuid();
         var oldModeVersionId = oldSession.GetProperty("mode_version_id").GetGuid();
 
-        var v2 = OfficeEnvelope("0.3.0", manifest =>
+        var v2 = FixtureEnvelope("0.3.0", manifest =>
         {
             var agents = manifest["resources"]!["agents"]!.AsArray();
             var meeting = agents.Single(node => node!["resource_key"]!.GetValue<string>() == "meeting")!.AsObject();
@@ -415,20 +415,20 @@ public sealed class AgentPackEndpointTests
         var newSession = await CreateSessionAsync(client, factory.WorkspacePath, "New session");
         Assert.NotEqual(oldModeVersionId, newSession.GetProperty("mode_version_id").GetGuid());
 
-        var alteredV2 = OfficeEnvelope("0.3.0", manifest => manifest["metadata"]!["name"] = "Altered Office Pack");
+        var alteredV2 = FixtureEnvelope("0.3.0", manifest => manifest["metadata"]!["name"] = "Altered Lifecycle Fixture");
         using var conflictResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", alteredV2);
         Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);
         var conflict = await conflictResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("agent_pack_version_hash_conflict", conflict.GetProperty("code").GetString());
 
-        var older = OfficeEnvelope("0.0.9");
+        var older = FixtureEnvelope("0.0.9");
         var olderPreview = await PreviewAsync(client, older);
         Assert.Equal("newer_installed", olderPreview.GetProperty("action").GetString());
         Assert.Equal("0.3.0", olderPreview.GetProperty("installed_version").GetString());
     }
 
     [Fact]
-    public async Task OfficePack_CustomSlugCoexists_AndMemberCannotManage()
+    public async Task AgentPackLifecycle_CustomSlugCoexists_AndMemberCannotManage()
     {
         Guid customAgentId;
         using (var factory = new AgentPackFactory())
@@ -464,7 +464,7 @@ public sealed class AgentPackEndpointTests
 
             // Same-slug custom agents no longer conflict: the pack creates its own
             // managed agent and the user-owned definition stays untouched.
-            var preview = await PreviewAsync(client, OfficeEnvelope());
+            var preview = await PreviewAsync(client, FixtureEnvelope());
             Assert.Equal("install", preview.GetProperty("action").GetString());
             Assert.Contains(preview.GetProperty("resources").EnumerateArray(), resource =>
                 resource.GetProperty("resource_key").GetString() == "meeting"
@@ -473,7 +473,7 @@ public sealed class AgentPackEndpointTests
             // must not produce any.
             Assert.Empty(preview.GetProperty("differences").EnumerateArray());
 
-            using var install = await ApplyAsync(client, OfficeEnvelope(), preview.GetProperty("preview_id").GetGuid(), "custom-coexist-install");
+            using var install = await ApplyAsync(client, FixtureEnvelope(), preview.GetProperty("preview_id").GetGuid(), "custom-coexist-install");
             Assert.Equal(HttpStatusCode.Created, install.StatusCode);
 
             var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
@@ -489,7 +489,7 @@ public sealed class AgentPackEndpointTests
 
         using (var memberFactory = new AgentPackFactory("member"))
         using (var memberClient = memberFactory.CreateClient())
-        using (var forbidden = await memberClient.PostAsJsonAsync("/api/v1/agent-packs/install-preview", OfficeEnvelope()))
+        using (var forbidden = await memberClient.PostAsJsonAsync("/api/v1/agent-packs/install-preview", FixtureEnvelope()))
         {
             Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
             Assert.Equal("application/problem+json", forbidden.Content.Headers.ContentType?.MediaType);
@@ -499,11 +499,11 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_ConcurrentFreshInstalls_ConvergeOnOneVersion()
+    public async Task AgentPackLifecycle_ConcurrentFreshInstalls_ConvergeOnOneVersion()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var envelope = OfficeEnvelope();
+        var envelope = FixtureEnvelope();
         var firstPreview = await PreviewAsync(client, envelope);
         var secondPreview = await PreviewAsync(client, envelope);
 
@@ -533,11 +533,11 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_UsesFullSemVerPrereleasePrecedence()
+    public async Task AgentPackLifecycle_UsesFullSemVerPrereleasePrecedence()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
-        var installedEnvelope = OfficeEnvelope("1.0.0-beta.11");
+        var installedEnvelope = FixtureEnvelope("1.0.0-beta.11");
         var installPreview = await PreviewAsync(client, installedEnvelope);
         using var install = await ApplyAsync(client, installedEnvelope, installPreview.GetProperty("preview_id").GetGuid(), "semver-install");
         Assert.Equal(HttpStatusCode.Created, install.StatusCode);
@@ -551,7 +551,7 @@ public sealed class AgentPackEndpointTests
             "1.0.0-beta.2"
         })
         {
-            var preview = await PreviewAsync(client, OfficeEnvelope(lowerVersion));
+            var preview = await PreviewAsync(client, FixtureEnvelope(lowerVersion));
             Assert.Equal("newer_installed", preview.GetProperty("action").GetString());
         }
 
@@ -563,20 +563,20 @@ public sealed class AgentPackEndpointTests
             "2147483648.0.0"
         })
         {
-            var preview = await PreviewAsync(client, OfficeEnvelope(higherVersion));
+            var preview = await PreviewAsync(client, FixtureEnvelope(higherVersion));
             Assert.Equal("upgrade", preview.GetProperty("action").GetString());
         }
 
         using var equalPrecedence = await client.PostAsJsonAsync(
             "/api/v1/agent-packs/install-preview",
-            OfficeEnvelope("1.0.0-beta.11+build.7"));
+            FixtureEnvelope("1.0.0-beta.11+build.7"));
         Assert.Equal(HttpStatusCode.Conflict, equalPrecedence.StatusCode);
         var problem = await equalPrecedence.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("agent_pack_version_hash_conflict", problem.GetProperty("code").GetString());
     }
 
     [Fact]
-    public async Task OfficePack_RejectsInvalidSemVer2Values()
+    public async Task AgentPackLifecycle_RejectsInvalidSemVer2Values()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
@@ -595,7 +595,7 @@ public sealed class AgentPackEndpointTests
         {
             using var response = await client.PostAsJsonAsync(
                 "/api/v1/agent-packs/install-preview",
-                OfficeEnvelope(invalidVersion));
+                FixtureEnvelope(invalidVersion));
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
             Assert.Equal("invalid_agent_pack_manifest", problem.GetProperty("code").GetString());
@@ -603,17 +603,17 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
-    public async Task OfficePack_RejectsUntypedInternalReferences()
+    public async Task AgentPackLifecycle_RejectsUntypedInternalReferences()
     {
         using var factory = new AgentPackFactory();
         using var client = factory.CreateClient();
         var envelopes = new[]
         {
-            OfficeEnvelope(mutate: manifest =>
+            FixtureEnvelope(mutate: manifest =>
                 manifest["resources"]!["agents"]![0]!["base_prompt_pipeline_ref"] = "baseline-prompt"),
-            OfficeEnvelope(mutate: manifest =>
+            FixtureEnvelope(mutate: manifest =>
                 manifest["resources"]!["modes"]![0]!["nodes"]![0]!["agent_ref"] = "meeting"),
-            OfficeEnvelope(mutate: manifest =>
+            FixtureEnvelope(mutate: manifest =>
                 manifest["activation"]!["workspace_defaults"]!["mode_ref"] = "default-mode")
         };
 
@@ -674,13 +674,23 @@ public sealed class AgentPackEndpointTests
         return sessions!.Single(session => session.GetProperty("id").GetGuid() == sessionId);
     }
 
-    private static JsonElement OfficeEnvelope(string? version = null, Action<JsonObject>? mutate = null)
+    private static JsonElement FixtureEnvelope(string? version = null, Action<JsonObject>? mutate = null)
     {
-        var manifest = JsonNode.Parse(File.ReadAllText(FindOfficeManifestPath(), Encoding.UTF8))!.AsObject();
+        var manifest = JsonNode.Parse(File.ReadAllText(FindFixtureManifestPath(), Encoding.UTF8))!.AsObject();
         if (version is not null) manifest["metadata"]!["version"] = version;
         mutate?.Invoke(manifest);
         var manifestElement = JsonSerializer.SerializeToElement(manifest);
-        var digest = Convert.ToHexString(SHA256.HashData(Canonicalize(manifestElement))).ToLowerInvariant();
+        // Core validates the digest over its DTO round-trip of the submitted
+        // manifest (unknown members dropped, absent optionals omitted), so the
+        // fixture must digest the same round-tripped shape — not the raw bytes.
+        var serverOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        var roundTripped = JsonSerializer.Deserialize<TinadecCore.Contracts.Dtos.AgentPackManifestDto>(
+            manifestElement.GetRawText(), serverOptions);
+        var serverElement = JsonSerializer.SerializeToElement(roundTripped, serverOptions);
+        var digest = Convert.ToHexString(SHA256.HashData(Canonicalize(serverElement))).ToLowerInvariant();
         return JsonSerializer.SerializeToElement(new
         {
             manifest = manifestElement,
@@ -692,22 +702,22 @@ public sealed class AgentPackEndpointTests
     /// The version shipped in the App-owned bundled manifest, so assertions track the
     /// artifact instead of a duplicated literal that drifts on every pack upgrade.
     /// </summary>
-    private static string BundledOfficePackVersion()
+    private static string BundledFixturePackVersion()
     {
-        using var manifest = JsonDocument.Parse(File.ReadAllText(FindOfficeManifestPath(), Encoding.UTF8));
+        using var manifest = JsonDocument.Parse(File.ReadAllText(FindFixtureManifestPath(), Encoding.UTF8));
         return manifest.RootElement.GetProperty("metadata").GetProperty("version").GetString()!;
     }
 
-    private static string FindOfficeManifestPath()
+    private static string FindFixtureManifestPath()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            var candidate = Path.Combine(directory.FullName, "apps", "desktop", "src", "agentPacks", "OfficeAgentPack", "manifest.json");
+            var candidate = Path.Combine(directory.FullName, "TinadecCore", "tests", "TinadecCore.Api.Tests", "Fixtures", "agent-pack-lifecycle.manifest.json");
             if (File.Exists(candidate)) return candidate;
             directory = directory.Parent;
         }
-        throw new FileNotFoundException("OfficeAgentPack manifest.json was not found from the test output directory.");
+        throw new FileNotFoundException("The Agent Pack lifecycle fixture manifest was not found from the test output directory.");
     }
 
     private static byte[] Canonicalize(JsonElement value)
@@ -757,7 +767,7 @@ public sealed class AgentPackEndpointTests
                 writer.WriteNullValue();
                 break;
             default:
-                throw new InvalidDataException("Unsupported JSON value in OfficeAgentPack test manifest.");
+                throw new InvalidDataException("Unsupported JSON value in the Agent Pack lifecycle fixture manifest.");
         }
     }
 

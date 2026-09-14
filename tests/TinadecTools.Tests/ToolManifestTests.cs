@@ -83,6 +83,14 @@ public sealed class ToolManifestTests
         Assert.True(byId["git_stage"].GetProperty("requires_approval").GetBoolean());
         Assert.True(byId["git_stage"].GetProperty("mutates_workspace").GetBoolean());
         Assert.Empty(byId["git_stage"].GetProperty("confirmation_fields").EnumerateArray());
+
+        // Approving an MCP call is a human gate, not a claim that it mutates THIS
+        // workspace: the class-level default (requires_approval implies
+        // mutates_workspace) must not leak into an external MCP surface, or a
+        // read-only agent gets denied before the approval gate is consulted.
+        Assert.True(byId["mcp_invoke"].GetProperty("requires_approval").GetBoolean());
+        Assert.False(byId["mcp_invoke"].GetProperty("mutates_workspace").GetBoolean());
+        Assert.Equal("safe", byId["mcp_invoke"].GetProperty("retry_safety").GetString());
     }
 
     [Fact]
