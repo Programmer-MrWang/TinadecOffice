@@ -164,20 +164,16 @@ async function loadInitial() {
 }
 
 async function loadSessions() {
-  if (projects.value.length === 0) {
-    sessions.value = []
-    selectedSessionId.value = null
-    return
-  }
-  const allSessions = await Promise.all(
-    projects.value.map((p) => api.listSessions(p.id)),
-  )
-  sessions.value = allSessions.flat()
+  // Unfiltered listing covers both project-bound sessions and free conversations
+  // (sessions without a project), so the sidebar stays correct with zero projects.
+  sessions.value = await api.listSessions()
   if (!selectedProjectId.value) {
-    selectedSessionId.value = null
+    if (selectedSessionId.value && !sessions.value.find((s) => s.id === selectedSessionId.value)) {
+      selectedSessionId.value = null
+    }
     return
   }
-  const projectSessions = sessions.value.filter((s) => s.project_id === selectedProjectId.value)
+  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
@@ -290,12 +286,16 @@ async function openProject() {
   })
 }
 
-async function createSession(projectId: string) {
+async function createSession(projectId: string | null) {
+  const targetProjectId = projectId ?? null
   if (pendingSessionId.value) {
     const existing = sessions.value.find((s) => s.id === pendingSessionId.value)
-    if (existing && existing.project_id === projectId) {
+    // Compare normalized project identity: Core omits project_id for a free
+    // conversation, so the value can arrive as null or undefined while the
+    // argument is null — a raw === check would miss and create a duplicate.
+    if (existing && (existing.project_id ?? null) === targetProjectId) {
       selectedSessionId.value = pendingSessionId.value
-      selectedProjectId.value = projectId
+      selectedProjectId.value = targetProjectId
       return
     }
   }
@@ -303,7 +303,7 @@ async function createSession(projectId: string) {
     const session = await api.createSession(projectId, 'Tinadec session')
     sessions.value = [session, ...sessions.value]
     selectedSessionId.value = session.id
-    selectedProjectId.value = projectId
+    selectedProjectId.value = projectId ?? null
     pendingSessionId.value = session.id
   })
 }
@@ -315,12 +315,14 @@ async function createSession(projectId: string) {
 async function refreshProjectsAndSessions() {
   const projectList = await api.listProjects()
   projects.value = projectList
-  const allSessions = await Promise.all(projectList.map((p) => api.listSessions(p.id)))
-  sessions.value = allSessions.flat()
+  // Unfiltered listing, same as loadSessions: per-project queries never return
+  // free conversations, so archiving/trashing anything would drop them from the
+  // sidebar until a full reload.
+  sessions.value = await api.listSessions()
   if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value)) {
     selectedProjectId.value = projectList[0]?.id ?? null
   }
-  const projectSessions = sessions.value.filter((s) => s.project_id === selectedProjectId.value)
+  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
@@ -382,15 +384,12 @@ const lastCursor = ref<number | null>(null)
 async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; agent_mode?: AgentMode; permission_mode?: PermissionLevel }) {
   await run('send message', async () => {
     let sessionId = selectedSessionId.value
-    if (!sessionId && selectedProjectId.value) {
-      const session = await api.createSession(selectedProjectId.value, 'Tinadec session')
+    if (!sessionId) {
+      const session = await api.createSession(selectedProjectId.value ?? null, 'Tinadec session')
       sessions.value = [session, ...sessions.value]
       selectedSessionId.value = session.id
       sessionId = session.id
       pendingSessionId.value = session.id
-    }
-    if (!sessionId) {
-      throw new Error('Open a project before sending a message.')
     }
     const snapshotContent = content
     draft.value = ''
@@ -675,6 +674,6 @@ export const homeController = {
   updateDraft: (value: string) => { draft.value = value },
   updateMode: (value: AgentMode) => { currentMode.value = value },
   updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
-  setSelectedProject: (id: string) => { selectedProjectId.value = id },
+  setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
   setSelectedSession: (id: string) => { selectedSessionId.value = id },
 }

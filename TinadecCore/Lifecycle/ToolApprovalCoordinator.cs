@@ -72,7 +72,11 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
         var session = await _sessions.FindAsync(request.SessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Session was not found.");
-        if (session.ProjectId != request.ProjectId || session.TenantId != request.TenantId || session.WorkspaceId != request.WorkspaceId)
+        // A projectless (free-conversation) call carries Guid.Empty as its project
+        // sentinel because the wire cannot express null; the session stores NULL.
+        // Comparing the two raw values never matches, so normalize first.
+        if (session.ProjectId != NormalizeProjectId(request.ProjectId)
+            || session.TenantId != request.TenantId || session.WorkspaceId != request.WorkspaceId)
         {
             throw new UnauthorizedAccessException("Tool execution session/project scope is inconsistent.");
         }
@@ -89,7 +93,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             Id = executionId,
             TenantId = request.TenantId,
             WorkspaceId = request.WorkspaceId,
-            ProjectId = request.ProjectId,
+            ProjectId = NormalizeProjectId(request.ProjectId),
             SessionId = request.SessionId,
             RunId = request.RunId,
             TaskId = request.TaskId,
@@ -123,7 +127,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
                     Id = pendingApprovalId,
                     TenantId = request.TenantId,
                     WorkspaceId = request.WorkspaceId,
-                    ProjectId = request.ProjectId,
+                    ProjectId = NormalizeProjectId(request.ProjectId),
                     SessionId = request.SessionId,
                     RunId = request.RunId,
                     TaskId = request.TaskId,
@@ -1107,7 +1111,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         ToolExecutionPrepareRequest request,
         bool requiresApproval)
     {
-        var matches = existing.ProjectId == request.ProjectId
+        var matches = existing.ProjectId == NormalizeProjectId(request.ProjectId)
             && existing.SessionId == request.SessionId
             && existing.TaskId == request.TaskId
             && existing.AgentInstanceId == request.AgentInstanceId
@@ -1159,7 +1163,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
     }
 
     private static ToolExecutionSnapshot ToSnapshot(ToolExecutionRecord row, string parametersJson, string? resultJson) => new(
-        row.Id, row.TenantId, row.WorkspaceId, row.ProjectId ?? Guid.Empty, row.SessionId, row.RunId, row.TaskId, row.AgentInstanceId,
+        row.Id, row.TenantId, row.WorkspaceId, CoreVirtualToolPolicy.ToWireSentinel(row.ProjectId), row.SessionId, row.RunId, row.TaskId, row.AgentInstanceId,
         row.ApprovalId, row.ToolId, row.ToolCallKey, row.Risk, row.MutatesWorkspace, row.RequiresApproval, row.Status, parametersJson,
         row.ParametersHash, row.Attempt, resultJson, row.ErrorCategory, row.SafeErrorMessage, row.CreatedAt, row.UpdatedAt, row.CompletedAt,
         row.PermissionRequestId, row.AuthorizationDecisionId, row.CapabilityLeaseId, row.LeaseUses,
@@ -1186,9 +1190,23 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
     private static bool IsExecutionTerminal(string status) => status is "completed" or "failed" or "timed_out" or "cancelled";
 
+    /// <summary>
+    /// Maps the wire-level project sentinel (<see cref="Guid.Empty"/>, used because a
+    /// nullable id cannot be expressed on the request) onto the durable NULL that
+    /// projectless rows store, so comparison/idempotency logic sees one representation.
+    /// Implementation lives in <see cref="CoreVirtualToolPolicy.FromWireSentinel"/> so every
+    /// wire↔durable translation point shares one contract (reverse:
+    /// <see cref="CoreVirtualToolPolicy.ToWireSentinel"/>).
+    /// </summary>
+    private static Guid? NormalizeProjectId(Guid projectId) => CoreVirtualToolPolicy.FromWireSentinel(projectId);
+
     private static void ValidatePrepareRequest(ToolExecutionPrepareRequest request)
     {
-        if (request.TenantId == Guid.Empty || request.WorkspaceId == Guid.Empty || request.ProjectId == Guid.Empty
+        // The Core-owned create_workspace virtual tool is the single legal call
+        // without a project: it is the bridge that gives a free conversation one.
+        var projectlessVirtualTool = CoreVirtualToolPolicy.IsProjectlessCreateWorkspace(request.ProjectId, request.ToolId);
+        if (request.TenantId == Guid.Empty || request.WorkspaceId == Guid.Empty
+            || (request.ProjectId == Guid.Empty && !projectlessVirtualTool)
             || request.SessionId == Guid.Empty || request.RunId == Guid.Empty || request.TaskId == Guid.Empty || request.AgentInstanceId == Guid.Empty)
             throw new ArgumentException("Tool execution scope ids must be non-empty.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.ToolId) || string.IsNullOrWhiteSpace(request.ParametersHash))

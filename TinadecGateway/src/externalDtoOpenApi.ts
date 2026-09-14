@@ -36,7 +36,8 @@ const meetingModelOverride = t.Object({
 
 const session = t.Object({
   id: t.String({ format: 'uuid' }),
-  project_id: t.String({ format: 'uuid' }),
+  // Null for a free-conversation session created without project_id.
+  project_id: t.Unsafe({ type: 'string', format: 'uuid', nullable: true }),
   title: nullableString(),
   status: nullableString(),
   mode: nullableString(),
@@ -143,6 +144,7 @@ const assignment = t.Object({
 const orchestrationSnapshot = t.Object({
   run: nullableRef('Run'),
   graph: nullableJsonObject(),
+  flows: t.Array(t.Unknown()),
   nodes: t.Array(t.Unknown()),
   lanes: t.Array(componentRef('Lane')),
   assignments: t.Array(componentRef('Assignment')),

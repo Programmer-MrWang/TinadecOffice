@@ -1087,6 +1087,10 @@
             "items": {},
             "type": "array"
           },
+          "flows": {
+            "items": {},
+            "type": "array"
+          },
           "frozen": {
             "anyOf": [
               {
@@ -1137,6 +1141,7 @@
         "required": [
           "run",
           "graph",
+          "flows",
           "nodes",
           "lanes",
           "assignments",
@@ -1407,6 +1412,7 @@
           },
           "project_id": {
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "status": {
@@ -4857,9 +4863,6 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "project_id"
-                ],
                 "type": "object"
               }
             },
@@ -4874,9 +4877,6 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "project_id"
-                ],
                 "type": "object"
               }
             },
@@ -4891,9 +4891,6 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "project_id"
-                ],
                 "type": "object"
               }
             }
@@ -5253,6 +5250,28 @@
         "summary": "Create message (compat)",
         "tags": [
           "Messages"
+        ]
+      }
+    },
+    "/api/v1/sessions/{sessionId}/migrate": {
+      "post": {
+        "operationId": "postApiV1SessionsBySessionIdMigrate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {}
+        },
+        "summary": "Migrate session onto a project workspace (find-or-create by root path)",
+        "tags": [
+          "Sessions"
         ]
       }
     },

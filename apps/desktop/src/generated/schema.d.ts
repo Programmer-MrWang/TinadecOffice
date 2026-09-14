@@ -623,6 +623,10 @@ export interface paths {
     /** Create message (compat) */
     post: operations["postApiV1SessionsBySessionIdMessages"];
   };
+  "/api/v1/sessions/{sessionId}/migrate": {
+    /** Migrate session onto a project workspace (find-or-create by root path) */
+    post: operations["postApiV1SessionsBySessionIdMigrate"];
+  };
   "/api/v1/sessions/{sessionId}/orchestration": {
     /** Session orchestration snapshot */
     get: operations["getApiV1SessionsBySessionIdOrchestration"];
@@ -1029,6 +1033,7 @@ export interface components {
       agent_instances: unknown[];
       assignments: components["schemas"]["Assignment"][];
       context_packs: unknown[];
+      flows: unknown[];
       frozen: {
         [key: string]: unknown;
       } | null;
@@ -1110,7 +1115,7 @@ export interface components {
       mode: string | null;
       mode_version_id: string | null;
       /** Format: uuid */
-      project_id: string;
+      project_id: string | null;
       status: string | null;
       summary: string | null;
       title: string | null;
@@ -3050,17 +3055,17 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
         "multipart/form-data": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
         "text/plain": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
@@ -3244,6 +3249,19 @@ export interface operations {
         "text/plain": {
           content: string;
         };
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Migrate session onto a project workspace (find-or-create by root path) */
+  postApiV1SessionsBySessionIdMigrate: {
+    parameters: {
+      path: {
+        sessionId: string;
       };
     };
     responses: {
