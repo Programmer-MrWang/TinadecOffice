@@ -10,6 +10,10 @@ const mocks = vi.hoisted(() => ({
   getAgent: vi.fn(),
   getAgentPack: vi.fn(),
   listAgentPacks: vi.fn(),
+  getWorkspaceDefaults: vi.fn(),
+  setAgentPackEnabled: vi.fn(),
+  adoptAgentPackDefaults: vi.fn(),
+  purgeAgentPack: vi.fn(),
   installOrUpgradeGraphSeedPack: vi.fn(),
   refreshGraphSeedPack: vi.fn(),
 }))
@@ -22,6 +26,10 @@ vi.mock('../api', () => ({
       if (property === 'getAgent') return mocks.getAgent
       if (property === 'getAgentPack') return mocks.getAgentPack
       if (property === 'listAgentPacks') return mocks.listAgentPacks
+      if (property === 'getWorkspaceDefaults') return mocks.getWorkspaceDefaults
+      if (property === 'setAgentPackEnabled') return mocks.setAgentPackEnabled
+      if (property === 'adoptAgentPackDefaults') return mocks.adoptAgentPackDefaults
+      if (property === 'purgeAgentPack') return mocks.purgeAgentPack
       if (property === 'getHarnessManifest') return vi.fn().mockResolvedValue({ tools: [] })
       if (property === 'getToolLayerReadiness'
         || property === 'getModelReadiness'
@@ -73,6 +81,7 @@ vi.mock('vue-i18n', () => ({
 }))
 
 import SettingsPage from './SettingsPage.vue'
+import { resolveConfirmation, useNotifications } from '@/composables/useNotifications'
 
 const customAgent = {
   id: 'custom-agent-id',
@@ -174,6 +183,10 @@ beforeEach(() => {
     }],
   })
   mocks.listAgentPacks.mockReset().mockResolvedValue([])
+  mocks.getWorkspaceDefaults.mockReset().mockResolvedValue({ default_mode_version_id: null })
+  mocks.setAgentPackEnabled.mockReset().mockResolvedValue({ ok: true })
+  mocks.adoptAgentPackDefaults.mockReset().mockResolvedValue({ ok: true })
+  mocks.purgeAgentPack.mockReset().mockResolvedValue({ pack_id: 'x', revision: 2, deleted: {} })
   mocks.installOrUpgradeGraphSeedPack.mockReset()
   mocks.refreshGraphSeedPack.mockReset()
 
@@ -282,49 +295,91 @@ describe('SettingsPage installed Agent Pack inventory', () => {
     return wrapper
   }
 
-  it('lists installed packs read-only and flags a retired pack with the GraphSeedPack install prompt', async () => {
+  it('lists every installed pack with enable, uninstall and set-default controls', async () => {
     mocks.listAgentPacks.mockResolvedValue([
-      {
-        pack_id: 'tinadec.office.agent-pack',
-        owner: 'tinadec.office',
-        name: 'OfficeAgentPack',
-        status: 'active',
-        active_version: '0.2.4',
-        integrity_digest: 'a'.repeat(64),
-        revision: 1,
-        installed_at: '2026-08-25T12:00:00Z',
-        updated_at: '2026-08-25T12:00:00Z',
-      },
       {
         pack_id: 'tinadec.graph.seed-pack',
         owner: 'tinadec',
         name: 'GraphSeedPack',
         status: 'active',
-        active_version: '2.0.1',
+        active_version: '2.1.0',
         integrity_digest: 'b'.repeat(64),
+        revision: 3,
+        installed_at: '2026-09-13T12:00:00Z',
+        updated_at: '2026-09-13T12:00:00Z',
+        default_mode_version_id: 'mv-active',
+      },
+      {
+        pack_id: 'acme.review.seed-pack',
+        owner: 'acme',
+        name: 'AcmePack',
+        status: 'disabled',
+        active_version: '1.0.0',
+        integrity_digest: 'c'.repeat(64),
         revision: 1,
         installed_at: '2026-09-13T12:00:00Z',
         updated_at: '2026-09-13T12:00:00Z',
+        default_mode_version_id: null,
       },
     ])
+    mocks.getWorkspaceDefaults.mockResolvedValue({ default_mode_version_id: 'mv-active' })
 
     const wrapper = await mountAgentCenter()
 
     const inventory = wrapper.find('[data-testid="installed-agent-packs"]')
-    expect(inventory.exists()).toBe(true)
-    expect(inventory.text()).toContain('tinadec.office.agent-pack')
     expect(inventory.text()).toContain('tinadec.graph.seed-pack')
-    expect(inventory.text()).toContain('agentPack.retiredBadge')
+    expect(inventory.text()).toContain('acme.review.seed-pack')
     expect(inventory.text()).not.toContain('agentPack.installedEmpty')
+    // 工作区默认由 graph 包提供：它带「工作区默认」徽章且没有「设为默认」按钮；
+    // 被禁用的包显示禁用徽章。
+    expect(inventory.text()).toContain('agentPack.activeBadge')
+    expect(inventory.text()).toContain('agentPack.disabledBadge')
+    expect(wrapper.find('[data-testid="agent-pack-adopt-tinadec.graph.seed-pack"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="agent-pack-adopt-acme.review.seed-pack"]').exists()).toBe(true)
 
-    const notice = wrapper.find('[data-testid="retired-pack-notice"]')
-    expect(notice.exists()).toBe(true)
-    expect(notice.text()).toContain('agentPack.retiredNotice')
+    await wrapper.find('[data-testid="agent-pack-toggle-acme.review.seed-pack"]').trigger('click')
+    await flushPromises()
+    // 被禁用的包点击后请求「启用」。
+    expect(mocks.setAgentPackEnabled).toHaveBeenCalledWith('acme.review.seed-pack', true)
 
-    const installButton = wrapper.find('[data-testid="retired-pack-install"]')
-    expect(installButton.exists()).toBe(true)
-    await installButton.trigger('click')
-    expect(mocks.installOrUpgradeGraphSeedPack).toHaveBeenCalledTimes(1)
+    await wrapper.find('[data-testid="agent-pack-adopt-acme.review.seed-pack"]').trigger('click')
+    await flushPromises()
+    expect(mocks.adoptAgentPackDefaults).toHaveBeenCalledWith('acme.review.seed-pack')
+
+    wrapper.unmount()
+  })
+
+  it('uninstall asks for confirmation and only purges after it is granted', async () => {
+    mocks.listAgentPacks.mockResolvedValue([
+      {
+        pack_id: 'tinadec.graph.seed-pack',
+        owner: 'tinadec',
+        name: 'GraphSeedPack',
+        status: 'active',
+        active_version: '2.1.0',
+        integrity_digest: 'b'.repeat(64),
+        revision: 3,
+        installed_at: '2026-09-13T12:00:00Z',
+        updated_at: '2026-09-13T12:00:00Z',
+        default_mode_version_id: null,
+      },
+    ])
+
+    const wrapper = await mountAgentCenter()
+    await wrapper.find('[data-testid="agent-pack-uninstall-tinadec.graph.seed-pack"]').trigger('click')
+    await flushPromises()
+
+    // 破坏性操作必须先弹确认：确认前一个字节都不删，且文案明确点出"运行历史一起删"。
+    const pending = useNotifications().currentConfirmation.value
+    expect(pending).not.toBeNull()
+    expect(pending!.title).toContain('agentPack.uninstallTitle')
+    expect(pending!.details).toContain('agentPack.uninstallDetails')
+    expect(mocks.purgeAgentPack).not.toHaveBeenCalled()
+
+    resolveConfirmation(useNotifications().currentConfirmation.value!.id, true)
+    await flushPromises()
+    // revision 作为 If-Match 守卫一起发出，避免删掉已经变过的包。
+    expect(mocks.purgeAgentPack).toHaveBeenCalledWith('tinadec.graph.seed-pack', 3)
 
     wrapper.unmount()
   })

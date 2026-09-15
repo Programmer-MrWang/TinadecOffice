@@ -625,6 +625,201 @@ public sealed class AgentPackEndpointTests
     }
 
     [Fact]
+    public async Task AgentPackLifecycle_PurgeRemovesEveryTableItTouched()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "purge-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var scope = factory.Services.GetRequiredService<ITenantContextAccessor>().Current;
+        await using var db = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        var installation = await db.AgentPackInstallations.SingleAsync(item => item.PackId == PackId);
+        var managedBefore = await db.AgentPackManagedResources.CountAsync(item => item.InstallationId == installation.Id);
+        Assert.Equal(26, managedBefore);
+        var agentDefinitionIds = await db.AgentPackManagedResources.Where(item => item.InstallationId == installation.Id && item.ResourceKind == "agent")
+            .Select(item => item.LogicalEntityId).ToListAsync();
+        var modeIds = await db.AgentPackManagedResources.Where(item => item.InstallationId == installation.Id && item.ResourceKind == "mode")
+            .Select(item => item.LogicalEntityId).ToListAsync();
+
+        // A session binds one of this pack's mode versions: the purge must clear
+        // the binding without touching the session itself.
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var modeVersionId = detail.GetProperty("resources").EnumerateArray()
+            .Where(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .Select(resource => resource.GetProperty("version_id").GetGuid())
+            .Single();
+        var session = await CreateSessionAsyncWithModeAsync(client, factory.WorkspacePath, "purge session", modeVersionId);
+        var sessionId = session.GetProperty("id").GetGuid();
+
+        // Missing If-Match is a hard precondition failure, never a silent purge.
+        using var withoutIfMatch = await client.DeleteAsync($"/api/v1/agent-packs/{PackId}");
+        Assert.Equal(HttpStatusCode.PreconditionRequired, withoutIfMatch.StatusCode);
+
+        // A stale revision is rejected; the correct one goes through.
+        using var stale = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        stale.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision + 7}\"");
+        using var staleResponse = await client.SendAsync(stale);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, staleResponse.StatusCode);
+
+        using var purge = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        purge.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision}\"");
+        using var purgeResponse = await client.SendAsync(purge);
+        Assert.Equal(HttpStatusCode.OK, purgeResponse.StatusCode);
+        var result = await purgeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var deleted = result.GetProperty("deleted");
+
+        // Every table the pack owned is empty, and the counts close over the
+        // managed resource set instead of trusting the delete order.
+        Assert.Equal(26, deleted.GetProperty("agent_pack_managed_resources").GetInt32());
+        Assert.Equal(26, deleted.GetProperty("agent_pack_resource_bindings").GetInt32());
+        Assert.Equal(managedBefore, deleted.GetProperty("agent_definitions").GetInt32() + deleted.GetProperty("prompt_pipelines").GetInt32() + deleted.GetProperty("agent_modes").GetInt32());
+        Assert.Equal(14, deleted.GetProperty("agent_definitions").GetInt32());
+        Assert.Equal(5, deleted.GetProperty("prompt_pipelines").GetInt32());
+        Assert.Equal(7, deleted.GetProperty("agent_modes").GetInt32());
+        // Every session bound to one of this pack's mode versions loses the
+        // binding; which sessions exist depends on what the host created.
+        Assert.True(deleted.GetProperty("sessions_mode_binding_cleared").GetInt32() >= 1,
+            "The session created against this pack's mode must have its binding cleared.");
+        Assert.Equal(1, deleted.GetProperty("agent_pack_installations").GetInt32());
+
+        await using var verify = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        Assert.Empty(await verify.AgentPackInstallations.Where(item => item.PackId == PackId).ToListAsync());
+        // The bootstrap fixture pack's own version rows stay: only this pack's
+        // bookkeeping was purged.
+        Assert.DoesNotContain(await verify.AgentPackVersions.Where(item => item.TenantId == scope.TenantId).ToListAsync(),
+            item => item.InstallationId == installation.Id);
+        Assert.Empty(await verify.AgentDefinitions.Where(item => agentDefinitionIds.Contains(item.Id)).ToListAsync());
+        Assert.Empty(await verify.AgentModes.Where(item => modeIds.Contains(item.Id)).ToListAsync());
+        Assert.Empty(await verify.ModeNodes.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        Assert.Empty(await verify.ModeEdges.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        Assert.Empty(await verify.CanvasLayouts.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        // The session survives with its mode binding cleared (the projection omits
+        // a null binding entirely).
+        var sessions = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        var surviving = sessions!.Single(item => item.GetProperty("id").GetGuid() == sessionId);
+        Assert.True(!surviving.TryGetProperty("mode_version_id", out var survivingMode) || survivingMode.ValueKind == JsonValueKind.Null,
+            $"The purged pack's mode binding must be cleared; found {survivingMode}.");
+
+        // Purging the same pack again is a clean 404, not a partial second pass.
+        using var again = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        again.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision}\"");
+        using var againResponse = await client.SendAsync(again);
+        Assert.Equal(HttpStatusCode.NotFound, againResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task AgentPackLifecycle_DisableHidesResourcesButKeepsThemReadOnly()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "disable-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var meetingId = detail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "agent" && resource.GetProperty("resource_key").GetString() == "meeting")
+            .GetProperty("logical_entity_id").GetGuid();
+        var modeId = detail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .GetProperty("logical_entity_id").GetGuid();
+
+        // Enabled: the pack's rows are visible and carry their owner.
+        var modesBefore = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        var owned = modesBefore!.Single(mode => mode.GetProperty("id").GetGuid() == modeId);
+        Assert.Equal(PackId, owned.GetProperty("pack_id").GetString());
+        Assert.True(owned.GetProperty("pack_managed").GetBoolean());
+        Assert.False(owned.GetProperty("pack_disabled").GetBoolean());
+        var agentsBefore = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
+        Assert.Contains(agentsBefore!, agent => agent.GetProperty("id").GetGuid() == meetingId && agent.GetProperty("pack_id").GetString() == PackId);
+
+        using var disable = await client.PostAsync($"/api/v1/agent-packs/{PackId}/disable", null);
+        Assert.Equal(HttpStatusCode.OK, disable.StatusCode);
+        Assert.Equal("disabled", (await disable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+
+        // Disabled: the rows leave the selectable directory...
+        var modesAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        Assert.DoesNotContain(modesAfter!, mode => mode.GetProperty("id").GetGuid() == modeId);
+        var agentsAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
+        Assert.DoesNotContain(agentsAfter!, agent => agent.GetProperty("id").GetGuid() == meetingId);
+        var pipelinesAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/prompt-pipelines");
+        Assert.DoesNotContain(pipelinesAfter!, pipeline => pipeline.GetProperty("pack_id").GetString() == PackId);
+
+        // ...but they stay in the database and stay read-only: disabling is a
+        // visibility switch, never an edit grant.
+        using var edit = await client.PutAsJsonAsync($"/api/v1/agents/{meetingId}/draft", new { display_name = "Changed" });
+        Assert.Equal(HttpStatusCode.Conflict, edit.StatusCode);
+        Assert.Equal("managed_resource_read_only", (await edit.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        using var enable = await client.PostAsync($"/api/v1/agent-packs/{PackId}/enable", null);
+        Assert.Equal(HttpStatusCode.OK, enable.StatusCode);
+        Assert.Equal("active", (await enable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        var modesRestored = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        Assert.Contains(modesRestored!, mode => mode.GetProperty("id").GetGuid() == modeId);
+    }
+
+    [Fact]
+    public async Task AgentPackLifecycle_AdoptDefaultsPointsTheWorkspaceAtThePack()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "adopt-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var modeVersionId = detail.GetProperty("resources").EnumerateArray()
+            .Where(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .Select(resource => resource.GetProperty("version_id").GetGuid())
+            .Single();
+
+        // The bootstrap fixture pack owns the defaults from host startup, so this
+        // pack's install did not take them over.
+        var before = await client.GetFromJsonAsync<JsonElement>("/api/v1/workspace-defaults");
+        Assert.NotEqual(modeVersionId, before.GetProperty("default_mode_version_id").GetGuid());
+
+        using var adopt = await client.PostAsync($"/api/v1/agent-packs/{PackId}/adopt-defaults", null);
+        Assert.True(adopt.StatusCode == HttpStatusCode.OK,
+            $"adopt-defaults failed ({adopt.StatusCode}): {await adopt.Content.ReadAsStringAsync()}");
+
+        var after = await client.GetFromJsonAsync<JsonElement>("/api/v1/workspace-defaults");
+        Assert.Equal(modeVersionId, after.GetProperty("default_mode_version_id").GetGuid());
+
+        // The adoption is recorded with the previous owner, so a later purge (or a
+        // deliberate rollback) has something to restore.
+        var scope = factory.Services.GetRequiredService<ITenantContextAccessor>().Current;
+        await using var db = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        var installation = await db.AgentPackInstallations.SingleAsync(item => item.PackId == PackId);
+        var adoption = await db.AgentPackDefaultAdoptions.SingleAsync(item => item.InstallationId == installation.Id);
+        Assert.Equal(modeVersionId, adoption.AppliedModeVersionId);
+        Assert.NotNull(adoption.PreviousModeVersionId);
+    }
+
+    private static async Task<JsonElement> CreateSessionAsyncWithModeAsync(HttpClient client, string workspacePath, string title, Guid modeVersionId)
+    {
+        var projectResponse = await client.PostAsJsonAsync("/api/v1/projects", new
+        {
+            name = title,
+            path = Path.Combine(workspacePath, Guid.NewGuid().ToString("N"))
+        });
+        projectResponse.EnsureSuccessStatusCode();
+        var project = await projectResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var sessionResponse = await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title,
+            mode_version_id = modeVersionId
+        });
+        sessionResponse.EnsureSuccessStatusCode();
+        return await sessionResponse.Content.ReadFromJsonAsync<JsonElement>();
+    }
+
+    [Fact]
     public async Task AgentPackLifecycle_RejectsUntypedInternalReferences()
     {
         using var factory = new AgentPackFactory();

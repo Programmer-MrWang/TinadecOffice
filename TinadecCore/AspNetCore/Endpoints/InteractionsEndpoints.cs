@@ -92,6 +92,26 @@ public static class InteractionsEndpoints
         if (modeVersionId is null)
             return Results.Conflict(new { code = "agent_mode_not_configured", message = "A published Agent Mode must be configured before creating an interaction." });
 
+        // A disabled pack fails explicitly: the run must not silently fall back to
+        // a different roster than the one the user is looking at. The client is
+        // told which pack to re-enable (or to pick another mode).
+        await using (var guard = await cfgFactory.CreateDbContextAsync(ct))
+        {
+            var ownerPack = await (from mode in guard.AgentModes.AsNoTracking()
+                                   join version in guard.ModeVersions.AsNoTracking() on mode.Id equals version.AgentModeId
+                                   join resource in guard.AgentPackManagedResources.AsNoTracking() on mode.Id equals resource.LogicalEntityId
+                                   join installation in guard.AgentPackInstallations.AsNoTracking() on resource.InstallationId equals installation.Id
+                                   where version.Id == modeVersionId.Value && version.Status == "published"
+                                   select new { installation.PackId, installation.Status }).FirstOrDefaultAsync(ct);
+            if (ownerPack is not null && !string.Equals(ownerPack.Status, "active", StringComparison.Ordinal))
+                return Results.Conflict(new
+                {
+                    code = "pack_disabled",
+                    message = $"Agent pack '{ownerPack.PackId}' is disabled. Enable it or choose a mode from an enabled pack.",
+                    pack_id = ownerPack.PackId
+                });
+        }
+
         if (dispatchMode == "insert" && meetingModelOverride is not null)
             return Results.Conflict(new { code = "model_override_frozen", message = "A model override cannot be changed when inserting into an already frozen run." });
 

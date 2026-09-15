@@ -228,6 +228,7 @@ public static class AgentConfigurationEndpoints
             .GroupBy(x => x.AgentDefinitionId).ToDictionary(x => x.Key, x => x.OrderByDescending(v => v.CompletedAt).First());
         var bindings = (await db.AgentRuntimeBindings.AsNoTracking().Where(x => x.TenantId == t && x.WorkspaceId == w).ToListAsync(ct))
             .GroupBy(x => x.AgentDefinitionId).ToDictionary(x => x.Key, x => x.OrderByDescending(v => v.UpdatedAt).First());
+        var ownership = await LoadPackOwnershipAsync(db, t, w, ct);
 
         var result = new List<AgentDirectoryItemDto>();
         foreach (var definition in definitions)
@@ -235,6 +236,9 @@ public static class AgentConfigurationEndpoints
             if (!string.IsNullOrWhiteSpace(status) && !string.Equals(definition.Status, status, StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrWhiteSpace(sourceKind) && !string.Equals(definition.SourceKind, sourceKind, StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrWhiteSpace(layer) && !string.Equals(definition.Layer, layer, StringComparison.OrdinalIgnoreCase)) continue;
+            // A disabled pack's rows stay in the store (re-enabling is lossless)
+            // but leave the selectable directory.
+            if (ownership.TryGetValue(definition.Id, out var owner) && !string.Equals(owner.Status, "active", StringComparison.Ordinal)) continue;
             latestAgentVersions.TryGetValue(definition.Id, out var agentVersion);
             recentInvocations.TryGetValue(definition.Id, out var invocation);
             var usages = nodes.Where(x => x.AgentDefinitionId == definition.Id).Select(node =>
@@ -268,6 +272,7 @@ public static class AgentConfigurationEndpoints
             try { configuredStrategy = ModelStrategyJson.Parse(definition.ModelStrategyJson); }
             catch { configuredStrategy = new ModelStrategyDto { Kind = ModelStrategyKinds.Inherit }; }
             bindings.TryGetValue(definition.Id, out var bindingRecord);
+            ownership.TryGetValue(definition.Id, out var packOwner);
             result.Add(new AgentDirectoryItemDto
             {
                 Id = definition.Id, Slug = definition.Slug, DisplayName = definition.DisplayName,
@@ -277,6 +282,9 @@ public static class AgentConfigurationEndpoints
                 CurrentVersionId = agentVersion?.Id, ConfiguredStrategy = configuredStrategy,
                 ModeUsages = usages, EffectivePreviews = previews,
                 RecentInvocation = invocation is null ? null : ToInvocationDto(invocation), UpdatedAt = definition.UpdatedAt,
+                PackId = packOwner.PackId,
+                PackManaged = packOwner.PackId is not null,
+                PackDisabled = string.Equals(packOwner.Status, "disabled", StringComparison.Ordinal),
                 ModelBinding = bindingRecord is null ? null : new AgentRuntimeBindingDto
                 {
                     Mode = bindingRecord.Mode,
@@ -527,6 +535,27 @@ public static class AgentConfigurationEndpoints
         return v is null ? Results.NotFound(new { code="not_found"}) : Results.Ok(new { id=v.Id, agent_definition_id=v.AgentDefinitionId, version=v.Version, snapshot=JsonSerializer.Deserialize<JsonElement>(v.SnapshotJson), content_hash=v.ContentHash, created_at=v.CreatedAt});
     }
 
+    /// <summary>
+    /// Pack ownership + status for a set of managed resource ids, keyed by the
+    /// logical entity id. One query for the whole directory instead of a per-row
+    /// lookup.
+    /// </summary>
+    static async Task<Dictionary<Guid, (string PackId, string Status)>> LoadPackOwnershipAsync(
+        AgentConfigurationDbContext db,
+        Guid tenantId,
+        Guid workspaceId,
+        CancellationToken ct)
+    {
+        var rows = await (from resource in db.AgentPackManagedResources.AsNoTracking()
+                          join installation in db.AgentPackInstallations.AsNoTracking() on resource.InstallationId equals installation.Id
+                          where resource.TenantId == tenantId && resource.WorkspaceId == workspaceId
+                          select new { resource.LogicalEntityId, installation.PackId, installation.Status })
+            .ToListAsync(ct);
+        return rows
+            .GroupBy(row => row.LogicalEntityId)
+            .ToDictionary(group => group.Key, group => (group.First().PackId, group.First().Status));
+    }
+
     // ── modes ──
     static async Task<IResult> ListModes(IDbContextFactory<AgentConfigurationDbContext> f, ITenantContextAccessor a, HttpRequest req, CancellationToken ct)
     {
@@ -534,8 +563,11 @@ public static class AgentConfigurationEndpoints
         var status = req.Query["status"].ToString();
 
         await using var db = await f.CreateDbContextAsync(ct);
+        var ownership = await LoadPackOwnershipAsync(db, t, w, ct);
         // 不带 status 返回全部行（pack 花名册合约依赖完整清单）；可选项的
         // published 过滤由客户端做（模式列表 UI 只消费 published 行）。
+        // 被禁用的包的行保留在库里（重新启用是幂等的），但不出现在列表中：
+        // 它们不可选，列表是"可用模式"的唯一来源。
         var query = db.AgentModes.Where(x => x.TenantId == t && x.WorkspaceId == w
             && (string.IsNullOrEmpty(status) || x.Status == status));
         var list = (await query.ToListAsync(ct)).OrderByDescending(x => x.UpdatedAt).ToList();
@@ -546,10 +578,14 @@ public static class AgentConfigurationEndpoints
             .ToListAsync(ct))
             .GroupBy(x => x.AgentModeId)
             .ToDictionary(x => x.Key, x => x.OrderByDescending(v => v.Version).First());
-        return Results.Ok(list.Select(r =>
+        var available = list
+            .Where(r => !ownership.TryGetValue(r.Id, out var owner) || string.Equals(owner.Status, "active", StringComparison.Ordinal))
+            .ToArray();
+        return Results.Ok(available.Select(r =>
         {
             latestVersions.TryGetValue(r.Id, out var version);
-            return ToModeDto(r, version?.Id, version?.Version);
+            ownership.TryGetValue(r.Id, out var owner);
+            return ToModeDto(r, version?.Id, version?.Version, owner.PackId, owner.Status);
         }));
     }
     static async Task<IResult> CreateMode(HttpRequest req, IDbContextFactory<AgentConfigurationDbContext> f, ITenantContextAccessor a, CancellationToken ct)
@@ -781,9 +817,30 @@ static async Task<IResult> GetMode(Guid id, IDbContextFactory<AgentConfiguration
     {
         var (t,w,_)=Ctx(a); var q=req.Query["status"].ToString();
         await using var db=await f.CreateDbContextAsync(ct);
+        var ownership = await LoadPackOwnershipAsync(db, t, w, ct);
         var list=await db.PromptPipelines.Where(x=>x.TenantId==t && x.WorkspaceId==w && (string.IsNullOrEmpty(q)||x.Status==q)).ToListAsync(ct);
         list=list.OrderByDescending(x=>x.UpdatedAt).ToList();
-        return Results.Ok(list.Select(p=>new{ id=p.Id, slug=p.Slug, display_name=p.DisplayName, description=p.Description, graph= JsonSerializer.Deserialize<JsonElement>(p.GraphJson), status=p.Status, revision=p.Revision, version=p.Version, created_at=p.CreatedAt, updated_at=p.UpdatedAt}));
+        // Disabled packs leave the selectable directory but keep their rows.
+        list = list.Where(p => !ownership.TryGetValue(p.Id, out var owner) || string.Equals(owner.Status, "active", StringComparison.Ordinal)).ToList();
+        return Results.Ok(list.Select(p => {
+            ownership.TryGetValue(p.Id, out var owner);
+            return new
+            {
+                id = p.Id,
+                slug = p.Slug,
+                display_name = p.DisplayName,
+                description = p.Description,
+                graph = JsonSerializer.Deserialize<JsonElement>(p.GraphJson),
+                status = p.Status,
+                revision = p.Revision,
+                version = p.Version,
+                created_at = p.CreatedAt,
+                updated_at = p.UpdatedAt,
+                pack_id = owner.PackId,
+                pack_managed = owner.PackId is not null,
+                pack_disabled = string.Equals(owner.Status, "disabled", StringComparison.Ordinal)
+            };
+        }));
     }
     static async Task<IResult> CreatePipeline(HttpRequest req, IDbContextFactory<AgentConfigurationDbContext> f, ITenantContextAccessor a, CancellationToken ct)
     {
@@ -1095,7 +1152,30 @@ static async Task<IResult> GetMode(Guid id, IDbContextFactory<AgentConfiguration
         SafeErrorMessage=value.SafeErrorMessage, InputTokens=value.InputTokens, OutputTokens=value.OutputTokens,
         TotalTokens=value.TotalTokens, StartedAt=value.StartedAt, CompletedAt=value.CompletedAt
     };
-    static object ToModeDto(AgentModeRecord r, Guid? latestPublishedVersionId = null, int? latestVersion = null) => new{ id=r.Id, slug=r.Slug, display_name=r.DisplayName, description=r.Description, status=r.Status, revision=r.Revision, version=r.Version, created_at=r.CreatedAt, updated_at=r.UpdatedAt, archived_at=r.ArchivedAt, latest_published_mode_version_id = latestPublishedVersionId };
+    static object ToModeDto(
+        AgentModeRecord r,
+        Guid? latestPublishedVersionId = null,
+        int? latestVersion = null,
+        string? packId = null,
+        string? packStatus = null) => new
+    {
+        id = r.Id,
+        slug = r.Slug,
+        display_name = r.DisplayName,
+        description = r.Description,
+        status = r.Status,
+        revision = r.Revision,
+        version = r.Version,
+        created_at = r.CreatedAt,
+        updated_at = r.UpdatedAt,
+        archived_at = r.ArchivedAt,
+        latest_published_mode_version_id = latestPublishedVersionId,
+        // Provenance: the UI groups the directory by pack and offers per-pack
+        // actions (disable/uninstall). Null for user-authored rows.
+        pack_id = packId,
+        pack_managed = packId is not null,
+        pack_disabled = string.Equals(packStatus, "disabled", StringComparison.Ordinal)
+    };
 
     static IResult ManagedReadOnly(AgentPackManagedResource managed) => throw new AgentPackDomainException(
         StatusCodes.Status409Conflict,

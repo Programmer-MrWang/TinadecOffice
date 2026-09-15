@@ -2,7 +2,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import ComposerBar from './ComposerBar.vue'
-import type { AgentMode } from '@/types/mode'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (_key: string, fallback?: string) => fallback ?? _key }),
@@ -41,7 +40,7 @@ vi.mock('@/lib/dispatchPref', () => ({
 
 vi.mock('@/api', () => apiMock)
 
-function mountComposer(props: Partial<{ busy: boolean; modelValue: string; modeVersionId: string | null; mode: AgentMode }> = {}) {
+function mountComposer(props: Partial<{ busy: boolean; modelValue: string; modeVersionId: string | null }> = {}) {
   return mount(ComposerBar, {
     props: {
       busy: false,
@@ -106,7 +105,6 @@ describe('ComposerBar hero variant (start page)', () => {
         hero: true,
         busy: false,
         modelValue: 'hello world',
-        mode: 'plan',
         permission: 'default',
       },
     })
@@ -114,7 +112,8 @@ describe('ComposerBar hero variant (start page)', () => {
     await wrapper.find('.welcome-dialog-input').trigger('keydown', { key: 'Enter' })
     const emitted = wrapper.emitted('welcome-submit')
     expect(emitted).toHaveLength(1)
-    expect(emitted![0]![0]).toEqual({ content: 'hello world', agent_mode: 'plan', permission_mode: 'default', mode_version_id: null })
+    // 六值 agent_mode 已从契约删除：欢迎发送只带内容、权限与（可空的）模式版本。
+    expect(emitted![0]![0]).toEqual({ content: 'hello world', permission_mode: 'default', mode_version_id: null })
     expect(wrapper.emitted('submit')).toBeUndefined()
     wrapper.unmount()
     document.body.innerHTML = ''
@@ -157,62 +156,63 @@ const WORKSPACE_TOPOLOGY = {
   edges: [],
 }
 
-describe('ComposerBar merged mode selector (one dropdown: follow-default + published versions)', () => {
-  it('shows a conversation mode exactly once and keeps only workspace topologies in the topology group', async () => {
+describe('ComposerBar mode selector (single source: the published modes)', () => {
+  it('lists exactly the published modes, deduplicated by display name, and drops the rest', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([
       CONVERSATION_MODE,
       WORKSPACE_TOPOLOGY,
-      { id: 'am-draft', display_name: '草稿模式', status: 'draft', application_mode: null, nodes: [], edges: [] },
+      // 同名的第二行（bootstrap + 包安装各一条）：按 display_name 去重。
+      { ...CONVERSATION_MODE, id: 'am-conv-auto-2' },
+      { id: 'am-draft', display_name: '草稿模式', status: 'draft', latest_published_mode_version_id: null, nodes: [], edges: [] },
+      { id: 'am-no-version', display_name: '无版本模式', status: 'published', latest_published_mode_version_id: null, nodes: [], edges: [] },
     ] as never)
     const wrapper = mountComposer({})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
     const items = [...document.querySelectorAll('.mode-selector-item')].map(b => b.textContent!.trim())
-    // follow-default + 6 个对话模式 + 1 个自建拓扑（draft 与 conversation.* 都不进拓扑组）。
     expect(items[0]).toBe('chat.followDefault')
-    // 去重判据：`自动 (Auto)` 只出现一次 —— 它是对话模式组里 auto 的显示名，不再另开一项。
+    // 已发布的去重后恰好两项；draft 与没有已发布版本的项都不出现。
     expect(items.filter(t => t.includes('自动 (Auto)'))).toHaveLength(1)
     expect(items.some(t => t.includes('自建评审流'))).toBe(true)
     expect(items.some(t => t.includes('草稿模式'))).toBe(false)
-    expect(items).toHaveLength(8)
+    expect(items.some(t => t.includes('无版本模式'))).toBe(false)
+    expect(items).toHaveLength(3)
     wrapper.unmount()
     document.body.innerHTML = ''
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])
   })
 
-  it('hides the topology group entirely when every published mode is a conversation mode', async () => {
-    apiMock.api.listAgentModeTopologies.mockResolvedValue([CONVERSATION_MODE] as never)
+  it('lists only follow-default when the workspace has no published mode', async () => {
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([])
     const wrapper = mountComposer({})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
-    const groups = [...document.querySelectorAll('.mode-selector-group')].map(b => b.textContent!.trim())
-    expect(groups).toEqual(['chat.conversationModeGroup'])
-    expect([...document.querySelectorAll('.mode-selector-item')]).toHaveLength(7)
+    const items = [...document.querySelectorAll('.mode-selector-item')].map(b => b.textContent!.trim())
+    expect(items).toEqual(['chat.followDefault'])
+    // 没有可选项时不渲染分组标题。
+    expect(document.querySelectorAll('.mode-selector-group')).toHaveLength(0)
     wrapper.unmount()
     document.body.innerHTML = ''
-    apiMock.api.listAgentModeTopologies.mockResolvedValue([])
   })
 
-  it('falls back to the i18n enum labels when the gateway is offline', async () => {
+  it('degrades to follow-default when the gateway is offline', async () => {
     apiMock.api.listAgentModeTopologies.mockRejectedValue(new Error('offline'))
-    const wrapper = mountComposer({ mode: 'plan' })
+    const wrapper = mountComposer({})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
     const items = [...document.querySelectorAll('.mode-selector-item')].map(b => b.textContent!.trim())
-    expect(items[0]).toBe('chat.followDefault')
-    expect(items.filter(t => t.startsWith('mode.'))).toHaveLength(6)
-    expect(items).toHaveLength(7)
+    expect(items).toEqual(['chat.followDefault'])
     expect(wrapper.emitted('update:modeVersionId')).toBeUndefined()
     wrapper.unmount()
     document.body.innerHTML = ''
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])
   })
 
-  it('selecting a workspace topology emits its mode_version_id; picking a conversation mode clears it', async () => {
-    apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
+  it('selecting a mode emits its mode_version_id; follow-default clears it', async () => {
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY, CONVERSATION_MODE] as never)
     const wrapper = mountComposer({})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
@@ -231,18 +231,29 @@ describe('ComposerBar merged mode selector (one dropdown: follow-default + publi
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])
   })
 
-  it('a stale modeVersionId activates nothing in the topology group (self-healing fallback)', async () => {
+  it('a stale modeVersionId marks the trigger and activates only follow-default', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
     const wrapper = mountComposer({ modeVersionId: 'mv-gone' })
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
     const active = [...document.querySelectorAll('.mode-selector-item.active')].map(b => b.textContent!.trim())
-    // 自愈态：跟随默认 与 当前枚举（auto）同属一个有效状态，二者同时高亮；
-    // 失效的 topology 项不得出现在激活集合里。
-    expect(active).toContain('chat.followDefault')
-    expect(active).toContain('mode.auto')
-    expect(active.some(t => t.includes('自建评审流'))).toBe(false)
+    expect(active).toEqual(['chat.followDefault'])
+    expect(wrapper.find('.mode-selector-stale').exists()).toBe(true)
+    wrapper.unmount()
+    document.body.innerHTML = ''
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([])
+  })
+
+  it('selecting the bound mode highlights it and shows its display name', async () => {
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
+    const wrapper = mountComposer({ modeVersionId: 'mv-custom-1' })
+    await flushPromises()
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    const active = [...document.querySelectorAll('.mode-selector-item.active')].map(b => b.textContent!.trim())
+    expect(active).toEqual(['自建评审流'])
+    expect(wrapper.find('.mode-selector-label').text()).toBe('自建评审流')
     wrapper.unmount()
     document.body.innerHTML = ''
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])

@@ -84,6 +84,20 @@ export interface paths {
     get: operations["getApiV1Agent-packsByPackId"];
     /** Install or upgrade agent pack */
     put: operations["putApiV1Agent-packsByPackId"];
+    /** Permanently delete an installed agent pack */
+    delete: operations["deleteApiV1Agent-packsByPackId"];
+  };
+  "/api/v1/agent-packs/{packId}/adopt-defaults": {
+    /** Make an agent pack the workspace default */
+    post: operations["postApiV1Agent-packsByPackIdAdopt-defaults"];
+  };
+  "/api/v1/agent-packs/{packId}/disable": {
+    /** Disable an installed agent pack without deleting it */
+    post: operations["postApiV1Agent-packsByPackIdDisable"];
+  };
+  "/api/v1/agent-packs/{packId}/enable": {
+    /** Enable an installed agent pack */
+    post: operations["postApiV1Agent-packsByPackIdEnable"];
   };
   "/api/v1/agent-runtime-instances": {
     /** List agent runtime instances */
@@ -1550,6 +1564,196 @@ export interface operations {
       };
       /** @description agent_pack_incompatible */
       422: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Permanently delete an installed agent pack */
+  "deleteApiV1Agent-packsByPackId": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description Per-table delete counts for the purged pack. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AgentPackPurgeResult"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_revision_conflict */
+      412: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description if_match_required */
+      428: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Make an agent pack the workspace default */
+  "postApiV1Agent-packsByPackIdAdopt-defaults": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The workspace defaults now point at this pack. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_active */
+      409: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Disable an installed agent pack without deleting it */
+  "postApiV1Agent-packsByPackIdDisable": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The pack is hidden from the selectable lists but keeps its read-only resources. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Enable an installed agent pack */
+  "postApiV1Agent-packsByPackIdEnable": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The pack is selectable again. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
         content: {
           "application/problem+json": components["schemas"]["ProblemDetails"];
         };

@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router'
 import { UiButton, UiScrollArea } from '@/components/ui'
 import ModeSelector from './ModeSelector.vue'
 import PermissionSelector from './PermissionSelector.vue'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 import type { MeetingModelOverrideDto, ProjectDto } from '@/api'
 import { homeController } from '@/controllers/HomeController'
 import { getDispatchPref, type DispatchPref } from '@/lib/dispatchPref'
@@ -20,7 +20,6 @@ const props = defineProps<{
   hero?: boolean
   busy: boolean
   modelValue: string
-  mode?: AgentMode
   permission: PermissionLevel
   projects?: ProjectDto[]
   selectedProjectId?: string | null
@@ -34,11 +33,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  'update:mode': [value: AgentMode]
   'update:permission': [value: PermissionLevel]
   'update:modeVersionId': [value: string | null]
   'submit': [payload: { dispatch_mode: 'parallel' | 'queued' | 'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }]
-  'welcome-submit': [payload: { content: string; agent_mode: AgentMode; permission_mode: PermissionLevel; mode_version_id: string | null }]
+  'welcome-submit': [payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }]
   'create-project': []
   'select-project': [id: string | null]
   'add-image': []
@@ -151,7 +149,6 @@ function submit(pref?: DispatchPref) {
     resetTextareaHeight()
     emit('welcome-submit', {
       content,
-      agent_mode: props.mode ?? 'auto',
       permission_mode: props.permission,
       mode_version_id: props.modeVersionId ?? null,
     })
@@ -280,11 +277,9 @@ function confirmSteer(id: string) {
 
       <div class="welcome-dialog-toolbar">
         <div class="toolbar-left">
-          <!-- THE one mode selector: agent-mode fallback + published versions in one dropdown. -->
+          <!-- THE one mode selector: the installed packs' published versions. -->
           <ModeSelector
-            :model-value="mode ?? 'auto'"
             :mode-version-id="modeVersionId ?? null"
-            @update:model-value="emit('update:mode', $event)"
             @update:mode-version-id="emit('update:modeVersionId', $event)"
           />
           <PermissionSelector
