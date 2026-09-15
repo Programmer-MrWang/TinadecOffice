@@ -133,11 +133,10 @@ public sealed class FrozenWorkerSelectionTests
         var git = Agent("worker.git", "execution", "git_specialist", ["tool.git"], ["git_status", "git_diff", "git_commit"], 7);
         workers ??= [code, document, data, browser, file, general, git];
         return new FrozenRunConfigurationV1(
-            "frozen-run-configuration/v1",
+            "frozen-run-configuration/v3",
             "baseline",
             1,
-            "space",
-            "auto",
+            Guid.Parse("00000000-0000-0000-0000-0000000000aa"),
             "mode:test:1",
             "ask",
             new SpawnPolicy(2, 8, 4),
@@ -148,8 +147,8 @@ public sealed class FrozenWorkerSelectionTests
             new ToolRuntimePolicy("tinadec-tools", true, true, 120, 4),
             [meeting, supervisor],
             [planner, .. workers],
-            null,
-            [])
+            [],
+            "")
         {
             ToolManifestProtocolVersion = 2,
             ToolManifest = [

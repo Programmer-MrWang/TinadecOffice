@@ -57,12 +57,11 @@ public sealed class AgentPackEndpointTests
 
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
         Assert.NotNull(agents);
-        // Bootstrap seeded 14 formal agents; the pack installs its own 14 alongside them
-        // (same slugs coexist — pack/bootstrap/custom are distinguished by source_kind).
+        // The bootstrap fixture pack seeded 14 agents; the lifecycle pack installs its
+        // own 14 alongside them (same slugs coexist — they are distinct pack rows).
         Assert.Equal(28, agents!.Length);
         Assert.All(agents, agent => Assert.Equal("published", agent.GetProperty("status").GetString()));
-        Assert.Equal(14, agents.Count(agent => agent.GetProperty("source_kind").GetString() == "bootstrap"));
-        Assert.Equal(14, agents.Count(agent => agent.GetProperty("source_kind").GetString() == "pack"));
+        Assert.Equal(28, agents.Count(agent => agent.GetProperty("source_kind").GetString() == "pack"));
         Assert.Equal(12, agents.Count(agent => agent.GetProperty("layer").GetString() == "operation"));
         Assert.Equal(16, agents.Count(agent => agent.GetProperty("layer").GetString() == "execution"));
 
@@ -84,7 +83,8 @@ public sealed class AgentPackEndpointTests
             var topology = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-modes/{modeId}");
             if (topology.GetProperty("managed").GetBoolean()) packDefaultTopologies.Add(topology);
         }
-        var packTopology = Assert.Single(packDefaultTopologies);
+        Assert.Equal(2, packDefaultTopologies.Count);
+        var packTopology = packDefaultTopologies.Single(topology => topology.GetProperty("display_name").GetString() != "Default Mode");
         Assert.Equal(14, packTopology.GetProperty("nodes").GetArrayLength());
         Assert.Equal("published", packTopology.GetProperty("status").GetString());
 
@@ -95,7 +95,8 @@ public sealed class AgentPackEndpointTests
             var topology = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-modes/{modeId}");
             if (topology.GetProperty("managed").GetBoolean()) packPlanTopologies.Add(topology);
         }
-        var planTopology = Assert.Single(packPlanTopologies);
+        Assert.Equal(2, packPlanTopologies.Count);
+        var planTopology = packPlanTopologies.Single(topology => topology.GetProperty("display_name").GetString() != "Plan");
         Assert.Equal(6, planTopology.GetProperty("nodes").GetArrayLength());
         var planNodeAgentRefs = planTopology.GetProperty("nodes").EnumerateArray()
             .Select(node => node.GetProperty("label").GetString()).ToArray();
@@ -104,7 +105,7 @@ public sealed class AgentPackEndpointTests
         Assert.Contains(planNodeAgentRefs, label => label == "文档生成智能体");
 
         var pipelines = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/prompt-pipelines");
-        // Bootstrap and the installed pack each publish their own baseline prompt.
+        // The bootstrap fixture and the installed pack each publish their own baseline prompt.
         var baselines = pipelines!.Where(pipeline => pipeline.GetProperty("slug").GetString() == "baseline-prompt").ToArray();
         Assert.Equal(2, baselines.Length);
         Assert.All(baselines, baseline => Assert.Equal("published", baseline.GetProperty("status").GetString()));
@@ -140,28 +141,30 @@ public sealed class AgentPackEndpointTests
 
         var session = await CreateSessionAsync(client, factory.WorkspacePath, "Agent mode session");
         var sessionId = session.GetProperty("id").GetGuid();
-        // Session creation applied the workspace default (default-mode).
+        // Session creation applied the workspace default — owned by the bootstrap
+        // fixture pack, not by this lifecycle pack (which never adopted defaults).
         var initial = await GetSessionAsync(client, sessionId);
-        Assert.Equal(modeVersions["default-mode"], initial.GetProperty("mode_version_id").GetGuid());
+        Assert.NotEqual(Guid.Empty, initial.GetProperty("mode_version_id").GetGuid());
+        Assert.NotEqual(modeVersions["default-mode"], initial.GetProperty("mode_version_id").GetGuid());
 
-        // Unknown agent_mode fails fast with a structured error.
-        using var invalid = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions", new
+        // The retired agent_mode field is a hard contract violation now.
+        using var retired = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions", new
         {
             content = "hi",
             client_message_id = $"cm-{Guid.NewGuid():N}",
-            agent_mode = "nonsense",
+            agent_mode = "plan",
             dispatch_mode = "queued"
         });
-        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
-        var problem = await invalid.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("invalid_request", problem.GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.BadRequest, retired.StatusCode);
+        var retiredProblem = await retired.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("unknown_field", retiredProblem.GetProperty("code").GetString());
 
-        // agent_mode=plan resolves the published conversation.plan version onto the session.
+        // An explicit mode_version_id selects the published mode version directly.
         using var planned = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions", new
         {
             content = "规划一下",
             client_message_id = $"cm-{Guid.NewGuid():N}",
-            agent_mode = "plan",
+            mode_version_id = modeVersions["conversation.plan"],
             dispatch_mode = "queued"
         });
         Assert.True(planned.IsSuccessStatusCode || planned.StatusCode == HttpStatusCode.Conflict,
@@ -169,13 +172,12 @@ public sealed class AgentPackEndpointTests
         var afterPlan = await GetSessionAsync(client, sessionId);
         Assert.Equal(modeVersions["conversation.plan"], afterPlan.GetProperty("mode_version_id").GetGuid());
 
-        // An explicit mode_version_id takes precedence over agent_mode.
+        // An explicit mode_version_id takes precedence over the session's binding.
         using var explicitMode = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions", new
         {
             content = "回到默认",
             client_message_id = $"cm-{Guid.NewGuid():N}",
             mode_version_id = modeVersions["default-mode"],
-            agent_mode = "ask",
             dispatch_mode = "queued"
         });
         Assert.True(explicitMode.IsSuccessStatusCode || explicitMode.StatusCode == HttpStatusCode.Conflict,
@@ -219,10 +221,14 @@ public sealed class AgentPackEndpointTests
 
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
         Assert.NotNull(agents);
+        // The bootstrap fixture pack publishes the English-named roster; the
+        // lifecycle pack coexists with it under the same slugs.
         var meeting = agents!.Single(agent => agent.GetProperty("slug").GetString() == "meeting"
-            && agent.GetProperty("source_kind").GetString() == "bootstrap");
+            && agent.GetProperty("source_kind").GetString() == "pack"
+            && agent.GetProperty("display_name").GetString() == "Meeting Agent");
         var worker = agents!.Single(agent => agent.GetProperty("slug").GetString() == "worker.browser"
-            && agent.GetProperty("source_kind").GetString() == "bootstrap");
+            && agent.GetProperty("source_kind").GetString() == "pack"
+            && agent.GetProperty("display_name").GetString() == "Browser Worker");
         var meetingId = meeting.GetProperty("id").GetGuid();
         var workerId = worker.GetProperty("id").GetGuid();
 
@@ -279,7 +285,9 @@ public sealed class AgentPackEndpointTests
         Assert.Equal("install", preview.GetProperty("action").GetString());
         Assert.Equal(14, preview.GetProperty("counts").GetProperty("agents").GetInt32());
         Assert.Equal(26, preview.GetProperty("resources").GetArrayLength());
-        Assert.True(preview.GetProperty("defaults_will_adopt").GetBoolean());
+        // The bootstrap fixture pack already owns the workspace defaults; installing
+        // the lifecycle pack must not steal them (automation stays conservative).
+        Assert.False(preview.GetProperty("defaults_will_adopt").GetBoolean());
         Assert.Equal($"\"{preview.GetProperty("revision").GetInt64()}\"", previewResponse.Headers.ETag?.Tag);
 
         var previewId = preview.GetProperty("preview_id").GetGuid();
@@ -287,7 +295,7 @@ public sealed class AgentPackEndpointTests
         Assert.Equal(HttpStatusCode.Created, installResponse.StatusCode);
         var installed = await installResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("installed", installed.GetProperty("status").GetString());
-        Assert.True(installed.GetProperty("defaults_adopted").GetBoolean());
+        Assert.False(installed.GetProperty("defaults_adopted").GetBoolean());
         Assert.Equal(26, installed.GetProperty("resources").GetArrayLength());
 
         using var replayResponse = await ApplyAsync(client, envelope, previewId, "lifecycle-install-1");
@@ -297,7 +305,7 @@ public sealed class AgentPackEndpointTests
         Assert.Equal(installed.GetProperty("revision").GetInt64(), replay.GetProperty("revision").GetInt64());
 
         var packs = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-packs");
-        Assert.Single(packs!);
+        Assert.Equal(2, packs!.Length);
         using var detailResponse = await client.GetAsync($"/api/v1/agent-packs/{PackId}");
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);
         var detail = await detailResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -408,12 +416,18 @@ public sealed class AgentPackEndpointTests
         Assert.Equal(HttpStatusCode.OK, v2Response.StatusCode);
         var updated = await v2Response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("updated", updated.GetProperty("status").GetString());
-        Assert.True(updated.GetProperty("defaults_adopted").GetBoolean());
+        // The workspace defaults were never adopted by this pack (the bootstrap
+        // fixture pack owns them), so an upgrade re-reports the same conservative
+        // answer instead of silently taking them over.
+        Assert.False(updated.GetProperty("defaults_adopted").GetBoolean());
 
         var oldSessionAfterUpgrade = await GetSessionAsync(client, oldSessionId);
         Assert.Equal(oldModeVersionId, oldSessionAfterUpgrade.GetProperty("mode_version_id").GetGuid());
+        // The lifecycle pack never owned the workspace defaults (the bootstrap
+        // fixture does), so a fresh session keeps binding the same default version
+        // while the old session stays pinned to its frozen one.
         var newSession = await CreateSessionAsync(client, factory.WorkspacePath, "New session");
-        Assert.NotEqual(oldModeVersionId, newSession.GetProperty("mode_version_id").GetGuid());
+        Assert.Equal(oldModeVersionId, newSession.GetProperty("mode_version_id").GetGuid());
 
         var alteredV2 = FixtureEnvelope("0.3.0", manifest => manifest["metadata"]!["name"] = "Altered Lifecycle Fixture");
         using var conflictResponse = await client.PostAsJsonAsync("/api/v1/agent-packs/install-preview", alteredV2);
@@ -478,12 +492,15 @@ public sealed class AgentPackEndpointTests
 
             var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
             Assert.NotNull(agents);
+            // bootstrap fixture + lifecycle pack + the user-owned custom row.
             Assert.Equal(3, agents!.Count(agent => agent.GetProperty("slug").GetString() == "meeting"));
             var custom = agents.Single(agent => agent.GetProperty("id").GetGuid() == customAgentId);
             Assert.Equal("custom", custom.GetProperty("source_kind").GetString());
             Assert.False(custom.GetProperty("managed").GetBoolean());
             Assert.Equal("User Meeting", custom.GetProperty("display_name").GetString());
-            var packMeeting = agents.Single(agent => agent.GetProperty("source_kind").GetString() == "pack" && agent.GetProperty("slug").GetString() == "meeting");
+            var packMeeting = agents.Single(agent => agent.GetProperty("source_kind").GetString() == "pack"
+                && agent.GetProperty("slug").GetString() == "meeting"
+                && agent.GetProperty("display_name").GetString() == "会议智能体");
             Assert.True(packMeeting.GetProperty("managed").GetBoolean());
         }
 
@@ -524,12 +541,17 @@ public sealed class AgentPackEndpointTests
 
         var scope = factory.Services.GetRequiredService<ITenantContextAccessor>().Current;
         await using var db = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
-        Assert.Equal(1, await db.AgentPackInstallations.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId));
-        Assert.Equal(1, await db.AgentPackVersions.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId));
-        Assert.Equal(26, await db.AgentPackManagedResources.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId));
-        Assert.Equal(26, await db.AgentPackResourceBindings.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId));
-        Assert.Equal(2, await db.AgentPackOperations.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId));
-        Assert.Equal(2, await db.AgentPackPreviews.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && item.Status == "consumed"));
+        var installationId = await db.AgentPackInstallations.Where(installation => installation.PackId == PackId).Select(installation => installation.Id).SingleAsync();
+        var versionIds = await db.AgentPackVersions.Where(version => version.InstallationId == installationId).Select(version => version.Id).ToListAsync();
+        Assert.Equal(1, await db.AgentPackInstallations.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && item.PackId == PackId));
+        Assert.Equal(1, versionIds.Count);
+        Assert.Equal(26, await db.AgentPackManagedResources.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && item.InstallationId == installationId));
+        // Scope the binding count to THIS pack's version: the workspace also holds
+        // the bootstrap fixture pack's own version and bindings.
+        Assert.Equal(26, await db.AgentPackResourceBindings.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && versionIds.Contains(item.PackVersionId)));
+        // Two installs raced here (plus the bootstrap fixture's own install receipt).
+        Assert.Equal(3, await db.AgentPackOperations.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && item.Operation == "install"));
+        Assert.Equal(2, await db.AgentPackPreviews.CountAsync(item => item.TenantId == scope.TenantId && item.WorkspaceId == scope.WorkspaceId && item.PackId == PackId && item.Status == "consumed"));
     }
 
     [Fact]
@@ -600,6 +622,201 @@ public sealed class AgentPackEndpointTests
             var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
             Assert.Equal("invalid_agent_pack_manifest", problem.GetProperty("code").GetString());
         }
+    }
+
+    [Fact]
+    public async Task AgentPackLifecycle_PurgeRemovesEveryTableItTouched()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "purge-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var scope = factory.Services.GetRequiredService<ITenantContextAccessor>().Current;
+        await using var db = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        var installation = await db.AgentPackInstallations.SingleAsync(item => item.PackId == PackId);
+        var managedBefore = await db.AgentPackManagedResources.CountAsync(item => item.InstallationId == installation.Id);
+        Assert.Equal(26, managedBefore);
+        var agentDefinitionIds = await db.AgentPackManagedResources.Where(item => item.InstallationId == installation.Id && item.ResourceKind == "agent")
+            .Select(item => item.LogicalEntityId).ToListAsync();
+        var modeIds = await db.AgentPackManagedResources.Where(item => item.InstallationId == installation.Id && item.ResourceKind == "mode")
+            .Select(item => item.LogicalEntityId).ToListAsync();
+
+        // A session binds one of this pack's mode versions: the purge must clear
+        // the binding without touching the session itself.
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var modeVersionId = detail.GetProperty("resources").EnumerateArray()
+            .Where(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .Select(resource => resource.GetProperty("version_id").GetGuid())
+            .Single();
+        var session = await CreateSessionAsyncWithModeAsync(client, factory.WorkspacePath, "purge session", modeVersionId);
+        var sessionId = session.GetProperty("id").GetGuid();
+
+        // Missing If-Match is a hard precondition failure, never a silent purge.
+        using var withoutIfMatch = await client.DeleteAsync($"/api/v1/agent-packs/{PackId}");
+        Assert.Equal(HttpStatusCode.PreconditionRequired, withoutIfMatch.StatusCode);
+
+        // A stale revision is rejected; the correct one goes through.
+        using var stale = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        stale.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision + 7}\"");
+        using var staleResponse = await client.SendAsync(stale);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, staleResponse.StatusCode);
+
+        using var purge = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        purge.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision}\"");
+        using var purgeResponse = await client.SendAsync(purge);
+        Assert.Equal(HttpStatusCode.OK, purgeResponse.StatusCode);
+        var result = await purgeResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var deleted = result.GetProperty("deleted");
+
+        // Every table the pack owned is empty, and the counts close over the
+        // managed resource set instead of trusting the delete order.
+        Assert.Equal(26, deleted.GetProperty("agent_pack_managed_resources").GetInt32());
+        Assert.Equal(26, deleted.GetProperty("agent_pack_resource_bindings").GetInt32());
+        Assert.Equal(managedBefore, deleted.GetProperty("agent_definitions").GetInt32() + deleted.GetProperty("prompt_pipelines").GetInt32() + deleted.GetProperty("agent_modes").GetInt32());
+        Assert.Equal(14, deleted.GetProperty("agent_definitions").GetInt32());
+        Assert.Equal(5, deleted.GetProperty("prompt_pipelines").GetInt32());
+        Assert.Equal(7, deleted.GetProperty("agent_modes").GetInt32());
+        // Every session bound to one of this pack's mode versions loses the
+        // binding; which sessions exist depends on what the host created.
+        Assert.True(deleted.GetProperty("sessions_mode_binding_cleared").GetInt32() >= 1,
+            "The session created against this pack's mode must have its binding cleared.");
+        Assert.Equal(1, deleted.GetProperty("agent_pack_installations").GetInt32());
+
+        await using var verify = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        Assert.Empty(await verify.AgentPackInstallations.Where(item => item.PackId == PackId).ToListAsync());
+        // The bootstrap fixture pack's own version rows stay: only this pack's
+        // bookkeeping was purged.
+        Assert.DoesNotContain(await verify.AgentPackVersions.Where(item => item.TenantId == scope.TenantId).ToListAsync(),
+            item => item.InstallationId == installation.Id);
+        Assert.Empty(await verify.AgentDefinitions.Where(item => agentDefinitionIds.Contains(item.Id)).ToListAsync());
+        Assert.Empty(await verify.AgentModes.Where(item => modeIds.Contains(item.Id)).ToListAsync());
+        Assert.Empty(await verify.ModeNodes.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        Assert.Empty(await verify.ModeEdges.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        Assert.Empty(await verify.CanvasLayouts.Where(item => modeIds.Contains(item.ModeId)).ToListAsync());
+        // The session survives with its mode binding cleared (the projection omits
+        // a null binding entirely).
+        var sessions = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        var surviving = sessions!.Single(item => item.GetProperty("id").GetGuid() == sessionId);
+        Assert.True(!surviving.TryGetProperty("mode_version_id", out var survivingMode) || survivingMode.ValueKind == JsonValueKind.Null,
+            $"The purged pack's mode binding must be cleared; found {survivingMode}.");
+
+        // Purging the same pack again is a clean 404, not a partial second pass.
+        using var again = new HttpRequestMessage(HttpMethod.Delete, $"/api/v1/agent-packs/{PackId}");
+        again.Headers.TryAddWithoutValidation("If-Match", $"\"{installation.Revision}\"");
+        using var againResponse = await client.SendAsync(again);
+        Assert.Equal(HttpStatusCode.NotFound, againResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task AgentPackLifecycle_DisableHidesResourcesButKeepsThemReadOnly()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "disable-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var meetingId = detail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "agent" && resource.GetProperty("resource_key").GetString() == "meeting")
+            .GetProperty("logical_entity_id").GetGuid();
+        var modeId = detail.GetProperty("resources").EnumerateArray()
+            .Single(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .GetProperty("logical_entity_id").GetGuid();
+
+        // Enabled: the pack's rows are visible and carry their owner.
+        var modesBefore = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        var owned = modesBefore!.Single(mode => mode.GetProperty("id").GetGuid() == modeId);
+        Assert.Equal(PackId, owned.GetProperty("pack_id").GetString());
+        Assert.True(owned.GetProperty("pack_managed").GetBoolean());
+        Assert.False(owned.GetProperty("pack_disabled").GetBoolean());
+        var agentsBefore = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
+        Assert.Contains(agentsBefore!, agent => agent.GetProperty("id").GetGuid() == meetingId && agent.GetProperty("pack_id").GetString() == PackId);
+
+        using var disable = await client.PostAsync($"/api/v1/agent-packs/{PackId}/disable", null);
+        Assert.Equal(HttpStatusCode.OK, disable.StatusCode);
+        Assert.Equal("disabled", (await disable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+
+        // Disabled: the rows leave the selectable directory...
+        var modesAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        Assert.DoesNotContain(modesAfter!, mode => mode.GetProperty("id").GetGuid() == modeId);
+        var agentsAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");
+        Assert.DoesNotContain(agentsAfter!, agent => agent.GetProperty("id").GetGuid() == meetingId);
+        var pipelinesAfter = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/prompt-pipelines");
+        Assert.DoesNotContain(pipelinesAfter!, pipeline => pipeline.GetProperty("pack_id").GetString() == PackId);
+
+        // ...but they stay in the database and stay read-only: disabling is a
+        // visibility switch, never an edit grant.
+        using var edit = await client.PutAsJsonAsync($"/api/v1/agents/{meetingId}/draft", new { display_name = "Changed" });
+        Assert.Equal(HttpStatusCode.Conflict, edit.StatusCode);
+        Assert.Equal("managed_resource_read_only", (await edit.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+
+        using var enable = await client.PostAsync($"/api/v1/agent-packs/{PackId}/enable", null);
+        Assert.Equal(HttpStatusCode.OK, enable.StatusCode);
+        Assert.Equal("active", (await enable.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("status").GetString());
+        var modesRestored = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agent-modes");
+        Assert.Contains(modesRestored!, mode => mode.GetProperty("id").GetGuid() == modeId);
+    }
+
+    [Fact]
+    public async Task AgentPackLifecycle_AdoptDefaultsPointsTheWorkspaceAtThePack()
+    {
+        using var factory = new AgentPackFactory();
+        using var client = factory.CreateClient();
+        var envelope = FixtureEnvelope();
+        var preview = await PreviewAsync(client, envelope);
+        using var install = await ApplyAsync(client, envelope, preview.GetProperty("preview_id").GetGuid(), "adopt-install");
+        Assert.Equal(HttpStatusCode.Created, install.StatusCode);
+
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/agent-packs/{PackId}");
+        var modeVersionId = detail.GetProperty("resources").EnumerateArray()
+            .Where(resource => resource.GetProperty("kind").GetString() == "mode" && resource.GetProperty("resource_key").GetString() == "default-mode")
+            .Select(resource => resource.GetProperty("version_id").GetGuid())
+            .Single();
+
+        // The bootstrap fixture pack owns the defaults from host startup, so this
+        // pack's install did not take them over.
+        var before = await client.GetFromJsonAsync<JsonElement>("/api/v1/workspace-defaults");
+        Assert.NotEqual(modeVersionId, before.GetProperty("default_mode_version_id").GetGuid());
+
+        using var adopt = await client.PostAsync($"/api/v1/agent-packs/{PackId}/adopt-defaults", null);
+        Assert.True(adopt.StatusCode == HttpStatusCode.OK,
+            $"adopt-defaults failed ({adopt.StatusCode}): {await adopt.Content.ReadAsStringAsync()}");
+
+        var after = await client.GetFromJsonAsync<JsonElement>("/api/v1/workspace-defaults");
+        Assert.Equal(modeVersionId, after.GetProperty("default_mode_version_id").GetGuid());
+
+        // The adoption is recorded with the previous owner, so a later purge (or a
+        // deliberate rollback) has something to restore.
+        var scope = factory.Services.GetRequiredService<ITenantContextAccessor>().Current;
+        await using var db = await factory.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>().CreateDbContextAsync();
+        var installation = await db.AgentPackInstallations.SingleAsync(item => item.PackId == PackId);
+        var adoption = await db.AgentPackDefaultAdoptions.SingleAsync(item => item.InstallationId == installation.Id);
+        Assert.Equal(modeVersionId, adoption.AppliedModeVersionId);
+        Assert.NotNull(adoption.PreviousModeVersionId);
+    }
+
+    private static async Task<JsonElement> CreateSessionAsyncWithModeAsync(HttpClient client, string workspacePath, string title, Guid modeVersionId)
+    {
+        var projectResponse = await client.PostAsJsonAsync("/api/v1/projects", new
+        {
+            name = title,
+            path = Path.Combine(workspacePath, Guid.NewGuid().ToString("N"))
+        });
+        projectResponse.EnsureSuccessStatusCode();
+        var project = await projectResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var sessionResponse = await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = project.GetProperty("id").GetGuid(),
+            title,
+            mode_version_id = modeVersionId
+        });
+        sessionResponse.EnsureSuccessStatusCode();
+        return await sessionResponse.Content.ReadFromJsonAsync<JsonElement>();
     }
 
     [Fact]

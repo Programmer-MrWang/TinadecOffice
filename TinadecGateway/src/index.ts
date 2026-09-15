@@ -1498,11 +1498,106 @@ const app = new Elysia()
       },
     },
   })
+  .delete('/api/v1/agent-packs/:packId', async ({ params, set, request }) => {
+    const headers = forwardHeaders(request);
+    const packId = encodeURIComponent((params as { packId: string }).packId);
+    const path = `/api/v1/agent-packs/${packId}`;
+    // The destructive route is revision-guarded: Core answers 428 without an
+    // If-Match, so the header must survive the proxy hop.
+    const result = await proxyJson(path, { method: 'DELETE', headers });
+    setStatus(set, result.status);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
+    setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    return result.data;
+  }, {
+    detail: {
+      summary: 'Permanently delete an installed agent pack',
+      tags: ['AgentCenter'],
+      responses: {
+        200: agentPackJsonResponse('AgentPackPurgeResult', 'Per-table delete counts for the purged pack.'),
+        401: agentPackProblemResponse('Authentication is required.'),
+        403: agentPackProblemResponse('agent_pack_management_forbidden'),
+        404: agentPackProblemResponse('agent_pack_not_found'),
+        412: agentPackProblemResponse('agent_pack_revision_conflict'),
+        428: agentPackProblemResponse('if_match_required'),
+        502: agentPackProblemResponse('Core is unavailable or returned an invalid response.'),
+      },
+    },
+  })
+  .post('/api/v1/agent-packs/:packId/enable', async ({ params, set, request }) => {
+    const headers = forwardHeaders(request);
+    const packId = encodeURIComponent((params as { packId: string }).packId);
+    const path = `/api/v1/agent-packs/${packId}/enable`;
+    const result = await proxyJson(path, { method: 'POST', headers });
+    setStatus(set, result.status);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
+    setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    return result.data;
+  }, {
+    detail: {
+      summary: 'Enable an installed agent pack',
+      tags: ['AgentCenter'],
+      responses: {
+        200: agentPackJsonResponse('AgentPackInstallationDetail', 'The pack is selectable again.', true),
+        401: agentPackProblemResponse('Authentication is required.'),
+        403: agentPackProblemResponse('agent_pack_management_forbidden'),
+        404: agentPackProblemResponse('agent_pack_not_found'),
+        502: agentPackProblemResponse('Core is unavailable or returned an invalid response.'),
+      },
+    },
+  })
+  .post('/api/v1/agent-packs/:packId/disable', async ({ params, set, request }) => {
+    const headers = forwardHeaders(request);
+    const packId = encodeURIComponent((params as { packId: string }).packId);
+    const path = `/api/v1/agent-packs/${packId}/disable`;
+    const result = await proxyJson(path, { method: 'POST', headers });
+    setStatus(set, result.status);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
+    setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    return result.data;
+  }, {
+    detail: {
+      summary: 'Disable an installed agent pack without deleting it',
+      tags: ['AgentCenter'],
+      responses: {
+        200: agentPackJsonResponse('AgentPackInstallationDetail', 'The pack is hidden from the selectable lists but keeps its read-only resources.', true),
+        401: agentPackProblemResponse('Authentication is required.'),
+        403: agentPackProblemResponse('agent_pack_management_forbidden'),
+        404: agentPackProblemResponse('agent_pack_not_found'),
+        502: agentPackProblemResponse('Core is unavailable or returned an invalid response.'),
+      },
+    },
+  })
+  .post('/api/v1/agent-packs/:packId/adopt-defaults', async ({ params, set, request }) => {
+    const headers = forwardHeaders(request);
+    const packId = encodeURIComponent((params as { packId: string }).packId);
+    const path = `/api/v1/agent-packs/${packId}/adopt-defaults`;
+    const result = await proxyJson(path, { method: 'POST', headers });
+    setStatus(set, result.status);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
+    setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    return result.data;
+  }, {
+    detail: {
+      summary: 'Make an agent pack the workspace default',
+      tags: ['AgentCenter'],
+      responses: {
+        200: agentPackJsonResponse('AgentPackInstallationDetail', 'The workspace defaults now point at this pack.', true),
+        401: agentPackProblemResponse('Authentication is required.'),
+        403: agentPackProblemResponse('agent_pack_management_forbidden'),
+        404: agentPackProblemResponse('agent_pack_not_found'),
+        409: agentPackProblemResponse('agent_pack_not_active'),
+        502: agentPackProblemResponse('Core is unavailable or returned an invalid response.'),
+      },
+    },
+  })
   .get('/api/v1/agent-modes', async ({ query, set, request }) => {
     const headers = forwardHeaders(request);
     const search = new URLSearchParams();
     const q = query as Record<string,unknown>;
-    if (q.application_mode) search.set('application_mode', String(q.application_mode));
+    // The retired six-value application_mode selector is not forwarded: mode
+    // identity is the published ModeVersion only. `status` remains Core-supported.
+    if (q.status) search.set('status', String(q.status));
     const suffix = search.toString() ? `?${search.toString()}` : '';
     const result = await proxyJson(`/api/v1/agent-modes${suffix}`, { headers });
     setStatus(set, result.status);

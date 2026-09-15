@@ -27,7 +27,7 @@ import {
   Settings as SettingsIcon,
   Store,
 } from '@lucide/vue'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 import type { MockDataBundle } from './mockData'
 import { mockThinkingSteps, mockToolCalls } from './mockData'
 
@@ -38,7 +38,7 @@ const props = defineProps<{
 
 // ---- 共享状态（HomePage / ChatPanel / ContextPanel 组合预览） ----
 const draft = ref('')
-const currentMode = ref<AgentMode>('auto')
+const currentModeVersionId = ref<string | null>(null)
 const currentPermission = ref<PermissionLevel>('default')
 const rightRailCollapsed = ref(false)
 const rightRailWidth = ref(420)
@@ -115,12 +115,12 @@ async function onDecideApproval(approvalId: string, decision: 'approved' | 'reje
             :orchestration="data.orchestration"
             :busy="false"
             :draft="draft"
-            :mode="currentMode"
+            :mode-version-id="currentModeVersionId"
             :permission="currentPermission"
             :thinking-steps="previewThinkingSteps"
             :tool-calls="previewToolCalls"
             @update:draft="draft = $event"
-            @update:mode="currentMode = $event"
+            @update:mode-version-id="currentModeVersionId = $event"
             @update:permission="currentPermission = $event"
           />
           <AppSidebar
@@ -175,12 +175,12 @@ async function onDecideApproval(approvalId: string, decision: 'approved' | 'reje
           :orchestration="data.orchestration"
           :busy="false"
           :draft="draft"
-          :mode="currentMode"
+          :mode-version-id="currentModeVersionId"
           :permission="currentPermission"
           :thinking-steps="previewThinkingSteps"
           :tool-calls="previewToolCalls"
           @update:draft="draft = $event"
-          @update:mode="currentMode = $event"
+          @update:mode-version-id="currentModeVersionId = $event"
           @update:permission="currentPermission = $event"
         />
       </PreviewIslandCard>

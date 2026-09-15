@@ -64,7 +64,6 @@ public sealed class MemoryDbContext : DbContext
             entity.Property(x => x.ProjectId).HasColumnName("project_id");
             entity.Property(x => x.Title).HasColumnName("title");
             entity.Property(x => x.Status).HasColumnName("status");
-            entity.Property(x => x.Mode).HasColumnName("mode");
             entity.Property(x => x.Summary).HasColumnName("summary");
             entity.Property(x => x.HistoryRevision).HasColumnName("history_revision");
             entity.Property(x => x.ModeVersionId).HasColumnName("mode_version_id");
@@ -76,7 +75,6 @@ public sealed class MemoryDbContext : DbContext
             entity.Property(x => x.TrashedAt).HasColumnName("trashed_at");
             entity.Property(x => x.Title).HasMaxLength(512).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(64).IsRequired();
-            entity.Property(x => x.Mode).HasMaxLength(64).IsRequired();
             entity.Property(x => x.Summary).HasMaxLength(4096);
             entity.Property(x => x.MeetingModelOverrideModel).HasMaxLength(512);
             entity.Property(x => x.LifecycleStatus).HasMaxLength(16).IsRequired();
@@ -162,7 +160,6 @@ public sealed class SessionRecord
     public Guid? ProjectId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Status { get; set; } = "active";
-    public string Mode { get; set; } = "default";
     public string? Summary { get; set; }
     public long HistoryRevision { get; set; }
     public Guid? ModeVersionId { get; set; }

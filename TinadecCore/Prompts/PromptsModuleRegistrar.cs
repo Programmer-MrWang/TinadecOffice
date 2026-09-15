@@ -98,9 +98,7 @@ internal sealed class PromptAssembler : IPromptAssembler
         }
 
         var runtimeProfile = contextPack?.Metadata.TryGetValue("runtime_profile_id", out var profileId) == true ? profileId : "unspecified";
-        var applicationMode = contextPack?.Metadata.TryGetValue("application_mode", out var applicationModeId) == true ? applicationModeId : "conversation";
-        var agentMode = contextPack?.Metadata.TryGetValue("agent_mode", out var agentModeId) == true ? agentModeId : "auto";
-        var modeProfile = $"Mode profile: application_mode={applicationMode}; agent_mode={agentMode}; runtime_profile_id={runtimeProfile}.";
+        var modeProfile = $"Mode profile: runtime_profile_id={runtimeProfile}.";
         var modeTokens = EstimateTokens(modeProfile);
         if (modeTokens <= budget - used)
         {

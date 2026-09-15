@@ -146,8 +146,6 @@ internal sealed class ContextProvider : IContextProvider
             Evidence = budgeted,
             Metadata = new Dictionary<string, string>
             {
-                ["application_mode"] = request.ApplicationMode,
-                ["agent_mode"] = request.AgentMode,
                 ["runtime_profile_id"] = request.RuntimeProfileId,
                 ["agent_id"] = request.AgentId,
                 ["context_revision"] = contextRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)

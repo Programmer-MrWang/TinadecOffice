@@ -1081,6 +1081,15 @@ export interface AgentPackDto {
   installed_at: string
   updated_at: string
   etag?: string | null
+  /** 工作区默认模式版本是否由本包提供（null = 本包从未接管过默认）。 */
+  default_mode_version_id?: string | null
+}
+
+/** 每张表的删除计数；SQLite 无外键，计数是删除顺序可验证的证据。 */
+export interface AgentPackPurgeDto {
+  pack_id: string
+  revision: number
+  deleted: Record<string, number>
 }
 
 export interface AgentPackInstallPreviewDto {
@@ -2110,6 +2119,13 @@ export const api = {
   getWorkspaceDefaults: () => request<WorkspaceDefaultsDto>('/api/v1/workspace-defaults'),
   listAgentPacks: () => request<AgentPackDto[]>('/api/v1/agent-packs'),
   getAgentPack: async (packId: string) => withResponseEtag(await requestResult<AgentPackDetailDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}`)),
+  // 包管理：卸载（不可逆，带 revision 守卫）、启用/禁用、设为工作区默认。
+  purgeAgentPack: (packId: string, revision: number | string) => request<AgentPackPurgeDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}`, {
+    method: 'DELETE',
+    headers: { 'if-match': typeof revision === 'number' ? `"${revision}"` : revision },
+  }),
+  setAgentPackEnabled: (packId: string, enabled: boolean) => request<AgentPackDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}/${enabled ? 'enable' : 'disable'}`, { method: 'POST' }),
+  adoptAgentPackDefaults: (packId: string) => request<AgentPackDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}/adopt-defaults`, { method: 'POST' }),
   previewAgentPackInstall: async (envelope: AgentPackEnvelope) => withResponseEtag(await requestResult<AgentPackInstallPreviewDto>('/api/v1/agent-packs/install-preview', {
     method: 'POST',
     body: JSON.stringify(envelope),
@@ -2154,7 +2170,7 @@ export const api = {
     return request<AgentRuntimeInstanceDto[]>(`/api/v1/agent-runtime-instances${qs}`);
   },
   // interactions (queued/insert/parallel)
-  createInteraction: (sessionId: string, body: { content: string; client_message_id: string; mode_version_id?: string | null; agent_mode?: string | null; permission_mode?: string | null; dispatch_mode: DispatchMode; target_run_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions`, { method: 'POST', body: JSON.stringify(body) }),
+  createInteraction: (sessionId: string, body: { content: string; client_message_id: string; mode_version_id?: string | null; permission_mode?: string | null; dispatch_mode: DispatchMode; target_run_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions`, { method: 'POST', body: JSON.stringify(body) }),
   reassignInteraction: (sessionId: string, interactionId: string, body: { target_run_id: string }) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions/${encodeURIComponent(interactionId)}/reassign`, { method: 'POST', body: JSON.stringify(body) }),
   cancelInteraction: (sessionId: string, interactionId: string) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions/${encodeURIComponent(interactionId)}/cancel`, { method: 'POST' }),
   listTools: () => request<ToolDescriptorDto[]>('/api/v1/tools'),
@@ -2279,20 +2295,20 @@ export const api = {
   // old signature; the legacy POST /sessions/{id}/invoke-stream wire is retired.
   invokeStreamWithAdmission: (
     sessionId: string,
-    body: { content: string; client_message_id: string; application_mode: string; agent_mode: string; permission_mode: string; target_run_id?: string | null; expected_context_revision?: number | null },
+    body: { content: string; client_message_id: string; mode_version_id?: string | null; permission_mode: string; target_run_id?: string | null; expected_context_revision?: number | null },
     onChunk: (chunk: { run_id: string; turn_id: string | null; message_id: string | null; seq: number; kind: string; occurred_at: string; payload: Record<string, unknown> }) => void,
     onError?: (error: Error) => void,
   ): AbortController => {
     const controller = new AbortController()
     const decoder = new TextDecoder()
     let buffer = ''
-    const agentMode = body.agent_mode && body.agent_mode !== 'auto' ? body.agent_mode : 'auto'
+    // 模式身份 = 已发布的 ModeVersion；六值 agent_mode 不再发送（Core 收到会 400 unknown_field）。
     const interactionBody: Record<string, unknown> = {
       content: body.content,
       client_message_id: body.client_message_id,
-      agent_mode: agentMode,
       dispatch_mode: 'parallel',
     }
+    if (body.mode_version_id) interactionBody.mode_version_id = body.mode_version_id
     if (body.target_run_id) interactionBody.target_run_id = body.target_run_id
     if (body.expected_context_revision != null) interactionBody.expected_context_revision = body.expected_context_revision
     ;(async () => {
@@ -2367,7 +2383,7 @@ export const api = {
     const clientMessageId = (globalThis.crypto as Crypto | undefined)?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
     return (api as unknown as { invokeStreamWithAdmission: typeof api.invokeStreamWithAdmission }).invokeStreamWithAdmission(
       sessionId,
-      { content, client_message_id: clientMessageId, application_mode: 'conversation', agent_mode: 'auto', permission_mode: 'default' },
+      { content, client_message_id: clientMessageId, mode_version_id: null, permission_mode: 'default' },
       onChunk as unknown as never,
       onError,
     )

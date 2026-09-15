@@ -17,7 +17,7 @@ import { basenameFromPath } from '@/format'
 import { getDispatchPref } from '@/lib/dispatchPref'
 import { useAgentActivity } from '@/composables/useAgentActivity'
 import { useNotifications } from '@/composables/useNotifications'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 // generated client is canonical; api.ts stays as compat alias (see bottom of api.ts)
 import type { DispatchMode, MeetingModelOverrideDto } from '@/api'
 import { userToolActionIdempotencyKey, userToolActionToApproval } from '@/userToolAction'
@@ -58,21 +58,8 @@ const busy = ref(false)
 const eventSource = ref<EventSource | null>(null)
 const rightRailCollapsed = ref(false)
 const rightRailWidth = ref(420)
-const AGENT_MODE_KEY = 'tinadec.agent_mode'
-const AGENT_MODES: AgentMode[] = ['plan', 'spec', 'ask', 'vibe', 'auto', 'agent']
-function readStoredMode(): AgentMode {
-  if (typeof localStorage === 'undefined') return 'auto'
-  try {
-    const value = localStorage.getItem(AGENT_MODE_KEY)
-    return value && (AGENT_MODES as string[]).includes(value) ? (value as AgentMode) : 'auto'
-  } catch {
-    return 'auto'
-  }
-}
-const currentMode = ref<AgentMode>(readStoredMode())
-watch(currentMode, (mode) => {
-  try { localStorage.setItem(AGENT_MODE_KEY, mode) } catch { /* storage unavailable */ }
-})
+// 模式身份只剩「已发布的 ModeVersion」：六值 agent_mode 词表已从契约删除，
+// 因此不再有本地存储的"当前模式"——选择跟着会话走（session.mode_version_id）。
 const currentPermission = ref<PermissionLevel>('default')
 const runs = ref<Array<{ id: string; status: string }>>([])
 const queuedMessages = ref<Array<{ id: string; content: string }>>([])
@@ -381,7 +368,7 @@ const invokeError = ref<string | null>(null)
 const lastCursor = ref<number | null>(null)
 
 
-async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; agent_mode?: AgentMode; permission_mode?: PermissionLevel }) {
+async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; permission_mode?: PermissionLevel }) {
   await run('send message', async () => {
     let sessionId = selectedSessionId.value
     if (!sessionId) {
@@ -399,7 +386,6 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     const modeVersionId = opts?.mode_version_id ?? null
     const targetRunId = opts?.target_run_id ?? null
     const meetingModelOverride = opts?.meeting_model_override ?? null
-    const requestedMode = opts?.agent_mode ?? currentMode.value
     const requestedPermission = opts?.permission_mode ?? currentPermission.value
     if (dispatchMode === 'insert' && !targetRunId) throw new Error('插入模式需选择目标 run')
     try {
@@ -409,8 +395,6 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
         content: snapshotContent,
         client_message_id: clientMessageId,
         mode_version_id: modeVersionId,
-        // agent_mode 随消息发送以选定 TOML profile；mode_version_id 存在时 Core 优先用它冻结 roster。
-        agent_mode: requestedMode,
         permission_mode: requestedPermission,
         dispatch_mode: dispatchMode,
         target_run_id: targetRunId,
@@ -495,7 +479,6 @@ async function promoteQueued(id: string) {
       content: item.content,
       client_message_id: newId(),
       mode_version_id: null,
-      agent_mode: currentMode.value,
       dispatch_mode: 'parallel',
       target_run_id: null,
     })
@@ -630,7 +613,6 @@ export const homeController = {
   eventSource,
   rightRailCollapsed,
   rightRailWidth,
-  currentMode,
   currentPermission,
   currentProject,
   currentSession,
@@ -666,13 +648,12 @@ export const homeController = {
     if (!content) return
     await handleSend(content, opts)
   },
-  handleWelcomeSend: (payload: { content: string; agent_mode: AgentMode; permission_mode: PermissionLevel; mode_version_id?: string | null }) => handleSend(payload.content, payload),
+  handleWelcomeSend: (payload: { content: string; permission_mode: PermissionLevel; mode_version_id?: string | null }) => handleSend(payload.content, payload),
   requestShellApproval,
   decideApproval,
   recordApproval,
   loadMessagesAndApprovals,
   updateDraft: (value: string) => { draft.value = value },
-  updateMode: (value: AgentMode) => { currentMode.value = value },
   updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
   setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
   setSelectedSession: (id: string) => { selectedSessionId.value = id },

@@ -25,13 +25,17 @@ public static class InteractionsEndpoints
     static async Task<IResult> CreateInteraction(Guid sessionId, HttpRequest req, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, IDbContextFactory<LifecycleDbContext> lifecycleDbFactory, ITenantContextAccessor tenant, IAgentModelResolver modelResolver, ProjectSessionStore sessions, IConversationStore conversations, IFullDuplexRunCoordinator coordinator, StorageLifecycleService lifecycle, CancellationToken ct)
     {
         var el = await JsonSerializer.DeserializeAsync<JsonElement>(req.Body, cancellationToken: ct);
+        if (el.ValueKind != JsonValueKind.Object) return Results.BadRequest(new { code = "invalid_request", message = "Body must be a JSON object." });
+        // Fail closed on retired/unknown keys so a stale client cannot silently
+        // admit a run under a mode nobody reads anymore.
+        var unknownField = el.EnumerateObject()
+            .Select(property => property.Name)
+            .FirstOrDefault(name => name is not ("content" or "client_message_id" or "mode_version_id" or "permission_mode" or "dispatch_mode" or "target_run_id" or "expected_context_revision" or "meeting_model_override"));
+        if (unknownField is not null) return Results.BadRequest(new { code = "unknown_field", message = $"Field '{unknownField}' is not part of the interaction contract." });
         var content = el.TryGetProperty("content", out var c) ? c.GetString() : null;
         if (string.IsNullOrWhiteSpace(content)) return Results.BadRequest(new { code = "invalid_request", message = "content is required" });
         var clientMessageId = el.TryGetProperty("client_message_id", out var cm) ? cm.GetString() : Guid.NewGuid().ToString("N");
         var modeVersionId = el.TryGetProperty("mode_version_id", out var mv) && Guid.TryParse(mv.GetString(), out var g) ? g : (Guid?)null;
-        var agentMode = el.TryGetProperty("agent_mode", out var am) ? am.GetString()?.Trim().ToLowerInvariant() : null;
-        if (agentMode is not (null or "plan" or "spec" or "ask" or "vibe" or "auto" or "agent"))
-            return Results.BadRequest(new { code = "invalid_request", message = "agent_mode must be one of plan|spec|ask|vibe|auto|agent" });
         var dispatchMode = el.TryGetProperty("dispatch_mode", out var dm) ? dm.GetString()?.Trim().ToLowerInvariant() : "queued";
         if (dispatchMode is not ("queued" or "insert" or "parallel")) return Results.BadRequest(new { code = "invalid_request", message = "dispatch_mode must be queued|insert|parallel" });
         Guid? targetRunId = null;
@@ -70,58 +74,43 @@ public static class InteractionsEndpoints
             if (mvRec is null) return Results.BadRequest(new { code = "invalid_request", message = "mode_version_id must reference a published mode in this workspace" });
         }
 
-        // Composer agent_mode selects a published conversation mode for this workspace.
-        // Resolution order: explicit mode_version_id > agent_mode slug (conversation.*) >
-        // the session's existing mode (workspace default applied at session creation).
-        // The resolved version is persisted onto the session so the run engine's roster
-        // resolver freezes the exact relational mode the Agent Center edits.
-        if (modeVersionId is null && agentMode is not null)
-        {
-            await using var cfg = await cfgFactory.CreateDbContextAsync(ct);
-            var slug = $"conversation.{agentMode}";
-            var candidateModes = await cfg.AgentModes.AsNoTracking().Where(
-                x => x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId && x.Slug == slug && x.Status == "published").ToListAsync(ct);
-            Guid? sourceInstallationId = null;
-            if (session.ModeVersionId is { } currentModeVersionId)
-            {
-                var currentModeId = await cfg.ModeVersions.AsNoTracking()
-                    .Where(version => version.Id == currentModeVersionId && version.TenantId == session.TenantId && version.WorkspaceId == session.WorkspaceId)
-                    .Select(version => (Guid?)version.AgentModeId)
-                    .SingleOrDefaultAsync(ct);
-                if (currentModeId is { } logicalModeId)
-                    sourceInstallationId = await cfg.AgentPackManagedResources.AsNoTracking()
-                        .Where(resource => resource.ResourceKind == "mode" && resource.LogicalEntityId == logicalModeId)
-                        .Select(resource => (Guid?)resource.InstallationId)
-                        .SingleOrDefaultAsync(ct);
-            }
-            AgentModeRecord? mode = null;
-            if (sourceInstallationId is { } installationId)
-            {
-                var managedModeId = await cfg.AgentPackManagedResources.AsNoTracking()
-                    .Where(resource => resource.InstallationId == installationId
-                        && resource.ResourceKind == "mode"
-                        && candidateModes.Select(candidate => candidate.Id).Contains(resource.LogicalEntityId))
-                    .Select(resource => (Guid?)resource.LogicalEntityId)
-                    .SingleOrDefaultAsync(ct);
-                mode = candidateModes.SingleOrDefault(candidate => candidate.Id == managedModeId);
-            }
-            mode ??= candidateModes
-                .Where(candidate => !cfg.AgentPackManagedResources.AsNoTracking().Any(resource => resource.ResourceKind == "mode" && resource.LogicalEntityId == candidate.Id))
-                .OrderByDescending(candidate => candidate.UpdatedAt)
-                .FirstOrDefault();
-            if (mode is null) return Results.BadRequest(new { code = "invalid_request", message = $"agent_mode '{agentMode}' has no published mode for this workspace" });
-            var version = await cfg.ModeVersions.AsNoTracking()
-                .Where(x => x.AgentModeId == mode.Id && x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId && x.Status == "published")
-                .OrderByDescending(x => x.Version)
-                .Select(x => (Guid?)x.Id)
-                .FirstOrDefaultAsync(ct);
-            if (version is null) return Results.BadRequest(new { code = "invalid_request", message = $"agent_mode '{agentMode}' has no published version" });
-            modeVersionId = version;
-        }
-
+        // Mode identity is the published ModeVersion only. Resolution order:
+        // explicit mode_version_id > the session's bound mode version > the
+        // workspace default. The resolved version is persisted onto the session
+        // so the run engine's roster resolver freezes the exact relational mode
+        // the Agent Center edits.
         modeVersionId ??= session.ModeVersionId;
         if (modeVersionId is null)
+        {
+            await using var cfg = await cfgFactory.CreateDbContextAsync(ct);
+            modeVersionId = await cfg.WorkspaceDefaults.AsNoTracking()
+                .Where(x => x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId
+                    && x.Status == "active" && x.ArchivedAt == null)
+                .Select(x => x.DefaultModeVersionId)
+                .FirstOrDefaultAsync(ct);
+        }
+        if (modeVersionId is null)
             return Results.Conflict(new { code = "agent_mode_not_configured", message = "A published Agent Mode must be configured before creating an interaction." });
+
+        // A disabled pack fails explicitly: the run must not silently fall back to
+        // a different roster than the one the user is looking at. The client is
+        // told which pack to re-enable (or to pick another mode).
+        await using (var guard = await cfgFactory.CreateDbContextAsync(ct))
+        {
+            var ownerPack = await (from mode in guard.AgentModes.AsNoTracking()
+                                   join version in guard.ModeVersions.AsNoTracking() on mode.Id equals version.AgentModeId
+                                   join resource in guard.AgentPackManagedResources.AsNoTracking() on mode.Id equals resource.LogicalEntityId
+                                   join installation in guard.AgentPackInstallations.AsNoTracking() on resource.InstallationId equals installation.Id
+                                   where version.Id == modeVersionId.Value && version.Status == "published"
+                                   select new { installation.PackId, installation.Status }).FirstOrDefaultAsync(ct);
+            if (ownerPack is not null && !string.Equals(ownerPack.Status, "active", StringComparison.Ordinal))
+                return Results.Conflict(new
+                {
+                    code = "pack_disabled",
+                    message = $"Agent pack '{ownerPack.PackId}' is disabled. Enable it or choose a mode from an enabled pack.",
+                    pack_id = ownerPack.PackId
+                });
+        }
 
         if (dispatchMode == "insert" && meetingModelOverride is not null)
             return Results.Conflict(new { code = "model_override_frozen", message = "A model override cannot be changed when inserting into an already frozen run." });
@@ -166,22 +155,17 @@ public static class InteractionsEndpoints
         string admissionStatus = "queued";
         try
         {
-            // Composer agent modes belong to the conversation application: selecting one routes
-            // the runtime through the matching TOML conversation.* profile (policy + binding),
-            // while the roster freezes from the resolved relational mode version. No selection
-            // keeps the legacy space/full_duplex admission behavior. Explicit
-            // application_mode/permission_mode fields preserve the retired invoke-stream's
-            // admission surface (e.g. unattended permission policies).
-            var applicationMode = el.TryGetProperty("application_mode", out var am2) && !string.IsNullOrWhiteSpace(am2.GetString())
-                ? am2.GetString()!.Trim().ToLowerInvariant()
-                : agentMode is null ? "space" : "conversation";
+            // Mode identity is frozen from the session's bound/persisted mode
+            // version; no legacy application-mode/agent-mode admission surface
+            // exists anymore. Unattended permission policies ride on
+            // permission_mode alone.
             var permissionMode = el.TryGetProperty("permission_mode", out var pm) && !string.IsNullOrWhiteSpace(pm.GetString())
                 ? pm.GetString()!.Trim().ToLowerInvariant()
                 : "default";
             var invocationOverride = meetingModelOverride is null
                 ? null
                 : new SessionModelOverride(meetingModelOverride.ProviderInstanceId, meetingModelOverride.Model);
-        admission = await coordinator.SubmitAsync(new FullDuplexInvocation(sessionId, content, clientMessageId!, applicationMode, agentMode ?? "agent", permissionMode, targetRunId, expectedRev, invocationOverride), ct);
+            admission = await coordinator.SubmitAsync(new FullDuplexInvocation(sessionId, content, clientMessageId!, permissionMode, targetRunId, expectedRev, invocationOverride), ct);
             admissionStatus = dispatchMode == "parallel" ? "assigned" : "queued";
         }
         catch (RunAdmissionException ex) when (ex.Code == "ACTIVE_RUN_LIMIT" && dispatchMode == "queued")
@@ -214,7 +198,7 @@ public static class InteractionsEndpoints
                 MessageId = message.Id,
                 Kind = "queued_interaction",
                 Status = "pending",
-                PayloadJson = JsonSerializer.Serialize(new { content, client_message_id = clientMessageId, dispatch_mode = dispatchMode, mode_version_id = modeVersionId, agent_mode = agentMode }),
+                PayloadJson = JsonSerializer.Serialize(new { content, client_message_id = clientMessageId, dispatch_mode = dispatchMode, mode_version_id = modeVersionId }),
                 IdempotencyKey = idempotencyKey,
                 CreatedAt = DateTimeOffset.UtcNow,
                 UpdatedAt = DateTimeOffset.UtcNow

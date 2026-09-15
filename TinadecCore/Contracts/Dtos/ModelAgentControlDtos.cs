@@ -165,6 +165,12 @@ public sealed class AgentDirectoryItemDto
     public DateTimeOffset UpdatedAt { get; init; }
     /// <summary>用户级运行时绑定覆盖（null = 未覆盖，跟随 agent 定义/默认路由）。</summary>
     public AgentRuntimeBindingDto? ModelBinding { get; init; }
+    /// <summary>所属 Agent Pack（null = 用户/内置行）；UI 按包分组与批量卸载。</summary>
+    public string? PackId { get; init; }
+    /// <summary>该行由某个包管理（等价于 pack_id 非空），编辑需先克隆。</summary>
+    public bool PackManaged { get; init; }
+    /// <summary>所属包被禁用：行仍在库里且保持只读，但不可选。</summary>
+    public bool PackDisabled { get; init; }
 }
 
 public sealed class AgentRuntimeBindingDto

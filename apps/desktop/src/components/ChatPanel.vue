@@ -6,7 +6,7 @@ import ComposerBar from './ComposerBar.vue'
 import WelcomeScreen from './WelcomeScreen.vue'
 import { useChatResponsiveMode } from '@/composables/useElementSize'
 import type { MessageDto, SessionDto, ProjectDto, OrchestrationSnapshotDto, MeetingModelOverrideDto } from '../api'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 import type { ThinkingStep, ToolCall } from '@/composables/useAgentActivity'
 
 const props = defineProps<{
@@ -20,7 +20,6 @@ const props = defineProps<{
   orchestration: OrchestrationSnapshotDto | null
   busy: boolean
   draft: string
-  mode: AgentMode
   permission: PermissionLevel
   /** Agent activity data — now owned by HomePage, passed down for per-message rendering */
   thinkingSteps?: ThinkingStep[]
@@ -33,10 +32,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:draft': [value: string]
-  'update:mode': [value: AgentMode]
   'update:permission': [value: PermissionLevel]
   'send': [payload?: { dispatch_mode: 'parallel'|'queued'|'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }]
-  'welcome-send': [payload: { content: string; agent_mode: AgentMode; permission_mode: PermissionLevel; mode_version_id: string | null }]
+  'welcome-send': [payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }]
   'create-project': []
   'select-project': [id: string | null]
   'approve': [approvalId: string]
@@ -55,7 +53,7 @@ function onComposerSubmit(payload: { dispatch_mode: 'parallel'|'queued'|'insert'
   })
 }
 
-function onWelcomeSubmit(payload: { content: string; agent_mode: AgentMode; permission_mode: PermissionLevel; mode_version_id: string | null }) {
+function onWelcomeSubmit(payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }) {
   emit('welcome-send', payload)
 }
 
@@ -142,7 +140,6 @@ function handleReject(approvalId: string) {
       :hero="hero"
       :busy="busy"
       :model-value="draft"
-      :mode="mode"
       :permission="permission"
       :projects="projects"
       :selected-project-id="selectedProjectId"
@@ -153,7 +150,6 @@ function handleReject(approvalId: string) {
       :panel-style="panelStyle"
       :panel-data-attrs="panelDataAttrs"
       @update:model-value="emit('update:draft', $event)"
-      @update:mode="emit('update:mode', $event)"
       @update:permission="emit('update:permission', $event)"
       @update:mode-version-id="modeVersionId = $event"
       @welcome-submit="onWelcomeSubmit"

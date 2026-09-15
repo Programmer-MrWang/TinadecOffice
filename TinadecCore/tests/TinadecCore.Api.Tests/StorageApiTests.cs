@@ -348,8 +348,8 @@ public sealed class StorageApiTests : IAsyncLifetime
         var messageId = message.GetProperty("id").GetGuid();
 
         var lifecycle = _factory.Services.GetRequiredService<StorageLifecycleService>();
-        var first = await lifecycle.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(null, 1, 7, "baseline", "space", "agent", "default", "space.full_duplex"));
-        var retry = await lifecycle.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(null, 1, 7, "baseline", "space", "agent", "default", "space.full_duplex"));
+        var first = await lifecycle.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(null, 1, 7, "baseline", "default", "space.full_duplex"));
+        var retry = await lifecycle.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(null, 1, 7, "baseline", "default", "space.full_duplex"));
         Assert.False(first.Existing);
         Assert.True(retry.Existing);
         Assert.Equal(first.Run.Id, retry.Run.Id);

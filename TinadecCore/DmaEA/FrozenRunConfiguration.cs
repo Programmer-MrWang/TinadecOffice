@@ -2,9 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
 using TinadecCore.Abstractions.Ports;
-using TinadecCore.Persistence;
 
 namespace TinadecCore.DmaEA;
 
@@ -17,29 +15,23 @@ public interface IAgentRuntimeConfigurationResolver
 {
     Task<FrozenRunConfigurationV1> ResolveAsync(
         Guid sessionId,
-        string? applicationMode,
-        string? agentMode,
         string? permissionMode,
         SessionModelOverride? meetingModelOverride = null,
         CancellationToken cancellationToken = default);
 }
 
-public sealed record FrozenRuntimeOverride(
-    Guid Id,
-    int Version,
-    string ContentHash,
-    DateTimeOffset CreatedAt);
-
 /// <summary>
 /// Version one is deliberately explicit rather than retaining a pointer to the
 /// mutable TOML document. Secrets are represented only by external version ids.
+/// Identity is the mode version: `ModeVersionId`/`RuntimeProfileId` carry the
+/// frozen relational mode (`mode:{modeId}:{version}`), and the legacy
+/// application-mode/agent-mode string pair is gone (schema v3).
 /// </summary>
 public sealed record FrozenRunConfigurationV1(
     string SchemaVersion,
     string BaselineHash,
     long BaselineVersion,
-    string ApplicationMode,
-    string AgentMode,
+    Guid ModeVersionId,
     string RuntimeProfileId,
     string PermissionMode,
     SpawnPolicy Spawn,
@@ -50,7 +42,6 @@ public sealed record FrozenRunConfigurationV1(
     ToolRuntimePolicy Tools,
     IReadOnlyList<RuntimeAgentDefinition> OperationAgents,
     IReadOnlyList<RuntimeAgentDefinition> ExecutionAgents,
-    FrozenRuntimeOverride? WorkspaceOverride,
     IReadOnlyList<RunConfigurationBinding> Bindings,
     string ToolManifestHash = "")
 {
@@ -113,9 +104,11 @@ public sealed record FrozenRunConfigurationV1(
     /// <summary>
     /// The frozen-body schema this Core writes and reads. v2 introduced the
     /// always-present Graph section (free_form tier on disk) and spawnable
-    /// templates; v1 bodies are superseded and fail closed on resume.
+    /// templates; v3 replaced the application-mode/agent-mode string pair with
+    /// the frozen mode version identity and dropped the dead workspace-profile
+    /// override section. Older bodies are superseded and fail closed on resume.
     /// </summary>
-    public const string CurrentSchemaVersion = "frozen-run-configuration/v2";
+    public const string CurrentSchemaVersion = "frozen-run-configuration/v3";
 
     public string ToCanonicalJson() => JsonSerializer.Serialize(this, JsonOptions);
 
@@ -189,35 +182,27 @@ public sealed record FrozenSpawnableTemplate(
 internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigurationResolver
 {
     private readonly IAgentRuntimeConfiguration _baseline;
-    private readonly IDbContextFactory<AgentControlDbContext> _agents;
     private readonly IFormalModeResolver _formal;
     private readonly IAgentModelResolver _models;
-    private readonly IContentStore _content;
     private readonly ISessionLocator _sessions;
     private readonly IPolicySnapshotProvider? _policySnapshots;
 
     public AgentRuntimeConfigurationResolver(
         IAgentRuntimeConfiguration baseline,
-        IDbContextFactory<AgentControlDbContext> agents,
         IFormalModeResolver formal,
         IAgentModelResolver models,
-        IContentStore content,
         ISessionLocator sessions,
         IPolicySnapshotProvider? policySnapshots = null)
     {
         _baseline = baseline;
-        _agents = agents;
         _formal = formal;
         _models = models;
-        _content = content;
         _sessions = sessions;
         _policySnapshots = policySnapshots;
     }
 
     public async Task<FrozenRunConfigurationV1> ResolveAsync(
         Guid sessionId,
-        string? applicationMode,
-        string? agentMode,
         string? permissionMode,
         SessionModelOverride? meetingModelOverride = null,
         CancellationToken cancellationToken = default)
@@ -231,15 +216,9 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         // resource claims) reads the frozen section instead of re-resolving it.
         var workspace = await WorkspaceBindingFactory.TryCreateAsync(_sessions, session, cancellationToken).ConfigureAwait(false);
         var snapshot = _baseline.Current;
-        var (app, mode, profile) = snapshot.Resolve(applicationMode, agentMode);
         var policySnapshot = _policySnapshots is null
             ? null
             : await _policySnapshots.CaptureAsync(session.TenantId, session.WorkspaceId, cancellationToken).ConfigureAwait(false);
-
-        var overrideRow = await LoadLatestOverrideAsync(session, profile.Id, cancellationToken).ConfigureAwait(false);
-        var effective = overrideRow is null
-            ? new EffectivePolicy(snapshot.Spawn, snapshot.Scheduling, snapshot.Supervision, snapshot.Context, snapshot.Memory, snapshot.Tools, profile)
-            : await ApplyOverrideAsync(snapshot, profile, overrideRow, cancellationToken).ConfigureAwait(false);
 
         // Policy budgets remain in the runtime baseline. Agent identity and topology
         // are always frozen from the session's published relational ModeVersion.
@@ -335,30 +314,22 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
                 }
             }
         }
-        FrozenRuntimeOverride? frozenOverride = null;
-        if (overrideRow is not null)
-        {
-            bindings.Add(new RunConfigurationBinding("workspace_runtime_override", overrideRow.Id, DeterministicGuid(overrideRow.Id + ":" + overrideRow.Version), overrideRow.ContentHash));
-            frozenOverride = new FrozenRuntimeOverride(overrideRow.Id, overrideRow.Version, overrideRow.ContentHash, overrideRow.CreatedAt);
-        }
 
         var frozen = new FrozenRunConfigurationV1(
             FrozenRunConfigurationV1.CurrentSchemaVersion,
             snapshot.ContentHash,
             snapshot.Version,
-            app,
-            mode,
+            relational.ModeVersionId,
             runtimeProfileId,
             NormalizePermissionMode(permissionMode),
-            effective.Spawn,
-            effective.Scheduling,
-            effective.Supervision,
-            effective.Context,
-            effective.Memory,
-            effective.Tools,
+            snapshot.Spawn,
+            snapshot.Scheduling,
+            snapshot.Supervision,
+            snapshot.Context,
+            snapshot.Memory,
+            snapshot.Tools,
             operation,
             execution,
-            frozenOverride,
             bindings)
         {
             PolicySnapshotHash = policySnapshot?.SnapshotHash ?? "",
@@ -425,47 +396,6 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             ? string.Equals(definition.Id, slug, StringComparison.OrdinalIgnoreCase)
             : string.Equals(definition.Id, "meeting", StringComparison.OrdinalIgnoreCase));
 
-    private async Task<RuntimeProfileOverrideRecord?> LoadLatestOverrideAsync(
-        SessionReference session,
-        string profileId,
-        CancellationToken cancellationToken)
-    {
-        await using var db = await _agents.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var rows = await db.ProfileOverrides.AsNoTracking()
-            .Where(item => item.TenantId == session.TenantId
-                && item.WorkspaceId == session.WorkspaceId
-                && item.ProfileId == profileId
-                && item.Enabled)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-        return rows.OrderByDescending(item => item.Version).ThenByDescending(item => item.CreatedAt).FirstOrDefault();
-    }
-
-    private async Task<EffectivePolicy> ApplyOverrideAsync(
-        AgentRuntimeConfigurationSnapshot snapshot,
-        RuntimeProfileDefinition profile,
-        RuntimeProfileOverrideRecord row,
-        CancellationToken cancellationToken)
-    {
-        await using var stream = await _content.OpenReadAsync(
-            new ContentReference(row.ContentReference, row.ContentHash, row.ContentLength, "application/json"), cancellationToken).ConfigureAwait(false);
-        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (document.RootElement.ValueKind != JsonValueKind.Object)
-        {
-            throw new InvalidDataException("Runtime profile override must be a JSON object.");
-        }
-
-        var root = document.RootElement;
-        var profileOverride = ReadProfile(root, profile);
-        return new EffectivePolicy(
-            ReadSpawn(root, snapshot.Spawn),
-            ReadScheduling(root, snapshot.Scheduling),
-            ReadSupervision(root, snapshot.Supervision),
-            ReadContext(root, snapshot.Context),
-            ReadMemory(root, snapshot.Memory),
-            ReadTools(root, snapshot.Tools),
-            profileOverride);
-    }
-
     private static RuntimeAgentDefinition ToRuntimeAgentDefinition(RuntimeAgentRosterEntry e) => new(
         e.Id,
         e.Layer,
@@ -492,110 +422,6 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         PromptGraphJson = e.PromptGraphJson
     };
 
-    private static SpawnPolicy ReadSpawn(JsonElement root, SpawnPolicy fallback) => new(
-        Positive(root, "spawn", "max_depth", fallback.MaxDepth, 0, 16),
-        Positive(root, "spawn", "max_agents_per_run", fallback.MaxAgentsPerRun, 1, 128),
-        Positive(root, "spawn", "max_parallel_workers", fallback.MaxParallelWorkers, 1, 32));
-
-    private static SchedulingPolicy ReadScheduling(JsonElement root, SchedulingPolicy fallback) => new(
-        Positive(root, "scheduling", "max_active_runs_per_session", fallback.MaxActiveRunsPerSession, 1, 32),
-        Positive(root, "scheduling", "worker_retry_limit", fallback.WorkerRetryLimit, 0, 10),
-        Boolean(root, "scheduling", "preserve_partial_results", fallback.PreservePartialResults));
-
-    private static SupervisionPolicy ReadSupervision(JsonElement root, SupervisionPolicy fallback) => new(
-        Boolean(root, "supervision", "required_before_final", fallback.RequiredBeforeFinal),
-        Positive(root, "supervision", "max_revision_rounds", fallback.MaxRevisionRounds, 0, 10));
-
-    private static ContextPolicy ReadContext(JsonElement root, ContextPolicy fallback) => new(
-        Positive(root, "context", "default_token_budget", fallback.DefaultTokenBudget, 512, 262144),
-        Positive(root, "context", "recent_message_limit", fallback.RecentMessageLimit, 1, 256),
-        Boolean(root, "context", "optimistic_revision", fallback.OptimisticRevision));
-
-    private static MemoryPolicy ReadMemory(JsonElement root, MemoryPolicy fallback) => new(
-        Boolean(root, "memory", "candidate_only", fallback.CandidateOnly),
-        Positive(root, "memory", "retrieval_limit", fallback.RetrievalLimit, 0, 64),
-        Strings(root, "memory", "allowed_scopes", fallback.AllowedScopes),
-        Strings(root, "memory", "allowed_kinds", fallback.AllowedKinds));
-
-    private static ToolRuntimePolicy ReadTools(JsonElement root, ToolRuntimePolicy fallback)
-    {
-        var policy = new ToolRuntimePolicy(
-            Text(root, "tools", "provider", fallback.Provider),
-            Boolean(root, "tools", "mutation_requires_approval", fallback.MutationRequiresApproval),
-            Boolean(root, "tools", "serialize_workspace_writes", fallback.SerializeWorkspaceWrites),
-            Positive(root, "tools", "default_timeout_seconds", fallback.DefaultTimeoutSeconds, 1, 1800),
-            // Core tool rounds count durable model/tool/result cycles. MAF's
-            // auto-approval iteration limit has different N+1 inner-call semantics.
-            Positive(root, "tools", "max_tool_rounds", fallback.MaxToolRounds, 0, ToolRuntimePolicy.MaximumRounds),
-            MergeTaskRoundOverrides(root, fallback.Overrides));
-        ToolRuntimePolicy.Validate(policy);
-        return policy;
-    }
-
-    private static IReadOnlyDictionary<string, int>? MergeTaskRoundOverrides(JsonElement root, IReadOnlyDictionary<string, int> fallback)
-    {
-        if (!root.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Object
-            || !tools.TryGetProperty("task_round_overrides", out var node) || node.ValueKind != JsonValueKind.Object)
-        {
-            return fallback.Count == 0 ? null : fallback;
-        }
-        var merged = new Dictionary<string, int>(fallback, StringComparer.OrdinalIgnoreCase);
-        foreach (var property in node.EnumerateObject())
-        {
-            if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out var rounds))
-            {
-                merged[property.Name] = rounds;
-            }
-        }
-        return merged;
-    }
-
-    private static RuntimeProfileDefinition ReadProfile(JsonElement root, RuntimeProfileDefinition fallback)
-    {
-        if (!root.TryGetProperty("profile", out var node) || node.ValueKind != JsonValueKind.Object) return fallback;
-        return new RuntimeProfileDefinition(
-            fallback.Id,
-            Text(node, null, "activation_policy", fallback.ActivationPolicy),
-            Strings(node, null, "operation_agents", fallback.OperationAgents),
-            Strings(node, null, "execution_agents", fallback.ExecutionAgents),
-            Boolean(node, null, "direct_answer_allowed", fallback.DirectAnswerAllowed));
-    }
-
-    private static int Positive(JsonElement root, string? section, string property, int fallback, int minimum, int maximum)
-    {
-        var node = Section(root, section);
-        return node.ValueKind == JsonValueKind.Object && node.TryGetProperty(property, out var value) && value.TryGetInt32(out var parsed)
-            ? Math.Clamp(parsed, minimum, maximum)
-            : fallback;
-    }
-
-    private static bool Boolean(JsonElement root, string? section, string property, bool fallback)
-    {
-        var node = Section(root, section);
-        return node.ValueKind == JsonValueKind.Object && node.TryGetProperty(property, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
-            ? value.GetBoolean()
-            : fallback;
-    }
-
-    private static string Text(JsonElement root, string? section, string property, string fallback)
-    {
-        var node = Section(root, section);
-        return node.ValueKind == JsonValueKind.Object && node.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(value.GetString())
-            ? value.GetString()!.Trim()
-            : fallback;
-    }
-
-    private static IReadOnlyList<string> Strings(JsonElement root, string? section, string property, IReadOnlyList<string> fallback)
-    {
-        var node = Section(root, section);
-        if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.Array) return fallback;
-        var values = value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String)
-            .Select(item => item.GetString()!.Trim()).Where(item => item.Length != 0).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        return values.Length == 0 ? fallback : values;
-    }
-
-    private static JsonElement Section(JsonElement root, string? section) => section is null ? root : root.TryGetProperty(section, out var value) ? value : default;
-
     // Unattended permission modes pass through admission verbatim instead of
     // being folded away: a frozen body must record the mode the run was
     // actually admitted under. Executability stays fail-closed in
@@ -615,13 +441,4 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
         return new Guid(bytes.AsSpan(0, 16));
     }
-
-    private sealed record EffectivePolicy(
-        SpawnPolicy Spawn,
-        SchedulingPolicy Scheduling,
-        SupervisionPolicy Supervision,
-        ContextPolicy Context,
-        MemoryPolicy Memory,
-        ToolRuntimePolicy Tools,
-        RuntimeProfileDefinition Profile);
 }

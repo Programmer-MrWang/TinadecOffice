@@ -120,19 +120,6 @@ public sealed record OrchestrationPolicy(bool LanesEnabled, int MaxLanesPerRun, 
     }
 }
 
-public sealed record ApplicationModeDefinition(
-    string Id,
-    string DefaultAgentMode,
-    IReadOnlyList<string> AllowedAgentModes,
-    IReadOnlyDictionary<string, string> Bindings);
-
-public sealed record RuntimeProfileDefinition(
-    string Id,
-    string ActivationPolicy,
-    IReadOnlyList<string> OperationAgents,
-    IReadOnlyList<string> ExecutionAgents,
-    bool DirectAnswerAllowed);
-
 public sealed record RuntimeAgentDefinition(
     string Id,
     string Layer,
@@ -213,50 +200,13 @@ public sealed record AgentRuntimeConfigurationSnapshot(
     SupervisionPolicy Supervision,
     ContextPolicy Context,
     MemoryPolicy Memory,
-    ToolRuntimePolicy Tools,
-    IReadOnlyDictionary<string, ApplicationModeDefinition> ApplicationModes,
-    IReadOnlyDictionary<string, RuntimeProfileDefinition> Profiles,
-    IReadOnlyDictionary<string, RuntimeAgentDefinition> Agents)
+    ToolRuntimePolicy Tools)
 {
     /// <summary>Operational-role trigger gates; absent TOML keeps the chain disabled.</summary>
     public TriggersPolicy Triggers { get; init; } = TriggersPolicy.Disabled;
 
     /// <summary>Lane master switch and ceilings; absent TOML keeps lanes off.</summary>
     public OrchestrationPolicy Orchestration { get; init; } = OrchestrationPolicy.Disabled;
-
-    public (string ApplicationMode, string AgentMode, RuntimeProfileDefinition Profile) Resolve(string? applicationMode, string? agentMode)
-    {
-        var appId = NormalizeApplicationMode(applicationMode);
-        var allowed = appId switch
-        {
-            "conversation" => new[] { "plan", "spec", "ask", "vibe", "auto", "agent" },
-            "space" => new[] { "agent" },
-            _ => throw new InvalidOperationException($"Application mode '{appId}' is not configured.")
-        };
-        var selectedAgentMode = string.IsNullOrWhiteSpace(agentMode)
-            ? appId == "conversation" ? "auto" : "agent"
-            : agentMode.Trim().ToLowerInvariant();
-        if (!allowed.Contains(selectedAgentMode, StringComparer.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"Agent mode '{selectedAgentMode}' is unavailable in application mode '{appId}'.");
-        var profileId = appId == "space" ? "space.full_duplex" : $"conversation.{selectedAgentMode}";
-        var activation = profileId switch
-        {
-            "conversation.plan" => "plan_only",
-            "conversation.spec" => "specification",
-            "conversation.agent" => "execute",
-            "space.full_duplex" => "full_duplex",
-            _ => "intent_adaptive"
-        };
-        var profile = new RuntimeProfileDefinition(profileId, activation, [], [], selectedAgentMode is "ask" or "vibe" or "auto");
-        return (appId, selectedAgentMode, profile);
-    }
-
-    public static string NormalizeApplicationMode(string? value) => value?.Trim().ToLowerInvariant() switch
-    {
-        null or "" or "im" => "conversation",
-        "hub" => "space",
-        var mode => mode
-    };
 }
 
 public sealed record RuntimeConfigurationDiagnostic(string State, string Detail, string SourcePath, DateTimeOffset CheckedAt);
@@ -401,10 +351,7 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
             new SupervisionPolicy(Boolean(supervision, "required_before_final"), Integer(supervision, "max_revision_rounds", 2)),
             new ContextPolicy(Integer(context, "default_token_budget", 8192), Integer(context, "recent_message_limit", 24), Boolean(context, "optimistic_revision")),
             new MemoryPolicy(Boolean(memory, "candidate_only"), Integer(memory, "retrieval_limit", 8), Strings(memory, "allowed_scopes"), Strings(memory, "allowed_kinds")),
-            toolPolicy,
-            new Dictionary<string, ApplicationModeDefinition>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, RuntimeProfileDefinition>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, RuntimeAgentDefinition>(StringComparer.OrdinalIgnoreCase))
+            toolPolicy)
         {
             Triggers = triggersPolicy,
             Orchestration = orchestrationPolicy

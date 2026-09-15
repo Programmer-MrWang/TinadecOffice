@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatPanel from './ChatPanel.vue'
 import type { MessageDto } from '../api'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
@@ -46,7 +46,6 @@ const baseProps = {
   orchestration: null,
   busy: false,
   draft: '',
-  mode: 'auto' as AgentMode,
   permission: 'default' as PermissionLevel,
 }
 

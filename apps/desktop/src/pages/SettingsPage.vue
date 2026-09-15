@@ -143,7 +143,6 @@ import {
   GRAPH_SEED_PACK_VERSION,
   graphSeedPackManifest,
 } from '@/agentPacks/GraphSeedPack'
-import { isRetiredAgentPack } from '@/agentPacks/retiredPacks'
 
 type SettingsSection = 'general' | 'model' | 'agentCenter' | 'tools' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
 
@@ -170,16 +169,99 @@ const graphSeedPackBadgeVariant = computed<'default' | 'secondary' | 'outline'>(
   return 'outline'
 })
 
-// Installed-pack inventory (read-only). A workspace that still carries a retired
-// pack keeps its published resources; the band below the GraphSeedPack card names
-// it and routes the user to the supported pack.
+// Installed-pack inventory: every installed pack with its own enable/disable,
+// uninstall and set-as-default controls. The list is the only place a pack's
+// workspace-wide effect is visible, so it never hides a pack the workspace holds.
 const installedAgentPacks = ref<AgentPackDto[]>([])
-const retiredAgentPacks = computed(() =>
-  installedAgentPacks.value.filter((pack) => isRetiredAgentPack(pack.pack_id)),
-)
-const retiredAgentPackLabel = computed(() =>
-  retiredAgentPacks.value.map((pack) => pack.pack_id).join(', '),
-)
+const workspaceDefaultModeVersionId = ref<string | null>(null)
+const packBusyPackId = ref<string | null>(null)
+// 默认归属由工作区六个 Default*Id 决定：当前生效的包 = 其 adopt 记录里的默认模式版本
+// 就是工作区当前默认的那个。
+const activePackId = computed(() => {
+  const active = workspaceDefaultModeVersionId.value
+  if (!active) return null
+  return installedAgentPacks.value.find(item => item.default_mode_version_id === active)?.pack_id ?? null
+})
+
+async function reloadPackInventory(): Promise<void> {
+  const [packs, defaults] = await Promise.all([
+    api.listAgentPacks().catch(() => [] as AgentPackDto[]),
+    api.getWorkspaceDefaults().catch(() => null),
+  ])
+  installedAgentPacks.value = packs
+  workspaceDefaultModeVersionId.value = defaults?.default_mode_version_id ?? null
+}
+
+async function togglePackEnabled(pack: AgentPackDto): Promise<void> {
+  if (packBusyPackId.value !== null) return
+  packBusyPackId.value = pack.pack_id
+  try {
+    await api.setAgentPackEnabled(pack.pack_id, pack.status === 'disabled')
+    await reloadPackInventory()
+    // 模式列表跟着可用包走：重新拉一次让下拉立刻反映启用/禁用。
+    void refreshGraphSeedPack()
+  } catch (error) {
+    notify.error(error, {
+      key: `agent-pack-toggle-${pack.pack_id}`,
+      title: t('agentPack.toggleFailed'),
+      source: 'AgentPack',
+    })
+  } finally {
+    packBusyPackId.value = null
+  }
+}
+
+async function adoptPackDefaults(pack: AgentPackDto): Promise<void> {
+  if (packBusyPackId.value !== null) return
+  packBusyPackId.value = pack.pack_id
+  try {
+    await api.adoptAgentPackDefaults(pack.pack_id)
+    await reloadPackInventory()
+  } catch (error) {
+    notify.error(error, {
+      key: `agent-pack-adopt-${pack.pack_id}`,
+      title: t('agentPack.adoptFailed'),
+      source: 'AgentPack',
+    })
+  } finally {
+    packBusyPackId.value = null
+  }
+}
+
+async function uninstallPack(pack: AgentPackDto): Promise<void> {
+  if (packBusyPackId.value !== null) return
+  // 不可逆：先确认，并把"会一起删掉什么"说清楚。卸载会连带删除该包的运行历史，
+  // 所以文案必须点明，而不是笼统的"确定吗"。
+  const confirmed = await confirm({
+    title: t('agentPack.uninstallTitle', { pack: pack.name ?? pack.pack_id }),
+    message: t('agentPack.uninstallMessage'),
+    details: t('agentPack.uninstallDetails'),
+    confirmLabel: t('agentPack.uninstallConfirm'),
+    cancelLabel: t('common.cancel'),
+  })
+  if (!confirmed) return
+  packBusyPackId.value = pack.pack_id
+  try {
+    await api.purgeAgentPack(pack.pack_id, pack.revision)
+    await reloadPackInventory()
+    status.warning({
+      key: `agent-pack-uninstalled-${pack.pack_id}`,
+      title: t('agentPack.uninstalledTitle'),
+      message: t('agentPack.uninstalledMessage', { pack: pack.pack_id }),
+      source: 'AgentPack',
+    })
+    // 资源已删：中心列表必须重拉，否则画布还挂着已删的模式/智能体。
+    await loadAgentCenter()
+  } catch (error) {
+    notify.error(error, {
+      key: `agent-pack-uninstall-${pack.pack_id}`,
+      title: t('agentPack.uninstallFailed'),
+      source: 'AgentPack',
+    })
+  } finally {
+    packBusyPackId.value = null
+  }
+}
 
 /** Lazily refresh per-tab data when a tab becomes active. */
 function switchAgentCenterTab(tab: AgentCenterTab) {
@@ -1143,15 +1225,12 @@ async function loadAgentCenter() {
   // Load the versioned directory + full definitions directly; overview-only projections degrade.
   loading.value = true
   try {
-      const [directory, modes, candidates, toolReadiness, packDetail, installedPacks] = await Promise.all([
+      const [directory, modes, candidates, toolReadiness, packDetail] = await Promise.all([
         api.listAgents().catch(() => [] as AgentDirectoryItemDto[]),
         api.listAgentModes().catch(() => [] as AgentModeDto[]),
         api.listAgentCandidates().catch(() => [] as AgentCandidateDto[]),
         api.getToolLayerReadiness().catch(() => null),
         api.getAgentPack(graphSeedPackManifest.metadata.pack_id).catch(() => null),
-        // Advisory: a workspace with no packs — or an older Core without the
-        // listing route — degrades to an empty list instead of failing the page.
-        api.listAgentPacks().catch(() => [] as AgentPackDto[]),
       ])
       const managedAgentIds = new Set(
         (packDetail?.resources ?? [])
@@ -1201,7 +1280,7 @@ async function loadAgentCenter() {
       })
       agentCandidates.value = candidates as unknown as AgentCandidateDto[]
       toolLayerReadiness.value = toolReadiness
-      installedAgentPacks.value = installedPacks
+      void reloadPackInventory()
       // Harness manifest is non-critical: fall back to the legacy tool list for older Core builds.
       api.getHarnessManifest()
         .then((manifest) => {
@@ -2715,39 +2794,57 @@ import '../settings/settings.css'
                   v-for="pack in installedAgentPacks"
                   :key="pack.pack_id"
                   class="agent-pack-inventory-row"
-                  :data-retired="isRetiredAgentPack(pack.pack_id) ? 'true' : 'false'"
+                  :data-disabled="pack.status === 'disabled' ? 'true' : 'false'"
+                  :data-testid="`agent-pack-row-${pack.pack_id}`"
                 >
                   <div class="agent-pack-inventory-copy">
                     <div class="agent-pack-inventory-title">
                       <strong>{{ pack.name ?? pack.pack_id }}</strong>
                       <UiBadge variant="outline">{{ pack.pack_id }}</UiBadge>
-                      <UiBadge v-if="isRetiredAgentPack(pack.pack_id)" variant="secondary">
-                        {{ t('agentPack.retiredBadge') }}
+                      <UiBadge v-if="pack.status === 'disabled'" variant="secondary">
+                        {{ t('agentPack.disabledBadge') }}
+                      </UiBadge>
+                      <UiBadge v-if="activePackId === pack.pack_id" variant="default">
+                        {{ t('agentPack.activeBadge') }}
                       </UiBadge>
                     </div>
                     <p>
                       {{ t('agentPack.installedVersion', { version: pack.active_version ?? t('agentPack.notInstalled') }) }}
                     </p>
                   </div>
-                  <UiButton
-                    v-if="isRetiredAgentPack(pack.pack_id)"
-                    size="sm"
-                    :disabled="graphSeedPackBusy"
-                    data-testid="retired-pack-install"
-                    @click="installOrUpgradeGraphSeedPack"
-                  >
-                    <PackagePlus data-icon="inline-start" />
-                    {{ t('agentPack.retiredInstallAction') }}
-                  </UiButton>
+                  <div class="agent-pack-inventory-actions">
+                    <UiButton
+                      v-if="activePackId !== pack.pack_id"
+                      variant="outline"
+                      size="sm"
+                      :disabled="packBusyPackId !== null"
+                      :data-testid="`agent-pack-adopt-${pack.pack_id}`"
+                      @click="adoptPackDefaults(pack)"
+                    >
+                      {{ t('agentPack.setDefaultAction') }}
+                    </UiButton>
+                    <UiButton
+                      variant="outline"
+                      size="sm"
+                      :disabled="packBusyPackId !== null"
+                      :data-testid="`agent-pack-toggle-${pack.pack_id}`"
+                      @click="togglePackEnabled(pack)"
+                    >
+                      {{ pack.status === 'disabled' ? t('agentPack.enableAction') : t('agentPack.disableAction') }}
+                    </UiButton>
+                    <UiButton
+                      variant="ghost"
+                      size="sm"
+                      :disabled="packBusyPackId !== null"
+                      :data-testid="`agent-pack-uninstall-${pack.pack_id}`"
+                      @click="uninstallPack(pack)"
+                    >
+                      <Trash2 data-icon="inline-start" />
+                      {{ t('agentPack.uninstallAction') }}
+                    </UiButton>
+                  </div>
                 </li>
               </ul>
-              <p
-                v-if="retiredAgentPacks.length > 0"
-                class="agent-pack-inventory-retired"
-                data-testid="retired-pack-notice"
-              >
-                {{ t('agentPack.retiredNotice', { pack: retiredAgentPackLabel }) }}
-              </p>
             </section>
             <div class="ac-subtabs" role="tablist" data-testid="agent-center-subtabs">
               <button :class="['ac-subtab', { active: agentCenterTab === 'agents' }]" role="tab" :aria-selected="agentCenterTab === 'agents'" @click="agentCenterTab = 'agents'">{{ t('settings.agents') }}</button>

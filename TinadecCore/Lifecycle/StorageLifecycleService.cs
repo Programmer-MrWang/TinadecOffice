@@ -90,9 +90,8 @@ public sealed class StorageLifecycleService : IStorageMigrationParticipant
             Id = Guid.NewGuid(), TenantId = session.TenantId, WorkspaceId = session.WorkspaceId, SessionId = sessionId, TriggerMessageId = triggerMessageId,
             InitiatedByPrincipalId = initiatedByPrincipalId,
             TurnId = options?.TurnId, ContextRevision = options?.ContextRevision ?? 0, ConfigurationVersion = options?.ConfigurationVersion ?? 0,
-            ConfigurationHash = options?.ConfigurationHash ?? string.Empty, ApplicationMode = options?.ApplicationMode ?? "conversation",
-            AgentMode = options?.AgentMode ?? "auto", PermissionMode = options?.PermissionMode ?? "default",
-            RuntimeProfileId = options?.RuntimeProfileId ?? "conversation.auto", Status = options is null ? "planning" : "planning", CreatedAt = now, UpdatedAt = now
+            ConfigurationHash = options?.ConfigurationHash ?? string.Empty, PermissionMode = options?.PermissionMode ?? "default",
+            RuntimeProfileId = options?.RuntimeProfileId ?? string.Empty, Status = options is null ? "planning" : "planning", CreatedAt = now, UpdatedAt = now
         };
         db.Runs.Add(run);
         db.RunStreamCursors.Add(new RunStreamCursorRecord { RunId = run.Id, NextSequence = 0, UpdatedAt = now });
@@ -1172,8 +1171,6 @@ public sealed record RunStartOptions(
     long ContextRevision,
     long ConfigurationVersion,
     string ConfigurationHash,
-    string ApplicationMode,
-    string AgentMode,
     string PermissionMode,
     string RuntimeProfileId,
     string? InitiatedByPrincipalId = null);

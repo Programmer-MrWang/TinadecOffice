@@ -33,6 +33,10 @@
        polling windows. Run collections sequentially. -->
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Core ships no built-in roster: the test host boots with a bootstrap
+         fixture pack that mirrors the retired TOML directory, installed through
+         the regular pack pipeline (see Runtime.BootstrapPack). -->
+    <None Include="Fixtures\bootstrap-pack.json" Link="Configuration\bootstrap-agent-pack.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

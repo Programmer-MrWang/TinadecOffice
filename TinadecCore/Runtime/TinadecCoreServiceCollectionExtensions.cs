@@ -53,6 +53,9 @@ public static class TinadecCoreServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Singleton<IAuthorizationContextResolver, CoreAuthorizationContextResolver>());
         services.AddSingleton<TinadecCore.Abstractions.Ports.IFormalModeResolver, FormalModeResolver>();
         services.AddSingleton<IAgentModelResolver, AgentModelResolver>();
+        // The pack purge reaches the run/memory stores through this port so
+        // AgentConfiguration keeps depending on Abstractions only.
+        services.AddSingleton<IAgentPackResourceStore, AgentPackResourceStore>();
         services.AddSingleton<UserToolActionService>();
         services.AddSingleton<IUserToolActionService>(sp => sp.GetRequiredService<UserToolActionService>());
         services.AddSingleton<IUserToolActionRecovery>(sp => sp.GetRequiredService<UserToolActionService>());

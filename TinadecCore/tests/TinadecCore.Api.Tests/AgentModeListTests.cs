@@ -9,10 +9,11 @@ namespace TinadecCore.Api.Tests;
 
 /// <summary>
 /// 模式选择下拉的服务端契约（配置体验改造 B）：GET /api/v1/agent-modes 默认返回
-/// 全部行（pack 花名册合约），可选项的 published 过滤由客户端按 status + 
+/// 全部行（pack 花名册合约），可选项的 published 过滤由客户端按 status +
 /// latest_published_mode_version_id 做；显式 ?status=published 可做服务端过滤。
 /// 每项携带 latest_published_mode_version_id —— 下拉提交的 mode_version_id 由此而来，
-/// 类型混淆（AgentMode id 当 ModeVersion id）不再可能。
+/// 类型混淆（AgentMode id 当 ModeVersion id）不再可能。模式列表完全由已安装的
+/// Agent Pack 驱动：本测试工作区只装了引导夹具包（14 智能体 / 7 模式）。
 /// </summary>
 public sealed class AgentModeListTests : IAsyncLifetime
 {
@@ -38,7 +39,7 @@ public sealed class AgentModeListTests : IAsyncLifetime
     public async Task AgentModes_DefaultList_ReturnsPublishedOnly_WithLatestVersionIds()
     {
         var client = _factory!.CreateClient();
-        // 服务端过滤：?status=published 恰好返回 bootstrap 的 7 个 published mode
+        // 服务端过滤：?status=published 恰好返回已装引导夹具包的 7 个 published mode
         // （default-mode + 6 个 conversation.*）。
         var response = await client.GetAsync("/api/v1/agent-modes?status=published");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

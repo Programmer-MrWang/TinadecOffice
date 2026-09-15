@@ -166,30 +166,11 @@ public static class StubEndpoints
             {
                 notes = [$"TinadecTools manifest unavailable: {ex.Message}"];
             }
-            var offered = tools.Select(tool => tool.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var scopes = runtime.Current.Agents.Values.Select(agent =>
-            {
-                var unresolved = agent.AllowedTools
-                    .Where(value => value != "*" && !offered.Contains(value))
-                    .ToArray();
-                return new
-                {
-                    id = agent.Id,
-                    layer = agent.Layer,
-                    role = agent.Role,
-                    capabilities = agent.Capabilities,
-                    allowed_tools = agent.AllowedTools,
-                    wildcard = agent.AllowedTools.Any(value => value == "*"),
-                    unresolved_tools = unresolved,
-                    status = unresolved.Length == 0 ? "ready" : "warning"
-                };
-            }).ToArray();
-            var execution = scopes.Where(scope => scope.layer == "execution").ToArray();
-            var blocked = scopes.Count(scope => scope.layer == "operation" && scope.allowed_tools.Count != 0);
-            if (blocked != 0)
-            {
-                notes = notes.Append($"{blocked} operation-layer agent(s) declare tools; the governance layer is denied every tool invocation by policy.").ToArray();
-            }
+            // Agent scopes are pack-derived: each session freezes its roster from its
+            // installed mode version at admission, so this workspace-level diagnostic
+            // has no roster to report.
+            var scopes = Array.Empty<object>();
+            var executionAgentCount = 0;
             return Results.Ok(new
             {
                 status = tools.Count == 0 ? "warning" : "ready",
@@ -200,14 +181,14 @@ public static class StubEndpoints
                 ready_tool_count = tools.Count,
                 warning_tool_count = 0,
                 blocked_tool_count = 0,
-                execution_agent_count = execution.Length,
-                ready_agent_count = execution.Count(scope => scope.status == "ready"),
-                warning_agent_count = execution.Count(scope => scope.status == "warning"),
+                execution_agent_count = executionAgentCount,
+                ready_agent_count = 0,
+                warning_agent_count = 0,
                 blocked_agent_count = 0,
                 approval_gated_tool_count = tools.Count(tool => tool.RequiresApproval),
                 human_checkpoint_tool_count = tools.Count(tool => tool.ConfirmationFields.Count != 0),
                 future_tool_count = 0,
-                unresolved_scope_count = scopes.Sum(scope => scope.unresolved_tools.Length),
+                unresolved_scope_count = 0,
                 tools = tools.Select(tool => new
                 {
                     id = tool.Id,
@@ -220,7 +201,7 @@ public static class StubEndpoints
                     status = "ready"
                 }).ToArray(),
                 agent_scopes = scopes,
-                design_notes = notes.Append("agent_scopes reflects the resolved runtime profile baseline; the session's formal roster scope is derived from its frozen mode version.").ToArray()
+                design_notes = notes.Append("agent_scopes is empty by design: agent rosters and their tool faces are pack-derived and frozen per run from the session's mode version.").ToArray()
             });
         });
     }

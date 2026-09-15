@@ -2067,6 +2067,95 @@
       }
     },
     "/api/v1/agent-packs/{packId}": {
+      "delete": {
+        "operationId": "deleteApiV1Agent-packsByPackId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPackPurgeResult"
+                }
+              }
+            },
+            "description": "Per-table delete counts for the purged pack."
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_management_forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_not_found"
+          },
+          "412": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_revision_conflict"
+          },
+          "428": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "if_match_required"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Core is unavailable or returned an invalid response."
+          }
+        },
+        "summary": "Permanently delete an installed agent pack",
+        "tags": [
+          "AgentCenter"
+        ]
+      },
       "get": {
         "operationId": "getApiV1Agent-packsByPackId",
         "parameters": [
@@ -2289,6 +2378,256 @@
           }
         },
         "summary": "Install or upgrade agent pack",
+        "tags": [
+          "AgentCenter"
+        ]
+      }
+    },
+    "/api/v1/agent-packs/{packId}/adopt-defaults": {
+      "post": {
+        "operationId": "postApiV1Agent-packsByPackIdAdopt-defaults",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPackInstallationDetail"
+                }
+              }
+            },
+            "description": "The workspace defaults now point at this pack.",
+            "headers": {
+              "ETag": {
+                "description": "Quoted workspace-scoped agent pack installation revision.",
+                "schema": {
+                  "example": "\"2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_management_forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_not_found"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_not_active"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Core is unavailable or returned an invalid response."
+          }
+        },
+        "summary": "Make an agent pack the workspace default",
+        "tags": [
+          "AgentCenter"
+        ]
+      }
+    },
+    "/api/v1/agent-packs/{packId}/disable": {
+      "post": {
+        "operationId": "postApiV1Agent-packsByPackIdDisable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPackInstallationDetail"
+                }
+              }
+            },
+            "description": "The pack is hidden from the selectable lists but keeps its read-only resources.",
+            "headers": {
+              "ETag": {
+                "description": "Quoted workspace-scoped agent pack installation revision.",
+                "schema": {
+                  "example": "\"2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_management_forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_not_found"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Core is unavailable or returned an invalid response."
+          }
+        },
+        "summary": "Disable an installed agent pack without deleting it",
+        "tags": [
+          "AgentCenter"
+        ]
+      }
+    },
+    "/api/v1/agent-packs/{packId}/enable": {
+      "post": {
+        "operationId": "postApiV1Agent-packsByPackIdEnable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "packId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPackInstallationDetail"
+                }
+              }
+            },
+            "description": "The pack is selectable again.",
+            "headers": {
+              "ETag": {
+                "description": "Quoted workspace-scoped agent pack installation revision.",
+                "schema": {
+                  "example": "\"2\"",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Authentication is required."
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_management_forbidden"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "agent_pack_not_found"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Core is unavailable or returned an invalid response."
+          }
+        },
+        "summary": "Enable an installed agent pack",
         "tags": [
           "AgentCenter"
         ]
