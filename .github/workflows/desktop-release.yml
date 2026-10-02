@@ -15,6 +15,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/desktop-release.yml'
+      - '.github/workflows/create-version.yml'
+      - 'apps/desktop/scripts/package-office-channel.mjs'
+      - 'docs/tinadec-office-release-contract.zh-CN.md'
   pull_request:
     paths:
       - 'apps/desktop/**'
@@ -25,6 +28,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/desktop-release.yml'
+      - '.github/workflows/create-version.yml'
+      - 'apps/desktop/scripts/package-office-channel.mjs'
+      - 'docs/tinadec-office-release-contract.zh-CN.md'
   workflow_dispatch:
 
 permissions:
@@ -109,6 +115,11 @@ jobs:
       - name: Smoke test installed application
         run: npm run smoke:installed -w @tinadec/desktop
 
+      - name: Package Office channel artifacts
+        env:
+          OFFICE_RELEASE_VERSION: ${{ github.ref_name }}
+        run: node apps/desktop/scripts/package-office-channel.mjs
+
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
@@ -118,6 +129,9 @@ jobs:
             apps/desktop/release/*-win-x64-setup.exe.blockmap
             apps/desktop/release/*-win-x64-portable.exe
             apps/desktop/release/latest.yml
+            apps/desktop/release/office-channel/*.zip
+            apps/desktop/release/office-channel/catalog.json
+            apps/desktop/release/office-channel/SHA256SUMS
           if-no-files-found: error
           retention-days: 14
 
@@ -137,7 +151,15 @@ jobs:
 
       - name: Generate SHA256SUMS
         working-directory: release-artifacts
-        run: sha256sum ./* > SHA256SUMS
+        run: sha256sum $(find . -type f -printf '%p\n' | sort) > SHA256SUMS
+
+      - name: Validate Office channel catalog
+        working-directory: release-artifacts
+        run: |
+          test -s office-channel/catalog.json
+          test -s office-channel/SHA256SUMS
+          test "$(find office-channel -maxdepth 1 -name '*.zip' | wc -l)" -eq 4
+          jq -e '.schemaVersion == 1 and (.products | length >= 5)' office-channel/catalog.json >/dev/null
 
       - name: Create GitHub Release
         working-directory: release-artifacts
@@ -145,7 +167,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" ./*
+          gh release create "$GITHUB_REF_NAME" $(find . -type f -not -path './SHA256SUMS' -print | sort)
           --verify-tag
           --generate-notes
           --title "TinadecOffice $GITHUB_REF_NAME"
