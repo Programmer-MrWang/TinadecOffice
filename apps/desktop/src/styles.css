@@ -4162,7 +4162,7 @@ Triggered by the page-level transition on the parent .settings-page. */
    grid-row collapse). ------------------------------------------------------------------ */
 .chat-shimmer {
   --chat-shimmer-base: var(--text-chat-muted);
-  --chat-shimmer-hi: color-mix(in srgb, var(--text-primary) 55%, transparent);
+  --chat-shimmer-hi: var(--text-primary);
   background-image: linear-gradient(
     90deg,
     var(--chat-shimmer-base) 0%,
@@ -4176,6 +4176,9 @@ Triggered by the page-level transition on the parent .settings-page. */
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  /* The glow rides the sweep: drop-shadow is cast from the painted glyphs,
+     so the bright band carries its halo across the text with it. */
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--chat-shimmer-hi) 30%, transparent));
   animation: chat-shimmer-sweep 2.4s linear infinite;
 }
 
@@ -4183,27 +4186,13 @@ Triggered by the page-level transition on the parent .settings-page. */
 .chat-shimmer:hover {
   animation: none;
   background-image: none;
+  filter: none;
   -webkit-text-fill-color: var(--text-primary);
 }
 
 @keyframes chat-shimmer-sweep {
   from { background-position: -200% 0; }
   to { background-position: 200% 0; }
-}
-
-@keyframes chat-status-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.chat-status-rise {
-  animation: chat-status-rise 0.24s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 
 /* Borderless expand/collapse: animate grid-template-rows 0fr↔1fr instead of
@@ -4240,11 +4229,8 @@ Triggered by the page-level transition on the parent .settings-page. */
   .chat-shimmer {
     animation: none;
     background-image: none;
+    filter: none;
     -webkit-text-fill-color: var(--text-chat-muted);
-  }
-
-  .chat-status-rise {
-    animation: none;
   }
 
   .chat-collapse {

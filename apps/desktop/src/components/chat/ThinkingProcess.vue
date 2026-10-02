@@ -85,10 +85,10 @@ const hasSteps = computed(() => props.steps.length > 0)
 
 const stepCount = computed(() => props.steps.length)
 
-/* Latest-step preview drives the collapsed row; re-keying it replays the
-   rise animation each time the agent advances. */
+/* Latest-step preview drives the collapsed row. The text node stays mounted
+   and updates in place — re-keying it made the preview blink out and fade back
+   in on every step advance. */
 const lastStep = computed(() => props.steps[props.steps.length - 1])
-const lastStepKey = computed(() => lastStep.value?.id ?? 'none')
 const lastPreview = computed(() => {
   const step = lastStep.value
   if (!step) return ''
@@ -124,9 +124,9 @@ function stepMetaSuffix(step: ThinkingStep): string {
       <Brain :size="14" class="thinking-icon" />
       <span class="thinking-title">{{ isReasoning ? reasoningLabel : t('agent.activitySteps', { count: stepCount }) }}</span>
       <span v-if="lastPreview" class="thinking-sep" aria-hidden="true" />
-      <!-- Rise plays on the keyed outer span; shimmer lives on an inner span so
-           the two `animation` declarations never fight for the property. -->
-      <span :key="lastStepKey" class="thinking-preview chat-status-rise">
+      <!-- No :key remount: text updates in place so the shimmer sweep stays
+           continuous instead of restarting with a fade-in blink on each step. -->
+      <span class="thinking-preview">
         <span :class="{ 'chat-shimmer': advancing || isThinking }">{{ lastPreview }}</span>
       </span>
       <component :is="expanded ? ChevronDown : ChevronRight" :size="13" class="thinking-chevron" />
