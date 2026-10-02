@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Compaction;
-using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using TinadecCore.Abstractions.Ports;
 
@@ -33,7 +32,6 @@ internal static class Maf18RuntimeAdapter
     {
         ["Microsoft.Agents.AI.Abstractions"] = VersionOf(typeof(AIAgent)),
         ["Microsoft.Agents.AI"] = VersionOf(typeof(ChatClientAgent)),
-        ["Microsoft.Agents.AI.Workflows"] = VersionOf(typeof(Workflow)),
         ["Microsoft.Agents.AI.OpenAI"] = VersionOf(typeof(OpenAI.Chat.OpenAIChatClientExtensions))
     };
 

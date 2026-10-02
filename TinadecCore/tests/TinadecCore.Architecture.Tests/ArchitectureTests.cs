@@ -152,7 +152,7 @@ public sealed class ArchitectureTests
         var mafReferences = DmaEAAssembly.GetReferencedAssemblies()
             .Where(reference => reference.Name?.StartsWith("Microsoft.Agents.AI", StringComparison.Ordinal) == true)
             .ToDictionary(reference => reference.Name!, reference => reference.Version!);
-        Assert.Equal(4, mafReferences.Count);
+        Assert.Equal(3, mafReferences.Count);
         Assert.All(mafReferences.Values, version =>
         {
             Assert.Equal(1, version.Major);

@@ -31,10 +31,10 @@ public sealed class Maf18RuntimeAdapterTests
             [
                 "Microsoft.Agents.AI",
                 "Microsoft.Agents.AI.Abstractions",
-                "Microsoft.Agents.AI.OpenAI",
-                "Microsoft.Agents.AI.Workflows"
+                "Microsoft.Agents.AI.OpenAI"
             ],
             Maf18RuntimeAdapter.FrameworkVersions.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal(3, Maf18RuntimeAdapter.FrameworkVersions.Count);
         Assert.All(Maf18RuntimeAdapter.FrameworkVersions.Values, version =>
         {
             Assert.Equal(1, version.Major);
