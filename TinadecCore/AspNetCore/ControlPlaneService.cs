@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
@@ -352,7 +353,13 @@ public sealed class ControlPlaneService
             : MergeProviderConfig(await LoadProviderConfigAsync(db, provider.CurrentVersionId, ct), input);
         RemoveSecret(merged);
         var stored = await PutJsonAsync(_content, Tenant.TenantId, Tenant.WorkspaceId, "model-config", merged, ct);
-        var version = new ModelProviderVersionRecord { Id = Guid.NewGuid(), ProviderId = provider.Id, Version = (int)provider.Revision + 1, ContentReference = stored.reference.Value, ContentHash = stored.reference.Sha256, ContentLength = stored.reference.Length, CreatedByPrincipalId = Tenant.PrincipalId, CreatedAt = now };
+        // Version numbers must come from the existing version rows, not from the
+        // row revision: seeded/imported providers can hold Revision=0 alongside
+        // an existing version 1, so Revision+1 collided with the unique
+        // (provider_id, version) index on the first edit. SaveRoute already
+        // derives max(version)+1; providers must do the same.
+        var maxVersion = await db.ProviderVersions.Where(v => v.ProviderId == provider.Id).MaxAsync(v => (int?)v.Version, ct) ?? 0;
+        var version = new ModelProviderVersionRecord { Id = Guid.NewGuid(), ProviderId = provider.Id, Version = maxVersion + 1, ContentReference = stored.reference.Value, ContentHash = stored.reference.Sha256, ContentLength = stored.reference.Length, CreatedByPrincipalId = Tenant.PrincipalId, CreatedAt = now };
         provider.Revision++; provider.CurrentVersionId = version.Id; db.ProviderVersions.Add(version); await db.SaveChangesAsync(ct);
         return Results.Ok(await ToProvider(provider));
     }
@@ -476,6 +483,22 @@ public sealed class ControlPlaneService
             if (!Guid.TryParse(runId, out var parsedRun)) return Results.BadRequest(new { message = "run_id must be a valid Guid." });
             run = parsedRun;
         }
+        // This is a read-only projection across two contexts. Retry the whole read with
+        // fresh contexts on SQLITE_BUSY/LOCKED, including connection initialization errors.
+        // Never turn a failed read into an empty approval list, and never retry decisions here.
+        for (var attempt = 0; ; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try { return await ReadApprovalsAsync(status, session, run, ct).ConfigureAwait(false); }
+            catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6 && attempt < 2)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * (attempt + 1)), ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task<IResult> ReadApprovalsAsync(string? status, Guid? session, Guid? run, CancellationToken ct)
+    {
         await using var db = await _lifecycle.CreateDbContextAsync(ct);
         var q = db.ApprovalRequests.Where(x => x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId);
         if (!string.IsNullOrWhiteSpace(status)) q = q.Where(x => x.Status == status);
@@ -487,7 +510,11 @@ public sealed class ControlPlaneService
         if (string.IsNullOrWhiteSpace(status) || string.Equals(status, "pending", StringComparison.OrdinalIgnoreCase))
         {
             var permissions = await _authorization.ListPermissionRequestsAsync(null, run, null, ct).ConfigureAwait(false);
-            result.AddRange(permissions.Where(x => x.Status is PermissionRequestStatuses.AwaitingDelegate or PermissionRequestStatuses.AwaitingUser).Select(ToPermissionResponse));
+            var parks = permissions
+                .Where(x => x.Status is PermissionRequestStatuses.AwaitingDelegate or PermissionRequestStatuses.AwaitingUser)
+                .ToList();
+            var evidence = await LoadParkEvidenceAsync(db, parks.Select(x => x.Id).ToList(), ct);
+            result.AddRange(parks.Select(x => ToPermissionResponse(x, evidence.GetValueOrDefault(x.Id))));
         }
         return Results.Ok(result.OrderByDescending(x => x is ApprovalResponseDto approval ? approval.CreatedAt : DateTimeOffset.MinValue));
     }
@@ -580,7 +607,11 @@ public sealed class ControlPlaneService
         var row = await db.ApprovalRequests.SingleOrDefaultAsync(x => x.Id == id && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId, ct);
         if (row is not null) return Results.Ok(ToResponse(row));
         var permission = await _authorization.GetPermissionRequestAsync(id, ct).ConfigureAwait(false);
-        return permission is null ? Results.NotFound() : Results.Ok(ToPermissionResponse(permission.Request));
+        if (permission is null) return Results.NotFound();
+        if (permission.Request.Status is not (PermissionRequestStatuses.AwaitingDelegate or PermissionRequestStatuses.AwaitingUser))
+            return Results.Ok(ToPermissionResponse(permission.Request, evidence: null));
+        var parkEvidence = await LoadParkEvidenceAsync(db, [id], ct);
+        return Results.Ok(ToPermissionResponse(permission.Request, parkEvidence.GetValueOrDefault(id)));
     }
     public async Task<IResult> DecideApproval(Guid id, ApprovalDecisionRequestDto input, CancellationToken ct)
     {
@@ -608,20 +639,74 @@ public sealed class ControlPlaneService
                             : StatusCodes.Status200OK);
                 }
             }
+            // "Always allow for this session" is applied AFTER the decision is
+            // committed, so the scope can only ever cover a tool the human actually
+            // approved — never a broader one.
+            var runScope = approve && IsRunScope(input.Scope);
+            RunScopeOutcome? runScopeOutcome = null;
             if (resolved.Request.Status == PermissionRequestStatuses.Granted && resolved.Request.RunId is { } permissionRun)
             {
+                if (runScope)
+                    runScopeOutcome = await ApplyRunScopeAsync(resolved.Request, ct).ConfigureAwait(false);
+
+                Guid? executionId = null;
                 await using var db = await _lifecycle.CreateDbContextAsync(ct);
                 var execution = await db.ToolExecutions.SingleOrDefaultAsync(x => x.PermissionRequestId == id && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId, ct);
                 if (execution is not null)
                 {
+                    executionId = execution.Id;
                     var snapshot = await _executions.EnsureApprovalAsync(execution.Id, ct).ConfigureAwait(false);
                     if (snapshot.ApprovalId is { } actionApproval)
                         await _approvals.DecideAsync(actionApproval, approve ? "approved" : "rejected", input.Reason, ct).ConfigureAwait(false);
                 }
+                await _runs.AppendEventAsync(permissionRun, "governance.permission_decided", new
+                {
+                    permission_request_id = resolved.Request.Id,
+                    authorization_decision_id = resolved.Decision.Id,
+                    execution_id = executionId,
+                    outcome = resolved.Decision.Outcome,
+                    reason_code = resolved.Decision.ReasonCode
+                }, "Permission decision committed; run resumed.", cancellationToken: ct).ConfigureAwait(false);
                 await _runs.SetRunStatusAsync(permissionRun.ToString(), "executing", "Legacy approval decision committed; resuming run.", ct).ConfigureAwait(false);
                 await _engine.EnqueueAsync(permissionRun, ct).ConfigureAwait(false);
             }
-            return Results.Ok(new { id, status = resolved.Request.Status, decided_at = resolved.Decision.CreatedAt });
+            else if (resolved.Request.RunId is { } deniedRun
+                && resolved.Request.Status is not (PermissionRequestStatuses.AwaitingDelegate or PermissionRequestStatuses.AwaitingUser))
+            {
+                // A denied permission request must wake the parked run too: without
+                // the enqueue the awaiting_user run is never lease-eligible and
+                // hangs forever. Denial semantics are preserved — nothing is
+                // consumed and no grant is minted; the resumed dispatch observes
+                // the denied request and the engine drives the task/lane to its
+                // failure or escalation terminal state. This mirrors the wake-up
+                // GovernanceEndpoints applies to every terminal permission decision.
+                var deniedRunState = await _runs.GetRunStateAsync(deniedRun.ToString(), ct).ConfigureAwait(false);
+                if (deniedRunState.Status is not (RunStatus.Completed or RunStatus.Failed or RunStatus.Cancelled))
+                {
+                    if (deniedRunState.Status is RunStatus.AwaitingApproval or RunStatus.AwaitingDelegate or RunStatus.AwaitingUser)
+                    {
+                        await _runs.SetRunStatusAsync(deniedRun.ToString(), "executing", "Permission request denied; resuming run to fail closed.", ct).ConfigureAwait(false);
+                        await _runs.AppendEventAsync(deniedRun, "governance.permission_decided", new
+                        {
+                            permission_request_id = resolved.Request.Id,
+                            authorization_decision_id = resolved.Decision.Id,
+                            outcome = resolved.Decision.Outcome,
+                            reason_code = resolved.Decision.ReasonCode
+                        }, "Permission decision committed; run resumed.", cancellationToken: ct).ConfigureAwait(false);
+                    }
+                    await _engine.EnqueueAsync(deniedRun, ct).ConfigureAwait(false);
+                }
+            }
+            return Results.Ok(new
+            {
+                id,
+                status = resolved.Request.Status,
+                decided_at = resolved.Decision.CreatedAt,
+                scope = runScope ? "run" : "once",
+                run_scope_released = runScopeOutcome?.Released ?? 0,
+                pre_authorization_id = runScopeOutcome?.PreAuthorizationId,
+                capability_grant_id = runScopeOutcome?.GrantId
+            });
         }
         var approveAction = string.Equals(input.Decision, "approved", StringComparison.OrdinalIgnoreCase)
             || string.Equals(input.Decision, "approve", StringComparison.OrdinalIgnoreCase)
@@ -653,22 +738,193 @@ public sealed class ControlPlaneService
         return Results.Ok(new { id = decision.ApprovalId, status = decision.Status, decided_at = decision.DecidedAt });
     }
 
-    private static ApprovalResponseDto ToResponse(ApprovalRequestRecord row) => new()
-    { Id = row.Id, ProjectId = row.ProjectId, SessionId = row.SessionId, RunId = row.RunId, TaskId = row.TaskId, AgentInstanceId = row.AgentInstanceId, ExecutionId = row.ExecutionId, Kind = row.Kind, ToolId = row.ToolId, Risk = row.Risk, Summary = row.Summary, Status = row.Status, RequestHash = row.RequestHash, ConsumedByExecutionId = row.ConsumedByExecutionId, Decision = row.Decision, DecisionReason = row.DecisionReason, DecidedAt = row.DecidedAt, ConsumedAt = row.ConsumedAt, ExpiresAt = row.ExpiresAt, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt };
+    private static bool IsRunScope(string? scope) =>
+        string.Equals(scope, "run", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scope, "session", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(scope, "always", StringComparison.OrdinalIgnoreCase);
 
-    private static ApprovalResponseDto ToPermissionResponse(PermissionRequestSnapshot value) => new()
+    /// <summary>The risk the session allowance is capped at, fail-closed on an unknown value.</summary>
+    private static string RiskCeiling(string? risk) => risk?.Trim().ToLowerInvariant() switch
     {
-        Id = value.Id,
-        RunId = value.RunId,
-        TaskId = value.TaskId,
-        AgentInstanceId = value.SubjectAgentInstanceId,
-        Kind = "permission",
-        ToolId = value.Claim.Resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase) ? value.Claim.Resource[7..] : value.Claim.Resource,
-        Risk = value.Risk,
-        Summary = "Tool permission request requires authorization.",
-        Status = "pending",
-        ExpiresAt = value.ExpiresAt,
-        CreatedAt = value.CreatedAt,
-        UpdatedAt = value.UpdatedAt
+        "low" or "medium" or "high" or "elevated" or "critical" => risk!.Trim().ToLowerInvariant(),
+        _ => "low"
     };
+
+    /// <summary>How many calls a session approval covers before it must be renewed.</summary>
+    private const int RunScopeMaxUses = 512;
+
+    private sealed record RunScopeOutcome(Guid PreAuthorizationId, Guid GrantId, int Released);
+
+    /// <summary>
+    /// "Always allow for this session", applied as two durable envelopes because two
+    /// separate gates ask:
+    /// <list type="bullet">
+    /// <item>the run-scoped PRE-AUTHORIZATION is what stops the tool-approval layer
+    /// from asking again — it mints an approval for a matching call with no human,
+    /// and its risk ceiling is the class the human actually approved, so a session
+    /// approval never widens the risk it was given;</item>
+    /// <item>the run-scoped CAPABILITY GRANT is what stops the PDP from asking again —
+    /// without it the next call has no grant to lease and parks before the approval
+    /// layer is ever consulted.</item>
+    /// </list>
+    /// The scope is always exactly one tool. A wildcard, an empty tool id, or a
+    /// non-tool claim is never widened by a decision. Finally, pending sibling
+    /// requests for the same tool are released with it: a decision that only applied
+    /// to the future would leave an already-parked sibling waiting for the very click
+    /// the user just declined to make.
+    /// </summary>
+    private async Task<RunScopeOutcome?> ApplyRunScopeAsync(PermissionRequestSnapshot decided, CancellationToken ct)
+    {
+        var resource = decided.Claim.Resource;
+        if (!resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)) return null;
+        var toolId = resource["tool://".Length..];
+        if (string.IsNullOrWhiteSpace(toolId) || toolId == "*") return null;
+        if (decided.RunId is not { } runId) return null;
+
+        var now = DateTimeOffset.UtcNow;
+        // The envelopes are run-scoped, so they cannot outlive the run's authority
+        // even if the window is generous; it only has to cover a long session.
+        var expiresAt = now.AddHours(8);
+        await using var db = await _lifecycle.CreateDbContextAsync(ct);
+        var run = await db.Runs.AsNoTracking().SingleOrDefaultAsync(x => x.Id == runId
+            && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId, ct);
+        if (run?.InitiatedByPrincipalId is not { } principal || principal == Guid.Empty) return null;
+
+        var row = new PreAuthorizationRecord
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Tenant.TenantId,
+            WorkspaceId = Tenant.WorkspaceId,
+            RunId = runId,
+            LaneKey = null,
+            ToolScopeJson = JsonSerializer.Serialize(new[] { toolId }),
+            ParameterConstraintHash = null,
+            RiskMax = RiskCeiling(decided.Risk),
+            MaxUses = RunScopeMaxUses,
+            UseCount = 0,
+            ExpiresAt = expiresAt,
+            GrantedByPrincipalId = Tenant.PrincipalId,
+            Summary = $"Run-scoped approval for '{toolId}'.",
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        db.PreAuthorizations.Add(row);
+        await db.SaveChangesAsync(ct);
+
+        // SubjectAgentInstanceId stays null so the allowance covers every worker of
+        // this run, which is what "for this session" means to the user.
+        var grant = await _authorization.GrantCapabilityAsync(new GrantCapabilityCommand(
+            principal,
+            SubjectAgentInstanceId: null,
+            new CapabilityClaim("tool.invoke", "*", resource),
+            runId,
+            TaskId: null,
+            expiresAt,
+            Math.Clamp(RunScopeMaxUses * 8, RunScopeMaxUses, 10_000),
+            Transferable: false,
+            ParentGrantId: null,
+            Reason: $"Run-scoped approval for '{toolId}'."), ct).ConfigureAwait(false);
+
+        var released = 0;
+        var pending = await _authorization.ListPermissionRequestsAsync(null, runId, null, ct).ConfigureAwait(false);
+        foreach (var sibling in pending)
+        {
+            if (sibling.Id == decided.Id) continue;
+            if (sibling.Status is not (PermissionRequestStatuses.AwaitingUser or PermissionRequestStatuses.AwaitingDelegate)) continue;
+            if (!string.Equals(sibling.Claim.Resource, resource, StringComparison.OrdinalIgnoreCase)) continue;
+            try
+            {
+                await _authorization.DecidePermissionAsync(new PermissionDecisionCommand(
+                    sibling.Id, true, null, null, $"Released by a run-scoped approval for '{toolId}'."), ct).ConfigureAwait(false);
+                released++;
+            }
+            catch (Exception ex) when (ex is KeyNotFoundException or InvalidOperationException)
+            {
+                // A sibling another actor decided first is not a failure of this
+                // decision: the user's intent is already satisfied either way.
+                Debug.WriteLine($"Sibling permission request {sibling.Id} was not released by the run scope: {ex.Message}");
+            }
+        }
+
+        await _runs.AppendEventAsync(runId, "approval.run_scope_granted", new
+        {
+            tool_id = toolId,
+            pre_authorization_id = row.Id,
+            capability_grant_id = grant.Id,
+            risk_max = row.RiskMax,
+            max_uses = row.MaxUses,
+            expires_at = expiresAt,
+            released_pending = released
+        }, $"Run-scoped approval granted for '{toolId}'.", "info", null, null, cancellationToken: ct).ConfigureAwait(false);
+
+        return new RunScopeOutcome(row.Id, grant.Id, released);
+    }
+
+    private static ApprovalResponseDto ToResponse(ApprovalRequestRecord row)
+    {
+        // Rows minted before the evidence digest landed decode to nothing and keep
+        // showing only their stored summary — the projection never invents facts.
+        var hasEvidence = ApprovalEvidenceProjector.TryDecode(row.ArgumentsDigest, out var evidence);
+        return new ApprovalResponseDto
+        {
+            Id = row.Id, ProjectId = row.ProjectId, SessionId = row.SessionId, RunId = row.RunId, TaskId = row.TaskId, AgentInstanceId = row.AgentInstanceId, ExecutionId = row.ExecutionId, Kind = row.Kind, ToolId = row.ToolId, Risk = row.Risk, Summary = row.Summary, Arguments = hasEvidence ? evidence.Arguments : string.Empty, Command = evidence.Command, Cwd = evidence.WorkingDirectory, ResourcePath = evidence.ResourcePath, Status = row.Status, RequestHash = row.RequestHash, ConsumedByExecutionId = row.ConsumedByExecutionId, Decision = row.Decision, DecisionReason = row.DecisionReason, DecidedAt = row.DecidedAt, ConsumedAt = row.ConsumedAt, ExpiresAt = row.ExpiresAt, CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt
+        };
+    }
+
+    /// <summary>
+    /// A policy park is decided by a human, but the parameters that motivated it are on
+    /// the tool execution row: ToolDispatcher binds execution.permission_request_id
+    /// before it returns, so the link already exists while the request is pending.
+    /// Without this join the reviewer sees a claim string and nothing else.
+    /// </summary>
+    private async Task<Dictionary<Guid, ApprovalEvidence>> LoadParkEvidenceAsync(
+        LifecycleDbContext db, List<Guid> permissionRequestIds, CancellationToken ct)
+    {
+        var evidence = new Dictionary<Guid, ApprovalEvidence>();
+        if (permissionRequestIds.Count == 0) return evidence;
+        var rows = await db.ToolExecutions.AsNoTracking().Where(x =>
+            x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId
+            && x.PermissionRequestId != null && permissionRequestIds.Contains(x.PermissionRequestId.Value))
+            .Select(x => new { PermissionRequestId = x.PermissionRequestId, x.ArgumentsDigest })
+            .ToListAsync(ct).ConfigureAwait(false);
+        foreach (var row in rows)
+        {
+            if (row.PermissionRequestId is { } permissionId
+                && ApprovalEvidenceProjector.TryDecode(row.ArgumentsDigest, out var projected))
+            {
+                evidence[permissionId] = projected;
+            }
+        }
+        return evidence;
+    }
+
+    private static ApprovalResponseDto ToPermissionResponse(
+        PermissionRequestSnapshot value,
+        ApprovalEvidence? evidence)
+    {
+        // A policy park used to report nothing but "requires authorization". When it
+        // came from a tool call the execution's frozen digest names the real target;
+        // otherwise the claim itself is the most specific fact available.
+        var resource = value.Claim.Resource;
+        return new ApprovalResponseDto
+        {
+            Id = value.Id,
+            RunId = value.RunId,
+            TaskId = value.TaskId,
+            AgentInstanceId = value.SubjectAgentInstanceId,
+            Kind = "permission",
+            ToolId = resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase) ? resource[7..] : resource,
+            Risk = value.Risk,
+            Summary = evidence?.Summary ?? "Tool permission request requires authorization.",
+            Arguments = evidence?.Arguments ?? JsonSerializer.Serialize(new { capability = value.Claim.Capability, action = value.Claim.Action, resource }),
+            Command = evidence?.Command,
+            Cwd = evidence?.WorkingDirectory,
+            ResourcePath = evidence?.ResourcePath
+                ?? (resource.StartsWith("path://", StringComparison.OrdinalIgnoreCase) ? resource[7..] : null),
+            Status = "pending",
+            ExpiresAt = value.ExpiresAt,
+            CreatedAt = value.CreatedAt,
+            UpdatedAt = value.UpdatedAt
+        };
+    }
 }

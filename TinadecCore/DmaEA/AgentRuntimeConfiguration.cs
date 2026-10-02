@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using Tomlyn;
 using Tomlyn.Model;
@@ -14,7 +16,40 @@ public sealed record SchedulingPolicy(int MaxActiveRunsPerSession, int WorkerRet
 
 public sealed record SupervisionPolicy(bool RequiredBeforeFinal, int MaxRevisionRounds);
 
-public sealed record ContextPolicy(int DefaultTokenBudget, int RecentMessageLimit, bool OptimisticRevision);
+public sealed record ContextPolicy(int DefaultTokenBudget, int RecentMessageLimit, bool OptimisticRevision)
+{
+    /// <summary>
+    /// Default run-wide token fuse. A run is many tasks, so this sits well above
+    /// any single task's context budget; it exists to stop an unattended run
+    /// burning tokens without bound, not to cap how much work a run may do.
+    /// Fuse-level initial value, to be calibrated against measured P95 usage.
+    /// </summary>
+    public const int DefaultRunTokenBudget = 1_048_576;
+
+    /// <summary>
+    /// Run-wide token fuse (<c>[context] run_token_budget</c>). Crossing it ends
+    /// the active task gracefully instead of failing the run. Zero or less
+    /// disables the gate; a TOML without the key keeps the default fuse.
+    /// </summary>
+    public int RunTokenBudget { get; init; } = DefaultRunTokenBudget;
+
+    public static void Validate(ContextPolicy policy)
+    {
+        ArgumentNullException.ThrowIfNull(policy);
+        if (policy.DefaultTokenBudget <= 0)
+        {
+            throw new InvalidDataException("default_token_budget must be positive.");
+        }
+        if (policy.RecentMessageLimit <= 0)
+        {
+            throw new InvalidDataException("recent_message_limit must be positive.");
+        }
+        if (policy.RunTokenBudget < 0)
+        {
+            throw new InvalidDataException("run_token_budget must not be negative (0 disables the run-level gate).");
+        }
+    }
+}
 
 public sealed record MemoryPolicy(bool CandidateOnly, int RetrievalLimit, IReadOnlyList<string> AllowedScopes, IReadOnlyList<string> AllowedKinds);
 
@@ -30,10 +65,29 @@ public sealed record ToolRuntimePolicy(
 
     /// <summary>
     /// Hard ceiling for any per-task round override, regardless of what the
-    /// baseline or a workspace override declares. Raising a task's limit past the
-    /// frozen default is only ever allowed under the loop guard's watch.
+    /// baseline or a workspace override declares. Kept equal to the global
+    /// ceiling: an override must never be allowed to be narrower than the global
+    /// default it replaces, so it only bounds *positive* configuration values.
     /// </summary>
-    public const int MaxTaskOverrideRounds = 12;
+    public const int MaxTaskOverrideRounds = 32;
+
+    /// <summary>
+    /// Default absolute per-task tool-call fuse. Deliberately not unlimited: this
+    /// Core supports unattended runs (auto-approve / full-access), and unlike an
+    /// interactive CLI nobody is at the keyboard to interrupt one. 500 calls is
+    /// far beyond any real task, so a normal run never reaches it — tripping it
+    /// usually indicates a bug.
+    /// </summary>
+    public const int DefaultMaxToolCalls = 500;
+
+    /// <summary>
+    /// Absolute per-task tool-call fuse (<c>[tools] max_tool_calls</c>). This is
+    /// a fuse, not a budget, and it is independent of the round limit: setting
+    /// <see cref="MaxToolRounds"/> to a non-positive value (unlimited rounds) does
+    /// not remove it. Zero disables this call fuse; negative values are invalid for
+    /// the fuse itself. A TOML without the key keeps the default.
+    /// </summary>
+    public int MaxToolCalls { get; init; } = DefaultMaxToolCalls;
 
     public IReadOnlyDictionary<string, int> Overrides { get; init; } =
         TaskRoundOverrides is { Count: > 0 }
@@ -43,17 +97,24 @@ public sealed record ToolRuntimePolicy(
     public static void Validate(ToolRuntimePolicy policy)
     {
         ArgumentNullException.ThrowIfNull(policy);
-        if (policy.MaxToolRounds is < 0 or > MaximumRounds)
+        // Any non-positive value means "unlimited rounds". Only positive values
+        // are bounded by the Core safety ceiling, matching the documented runtime
+        // contract and ResolveTaskRoundLimit's <= 0 semantics.
+        if (policy.MaxToolRounds > MaximumRounds)
         {
             throw new InvalidDataException(
-                $"max_tool_rounds must be between 0 and the Core safety ceiling ({MaximumRounds}).");
+                $"A positive max_tool_rounds value must not exceed the Core safety ceiling ({MaximumRounds}); non-positive values mean unlimited.");
+        }
+        if (policy.MaxToolCalls < 0)
+        {
+            throw new InvalidDataException("max_tool_calls must not be negative (0 disables the absolute call fuse).");
         }
         foreach (var (key, rounds) in policy.Overrides)
         {
-            if (rounds is < 0 or > MaxTaskOverrideRounds)
+            if (rounds > MaxTaskOverrideRounds)
             {
                 throw new InvalidDataException(
-                    $"task_round_overrides['{key}'] must be between 0 and the per-task ceiling ({MaxTaskOverrideRounds}).");
+                    $"A positive task_round_overrides['{key}'] value must not exceed the per-task ceiling ({MaxTaskOverrideRounds}); non-positive values mean unlimited.");
             }
         }
     }
@@ -61,14 +122,35 @@ public sealed record ToolRuntimePolicy(
     /// <summary>
     /// Effective tool-round limit for one task: the category override wins, the
     /// risk class doubles as the category when the planner omitted one, and the
-    /// frozen global default applies otherwise.
+    /// frozen global default applies otherwise. Zero or less means "no round
+    /// gate" — convergence is then carried by the loop guard and the token
+    /// budgets, with <see cref="MaxToolCalls"/> as the absolute fuse.
     /// </summary>
     public int ResolveTaskRoundLimit(string? category, string risk)
     {
-        if (!string.IsNullOrWhiteSpace(category) && Overrides.TryGetValue(category.Trim(), out var byCategory)) return byCategory;
-        if (!string.IsNullOrWhiteSpace(risk) && Overrides.TryGetValue(risk.Trim(), out var byRisk)) return byRisk;
+        // Category first, then the risk class as the second key — a non-matching
+        // category must not shadow a matching risk override.
+        if (CategoryKey(category) is { } byCategory && Overrides.TryGetValue(byCategory, out var byCategoryValue)) return byCategoryValue;
+        if (RiskKey(risk) is { } byRisk && Overrides.TryGetValue(byRisk, out var byRiskValue)) return byRiskValue;
         return MaxToolRounds;
     }
+
+    /// <summary>
+    /// Where the effective round limit came from, for the operator-facing budget
+    /// context (`global_default` / `category_override` / `risk_override`).
+    /// </summary>
+    public string ResolveTaskRoundLimitSource(string? category, string risk)
+    {
+        if (CategoryKey(category) is { } byCategory && Overrides.ContainsKey(byCategory)) return "category_override";
+        if (RiskKey(risk) is { } byRisk && Overrides.ContainsKey(byRisk)) return "risk_override";
+        return "global_default";
+    }
+
+    private static string? CategoryKey(string? category) =>
+        string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+
+    private static string? RiskKey(string? risk) =>
+        string.IsNullOrWhiteSpace(risk) ? null : risk.Trim();
 }
 
 /// <summary>
@@ -119,19 +201,6 @@ public sealed record OrchestrationPolicy(bool LanesEnabled, int MaxLanesPerRun, 
     }
 }
 
-public sealed record ApplicationModeDefinition(
-    string Id,
-    string DefaultAgentMode,
-    IReadOnlyList<string> AllowedAgentModes,
-    IReadOnlyDictionary<string, string> Bindings);
-
-public sealed record RuntimeProfileDefinition(
-    string Id,
-    string ActivationPolicy,
-    IReadOnlyList<string> OperationAgents,
-    IReadOnlyList<string> ExecutionAgents,
-    bool DirectAnswerAllowed);
-
 public sealed record RuntimeAgentDefinition(
     string Id,
     string Layer,
@@ -158,11 +227,26 @@ public sealed record RuntimeAgentDefinition(
     /// </summary>
     public IReadOnlyList<string> AllowedTools { get; init; } = [];
 
+    /// <summary>
+    /// Resource-path grants frozen from the node's binding envelope (WS-4 resource
+    /// envelope). Empty = no workspace authorization for provider tools; the PDP
+    /// resource_access boundary enforces read/write levels from these grants.
+    /// </summary>
+    public IReadOnlyList<FrozenResourceGrant> ResourceGrants { get; init; } = [];
+
     /// <summary>Optional prompt profile for deterministic prompt assembly.</summary>
     public string PromptProfile { get; init; } = string.Empty;
 
     /// <summary>Event triggers that activate the agent (logical channels).</summary>
     public IReadOnlyList<string> Triggers { get; init; } = [];
+
+    /// <summary>
+    /// The executor ids this agent's node may dispatch to (relationship file
+    /// <c>allowed_dispatch_targets</c>). Null = not declared: the tier's roster applies. Frozen with
+    /// null suppression so a body admitted before the field existed keeps identical bytes.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? AllowedDispatchTargets { get; init; }
 
     /// <summary>Supervisor decisions when applicable (pass/revise/escalate).</summary>
     public IReadOnlyList<string> Decisions { get; init; } = [];
@@ -172,6 +256,15 @@ public sealed record RuntimeAgentDefinition(
 
     /// <summary>Immutable formal-agent content captured before run admission.</summary>
     public string SystemPrompt { get; init; } = string.Empty;
+
+    /// <summary>
+    /// The agent's published responsibility description ("what it is for / when to use it /
+    /// what it cannot do"). It is what the coordinator reads to choose a dispatch target, so it
+    /// travels into the frozen roster verbatim. Null-suppressed so bodies frozen before it
+    /// existed serialize to identical bytes.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Description { get; init; }
 
     public string ModelStrategyJson { get; init; } = "{\"kind\":\"inherit\"}";
 
@@ -205,50 +298,13 @@ public sealed record AgentRuntimeConfigurationSnapshot(
     SupervisionPolicy Supervision,
     ContextPolicy Context,
     MemoryPolicy Memory,
-    ToolRuntimePolicy Tools,
-    IReadOnlyDictionary<string, ApplicationModeDefinition> ApplicationModes,
-    IReadOnlyDictionary<string, RuntimeProfileDefinition> Profiles,
-    IReadOnlyDictionary<string, RuntimeAgentDefinition> Agents)
+    ToolRuntimePolicy Tools)
 {
     /// <summary>Operational-role trigger gates; absent TOML keeps the chain disabled.</summary>
     public TriggersPolicy Triggers { get; init; } = TriggersPolicy.Disabled;
 
     /// <summary>Lane master switch and ceilings; absent TOML keeps lanes off.</summary>
     public OrchestrationPolicy Orchestration { get; init; } = OrchestrationPolicy.Disabled;
-
-    public (string ApplicationMode, string AgentMode, RuntimeProfileDefinition Profile) Resolve(string? applicationMode, string? agentMode)
-    {
-        var appId = NormalizeApplicationMode(applicationMode);
-        var allowed = appId switch
-        {
-            "conversation" => new[] { "plan", "spec", "ask", "vibe", "auto", "agent" },
-            "space" => new[] { "agent" },
-            _ => throw new InvalidOperationException($"Application mode '{appId}' is not configured.")
-        };
-        var selectedAgentMode = string.IsNullOrWhiteSpace(agentMode)
-            ? appId == "conversation" ? "auto" : "agent"
-            : agentMode.Trim().ToLowerInvariant();
-        if (!allowed.Contains(selectedAgentMode, StringComparer.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"Agent mode '{selectedAgentMode}' is unavailable in application mode '{appId}'.");
-        var profileId = appId == "space" ? "space.full_duplex" : $"conversation.{selectedAgentMode}";
-        var activation = profileId switch
-        {
-            "conversation.plan" => "plan_only",
-            "conversation.spec" => "specification",
-            "conversation.agent" => "execute",
-            "space.full_duplex" => "full_duplex",
-            _ => "intent_adaptive"
-        };
-        var profile = new RuntimeProfileDefinition(profileId, activation, [], [], selectedAgentMode is "ask" or "vibe" or "auto");
-        return (appId, selectedAgentMode, profile);
-    }
-
-    public static string NormalizeApplicationMode(string? value) => value?.Trim().ToLowerInvariant() switch
-    {
-        null or "" or "im" => "conversation",
-        "hub" => "space",
-        var mode => mode
-    };
 }
 
 public sealed record RuntimeConfigurationDiagnostic(string State, string Detail, string SourcePath, DateTimeOffset CheckedAt);
@@ -318,12 +374,12 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
                 var next = LoadSnapshot(_path, Interlocked.Increment(ref _version));
                 Volatile.Write(ref _current, next);
                 Volatile.Write(ref _diagnostic, new RuntimeConfigurationDiagnostic("ready", $"Loaded runtime configuration v{next.Version} ({next.ContentHash[..12]}).", _path, DateTimeOffset.UtcNow));
-                _logger.LogInformation("Loaded agent runtime configuration version {Version} from {Path}", next.Version, _path);
+                _logger.TryLogInformation("Loaded agent runtime configuration version {Version} from {Path}", next.Version, _path);
             }
             catch (Exception ex)
             {
                 Volatile.Write(ref _diagnostic, new RuntimeConfigurationDiagnostic("warning", ex.Message, _path, DateTimeOffset.UtcNow));
-                _logger.LogWarning(ex, "Agent runtime configuration reload failed; keeping version {Version}", Current.Version);
+                _logger.TryLogWarning(ex, "Agent runtime configuration reload failed; keeping version {Version}", Current.Version);
             }
         }
     }
@@ -359,7 +415,10 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
         var tools = Table(root, "tools");
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
-        var toolPolicy = new ToolRuntimePolicy(Text(tools, "provider"), Boolean(tools, "mutation_requires_approval"), Boolean(tools, "serialize_workspace_writes"), Integer(tools, "default_timeout_seconds", 120), Integer(tools, "max_tool_rounds", 4), ReadTaskRoundOverrides(tools));
+        var toolPolicy = new ToolRuntimePolicy(Text(tools, "provider"), Boolean(tools, "mutation_requires_approval"), Boolean(tools, "serialize_workspace_writes"), Integer(tools, "default_timeout_seconds", 120), Integer(tools, "max_tool_rounds", 4), ReadTaskRoundOverrides(tools))
+        {
+            MaxToolCalls = Integer(tools, "max_tool_calls", ToolRuntimePolicy.DefaultMaxToolCalls)
+        };
         ToolRuntimePolicy.Validate(toolPolicy);
         // The trigger chain is opt-in: a baseline without a [triggers] table keeps
         // operational roles dormant, matching pre-trigger deployments.
@@ -374,6 +433,23 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
                 Boolean(triggers, "curate_on_run_closed"),
                 Boolean(triggers, "git_steward_on_run_closed"));
         TriggersPolicy.Validate(triggersPolicy);
+        var contextPolicy = new ContextPolicy(
+            Integer(context, "default_token_budget", 8192),
+            Integer(context, "recent_message_limit", 24),
+            Boolean(context, "optimistic_revision"))
+        {
+            RunTokenBudget = Integer(context, "run_token_budget", ContextPolicy.DefaultRunTokenBudget)
+        };
+        ContextPolicy.Validate(contextPolicy);
+        // The compression threshold and the context budget are one mechanism: if
+        // the threshold reaches (or passes) the budget, compaction either never
+        // fires or always fires. Fail loud at load time and name BOTH keys instead
+        // of letting a run discover the mismatch mid-flight.
+        if (triggersPolicy.ContextTokenThreshold >= contextPolicy.DefaultTokenBudget)
+        {
+            throw new InvalidDataException(
+                $"context_token_threshold ({triggersPolicy.ContextTokenThreshold}) must be lower than default_token_budget ({contextPolicy.DefaultTokenBudget}); otherwise context compression never fires (or always fires) and the two settings have drifted apart.");
+        }
         // Lanes ride the same opt-in pattern: a baseline without [orchestration]
         // keeps the lateral channel closed while the ceilings still freeze.
         var orchestration = OptionalTable(root, "orchestration");
@@ -391,17 +467,17 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
             new SpawnPolicy(Integer(spawn, "max_depth", 2), Integer(spawn, "max_agents_per_run", 16), Integer(spawn, "max_parallel_workers", 4)),
             new SchedulingPolicy(Integer(scheduling, "max_active_runs_per_session", 2), Integer(scheduling, "worker_retry_limit", 2), Boolean(scheduling, "preserve_partial_results")),
             new SupervisionPolicy(Boolean(supervision, "required_before_final"), Integer(supervision, "max_revision_rounds", 2)),
-            new ContextPolicy(Integer(context, "default_token_budget", 8192), Integer(context, "recent_message_limit", 24), Boolean(context, "optimistic_revision")),
+            contextPolicy,
             new MemoryPolicy(Boolean(memory, "candidate_only"), Integer(memory, "retrieval_limit", 8), Strings(memory, "allowed_scopes"), Strings(memory, "allowed_kinds")),
-            toolPolicy,
-            new Dictionary<string, ApplicationModeDefinition>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, RuntimeProfileDefinition>(StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, RuntimeAgentDefinition>(StringComparer.OrdinalIgnoreCase))
+            toolPolicy)
         {
             Triggers = triggersPolicy,
             Orchestration = orchestrationPolicy
         };
     }
+
+    private static string? OptionalString(TomlTable table, string key) =>
+        table.TryGetValue(key, out var value) && value is string text ? text : null;
 
     public static string NormalizeLayer(string? layer) => string.Equals(layer, "planning", StringComparison.OrdinalIgnoreCase) ? "operation" : layer?.Trim().ToLowerInvariant() ?? string.Empty;
 

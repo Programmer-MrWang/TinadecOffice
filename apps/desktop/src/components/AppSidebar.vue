@@ -5,14 +5,15 @@ import {
   Bug,
   ChevronRight,
   FolderOpen,
-  LayoutGrid,
   MessageSquare,
+  MessagesSquare,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
   Plus,
   Settings,
+  Sparkles,
   Store,
   Terminal,
   Trash2,
@@ -23,7 +24,7 @@ import BrandLogo from '@/components/BrandLogo.vue'
 import TinadecCalligraphy from '@/components/TinadecCalligraphy.vue'
 import InlineRenameInput from '@/components/InlineRenameInput.vue'
 import RowContextMenu, { type RowMenuItem } from '@/components/RowContextMenu.vue'
-import { UiButton, UiDropdownMenu } from '@/components/ui'
+import { UiButton } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
 
 const { t } = useI18n()
@@ -36,6 +37,7 @@ const props = defineProps<{
   selectedSessionId: string | null
   busy: boolean
   collapsed?: boolean
+  chatroomActive?: boolean
   panelStyle?: Record<string, string>
   panelDataAttrs?: Record<string, string>
 }>()
@@ -43,10 +45,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   'select-project': [id: string]
   'select-session': [id: string]
-  'create-session': [projectId: string]
+  'create-session': [projectId: string | null]
   'open-project': []
   'go-settings': []
   'go-market': []
+  'go-workbench': []
+  'go-chatroom': []
   'toggle-collapse': []
   'rename-project': [id: string, name: string]
   'rename-session': [id: string, title: string]
@@ -56,7 +60,6 @@ const emit = defineEmits<{
   'trash-session': [id: string]
 }>()
 
-const searchQuery = ref('')
 const expandedProjects = ref<Set<string>>(new Set())
 
 // ---- Lifecycle management (context menu + inline rename) ----
@@ -137,17 +140,11 @@ async function handleMenuSelect(key: string) {
 }
 
 const filteredProjects = computed(() => {
-  if (!searchQuery.value.trim()) return props.projects
-  const q = searchQuery.value.toLowerCase()
-  return props.projects.filter((project) =>
-    project.name.toLowerCase().includes(q)
-  )
+  return props.projects
 })
 
 function getProjectSessions(projectId: string): SessionDto[] {
-  return props.sessions.filter(
-    (s) => s.project_id === projectId && s.title && s.title !== 'Tinadec session'
-  )
+  return props.sessions.filter((s) => (s.project_id ?? null) === projectId && s.title)
 }
 
 function isExpanded(projectId: string): boolean {
@@ -178,23 +175,18 @@ function handleNewSession(projectId: string) {
 }
 
 function handleNewThread() {
-  if (props.selectedProjectId) {
-    emit('create-session', props.selectedProjectId)
-  } else if (props.projects.length > 0) {
-    emit('create-session', props.projects[0].id)
-  }
+  emit('create-session', props.selectedProjectId ?? props.projects[0]?.id ?? null)
 }
+
+// Sessions not bound to any project (Codex-style free conversations). The title is
+// not a filter: a newly created conversation still carries the default
+// 'Tinadec session' title until its first message generates one, so hiding that
+// title made every fresh free conversation invisible.
+const freeSessions = computed(() =>
+  props.sessions.filter((s) => !s.project_id && s.title)
+)
 
 const tokenUsage = ref<number[]>([])
-
-// ---- Mode switch (placeholder, no actual functionality) ----
-const modeMenuOpen = ref(false)
-const selectedMode = ref<'im' | 'hub'>('im')
-
-function selectMode(mode: 'im' | 'hub') {
-  selectedMode.value = mode
-  modeMenuOpen.value = false
-}
 
 function openDebugStudio() {
   ;(window as unknown as { tinadec?: { openDebugStudio?: () => Promise<boolean> } }).tinadec?.openDebugStudio?.()
@@ -215,12 +207,25 @@ function openDebugStudio() {
         variant="ghost"
         size="sm"
         class="sidebar-nav-item w-full justify-start"
-        :disabled="busy || projects.length === 0"
+        :disabled="busy"
         :title="t('sidebar.newChat')"
         @click="handleNewThread"
       >
         <MessageSquare :size="16" class="sidebar-icon" />
         <span class="sidebar-label">{{ t('sidebar.newChat') }}</span>
+      </UiButton>
+      <UiButton
+        variant="ghost"
+        size="sm"
+        class="sidebar-nav-item w-full justify-start"
+        :class="{ 'bg-accent text-accent-foreground': chatroomActive }"
+        :aria-current="chatroomActive ? 'page' : undefined"
+        :title="t('sidebar.chatroom')"
+        data-testid="sidebar-chatroom"
+        @click="emit('go-chatroom')"
+      >
+        <MessagesSquare :size="16" class="sidebar-icon" />
+        <span class="sidebar-label">{{ t('sidebar.chatroom') }}</span>
       </UiButton>
       <UiButton
         variant="ghost"
@@ -237,7 +242,7 @@ function openDebugStudio() {
         size="sm"
         class="sidebar-nav-item w-full justify-start"
         :title="t('sidebar.commandCenter')"
-        disabled
+        @click="emit('go-workbench')"
       >
         <Terminal :size="16" class="sidebar-icon" />
         <span class="sidebar-label">{{ t('sidebar.commandCenter') }}</span>
@@ -255,6 +260,47 @@ function openDebugStudio() {
     </nav>
 
     <div class="sidebar-list">
+      <div v-if="freeSessions.length > 0" class="project-group free-conversation-group">
+        <div class="project-row">
+          <div class="project-row-main free-conversation-header">
+            <Sparkles :size="14" class="sidebar-list-item-icon sidebar-icon" />
+            <span class="sidebar-list-item-text sidebar-label">{{ t('sidebar.freeConversations') }}</span>
+          </div>
+        </div>
+        <div class="project-sessions sidebar-extra">
+          <div
+            v-for="session in freeSessions"
+            :key="session.id"
+            class="session-row"
+            :class="{ active: session.id === selectedSessionId }"
+            @contextmenu.prevent="openMenuAtCursor($event, 'session', session.id, session.title)"
+          >
+            <button
+              class="session-item"
+              @click="handleSessionClick(session.id)"
+              @dblclick.stop="renaming = { kind: 'session', id: session.id }"
+            >
+              <span class="session-dot" :class="session.status" />
+              <InlineRenameInput
+                v-if="renaming?.kind === 'session' && renaming.id === session.id"
+                :model-value="session.title"
+                class="session-title"
+                @submit="submitRename"
+                @cancel="cancelRename"
+              />
+              <span v-else class="session-title">{{ session.title }}</span>
+            </button>
+            <button
+              class="session-more"
+              :title="t('sidebar.moreActions')"
+              @click.stop="openMenuAtButton($event, 'session', session.id, session.title)"
+            >
+              <MoreHorizontal :size="13" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div
         v-for="project in filteredProjects"
         :key="project.id"
@@ -262,10 +308,12 @@ function openDebugStudio() {
       >
         <div
           class="project-row"
+          :class="{ active: project.id === selectedProjectId }"
           @contextmenu.prevent="openMenuAtCursor($event, 'project', project.id, project.name)"
         >
           <button
             class="project-row-main"
+            :aria-current="project.id === selectedProjectId ? 'location' : undefined"
             :title="project.name"
             @click="handleProjectClick(project.id)"
             @dblclick.stop="renaming = { kind: 'project', id: project.id }"
@@ -306,11 +354,12 @@ function openDebugStudio() {
             v-for="session in getProjectSessions(project.id)"
             :key="session.id"
             class="session-row"
+            :class="{ active: session.id === selectedSessionId }"
             @contextmenu.prevent="openMenuAtCursor($event, 'session', session.id, session.title)"
           >
             <button
               class="session-item"
-              :class="{ active: session.id === selectedSessionId }"
+              :aria-current="session.id === selectedSessionId ? 'page' : undefined"
               @click="handleSessionClick(session.id)"
               @dblclick.stop="renaming = { kind: 'session', id: session.id }"
             >
@@ -370,32 +419,6 @@ function openDebugStudio() {
         >
           <Settings :size="16" />
         </UiButton>
-        <UiDropdownMenu v-model:open="modeMenuOpen" placement="top" class="mode-dropdown-menu">
-          <template #trigger>
-            <UiButton
-              variant="ghost"
-              size="icon"
-              class="sidebar-footer-action"
-              title="Mode"
-            >
-              <LayoutGrid :size="16" />
-            </UiButton>
-          </template>
-          <button
-            class="mode-menu-item"
-            :class="{ active: selectedMode === 'im' }"
-            @click="selectMode('im')"
-          >
-            <span>会话模式</span>
-          </button>
-          <button
-            class="mode-menu-item"
-            :class="{ active: selectedMode === 'hub' }"
-            @click="selectMode('hub')"
-          >
-            <span>空间模式</span>
-          </button>
-        </UiDropdownMenu>
         <UiButton
           variant="ghost"
           size="icon"

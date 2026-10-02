@@ -31,7 +31,10 @@ internal static class TerminalRunner
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = stdin is not null,
+            // Always redirect stdin: a child must never inherit the tool host's
+            // protocol pipe (a live, writable handle), because a child that reads
+            // or keeps it open blocks its own shutdown/EOF and wedges the caller.
+            RedirectStandardInput = true,
             CreateNoWindow = true
         };
 
@@ -67,8 +70,10 @@ internal static class TerminalRunner
         if (stdin is not null)
         {
             await process.StandardInput.WriteAsync(stdin).ConfigureAwait(false);
-            process.StandardInput.Close();
         }
+        // Close unconditionally: without a payload the child gets EOF immediately
+        // instead of an open handle it can block on.
+        process.StandardInput.Close();
 
         using var timeoutCts = timeoutMs > 0
             ? new CancellationTokenSource(timeoutMs)

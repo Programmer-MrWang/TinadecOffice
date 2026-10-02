@@ -84,6 +84,20 @@ export interface paths {
     get: operations["getApiV1Agent-packsByPackId"];
     /** Install or upgrade agent pack */
     put: operations["putApiV1Agent-packsByPackId"];
+    /** Permanently delete an installed agent pack */
+    delete: operations["deleteApiV1Agent-packsByPackId"];
+  };
+  "/api/v1/agent-packs/{packId}/adopt-defaults": {
+    /** Make an agent pack the workspace default */
+    post: operations["postApiV1Agent-packsByPackIdAdopt-defaults"];
+  };
+  "/api/v1/agent-packs/{packId}/disable": {
+    /** Disable an installed agent pack without deleting it */
+    post: operations["postApiV1Agent-packsByPackIdDisable"];
+  };
+  "/api/v1/agent-packs/{packId}/enable": {
+    /** Enable an installed agent pack */
+    post: operations["postApiV1Agent-packsByPackIdEnable"];
   };
   "/api/v1/agent-runtime-instances": {
     /** List agent runtime instances */
@@ -98,8 +112,6 @@ export interface paths {
   "/api/v1/agents/{agentId}": {
     /** Get agent */
     get: operations["getApiV1AgentsByAgentId"];
-    /** Update agent */
-    put: operations["putApiV1AgentsByAgentId"];
   };
   "/api/v1/agents/{agentId}/archive": {
     /** Archive agent */
@@ -113,6 +125,13 @@ export interface paths {
     /** Publish agent */
     post: operations["postApiV1AgentsByAgentIdPublish"];
   };
+  "/api/v1/agents/{agentId}/runtime-binding": {
+    /**
+     * Set agent runtime binding
+     * @description User-level model/tool override for one agent (inherit or fixed provider+model). Works for pack-managed agents; survives pack reinstalls.
+     */
+    put: operations["putApiV1AgentsByAgentIdRuntime-binding"];
+  };
   "/api/v1/agents/{agentId}/versions": {
     /** List agent versions */
     get: operations["getApiV1AgentsByAgentIdVersions"];
@@ -121,13 +140,40 @@ export interface paths {
     /** Get agent version */
     get: operations["getApiV1AgentsByAgentIdVersionsByVersionId"];
   };
+  "/api/v1/approval-rules": {
+    /** List active approval rules */
+    get: operations["getApiV1Approval-rules"];
+    /** Create approval rule */
+    post: operations["postApiV1Approval-rules"];
+  };
+  "/api/v1/approval-rules/{ruleId}": {
+    /** Revoke approval rule */
+    delete: operations["deleteApiV1Approval-rulesByRuleId"];
+  };
   "/api/v1/approvals": {
     /** List approvals */
     get: operations["getApiV1Approvals"];
   };
+  "/api/v1/approvals/pre-authorizations": {
+    /** Create pre-authorization */
+    post: operations["postApiV1ApprovalsPre-authorizations"];
+  };
   "/api/v1/approvals/{approvalId}/decision": {
     /** Decide approval */
     post: operations["postApiV1ApprovalsByApprovalIdDecision"];
+  };
+  "/api/v1/approvals/{approvalId}/gates": {
+    get: operations["getApiV1ApprovalsByApprovalIdGates"];
+  };
+  "/api/v1/attachments/{attachmentId}": {
+    /** Read attachment metadata */
+    get: operations["getApiV1AttachmentsByAttachmentId"];
+    /** Discard an attachment row */
+    delete: operations["deleteApiV1AttachmentsByAttachmentId"];
+  };
+  "/api/v1/attachments/{attachmentId}/content": {
+    /** Download attachment bytes */
+    get: operations["getApiV1AttachmentsByAttachmentIdContent"];
   };
   "/api/v1/code/tools": {
     /**
@@ -205,10 +251,17 @@ export interface paths {
     /** Doctor checks */
     get: operations["getApiV1Doctor"];
   };
+  "/api/v1/environments": {
+    get: operations["getApiV1Environments"];
+    post: operations["postApiV1Environments"];
+  };
+  "/api/v1/environments/{environmentId}": {
+    patch: operations["patchApiV1EnvironmentsByEnvironmentId"];
+  };
   "/api/v1/events": {
     /**
      * Session events SSE
-     * @description SSE kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update, id=seq, Last-Event-ID / ?cursor resume
+     * @description Durable event journal feed (EventEnvelope): event: {EventType}, fields event_id/event_type/timestamp/session_id/run_id/payload; 15s heartbeat SSE comment; Last-Event-ID / ?cursor resume
      */
     get: operations["getApiV1Events"];
   };
@@ -300,11 +353,33 @@ export interface paths {
     /** Get catalog item */
     get: operations["getApiV1MarketCatalogByCatalogId"];
   };
+  "/api/v1/market/catalog/{catalogId}/install-preview": {
+    /** Preview a market install */
+    post: operations["postApiV1MarketCatalogByCatalogIdInstall-preview"];
+  };
+  "/api/v1/market/install-proposals/{proposalId}/apply": {
+    /** Queue an approved market write */
+    post: operations["postApiV1MarketInstall-proposalsByProposalIdApply"];
+  };
+  "/api/v1/market/installations": {
+    /** List installed market entries */
+    get: operations["getApiV1MarketInstallations"];
+  };
+  "/api/v1/market/installations/{installationId}/uninstall-preview": {
+    /** Preview removing an installed market entry */
+    post: operations["postApiV1MarketInstallationsByInstallationIdUninstall-preview"];
+  };
   "/api/v1/market/sources": {
     /** List market sources */
     get: operations["getApiV1MarketSources"];
     /** Create market source */
     post: operations["postApiV1MarketSources"];
+  };
+  "/api/v1/market/sources/{sourceId}": {
+    /** Delete a market source */
+    delete: operations["deleteApiV1MarketSourcesBySourceId"];
+    /** Enable or disable a market source */
+    patch: operations["patchApiV1MarketSourcesBySourceId"];
   };
   "/api/v1/market/sources/{sourceId}/refresh": {
     /** Refresh market source */
@@ -314,29 +389,9 @@ export interface paths {
     /** List MCP servers (Core-owned) */
     get: operations["getApiV1McpServers"];
   };
-  "/api/v1/mcp/servers/{serverId}/connect": {
-    /** MCP connect (proxy to Core) */
-    post: operations["postApiV1McpServersByServerIdConnect"];
-  };
-  "/api/v1/mcp/servers/{serverId}/disconnect": {
-    /** MCP disconnect (proxy to Core) */
-    post: operations["postApiV1McpServersByServerIdDisconnect"];
-  };
-  "/api/v1/mcp/servers/{serverId}/reload": {
-    /** Reload MCP server */
-    post: operations["postApiV1McpServersByServerIdReload"];
-  };
-  "/api/v1/mcp/servers/{serverId}/status": {
-    /** MCP status (proxy to Core) */
-    get: operations["getApiV1McpServersByServerIdStatus"];
-  };
   "/api/v1/mcp/servers/{serverId}/tools": {
     /** List MCP server tools */
     get: operations["getApiV1McpServersByServerIdTools"];
-  };
-  "/api/v1/mcp/servers/{serverId}/tools/{toolName}/call": {
-    /** MCP tool call (proxy to Core) */
-    post: operations["postApiV1McpServersByServerIdToolsByToolNameCall"];
   };
   "/api/v1/memory-candidates": {
     /** List memory candidates */
@@ -350,6 +405,14 @@ export interface paths {
     /** Reject memory candidate */
     post: operations["postApiV1Memory-candidatesByCandidateIdReject"];
   };
+  "/api/v1/memory-items": {
+    /** List promoted memory items */
+    get: operations["getApiV1Memory-items"];
+  };
+  "/api/v1/memory-items/{itemId}/revoke": {
+    /** Revoke a memory item */
+    post: operations["postApiV1Memory-itemsByItemIdRevoke"];
+  };
   "/api/v1/model-catalog-readiness": {
     /** Model catalog readiness */
     get: operations["getApiV1Model-catalog-readiness"];
@@ -357,6 +420,13 @@ export interface paths {
   "/api/v1/model-invocations": {
     /** Page model invocation audit records */
     get: operations["getApiV1Model-invocations"];
+  };
+  "/api/v1/model-probe": {
+    /**
+     * Model connectivity probe
+     * @description One minimal real completion through the resolved chat route (1 token, 10s timeout, 60s result cache). ?force=true bypasses the cache.
+     */
+    post: operations["postApiV1Model-probe"];
   };
   "/api/v1/model-provider-templates": {
     /** List provider templates (incl. protocol) */
@@ -427,6 +497,10 @@ export interface paths {
   "/api/v1/projects/{projectId}/archive": {
     /** Archive project */
     post: operations["postApiV1ProjectsByProjectIdArchive"];
+  };
+  "/api/v1/projects/{projectId}/overview": {
+    /** Project overview rollup */
+    get: operations["getApiV1ProjectsByProjectIdOverview"];
   };
   "/api/v1/projects/{projectId}/restore": {
     /** Restore project */
@@ -545,7 +619,7 @@ export interface paths {
   "/api/v1/runs/{runId}/stream": {
     /**
      * Run stream (SSE)
-     * @description Durable SSE with id=seq, Last-Event-ID / ?cursor= & ?after_seq resume, kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update
+     * @description Durable SSE with id=seq and event=kind, Last-Event-ID / ?cursor= & ?after_seq resume. Kinds: ack/queued/assigned/steering/context_conflict/control/ephemeral_agent/delta/done/error. occurred_at is the durable journal timestamp; idle keep-alive is an SSE comment ": heartbeat" that never advances the cursor
      */
     get: operations["getApiV1RunsByRunIdStream"];
   };
@@ -573,6 +647,15 @@ export interface paths {
     /** Archive session */
     post: operations["postApiV1SessionsBySessionIdArchive"];
   };
+  "/api/v1/sessions/{sessionId}/attachments": {
+    /** List session attachments */
+    get: operations["getApiV1SessionsBySessionIdAttachments"];
+    /**
+     * Upload a session attachment
+     * @description Raw request body is the file; filename and media type travel as query parameters. The stored bytes are user-supplied and are served back from the origin the renderer trusts, so Core decides inline vs attachment per type and this route forwards that decision rather than re-deciding it.
+     */
+    post: operations["postApiV1SessionsBySessionIdAttachments"];
+  };
   "/api/v1/sessions/{sessionId}/context-packs": {
     /** Session context packs */
     get: operations["getApiV1SessionsBySessionIdContext-packs"];
@@ -580,6 +663,9 @@ export interface paths {
   "/api/v1/sessions/{sessionId}/context-versions": {
     /** Session context versions */
     get: operations["getApiV1SessionsBySessionIdContext-versions"];
+  };
+  "/api/v1/sessions/{sessionId}/evidence": {
+    get: operations["getApiV1SessionsBySessionIdEvidence"];
   };
   "/api/v1/sessions/{sessionId}/interactions": {
     /** Create session interaction */
@@ -592,20 +678,6 @@ export interface paths {
   "/api/v1/sessions/{sessionId}/interactions/{interactionId}/reassign": {
     /** Reassign interaction */
     post: operations["postApiV1SessionsBySessionIdInteractionsByInteractionIdReassign"];
-  };
-  "/api/v1/sessions/{sessionId}/interactions/{interactionId}/stream": {
-    /**
-     * Stream interaction SSE
-     * @description Thin SSE proxy with Last-Event-ID / ?cursor resume, kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update
-     */
-    get: operations["getApiV1SessionsBySessionIdInteractionsByInteractionIdStream"];
-  };
-  "/api/v1/sessions/{sessionId}/invoke-stream": {
-    /**
-     * Full-duplex invoke-stream
-     * @description 5 required: content, client_message_id, application_mode, agent_mode, permission_mode + 2 optional: target_run_id, expected_context_revision. SSE kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update, fixed fields run_id/turn_id/message_id/seq/kind/occurred_at/payload, id=seq
-     */
-    post: operations["postApiV1SessionsBySessionIdInvoke-stream"];
   };
   "/api/v1/sessions/{sessionId}/logs": {
     /** Session logs */
@@ -621,9 +693,33 @@ export interface paths {
     /** Create message (compat) */
     post: operations["postApiV1SessionsBySessionIdMessages"];
   };
+  "/api/v1/sessions/{sessionId}/messages/{messageId}/revert": {
+    /** Revert conversation history to a message */
+    post: operations["postApiV1SessionsBySessionIdMessagesByMessageIdRevert"];
+  };
+  "/api/v1/sessions/{sessionId}/migrate": {
+    /** Migrate session onto a project workspace (find-or-create by root path) */
+    post: operations["postApiV1SessionsBySessionIdMigrate"];
+  };
   "/api/v1/sessions/{sessionId}/orchestration": {
     /** Session orchestration snapshot */
     get: operations["getApiV1SessionsBySessionIdOrchestration"];
+  };
+  "/api/v1/sessions/{sessionId}/organization": {
+    get: operations["getApiV1SessionsBySessionIdOrganization"];
+  };
+  "/api/v1/sessions/{sessionId}/organization/members/{participantId}": {
+    patch: operations["patchApiV1SessionsBySessionIdOrganizationMembersByParticipantId"];
+  };
+  "/api/v1/sessions/{sessionId}/organization/reports": {
+    get: operations["getApiV1SessionsBySessionIdOrganizationReports"];
+  };
+  "/api/v1/sessions/{sessionId}/organization/reports/{reportId}/decision": {
+    post: operations["postApiV1SessionsBySessionIdOrganizationReportsByReportIdDecision"];
+  };
+  "/api/v1/sessions/{sessionId}/organization/rooms/{roomId}/messages": {
+    get: operations["getApiV1SessionsBySessionIdOrganizationRoomsByRoomIdMessages"];
+    post: operations["postApiV1SessionsBySessionIdOrganizationRoomsByRoomIdMessages"];
   };
   "/api/v1/sessions/{sessionId}/restore": {
     /** Restore session */
@@ -645,6 +741,9 @@ export interface paths {
     /** Session tool executions */
     get: operations["getApiV1SessionsBySessionIdTool-executions"];
   };
+  "/api/v1/sessions/{sessionId}/topology": {
+    get: operations["getApiV1SessionsBySessionIdTopology"];
+  };
   "/api/v1/sessions/{sessionId}/trash": {
     /** Move session to trash */
     post: operations["postApiV1SessionsBySessionIdTrash"];
@@ -660,6 +759,64 @@ export interface paths {
   "/api/v1/terminals/{terminalSessionId}/stdin": {
     /** Send user input to an agent terminal session */
     post: operations["postApiV1TerminalsByTerminalSessionIdStdin"];
+  };
+  "/api/v1/tina-chat/conversations": {
+    get: operations["getApiV1Tina-chatConversations"];
+    post: operations["postApiV1Tina-chatConversations"];
+  };
+  "/api/v1/tina-chat/conversations/{id}": {
+    get: operations["getApiV1Tina-chatConversationsById"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/intents": {
+    get: operations["getApiV1Tina-chatConversationsByIdIntents"];
+    post: operations["postApiV1Tina-chatConversationsByIdIntents"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/intents/generate": {
+    post: operations["postApiV1Tina-chatConversationsByIdIntentsGenerate"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/intents/{intentId}/decision": {
+    post: operations["postApiV1Tina-chatConversationsByIdIntentsByIntentIdDecision"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/intents/{intentId}/execute": {
+    post: operations["postApiV1Tina-chatConversationsByIdIntentsByIntentIdExecute"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/members": {
+    get: operations["getApiV1Tina-chatConversationsByIdMembers"];
+    put: operations["putApiV1Tina-chatConversationsByIdMembers"];
+  };
+  "/api/v1/tina-chat/conversations/{id}/messages": {
+    get: operations["getApiV1Tina-chatConversationsByIdMessages"];
+    post: operations["postApiV1Tina-chatConversationsByIdMessages"];
+  };
+  "/api/v1/tina-chat/observer/access": {
+    get: operations["getApiV1Tina-chatObserverAccess"];
+  };
+  "/api/v1/tina-chat/observer/conversations": {
+    get: operations["getApiV1Tina-chatObserverConversations"];
+  };
+  "/api/v1/tina-chat/observer/conversations/{id}": {
+    get: operations["getApiV1Tina-chatObserverConversationsById"];
+  };
+  "/api/v1/tina-chat/observer/conversations/{id}/messages": {
+    get: operations["getApiV1Tina-chatObserverConversationsByIdMessages"];
+  };
+  "/api/v1/tina-chat/participants": {
+    get: operations["getApiV1Tina-chatParticipants"];
+    post: operations["postApiV1Tina-chatParticipants"];
+  };
+  "/api/v1/tina-chat/participants/{id}": {
+    get: operations["getApiV1Tina-chatParticipantsById"];
+    patch: operations["patchApiV1Tina-chatParticipantsById"];
+  };
+  "/api/v1/tina-chat/participants/{id}/inbox": {
+    get: operations["getApiV1Tina-chatParticipantsByIdInbox"];
+  };
+  "/api/v1/tina-chat/participants/{id}/inbox/{messageId}/ack": {
+    post: operations["postApiV1Tina-chatParticipantsByIdInboxByMessageIdAck"];
+  };
+  "/api/v1/tina-chat/workspace-policy": {
+    get: operations["getApiV1Tina-chatWorkspace-policy"];
+    put: operations["putApiV1Tina-chatWorkspace-policy"];
   };
   "/api/v1/tool-layer-readiness": {
     /** Tool layer readiness */
@@ -737,6 +894,18 @@ export interface paths {
   "/api/v1/workspace-snapshots/{snapshotId}": {
     /** Get workspace snapshot */
     get: operations["getApiV1Workspace-snapshotsBySnapshotId"];
+  };
+  "/api/v1/workspace-snapshots/{snapshotId}/files": {
+    /** List per-file changes of a workspace snapshot */
+    get: operations["getApiV1Workspace-snapshotsBySnapshotIdFiles"];
+  };
+  "/api/v1/workspace-snapshots/{snapshotId}/files/diff": {
+    /** Read the two bodies behind one file change */
+    get: operations["getApiV1Workspace-snapshotsBySnapshotIdFilesDiff"];
+  };
+  "/api/v1/workspace-snapshots/{snapshotId}/files/restore": {
+    /** Restore one file from a workspace snapshot */
+    post: operations["postApiV1Workspace-snapshotsBySnapshotIdFilesRestore"];
   };
   "/api/v1/workspace-snapshots/{snapshotId}/restore": {
     /** Restore workspace snapshot */
@@ -958,6 +1127,27 @@ export interface components {
       /** @description Pack-local prompt pipeline resource key. */
       prompt_pipeline_ref: string;
     };
+    ApprovalGateDto: {
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+      decider_agent: string | null;
+      evidence: null | components["schemas"]["OrganizationJsonElement"];
+      /** Format: int32 */
+      gate_index: number | string;
+      gate_kind: string;
+      reason: string | null;
+      status: string;
+    };
+    ApprovalGatesDto: {
+      /** Format: uuid */
+      approval_id: string;
+      gates: components["schemas"]["ApprovalGateDto"][];
+      /** Format: uuid */
+      run_id: string | null;
+      status: string;
+    };
     Assignment: {
       agent_id: string;
       /** @enum {string} */
@@ -981,6 +1171,75 @@ export interface components {
       [key: string]: unknown;
     };
     ContextVersionList: components["schemas"]["ContextVersion"][];
+    EnvironmentDto: {
+      /** Format: int32 */
+      capacity: number | string;
+      connection: components["schemas"]["OrganizationJsonElement"];
+      description: string | null;
+      display_name: string;
+      /** Format: int32 */
+      free_slots: number | string;
+      holders: components["schemas"]["EnvironmentHolderDto"][];
+      /** Format: uuid */
+      id: string;
+      key: string;
+      kind: string;
+      status: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    EnvironmentHolderDto: {
+      /** Format: uuid */
+      lease_id: string;
+      reason: string;
+      /** Format: uuid */
+      run_id: string | null;
+      /** Format: uuid */
+      session_id: string | null;
+      /** Format: int32 */
+      slot: number | string;
+      /** Format: uuid */
+      task_id: string | null;
+    };
+    EnvironmentRegisterRequest: {
+      /** Format: int32 */
+      capacity?: (number | null) | string;
+      connection?: unknown;
+      description?: string | null;
+      display_name: string;
+      key: string;
+      kind: string;
+    };
+    EnvironmentUpdateRequest: {
+      /** Format: int32 */
+      capacity?: (number | null) | string;
+      connection?: unknown;
+      description?: string | null;
+      display_name?: string | null;
+      status?: string | null;
+    };
+    EvidenceHitDto: {
+      author: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      evidence_id: string;
+      kind: string;
+      matched_by: string;
+      /** Format: uuid */
+      run_id: string | null;
+      /** Format: double */
+      score: number | string;
+      snippet: string;
+      /** Format: uuid */
+      task_id: string | null;
+      title: string;
+    };
+    EvidenceRecallDto: {
+      hits: components["schemas"]["EvidenceHitDto"][];
+      mode: string;
+      note: string | null;
+    };
     /** @description Gateway health fingerprint with forwarded Core health fields. */
     Health: {
       /** @enum {string} */
@@ -1008,12 +1267,137 @@ export interface components {
       waiting_task: string;
       [key: string]: unknown;
     };
+    MarketCatalogEntry: {
+      catalog_id: string;
+      description?: string;
+      display_name: string;
+      expires_at: string;
+      extension_id: string;
+      homepage?: string;
+      install_blocker?: string;
+      installable: boolean;
+      kind: string;
+      manifest_hash: string;
+      refreshed_at: string;
+      registry_type?: string;
+      source_id: string;
+      source_name: string;
+      transports: string[];
+      version: string;
+      [key: string]: unknown;
+    };
+    MarketCatalogPage: {
+      as_of?: string;
+      has_more: boolean;
+      items: unknown[];
+      total_available: number;
+      [key: string]: unknown;
+    };
+    MarketInstallProposal: {
+      action: string;
+      args: string[];
+      catalog_id?: string;
+      command?: string;
+      content: string;
+      digest: string;
+      environment: {
+          description?: string;
+          name: string;
+          required: boolean;
+          secret: boolean;
+        }[];
+      expected_file_hash?: string;
+      expires_at: string;
+      extension_id: string;
+      id: string;
+      installation_id?: string;
+      kind: string;
+      project_id: string;
+      replaces_command?: string;
+      server_id: string;
+      source_name: string;
+      target_path: string;
+      version: string;
+      warnings: string[];
+      [key: string]: unknown;
+    };
+    MarketInstallation: {
+      action_status?: string;
+      catalog_id: string;
+      config_path: string;
+      created_at: string;
+      extension_id: string;
+      id: string;
+      install_action_id: string;
+      kind: string;
+      project_id: string;
+      server_id: string;
+      source_name: string;
+      state: string;
+      uninstall_action_id?: string;
+      updated_at: string;
+      version: string;
+      [key: string]: unknown;
+    };
+    MarketInstallationList: {
+      installations: components["schemas"]["MarketInstallation"][];
+      [key: string]: unknown;
+    };
+    MarketRefresh: {
+      fetched_rows: number;
+      outcome: string;
+      pages_fetched: number;
+      reason?: string;
+      refreshed_at?: string;
+      refused_rows: number;
+      removed_rows: number;
+      retained_rows: number;
+      source_id: string;
+      truncated_pages: boolean;
+      [key: string]: unknown;
+    };
+    MarketSource: {
+      enabled: boolean;
+      entry_count: number;
+      id: string;
+      kind: string;
+      last_error?: string;
+      last_refreshed_at?: string;
+      location: string;
+      name: string;
+      revision: number;
+      [key: string]: unknown;
+    };
+    MarketSourceList: {
+      sources: unknown[];
+      supported_kinds: string[];
+      [key: string]: unknown;
+    };
+    McpInventory: {
+      config_path?: string;
+      dropped_rows?: number;
+      reason?: string;
+      servers: unknown[];
+      source: string;
+      workspace_root?: string;
+      [key: string]: unknown;
+    };
+    McpServerTools: {
+      config_path?: string;
+      reason?: string;
+      server?: unknown;
+      server_id: string;
+      source: string;
+      workspace_root?: string;
+      [key: string]: unknown;
+    };
     MeetingModelOverride: {
       model: string | null;
       provider_instance_id: string;
       [key: string]: unknown;
     };
     Message: {
+      attachments: components["schemas"]["MessageAttachmentSummary"][];
       content: string;
       created_at: string | null;
       id: string;
@@ -1022,11 +1406,40 @@ export interface components {
       session_id: string;
       [key: string]: unknown;
     };
+    MessageAttachment: {
+      bound_at: string | null;
+      content_hash: string;
+      content_length: number;
+      created_at: string | null;
+      file_name: string;
+      id: string;
+      media_type: string;
+      message_id: string | null;
+      session_id: string;
+      [key: string]: unknown;
+    };
+    MessageAttachmentList: components["schemas"]["MessageAttachment"][];
+    MessageAttachmentSummary: {
+      bound_at: string | null;
+      content_hash: string;
+      content_length: number;
+      created_at: string | null;
+      file_name: string;
+      id: string;
+      media_type: string;
+      [key: string]: unknown;
+    };
     MessageList: components["schemas"]["Message"][];
+    ModelInvocationPage: {
+      items: unknown[];
+      next_cursor?: string;
+      [key: string]: unknown;
+    };
     OrchestrationSnapshot: {
       agent_instances: unknown[];
       assignments: components["schemas"]["Assignment"][];
       context_packs: unknown[];
+      flows: unknown[];
       frozen: {
         [key: string]: unknown;
       } | null;
@@ -1038,6 +1451,143 @@ export interface components {
       run: components["schemas"]["Run"] | null;
       step_results: unknown[];
       supervision_findings: components["schemas"]["SupervisionFinding"][];
+      [key: string]: unknown;
+    };
+    OrganizationDto: {
+      /** Format: uuid */
+      id: string;
+      members: components["schemas"]["OrganizationMemberDto"][];
+      members_truncated: boolean;
+      /** Format: int32 */
+      open_reports: number | string;
+      rooms: components["schemas"]["OrganizationRoomDto"][];
+      rooms_truncated: boolean;
+      /** Format: uuid */
+      session_id: string;
+      status: string;
+      /** Format: uuid */
+      you_participant_id: string;
+    };
+    OrganizationJsonElement: unknown;
+    OrganizationMemberDto: {
+      agent_slug: string | null;
+      display_name: string;
+      handle: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      parent_id: string | null;
+      presence: string;
+      role: string;
+      /** Format: uuid */
+      run_id: string | null;
+      visibility_scope?: string | null;
+    };
+    OrganizationMemberVisibilityRequest: {
+      visibility_scope: string | null;
+    };
+    OrganizationMessageDto: {
+      content: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      report: null | components["schemas"]["OrganizationReportDto"];
+      /** Format: uuid */
+      room_id: string;
+      sender_display_name: string;
+      /** Format: uuid */
+      sender_id: string;
+      sender_role: string;
+      sensitivity: string;
+      /** Format: int64 */
+      sequence: number | string;
+    };
+    OrganizationMessagePage: {
+      items: components["schemas"]["OrganizationMessageDto"][];
+      /** Format: int64 */
+      next_cursor: number | string;
+    };
+    OrganizationPostRequest: {
+      client_message_id: string;
+      content: string;
+      mention?: string[] | null;
+      /** Format: uuid */
+      reply_to_message_id?: string | null;
+    };
+    OrganizationReportDecisionRequest: {
+      decision: string;
+      /** Format: int64 */
+      expected_revision: number | string;
+      note?: string | null;
+    };
+    OrganizationReportDto: {
+      author_display_name: string;
+      /** Format: uuid */
+      author_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      decided_at: string | null;
+      /** Format: uuid */
+      decided_by_id: string | null;
+      decision_note: string | null;
+      evidence: string[];
+      finding: string;
+      /** Format: uuid */
+      id: string;
+      proposed_args_json: string | null;
+      proposed_verb: string | null;
+      report_kind: string;
+      /** Format: int64 */
+      revision: number | string;
+      /** Format: uuid */
+      room_id: string;
+      severity: string;
+      status: string;
+      subject_id: string | null;
+      subject_kind: string | null;
+      subject_state?: null | components["schemas"]["OrganizationSubjectStateDto"];
+      /** Format: uuid */
+      supersedes_report_id: string | null;
+    };
+    OrganizationReportPage: {
+      items: components["schemas"]["OrganizationReportDto"][];
+      truncated: boolean;
+    };
+    OrganizationRoomDto: {
+      /** Format: uuid */
+      id: string;
+      is_member: boolean;
+      kind: string;
+      /** Format: int64 */
+      last_sequence: number | string;
+      /** Format: int32 */
+      member_count: number | string;
+      /** Format: uuid */
+      plan_owner_id: string | null;
+      title: string;
+    };
+    OrganizationSubjectStateDto: {
+      id: string;
+      kind: string;
+      label: string | null;
+      status: string | null;
+    };
+    PreAuthorization: {
+      expires_at: string | null;
+      /** Format: uuid */
+      id: string;
+      lane_key: string | null;
+      max_uses: number;
+      parameter_constraint_hash: string | null;
+      revoked: boolean;
+      risk_max: string;
+      /** Format: uuid */
+      run_id: string;
+      tool_scope: string[];
+      use_count: number;
       [key: string]: unknown;
     };
     ProblemDetails: {
@@ -1093,7 +1643,7 @@ export interface components {
       mode: string | null;
       mode_version_id: string | null;
       /** Format: uuid */
-      project_id: string;
+      project_id: string | null;
       status: string | null;
       summary: string | null;
       title: string | null;
@@ -1102,6 +1652,98 @@ export interface components {
       [key: string]: unknown;
     };
     SessionList: components["schemas"]["Session"][];
+    SessionTopologyDto: {
+      /** Format: date-time */
+      generated_at: string;
+      leases: components["schemas"]["SessionTopologyLeaseDto"][];
+      leases_truncated: boolean;
+      members: components["schemas"]["SessionTopologyMemberDto"][];
+      members_truncated: boolean;
+      runs: components["schemas"]["SessionTopologyRunDto"][];
+      runs_truncated: boolean;
+      /** Format: uuid */
+      session_id: string;
+    };
+    SessionTopologyInstanceDto: {
+      agent_slug: string;
+      /** Format: int32 */
+      depth: number | string;
+      /** Format: uuid */
+      instance_id: string;
+      layer: string;
+      /** Format: uuid */
+      parent_instance_id: string | null;
+      role: string;
+      status: string;
+      /** Format: uuid */
+      task_id: string | null;
+    };
+    SessionTopologyLeaseDto: {
+      /** Format: uuid */
+      agent_instance_id: string | null;
+      exclusive: boolean;
+      kind: string;
+      /** Format: uuid */
+      lease_id: string;
+      purpose: string;
+      resource_key: string;
+      /** Format: uuid */
+      run_id: string | null;
+      /** Format: uuid */
+      task_id: string | null;
+    };
+    SessionTopologyMemberDto: {
+      /** Format: uuid */
+      agent_instance_id: string | null;
+      agent_slug: string | null;
+      display_name: string;
+      handle: string;
+      /** Format: uuid */
+      parent_participant_id: string | null;
+      /** Format: uuid */
+      participant_id: string;
+      presence: string;
+      role: string;
+      /** Format: uuid */
+      run_id: string | null;
+    };
+    SessionTopologyRunDto: {
+      /** Format: date-time */
+      completed_at: string | null;
+      instances: components["schemas"]["SessionTopologyInstanceDto"][];
+      instances_truncated: boolean;
+      /** Format: uuid */
+      parent_run_id?: string | null;
+      /** Format: uuid */
+      parent_task_id?: string | null;
+      phase: string | null;
+      /** Format: uuid */
+      run_id: string;
+      /** @default root */
+      run_kind?: string;
+      /** Format: date-time */
+      started_at: string;
+      status: string;
+      tasks: components["schemas"]["SessionTopologyTaskDto"][];
+      tasks_truncated: boolean;
+      tier: string | null;
+    };
+    SessionTopologyTaskDto: {
+      agent_slug: string | null;
+      dependencies: string[];
+      /** Format: uuid */
+      dispatched_by_task_id: string | null;
+      handle: string | null;
+      result_summary: string | null;
+      status: string;
+      /** Format: uuid */
+      task_id: string;
+      task_key: string;
+      title: string;
+      /** Format: uuid */
+      worker_instance_id: string | null;
+      write_scope: string[];
+    };
     SupervisionFinding: {
       category: string;
       created_at: string | null;
@@ -1134,6 +1776,310 @@ export interface components {
       [key: string]: unknown;
     };
     TaskNodeList: components["schemas"]["TaskNode"][];
+    TinaChatConversationDto: {
+      /** Format: uuid */
+      accepted_intent_id: string | null;
+      allow_cross_workspace: boolean;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: int64 */
+      last_sequence: number | string;
+      membership_status: string;
+      /** Format: int64 */
+      revision: number | string;
+      title: string;
+      /** Format: uuid */
+      workspace_id: string;
+    };
+    TinaChatCreateConversationRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      /** @default false */
+      allow_cross_workspace?: boolean;
+      client_request_id?: string | null;
+      /** @default group */
+      kind?: string;
+      participant_ids: string[];
+      title: string;
+    };
+    TinaChatExecuteIntentRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      /** Format: uuid */
+      mode_version_id: string;
+      /** Format: uuid */
+      project_id?: string | null;
+    };
+    TinaChatExecutionDto: {
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      intent_id: string;
+      /** Format: uuid */
+      participant_id: string;
+      /** Format: uuid */
+      run_id: string | null;
+      /** Format: uuid */
+      session_id: string;
+      status: string;
+    };
+    TinaChatGenerateIntentRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      audience_participant_ids: string[];
+      client_request_id: string;
+      /** Format: int64 */
+      expected_revision: number | string;
+      source_message_ids: string[];
+    };
+    TinaChatInboxItem: {
+      acknowledged: boolean;
+      message: components["schemas"]["TinaChatMessageDto"];
+    };
+    TinaChatInboxPage: {
+      items: components["schemas"]["TinaChatInboxItem"][];
+      /** Format: int64 */
+      next_cursor: number | string;
+    };
+    TinaChatIntentContent: {
+      acceptance_criteria: string[];
+      assumptions: string[];
+      blocking_questions: string[];
+      constraints: string[];
+      goal: string;
+      open_questions: string[];
+      user_statements: string[];
+    };
+    TinaChatIntentDecisionRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      decision: string;
+      /** Format: int64 */
+      expected_revision: number | string;
+    };
+    TinaChatIntentDto: {
+      /** Format: uuid */
+      author_id: string;
+      content: components["schemas"]["TinaChatIntentContent"];
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      decided_by_id: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: int64 */
+      revision: number | string;
+      source_message_ids: string[];
+      status: string;
+    };
+    TinaChatMemberDto: {
+      /** Format: int64 */
+      joined_after_sequence: number | string;
+      /** Format: uuid */
+      participant_id: string;
+      role: string;
+      status: string;
+    };
+    TinaChatMemberRequest: {
+      action: string;
+      /** Format: uuid */
+      actor_id: string;
+      /** Format: int64 */
+      expected_revision: number | string;
+      /** Format: uuid */
+      participant_id: string;
+      /** @default member */
+      role?: string;
+    };
+    TinaChatMessageDto: {
+      allow_derived_sharing: boolean;
+      content: string;
+      /** Format: uuid */
+      conversation_id: string;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: uuid */
+      reply_to_message_id: string | null;
+      /** Format: uuid */
+      sender_id: string;
+      sender_kind: string;
+      sensitivity: string;
+      /** Format: int64 */
+      sequence: number | string;
+      source_message_ids: string[];
+    };
+    TinaChatMessagePage: {
+      items: components["schemas"]["TinaChatMessageDto"][];
+      /** Format: int64 */
+      next_cursor: number | string;
+    };
+    TinaChatObservedAudienceDto: {
+      acknowledged: boolean;
+      can_read_original: boolean;
+      can_receive_derived: boolean;
+      participant: components["schemas"]["TinaChatParticipantDto"];
+    };
+    TinaChatObservedConversationDetail: {
+      conversation: components["schemas"]["TinaChatObservedConversationDto"];
+      members: components["schemas"]["TinaChatObservedMemberDto"][];
+    };
+    TinaChatObservedConversationDto: {
+      /** Format: uuid */
+      id: string;
+      kind: string;
+      /** Format: date-time */
+      last_message_at: string | null;
+      last_message_preview: string | null;
+      /** Format: int64 */
+      last_sequence: number | string;
+      /** Format: int32 */
+      member_count: number | string;
+      participant_names: string[];
+      /** Format: int64 */
+      revision: number | string;
+      title: string;
+      /** Format: uuid */
+      workspace_id: string;
+      workspace_name: string;
+    };
+    TinaChatObservedConversationPage: {
+      has_more: boolean;
+      items: components["schemas"]["TinaChatObservedConversationDto"][];
+      /** Format: int32 */
+      next_offset: number | string;
+      /** Format: int32 */
+      total: number | string;
+    };
+    TinaChatObservedMemberDto: {
+      /** Format: int64 */
+      joined_after_sequence: number | string;
+      participant: components["schemas"]["TinaChatParticipantDto"];
+      role: string;
+      status: string;
+    };
+    TinaChatObservedMessageDto: {
+      audience: components["schemas"]["TinaChatObservedAudienceDto"][];
+      /** Format: uuid */
+      intent_id: string | null;
+      intent_status: string | null;
+      message: components["schemas"]["TinaChatMessageDto"];
+      sender: components["schemas"]["TinaChatParticipantDto"];
+    };
+    TinaChatObservedMessagePage: {
+      has_more: boolean;
+      items: components["schemas"]["TinaChatObservedMessageDto"][];
+      /** Format: int64 */
+      newest_sequence: number | string;
+      /** Format: int64 */
+      oldest_sequence: number | string;
+    };
+    TinaChatObserverAccessDto: {
+      level: string;
+      workspaces: components["schemas"]["TinaChatObserverWorkspaceDto"][];
+    };
+    TinaChatObserverWorkspaceDto: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    TinaChatParticipantDto: {
+      /** Format: uuid */
+      agent_definition_id: string | null;
+      can_interpret_intent: boolean;
+      description: string | null;
+      discoverable: boolean;
+      display_name: string;
+      handle: string;
+      /** Format: uuid */
+      id: string;
+      job_title: string | null;
+      kind: string;
+      receive_human_messages: boolean;
+      /** Format: int64 */
+      revision: number | string;
+      status: string;
+      /** Format: uuid */
+      workspace_id: string;
+    };
+    TinaChatProposeIntentRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      audience_participant_ids: string[];
+      client_request_id: string;
+      content: components["schemas"]["TinaChatIntentContent"];
+      /** Format: int64 */
+      expected_revision: number | string;
+      source_message_ids: string[];
+    };
+    TinaChatRegisterParticipantRequest: {
+      /** Format: uuid */
+      agent_definition_id?: string | null;
+      /** @default false */
+      can_interpret_intent?: boolean;
+      description?: string | null;
+      /** @default true */
+      discoverable?: boolean;
+      display_name: string;
+      handle: string;
+      job_title?: string | null;
+      /** @default agent */
+      kind?: string;
+      /** @default false */
+      receive_human_messages?: boolean;
+    };
+    TinaChatSendMessageRequest: {
+      /** Format: uuid */
+      actor_id: string;
+      /** @default false */
+      allow_derived_sharing?: boolean;
+      audience_participant_ids?: string[] | null;
+      client_message_id: string;
+      content: string;
+      /** Format: uuid */
+      reply_to_message_id?: string | null;
+      /** @default normal */
+      sensitivity?: string;
+      source_message_ids?: string[] | null;
+    };
+    TinaChatUpdateParticipantRequest: {
+      /** @default false */
+      can_interpret_intent?: boolean;
+      description?: string | null;
+      /** @default true */
+      discoverable?: boolean;
+      display_name: string;
+      /** Format: int64 */
+      expected_revision: number | string;
+      job_title?: string | null;
+      /** @default false */
+      receive_human_messages?: boolean;
+      /** @default active */
+      status?: string;
+    };
+    TinaChatWorkspacePolicyDto: {
+      allow_cross_workspace_discovery: boolean;
+      allow_cross_workspace_messaging: boolean;
+      /** Format: int64 */
+      revision: number | string;
+      /** Format: uuid */
+      workspace_id: string;
+    };
+    TinaChatWorkspacePolicyRequest: {
+      /** @default false */
+      allow_cross_workspace_discovery?: boolean;
+      /** @default false */
+      allow_cross_workspace_messaging?: boolean;
+      /** Format: int64 */
+      expected_revision: number | string;
+    };
   };
   responses: never;
   parameters: never;
@@ -1540,6 +2486,196 @@ export interface operations {
       };
     };
   };
+  /** Permanently delete an installed agent pack */
+  "deleteApiV1Agent-packsByPackId": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description Per-table delete counts for the purged pack. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["AgentPackPurgeResult"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_revision_conflict */
+      412: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description if_match_required */
+      428: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Make an agent pack the workspace default */
+  "postApiV1Agent-packsByPackIdAdopt-defaults": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The workspace defaults now point at this pack. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_active */
+      409: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Disable an installed agent pack without deleting it */
+  "postApiV1Agent-packsByPackIdDisable": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The pack is hidden from the selectable lists but keeps its read-only resources. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  /** Enable an installed agent pack */
+  "postApiV1Agent-packsByPackIdEnable": {
+    parameters: {
+      path: {
+        packId: string;
+      };
+    };
+    responses: {
+      /** @description The pack is selectable again. */
+      200: {
+        headers: {
+          /** @description Quoted workspace-scoped agent pack installation revision. */
+          ETag?: string;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentPackInstallationDetail"];
+        };
+      };
+      /** @description Authentication is required. */
+      401: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_management_forbidden */
+      403: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description agent_pack_not_found */
+      404: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Core is unavailable or returned an invalid response. */
+      502: {
+        content: {
+          "application/problem+json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   /** List agent runtime instances */
   "getApiV1Agent-runtime-instances": {
     responses: {
@@ -1566,19 +2702,6 @@ export interface operations {
   };
   /** Get agent */
   getApiV1AgentsByAgentId: {
-    parameters: {
-      path: {
-        agentId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /** Update agent */
-  putApiV1AgentsByAgentId: {
     parameters: {
       path: {
         agentId: string;
@@ -1629,6 +2752,22 @@ export interface operations {
       };
     };
   };
+  /**
+   * Set agent runtime binding
+   * @description User-level model/tool override for one agent (inherit or fixed provider+model). Works for pack-managed agents; survives pack reinstalls.
+   */
+  "putApiV1AgentsByAgentIdRuntime-binding": {
+    parameters: {
+      path: {
+        agentId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
   /** List agent versions */
   getApiV1AgentsByAgentIdVersions: {
     parameters: {
@@ -1656,6 +2795,35 @@ export interface operations {
       };
     };
   };
+  /** List active approval rules */
+  "getApiV1Approval-rules": {
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Create approval rule */
+  "postApiV1Approval-rules": {
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Revoke approval rule */
+  "deleteApiV1Approval-rulesByRuleId": {
+    parameters: {
+      path: {
+        ruleId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
   /** List approvals */
   getApiV1Approvals: {
     responses: {
@@ -1664,11 +2832,79 @@ export interface operations {
       };
     };
   };
+  /** Create pre-authorization */
+  "postApiV1ApprovalsPre-authorizations": {
+    responses: {
+      /** @description Created pre-authorization grant. */
+      201: {
+        content: {
+          "application/json": components["schemas"]["PreAuthorization"];
+        };
+      };
+    };
+  };
   /** Decide approval */
   postApiV1ApprovalsByApprovalIdDecision: {
     parameters: {
       path: {
         approvalId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  getApiV1ApprovalsByApprovalIdGates: {
+    parameters: {
+      path: {
+        approvalId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ApprovalGatesDto"];
+        };
+      };
+    };
+  };
+  /** Read attachment metadata */
+  getApiV1AttachmentsByAttachmentId: {
+    parameters: {
+      path: {
+        attachmentId: string;
+      };
+    };
+    responses: {
+      /** @description Attachment metadata. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MessageAttachment"];
+        };
+      };
+    };
+  };
+  /** Discard an attachment row */
+  deleteApiV1AttachmentsByAttachmentId: {
+    parameters: {
+      path: {
+        attachmentId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Download attachment bytes */
+  getApiV1AttachmentsByAttachmentIdContent: {
+    parameters: {
+      path: {
+        attachmentId: string;
       };
     };
     responses: {
@@ -1847,9 +3083,54 @@ export interface operations {
       };
     };
   };
+  getApiV1Environments: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["EnvironmentDto"][];
+        };
+      };
+    };
+  };
+  postApiV1Environments: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvironmentRegisterRequest"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["EnvironmentDto"];
+        };
+      };
+    };
+  };
+  patchApiV1EnvironmentsByEnvironmentId: {
+    parameters: {
+      path: {
+        environmentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["EnvironmentUpdateRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["EnvironmentDto"];
+        };
+      };
+    };
+  };
   /**
    * Session events SSE
-   * @description SSE kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update, id=seq, Last-Event-ID / ?cursor resume
+   * @description Durable event journal feed (EventEnvelope): event: {EventType}, fields event_id/event_type/timestamp/session_id/run_id/payload; 15s heartbeat SSE comment; Last-Event-ID / ?cursor resume
    */
   getApiV1Events: {
     responses: {
@@ -2085,8 +3366,11 @@ export interface operations {
   /** Get market catalog */
   getApiV1MarketCatalog: {
     responses: {
+      /** @description A page of stored claims, with total_available and as_of so a short page cannot be read as a small market. */
       200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["MarketCatalogPage"];
+        };
       };
     };
   };
@@ -2098,29 +3382,97 @@ export interface operations {
       };
     };
     responses: {
+      /** @description One entry as its source described it, including the metadata digest Core computed over that description. */
       200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["MarketCatalogEntry"];
+        };
+      };
+    };
+  };
+  /** Preview a market install */
+  "postApiV1MarketCatalogByCatalogIdInstall-preview": {
+    parameters: {
+      path: {
+        catalogId: string;
+      };
+    };
+    responses: {
+      /** @description The frozen proposal: pinned command, exact file, exact bytes, and the moment it stops being applyable. Nothing was written by asking. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketInstallProposal"];
+        };
+      };
+    };
+  };
+  /** Queue an approved market write */
+  "postApiV1MarketInstall-proposalsByProposalIdApply": {
+    parameters: {
+      path: {
+        proposalId: string;
+      };
+    };
+    responses: {
+      /** @description The installation and the user tool action awaiting a human. The write happens when that action is approved, never here. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketInstallation"];
+        };
+      };
+    };
+  };
+  /** List installed market entries */
+  getApiV1MarketInstallations: {
+    responses: {
+      /** @description What this workspace approved, with the live status of the action that writes it. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketInstallationList"];
+        };
+      };
+    };
+  };
+  /** Preview removing an installed market entry */
+  "postApiV1MarketInstallationsByInstallationIdUninstall-preview": {
+    parameters: {
+      path: {
+        installationId: string;
+      };
+    };
+    responses: {
+      /** @description The same config file with this one entry taken back out; downloaded package bytes are not touched. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketInstallProposal"];
+        };
       };
     };
   };
   /** List market sources */
   getApiV1MarketSources: {
     responses: {
+      /** @description Durable sources plus the kinds this build has an adapter for; an empty list here really does mean nothing is configured, because these are Core rows. */
       200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["MarketSourceList"];
+        };
       };
     };
   };
   /** Create market source */
   postApiV1MarketSources: {
     responses: {
+      /** @description The stored source. Core builds the request from kind+location; a url, command, or path in this body is not read. */
       200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["MarketSource"];
+        };
       };
     };
   };
-  /** Refresh market source */
-  postApiV1MarketSourcesBySourceIdRefresh: {
+  /** Delete a market source */
+  deleteApiV1MarketSourcesBySourceId: {
     parameters: {
       path: {
         sourceId: string;
@@ -2132,63 +3484,46 @@ export interface operations {
       };
     };
   };
+  /** Enable or disable a market source */
+  patchApiV1MarketSourcesBySourceId: {
+    parameters: {
+      path: {
+        sourceId: string;
+      };
+    };
+    responses: {
+      /** @description The only editable field is enabled; name, kind, and location are not, so a source cannot be re-pointed under existing rows. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketSource"];
+        };
+      };
+    };
+  };
+  /** Refresh market source */
+  postApiV1MarketSourcesBySourceIdRefresh: {
+    parameters: {
+      path: {
+        sourceId: string;
+      };
+    };
+    responses: {
+      /** @description `outcome` separates a completed read from a blocked or unreachable one; only the first changed the catalog. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MarketRefresh"];
+        };
+      };
+    };
+  };
   /** List MCP servers (Core-owned) */
   getApiV1McpServers: {
     responses: {
+      /** @description Inventory read through the Tool Provider; `source` says whether the empty list means "nothing configured" or "could not look". */
       200: {
-        content: never;
-      };
-    };
-  };
-  /** MCP connect (proxy to Core) */
-  postApiV1McpServersByServerIdConnect: {
-    parameters: {
-      path: {
-        serverId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /** MCP disconnect (proxy to Core) */
-  postApiV1McpServersByServerIdDisconnect: {
-    parameters: {
-      path: {
-        serverId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /** Reload MCP server */
-  postApiV1McpServersByServerIdReload: {
-    parameters: {
-      path: {
-        serverId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /** MCP status (proxy to Core) */
-  getApiV1McpServersByServerIdStatus: {
-    parameters: {
-      path: {
-        serverId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["McpInventory"];
+        };
       };
     };
   };
@@ -2200,35 +3535,11 @@ export interface operations {
       };
     };
     responses: {
+      /** @description One named server with its tools and schemas; 404 mcp_server_not_found only after Core actually read the inventory. */
       200: {
-        content: never;
-      };
-    };
-  };
-  /** MCP tool call (proxy to Core) */
-  postApiV1McpServersByServerIdToolsByToolNameCall: {
-    parameters: {
-      path: {
-        serverId: string;
-        toolName: string;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": {
-          arguments?: Record<string, never>;
+        content: {
+          "application/json": components["schemas"]["McpServerTools"];
         };
-        "multipart/form-data": {
-          arguments?: Record<string, never>;
-        };
-        "text/plain": {
-          arguments?: Record<string, never>;
-        };
-      };
-    };
-    responses: {
-      200: {
-        content: never;
       };
     };
   };
@@ -2266,6 +3577,27 @@ export interface operations {
       };
     };
   };
+  /** List promoted memory items */
+  "getApiV1Memory-items": {
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Revoke a memory item */
+  "postApiV1Memory-itemsByItemIdRevoke": {
+    parameters: {
+      path: {
+        itemId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
   /** Model catalog readiness */
   "getApiV1Model-catalog-readiness": {
     responses: {
@@ -2276,6 +3608,20 @@ export interface operations {
   };
   /** Page model invocation audit records */
   "getApiV1Model-invocations": {
+    responses: {
+      /** @description Page of Core model invocation audit records; the query string is forwarded to Core untouched. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ModelInvocationPage"];
+        };
+      };
+    };
+  };
+  /**
+   * Model connectivity probe
+   * @description One minimal real completion through the resolved chat route (1 token, 10s timeout, 60s result cache). ?force=true bypasses the cache.
+   */
+  "postApiV1Model-probe": {
     responses: {
       200: {
         content: never;
@@ -2510,6 +3856,19 @@ export interface operations {
   };
   /** Archive project */
   postApiV1ProjectsByProjectIdArchive: {
+    parameters: {
+      path: {
+        projectId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Project overview rollup */
+  getApiV1ProjectsByProjectIdOverview: {
     parameters: {
       path: {
         projectId: string;
@@ -2951,7 +4310,7 @@ export interface operations {
   };
   /**
    * Run stream (SSE)
-   * @description Durable SSE with id=seq, Last-Event-ID / ?cursor= & ?after_seq resume, kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update
+   * @description Durable SSE with id=seq and event=kind, Last-Event-ID / ?cursor= & ?after_seq resume. Kinds: ack/queued/assigned/steering/context_conflict/control/ephemeral_agent/delta/done/error. occurred_at is the durable journal timestamp; idle keep-alive is an SSE comment ": heartbeat" that never advances the cursor
    */
   getApiV1RunsByRunIdStream: {
     parameters: {
@@ -3008,17 +4367,17 @@ export interface operations {
     requestBody: {
       content: {
         "application/json": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
         "multipart/form-data": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
         "text/plain": {
-          project_id: string;
+          project_id?: string;
           title?: string;
           [key: string]: unknown;
         };
@@ -3072,6 +4431,41 @@ export interface operations {
       };
     };
   };
+  /** List session attachments */
+  getApiV1SessionsBySessionIdAttachments: {
+    parameters: {
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description Attachments parked on the session. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["MessageAttachmentList"];
+        };
+      };
+    };
+  };
+  /**
+   * Upload a session attachment
+   * @description Raw request body is the file; filename and media type travel as query parameters. The stored bytes are user-supplied and are served back from the origin the renderer trusts, so Core decides inline vs attachment per type and this route forwards that decision rather than re-deciding it.
+   */
+  postApiV1SessionsBySessionIdAttachments: {
+    parameters: {
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description Stored attachment metadata, without any storage path. */
+      201: {
+        content: {
+          "application/json": components["schemas"]["MessageAttachment"];
+        };
+      };
+    };
+  };
   /** Session context packs */
   "getApiV1SessionsBySessionIdContext-packs": {
     parameters: {
@@ -3097,6 +4491,27 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["ContextVersionList"];
+        };
+      };
+    };
+  };
+  getApiV1SessionsBySessionIdEvidence: {
+    parameters: {
+      query?: {
+        q?: string;
+        kinds?: string;
+        run_id?: string;
+        limit?: number | string;
+      };
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["EvidenceRecallDto"];
         };
       };
     };
@@ -3134,39 +4549,6 @@ export interface operations {
       path: {
         sessionId: string;
         interactionId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /**
-   * Stream interaction SSE
-   * @description Thin SSE proxy with Last-Event-ID / ?cursor resume, kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update
-   */
-  getApiV1SessionsBySessionIdInteractionsByInteractionIdStream: {
-    parameters: {
-      path: {
-        sessionId: string;
-        interactionId: string;
-      };
-    };
-    responses: {
-      200: {
-        content: never;
-      };
-    };
-  };
-  /**
-   * Full-duplex invoke-stream
-   * @description 5 required: content, client_message_id, application_mode, agent_mode, permission_mode + 2 optional: target_run_id, expected_context_revision. SSE kinds: ack/delta/done/error/heartbeat/task_node_update/supervision_update/context_version_update, fixed fields run_id/turn_id/message_id/seq/kind/occurred_at/payload, id=seq
-   */
-  "postApiV1SessionsBySessionIdInvoke-stream": {
-    parameters: {
-      path: {
-        sessionId: string;
       };
     };
     responses: {
@@ -3243,6 +4625,33 @@ export interface operations {
       };
     };
   };
+  /** Revert conversation history to a message */
+  postApiV1SessionsBySessionIdMessagesByMessageIdRevert: {
+    parameters: {
+      path: {
+        sessionId: string;
+        messageId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Migrate session onto a project workspace (find-or-create by root path) */
+  postApiV1SessionsBySessionIdMigrate: {
+    parameters: {
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
   /** Session orchestration snapshot */
   getApiV1SessionsBySessionIdOrchestration: {
     parameters: {
@@ -3255,6 +4664,123 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["OrchestrationSnapshot"];
+        };
+      };
+    };
+  };
+  getApiV1SessionsBySessionIdOrganization: {
+    parameters: {
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationDto"];
+        };
+      };
+    };
+  };
+  patchApiV1SessionsBySessionIdOrganizationMembersByParticipantId: {
+    parameters: {
+      path: {
+        sessionId: string;
+        participantId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OrganizationMemberVisibilityRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationMemberDto"];
+        };
+      };
+    };
+  };
+  getApiV1SessionsBySessionIdOrganizationReports: {
+    parameters: {
+      query?: {
+        status?: string;
+        limit?: number | string;
+      };
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationReportPage"];
+        };
+      };
+    };
+  };
+  postApiV1SessionsBySessionIdOrganizationReportsByReportIdDecision: {
+    parameters: {
+      path: {
+        sessionId: string;
+        reportId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OrganizationReportDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationReportDto"];
+        };
+      };
+    };
+  };
+  getApiV1SessionsBySessionIdOrganizationRoomsByRoomIdMessages: {
+    parameters: {
+      query?: {
+        after_sequence?: number | string;
+        limit?: number | string;
+      };
+      path: {
+        sessionId: string;
+        roomId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationMessagePage"];
+        };
+      };
+    };
+  };
+  postApiV1SessionsBySessionIdOrganizationRoomsByRoomIdMessages: {
+    parameters: {
+      path: {
+        sessionId: string;
+        roomId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OrganizationPostRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["OrganizationMessageDto"];
         };
       };
     };
@@ -3333,6 +4859,27 @@ export interface operations {
       };
     };
   };
+  getApiV1SessionsBySessionIdTopology: {
+    parameters: {
+      query?: {
+        run_id?: string;
+        include_finished?: boolean;
+        max_runs?: number | string;
+        max_tasks?: number | string;
+      };
+      path: {
+        sessionId: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["SessionTopologyDto"];
+        };
+      };
+    };
+  };
   /** Move session to trash */
   postApiV1SessionsBySessionIdTrash: {
     parameters: {
@@ -3393,6 +4940,419 @@ export interface operations {
     responses: {
       200: {
         content: never;
+      };
+    };
+  };
+  "getApiV1Tina-chatConversations": {
+    parameters: {
+      query: {
+        actor_id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatConversationDto"][];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversations": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatCreateConversationRequest"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["TinaChatConversationDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatConversationsById": {
+    parameters: {
+      query: {
+        actor_id: string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatConversationDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatConversationsByIdIntents": {
+    parameters: {
+      query: {
+        actor_id: string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatIntentDto"][];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversationsByIdIntents": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatProposeIntentRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatIntentDto"];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversationsByIdIntentsGenerate": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatGenerateIntentRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatIntentDto"];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversationsByIdIntentsByIntentIdDecision": {
+    parameters: {
+      path: {
+        id: string;
+        intentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatIntentDecisionRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatIntentDto"];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversationsByIdIntentsByIntentIdExecute": {
+    parameters: {
+      path: {
+        id: string;
+        intentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatExecuteIntentRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatExecutionDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatConversationsByIdMembers": {
+    parameters: {
+      query: {
+        actor_id: string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatMemberDto"][];
+        };
+      };
+    };
+  };
+  "putApiV1Tina-chatConversationsByIdMembers": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatMemberRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatConversationDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatConversationsByIdMessages": {
+    parameters: {
+      query: {
+        actor_id: string;
+        after_sequence?: number | string;
+        limit?: number | string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatMessagePage"];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatConversationsByIdMessages": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatSendMessageRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatMessageDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatObserverAccess": {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatObserverAccessDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatObserverConversations": {
+    parameters: {
+      query?: {
+        query?: string;
+        kind?: string;
+        workspace_id?: string;
+        offset?: number | string;
+        limit?: number | string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatObservedConversationPage"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatObserverConversationsById": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatObservedConversationDetail"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatObserverConversationsByIdMessages": {
+    parameters: {
+      query?: {
+        before_sequence?: number | string;
+        after_sequence?: number | string;
+        limit?: number | string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatObservedMessagePage"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatParticipants": {
+    parameters: {
+      query?: {
+        query?: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatParticipantDto"][];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatParticipants": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatRegisterParticipantRequest"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "application/json": components["schemas"]["TinaChatParticipantDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatParticipantsById": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatParticipantDto"];
+        };
+      };
+    };
+  };
+  "patchApiV1Tina-chatParticipantsById": {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatUpdateParticipantRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatParticipantDto"];
+        };
+      };
+    };
+  };
+  "getApiV1Tina-chatParticipantsByIdInbox": {
+    parameters: {
+      query?: {
+        after_sequence?: number | string;
+        limit?: number | string;
+      };
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatInboxPage"];
+        };
+      };
+    };
+  };
+  "postApiV1Tina-chatParticipantsByIdInboxByMessageIdAck": {
+    parameters: {
+      path: {
+        id: string;
+        messageId: string;
+      };
+    };
+    responses: {
+      /** @description No Content */
+      204: {
+        content: never;
+      };
+    };
+  };
+  "getApiV1Tina-chatWorkspace-policy": {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatWorkspacePolicyDto"];
+        };
+      };
+    };
+  };
+  "putApiV1Tina-chatWorkspace-policy": {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TinaChatWorkspacePolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "application/json": components["schemas"]["TinaChatWorkspacePolicyDto"];
+        };
       };
     };
   };
@@ -3595,6 +5555,67 @@ export interface operations {
     parameters: {
       path: {
         snapshotId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** List per-file changes of a workspace snapshot */
+  "getApiV1Workspace-snapshotsBySnapshotIdFiles": {
+    parameters: {
+      path: {
+        snapshotId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Read the two bodies behind one file change */
+  "getApiV1Workspace-snapshotsBySnapshotIdFilesDiff": {
+    parameters: {
+      query: {
+        path: string;
+      };
+      path: {
+        snapshotId: string;
+      };
+    };
+    responses: {
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** Restore one file from a workspace snapshot */
+  "postApiV1Workspace-snapshotsBySnapshotIdFilesRestore": {
+    parameters: {
+      path: {
+        snapshotId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          expected_sha256: (string | null) | null;
+          path: string;
+          [key: string]: unknown;
+        };
+        "multipart/form-data": {
+          expected_sha256: (string | null) | null;
+          path: string;
+          [key: string]: unknown;
+        };
+        "text/plain": {
+          expected_sha256: (string | null) | null;
+          path: string;
+          [key: string]: unknown;
+        };
       };
     };
     responses: {

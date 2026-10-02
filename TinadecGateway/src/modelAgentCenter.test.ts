@@ -18,8 +18,11 @@ test('removed BFF routes return 404 (no dual-track)', async () => {
   const res2 = await app.handle(new Request('http://gateway.local/api/v1/agent-center/overview'));
   assert.equal(res2.status, 404);
 
+  // PUT /agents/:id/runtime-binding was a ghost 404 route; it is now a real
+  // thin proxy (plan 配置体验改造 A). With Core unreachable in unit tests the
+  // proxy fails with 502/bad-gateway, not 404 — proving the route exists.
   const res3 = await app.handle(new Request('http://gateway.local/api/v1/agents/agent-1/runtime-binding', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection_kind: 'inherit' }) }));
-  assert.equal(res3.status, 404);
+  assert.notEqual(res3.status, 404);
 
   // Deleted model-center refresh alias; canonical path is POST /model-providers/{id}/models/refresh.
   const res4 = await app.handle(new Request('http://gateway.local/api/v1/model-center/provider-instances/p1/models/refresh', { method: 'POST' }));
@@ -129,6 +132,28 @@ test('agent-runtime-instances thin proxy forwards run_id query', async () => {
   assert.equal(captured, 'http://127.0.0.1:48731/api/v1/agent-runtime-instances?run_id=run-1');
 });
 
+test('model-invocations thin proxy forwards the filters and the cursor walk', async () => {
+  let captured = '';
+  mockFetch((input) => {
+    captured = typeof input === 'string' ? input : input.toString();
+    return new Response(JSON.stringify({ items: [{ id: 'inv-1', input_tokens: 5 }], next_cursor: 'Y3Vyc29yLTI' }), { status: 200, headers: { 'content-type': 'application/json' } });
+  });
+  const r = await app.handle(new Request('http://gateway.local/api/v1/model-invocations?run_id=run-1&limit=200&cursor=Y3Vyc29yLTE'));
+  assert.equal(r.status, 200);
+  // The desktop rolls these pages into one run total, so a limit or cursor dropped on the way
+  // through would surface as a confidently wrong number rather than an error.
+  assert.equal(captured, 'http://127.0.0.1:48731/api/v1/model-invocations?run_id=run-1&limit=200&cursor=Y3Vyc29yLTE');
+});
+
+test('a rejected model-invocations filter is not rewritten into a retryable conflict', async () => {
+  mockFetch(() => new Response(JSON.stringify({
+    type: 'https://tinadec.dev/errors/invalid_query', title: 'invalid_query', status: 400, code: 'invalid_query', detail: 'run_id must be a UUID.',
+  }), { status: 400, headers: { 'content-type': 'application/problem+json' } }));
+  const mapped = await app.handle(new Request('http://gateway.local/api/v1/model-invocations?run_id=not-a-uuid'));
+  assert.equal(mapped.status, 400);
+  assert.equal((await mapped.json() as { code: string }).code, 'invalid_query');
+});
+
 test('interactions thin proxy validates dispatch_mode and insert target_run_id before proxy', async () => {
   let proxied = 0;
   mockFetch(() => {
@@ -148,16 +173,39 @@ test('interactions thin proxy validates dispatch_mode and insert target_run_id b
   assert.equal(proxied, 2);
 });
 
-test('interactions reassign/cancel and SSE stream proxy Last-Event-ID', async () => {
+test('interactions thin proxy preserves TinaChat input-lock ProblemDetails', async () => {
+  const problem = {
+    type: 'https://tinadec.dev/errors/tina_chat_input_locked',
+    title: 'tina_chat_input_locked',
+    status: 403,
+    detail: 'Use the TinaChat intent execution endpoint for this isolated handoff.',
+    code: 'tina_chat_input_locked',
+    instance: '/api/v1/sessions/session-1/interactions',
+    trace_id: 'trace-tina-chat-lock',
+  };
+  mockFetch(() => new Response(JSON.stringify(problem), {
+    status: 403,
+    headers: { 'content-type': 'application/problem+json' },
+  }));
+
+  const response = await app.handle(new Request('http://gateway.local/api/v1/sessions/session-1/interactions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dispatch_mode: 'queued', content: 'raw insertion attempt' }),
+  }));
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('content-type'), 'application/problem+json');
+  assert.deepEqual(await response.json(), problem);
+});
+
+test('interactions reassign/cancel thin proxy; per-interaction stream route removed', async () => {
   const requests: Array<{ url: string; headers: Record<string,string> }> = [];
   mockFetch((input, init) => {
     const url = typeof input === 'string' ? input : input.toString();
     const headers: Record<string,string> = {};
     if (init?.headers) new Headers(init.headers as HeadersInit).forEach((v,k)=>headers[k]=v);
     requests.push({ url, headers });
-    if (url.includes('/stream')) {
-      return new Response('data: {"kind":"ack"}\n\n', { status: 200, headers: { 'content-type': 'text/event-stream' } });
-    }
     return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } });
   });
   const rReassign = await app.handle(new Request('http://gateway.local/api/v1/sessions/sess-1/interactions/inter-1/reassign', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ agent_id: 'agent-1' }) }));
@@ -165,10 +213,13 @@ test('interactions reassign/cancel and SSE stream proxy Last-Event-ID', async ()
   assert.ok(requests.some(r => r.url === 'http://127.0.0.1:48731/api/v1/sessions/sess-1/interactions/inter-1/reassign'));
   const rCancel = await app.handle(new Request('http://gateway.local/api/v1/sessions/sess-1/interactions/inter-1/cancel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) }));
   assert.equal(rCancel.status, 200);
+  // The dangling per-interaction stream proxy was removed: Core never implemented
+  // GET /api/v1/sessions/{id}/interactions/{id}/stream. Results stream from
+  // GET /api/v1/runs/{runId}/stream instead, so this path must 404 locally and
+  // never reach Core.
   const rStream = await app.handle(new Request('http://gateway.local/api/v1/sessions/sess-1/interactions/inter-1/stream', { headers: { 'last-event-id': '42' } }));
-  assert.equal(rStream.status, 200);
-  const streamReq = requests.find(r => r.url.includes('/stream'))!;
-  assert.equal(streamReq.headers['last-event-id'], '42');
+  assert.equal(rStream.status, 404);
+  assert.ok(!requests.some(r => r.url.includes('/stream')));
 });
 
 test('model-providers models/refresh thin proxy forwards POST and maps discovery errors', async () => {

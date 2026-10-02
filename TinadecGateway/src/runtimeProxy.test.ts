@@ -4,6 +4,25 @@ import { app } from './index.js';
 
 const originalFetch = globalThis.fetch;
 
+test('run SSE forwards live answer frames before the upstream completes', { concurrency: false, timeout: 5000 }, async () => {
+  const first = 'id: 3\nevent: answer.delta\ndata: {"kind":"answer.delta","delta":"Hello"}\n\n';
+  let upstream!: ReadableStreamDefaultController<Uint8Array>;
+  globalThis.fetch = (async () => new Response(new ReadableStream<Uint8Array>({
+    start(controller) { upstream = controller; controller.enqueue(new TextEncoder().encode(first)); },
+  }), { headers: { 'content-type': 'text/event-stream' } })) as typeof fetch;
+  try {
+    const response = await app.handle(new Request('http://gateway.local/api/v1/runs/run-1/stream?after_seq=2'));
+    const reader = response.body!.getReader();
+    const read = await reader.read();
+    assert.equal(read.done, false);
+    assert.equal(new TextDecoder().decode(read.value), first);
+    upstream.close();
+    assert.equal((await reader.read()).done, true);
+  } finally {
+    try { upstream?.close(); } catch { /* already closed */ }
+  }
+});
+
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });
@@ -23,7 +42,11 @@ test('full-duplex runtime routes preserve Core paths, query names, and command b
   }) as typeof fetch;
 
   const calls = [
+    // The retired six-value mode selector is gone from the contract; a stale
+    // client query must not reach Core (Core would answer 200 and ignore it,
+    // so the Gateway drops it and keeps the wire shape honest).
     new Request('http://gateway.local/api/v1/agent-modes?application_mode=space'),
+    new Request('http://gateway.local/api/v1/agent-modes?status=published'),
     new Request('http://gateway.local/api/v1/runs/run-1/orchestration'),
     new Request('http://gateway.local/api/v1/runs/run-1/agent-lineage'),
     new Request('http://gateway.local/api/v1/sessions/session-1/context-versions?run_id=run-1&limit=12'),
@@ -54,7 +77,8 @@ test('full-duplex runtime routes preserve Core paths, query names, and command b
   }
 
   assert.deepEqual(requests.map((request) => [request.method, request.url]), [
-    ['GET', 'http://127.0.0.1:48731/api/v1/agent-modes?application_mode=space'],
+    ['GET', 'http://127.0.0.1:48731/api/v1/agent-modes'],
+    ['GET', 'http://127.0.0.1:48731/api/v1/agent-modes?status=published'],
     ['GET', 'http://127.0.0.1:48731/api/v1/runs/run-1/orchestration'],
     ['GET', 'http://127.0.0.1:48731/api/v1/runs/run-1/agent-lineage'],
     ['GET', 'http://127.0.0.1:48731/api/v1/sessions/session-1/context-versions?run_id=run-1&limit=12'],
@@ -64,9 +88,9 @@ test('full-duplex runtime routes preserve Core paths, query names, and command b
     ['POST', 'http://127.0.0.1:48731/api/v1/memory-candidates/memory-1/promote'],
     ['POST', 'http://127.0.0.1:48731/api/v1/agent-candidates/agent-1/reject']
   ]);
-  assert.deepEqual(JSON.parse(requests[6]!.body ?? ''), { command: 'pause', expected_context_revision: 7 });
-  assert.deepEqual(JSON.parse(requests[7]!.body ?? ''), { reason: 'confirmed by reviewer' });
-  assert.deepEqual(JSON.parse(requests[8]!.body ?? ''), { reason: 'insufficient evidence' });
+  assert.deepEqual(JSON.parse(requests[7]!.body ?? ''), { command: 'pause', expected_context_revision: 7 });
+  assert.deepEqual(JSON.parse(requests[8]!.body ?? ''), { reason: 'confirmed by reviewer' });
+  assert.deepEqual(JSON.parse(requests[9]!.body ?? ''), { reason: 'insufficient evidence' });
 });
 
 test('workspace governance routes stay stateless Core proxies and preserve If-Match/ETag', { concurrency: false }, async () => {
@@ -94,6 +118,9 @@ test('workspace governance routes stay stateless Core proxies and preserve If-Ma
     new Request('http://gateway.local/api/v1/workspace-defaults/draft', { method: 'PUT', headers, body: JSON.stringify({ default_agent_mode_id: 'mode-1' }) }),
     new Request('http://gateway.local/api/v1/workspace-defaults/publish', { method: 'POST', headers }),
     new Request('http://gateway.local/api/v1/workspace-defaults/archive', { method: 'POST', headers }),
+    new Request('http://gateway.local/api/v1/workspace-snapshots/snapshot-1/files'),
+    new Request('http://gateway.local/api/v1/workspace-snapshots/snapshot-1/files/diff?path=src%2Fnote.txt'),
+    new Request('http://gateway.local/api/v1/workspace-snapshots/snapshot-1/files/restore', { method: 'POST', headers, body: JSON.stringify({ path: 'gone.txt', expected_sha256: '' }) }),
   ];
 
   const responses: Response[] = [];
@@ -113,9 +140,18 @@ test('workspace governance routes stay stateless Core proxies and preserve If-Ma
     ['PUT', 'http://127.0.0.1:48731/api/v1/workspace-defaults/draft'],
     ['POST', 'http://127.0.0.1:48731/api/v1/workspace-defaults/publish'],
     ['POST', 'http://127.0.0.1:48731/api/v1/workspace-defaults/archive'],
+    ['GET', 'http://127.0.0.1:48731/api/v1/workspace-snapshots/snapshot-1/files'],
+    // The path survives as a query value on the URL Core reads it from. A proxy that parsed and
+    // dropped it would answer every diff with Core's "path is required" 400, so this entry is the
+    // whole proof that the diff route can be used at all.
+    ['GET', 'http://127.0.0.1:48731/api/v1/workspace-snapshots/snapshot-1/files/diff?path=src%2Fnote.txt'],
+    ['POST', 'http://127.0.0.1:48731/api/v1/workspace-snapshots/snapshot-1/files/restore'],
   ]);
   assert.equal(requests[0]!.headers.get('if-match'), '"6"');
   assert.deepEqual(JSON.parse(requests[5]!.body ?? ''), { default_agent_mode_id: 'mode-1' });
+  // `expected_sha256: ""` means "this file was absent when I looked" and must not be rewritten into
+  // a missing field on the way through — that distinction is the restore guard for an undelete.
+  assert.deepEqual(JSON.parse(requests[10]!.body ?? ''), { path: 'gone.txt', expected_sha256: '' });
 });
 
 test('agent pack routes are stateless Core proxies and preserve install guards', { concurrency: false }, async () => {
@@ -262,7 +298,7 @@ test('governance control routes proxy decisions and grants without local authori
   assert.deepEqual(JSON.parse(requests[2]!.body ?? ''), { approve: true });
 });
 
-test('invoke-stream preserves the full-duplex request envelope and Core SSE response', { concurrency: false }, async () => {
+test('invoke-stream proxy is retired and never reaches Core', { concurrency: false }, async () => {
   let forwarded: { url: string; method: string; body: string | undefined } | undefined;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     forwarded = {
@@ -291,14 +327,11 @@ test('invoke-stream preserves the full-duplex request envelope and Core SSE resp
     body: JSON.stringify(envelope)
   }));
 
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get('content-type') ?? '', /^text\/event-stream/);
-  assert.equal(await response.text(), 'data: {"kind":"ack","seq":1}\n\n');
-  assert.deepEqual(forwarded, {
-    url: 'http://127.0.0.1:48731/api/v1/sessions/session-1/invoke-stream',
-    method: 'POST',
-    body: JSON.stringify(envelope)
-  });
+  // The legacy wire is gone end to end (plan §4.3 item 4): Core deleted the
+  // route, the Gateway proxy is removed with it. Submissions go through
+  // POST /sessions/{id}/interactions + GET /runs/{runId}/stream.
+  assert.notEqual(response.status, 200);
+  assert.equal(forwarded, undefined);
 });
 
 test('tool catalog routes are Core-owned and do not use Gateway risk metadata', { concurrency: false }, async () => {
@@ -437,4 +470,147 @@ test('code tools remain the current v1 direct user transport and preserve provid
   assert.deepEqual(JSON.parse(forwarded?.body ?? ''), body);
   assert.equal(forwarded?.headers.get('x-request-id'), 'request-direct-1');
   assert.equal(forwarded?.headers.get('x-tenant-id'), 'tenant-1');
+});
+
+test('approval pre-authorization creation is a stateless Core proxy', { concurrency: false }, async () => {
+  const requests: Array<{ url: string; method: string; body: string | undefined }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({
+      url: String(input),
+      method: init?.method ?? 'GET',
+      body: typeof init?.body === 'string' ? init.body : undefined,
+    });
+    return new Response(JSON.stringify({
+      id: 'pre-auth-1',
+      run_id: 'run-1',
+      lane_key: null,
+      tool_scope: ['write_file'],
+      parameter_constraint_hash: null,
+      risk_max: 'medium',
+      max_uses: 2,
+      use_count: 0,
+      expires_at: '2026-09-16T00:00:00Z',
+      revoked: false,
+    }), { status: 201, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  const body = { run_id: 'run-1', tool_scope: ['write_file'], risk_max: 'medium', max_uses: 2, summary: 'unattended commit lane' };
+  const response = await app.handle(new Request('http://gateway.local/api/v1/approvals/pre-authorizations', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
+
+  assert.equal(response.status, 201);
+  assert.deepEqual(await response.json(), {
+    id: 'pre-auth-1',
+    run_id: 'run-1',
+    lane_key: null,
+    tool_scope: ['write_file'],
+    parameter_constraint_hash: null,
+    risk_max: 'medium',
+    max_uses: 2,
+    use_count: 0,
+    expires_at: '2026-09-16T00:00:00Z',
+    revoked: false,
+  });
+  assert.deepEqual(requests.map(({ method, url }) => [method, url]), [
+    ['POST', 'http://127.0.0.1:48731/api/v1/approvals/pre-authorizations'],
+  ]);
+  assert.deepEqual(JSON.parse(requests[0]!.body ?? ''), body);
+});
+
+test('approval pre-authorization creation surfaces Core validation as ProblemDetails', { concurrency: false }, async () => {
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    type: 'https://tinadec.dev/errors/invalid_request',
+    title: 'Invalid request',
+    status: 400,
+    detail: 'Wildcard tool grants are not allowed in a pre-authorization.',
+    code: 'invalid_request',
+    trace_id: 'trace-pre-auth-1',
+  }), { status: 400, headers: { 'content-type': 'application/problem+json' } })) as typeof fetch;
+
+  const response = await app.handle(new Request('http://gateway.local/api/v1/approvals/pre-authorizations', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ run_id: 'run-1', tool_scope: ['*'], max_uses: 1 }),
+  }));
+
+  assert.equal(response.status, 400);
+  assert.equal(response.headers.get('content-type'), 'application/problem+json');
+  const problem = await response.json() as Record<string, unknown>;
+  assert.equal(problem.code, 'invalid_request');
+  assert.equal(problem.instance, '/api/v1/approvals/pre-authorizations');
+  assert.equal(problem.trace_id, 'trace-pre-auth-1');
+});
+
+test('memory item review routes stay stateless Core proxies', { concurrency: false }, async () => {
+  const requests: Array<{ url: string; method: string; body: string | undefined }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({
+      url: String(input),
+      method: init?.method ?? 'GET',
+      body: typeof init?.body === 'string' ? init.body : undefined,
+    });
+    return new Response(JSON.stringify({ proxied: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+
+  const responses = [
+    // session_id is not a candidate filter (a candidate names its run, not its
+    // session), so it must not reach Core at all.
+    new Request('http://gateway.local/api/v1/memory-candidates?status=proposed&scope=workspace&run_id=run-1&session_id=session-1'),
+    new Request('http://gateway.local/api/v1/memory-items?status=active&kind=fact&limit=20'),
+    new Request('http://gateway.local/api/v1/memory-items/item-1/revoke', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    }),
+  ];
+  for (const request of responses) {
+    const response = await app.handle(request);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { proxied: true });
+  }
+
+  assert.deepEqual(requests.map(({ method, url }) => [method, url]), [
+    ['GET', 'http://127.0.0.1:48731/api/v1/memory-candidates?status=proposed&scope=workspace&run_id=run-1'],
+    ['GET', 'http://127.0.0.1:48731/api/v1/memory-items?status=active&kind=fact&limit=20'],
+    ['POST', 'http://127.0.0.1:48731/api/v1/memory-items/item-1/revoke'],
+  ]);
+});
+
+// Core names review failures with its own UPPER_SNAKE codes. Left out of the
+// mapper they all fall through to the default, which turns "you sent a value this
+// queue cannot use" into the one code that means "try again later".
+test('memory review failures keep their 4xx meaning instead of collapsing to conflict', { concurrency: false }, async () => {
+  const cases: Array<{ method: string; path: string; coreCode: string; status: number; expected: string }> = [
+    { method: 'GET', path: '/api/v1/memory-candidates?run_id=yesterday', coreCode: 'INVALID_RUN_ID', status: 400, expected: 'invalid_request' },
+    { method: 'POST', path: '/api/v1/memory-candidates/candidate-1/promote', coreCode: 'INVALID_DECISION', status: 400, expected: 'invalid_request' },
+    { method: 'POST', path: '/api/v1/memory-candidates/candidate-1/reject', coreCode: 'ALREADY_DECIDED', status: 409, expected: 'conflict' },
+    { method: 'POST', path: '/api/v1/memory-items/item-1/revoke', coreCode: 'NOT_FOUND', status: 404, expected: 'not_found' },
+  ];
+
+  for (const testCase of cases) {
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      code: testCase.coreCode,
+      message: 'review refused',
+      field: 'run_id',
+    }), { status: testCase.status, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+
+    const response = await app.handle(new Request(`http://gateway.local${testCase.path}`, {
+      method: testCase.method,
+      headers: { 'content-type': 'application/json' },
+      body: testCase.method === 'POST' ? JSON.stringify({ reason: 'because' }) : undefined,
+    }));
+
+    assert.equal(response.status, testCase.status, testCase.path);
+    assert.equal(response.headers.get('content-type'), 'application/problem+json');
+    const problem = await response.json() as Record<string, unknown>;
+    assert.equal(problem.code, testCase.expected, `${testCase.path} (${testCase.coreCode})`);
+    assert.equal(problem.detail, 'review refused');
+    assert.equal(problem.instance, testCase.path.split('?')[0]);
+  }
 });

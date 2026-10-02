@@ -24,14 +24,14 @@ public sealed class LifecycleModuleRegistrar : IModuleRegistrar
         builder.Services.AddSingleton<IWorkspaceSnapshotService, WorkspaceSnapshotService>();
         builder.Services.AddSingleton<IStorageMigrationParticipant>(sp => sp.GetRequiredService<StorageLifecycleService>());
         builder.Services.AddSingleton<ILifecycleManager, LifecycleManager>();
-        // Recover durable runs left without an in-memory owner after a host restart.
-        // Waiting authorization states remain paused; other non-terminal runs are
-        // marked failed with an auditable recovery event.
-        builder.Services.AddHostedService<RunRecoveryHostedService>();
+        // Startup orphan recovery moved to Runtime.RecoveryCoordinator (plan §4.3
+        // item 5), which runs the pass under the shared RecoveryPolicy awaiting-*
+        // protection; the engine lease scan consumes the same policy in steady state.
         builder.Services.AddOptions<TinadecApprovalOptions>().BindConfiguration(TinadecApprovalOptions.SectionName);
         builder.Services.AddSingleton<ToolApprovalCoordinator>();
         builder.Services.AddSingleton<IToolApprovalCoordinator>(sp => sp.GetRequiredService<ToolApprovalCoordinator>());
         builder.Services.AddSingleton<IToolExecutionCoordinator>(sp => sp.GetRequiredService<ToolApprovalCoordinator>());
+        builder.Services.AddSingleton<ILeaseFencedToolExecutionCoordinator>(sp => sp.GetRequiredService<ToolApprovalCoordinator>());
         builder.RegisterModule(new ModuleDescriptor
         {
             ModuleId = ModuleId,
@@ -86,11 +86,21 @@ internal sealed class LifecycleManager : ILifecycleManager
             var result = await storage.StartOrGetRunAsync(sessionId, messageId, new RunStartOptions(
                 Guid.TryParse(request.TurnId, out var turnId) ? turnId : null,
                 request.ContextRevision, request.ConfigurationVersion, request.ConfigurationHash,
-                request.ApplicationMode, request.AgentMode, request.PermissionMode, request.RuntimeProfileId,
-                request.InitiatedByPrincipalId), cancellationToken).ConfigureAwait(false);
+                request.PermissionMode, request.RuntimeProfileId,
+                request.InitiatedByPrincipalId, request.ParentRunId, request.ParentTaskId, request.RunKind), cancellationToken).ConfigureAwait(false);
             return new RunStartResult(result.Run.Id.ToString(), result.Existing);
         }
-        var runId = await StartRunAsync(request.SessionId, request.TriggerMessageId, cancellationToken).ConfigureAwait(false);
+        var runId = Guid.NewGuid().ToString("N");
+        _fallbackRuns[runId] = new RunState
+        {
+            RunId = runId,
+            SessionId = request.SessionId,
+            Status = RunStatus.Planning,
+            ParentRunId = request.ParentRunId,
+            ParentTaskId = request.ParentTaskId,
+            RunKind = request.RunKind,
+            StartedAt = DateTimeOffset.UtcNow
+        };
         return new RunStartResult(runId, Existing: false);
     }
 
@@ -111,11 +121,12 @@ internal sealed class LifecycleManager : ILifecycleManager
         Guid? taskId = null,
         Guid? approvalId = null,
         string? toolId = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? idempotencyKey = null)
     {
         var storage = TryStorage();
         if (storage is null) return 0L;
-        var index = await storage.AppendEventAsync(runId, eventType, payload, summary, severity, taskId: taskId, approvalId: approvalId, toolId: toolId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var index = await storage.AppendEventAsync(runId, eventType, payload, summary, severity, taskId: taskId, approvalId: approvalId, toolId: toolId, idempotencyKey: idempotencyKey, cancellationToken: cancellationToken).ConfigureAwait(false);
         return index.Sequence;
     }
 
@@ -151,6 +162,22 @@ internal sealed class LifecycleManager : ILifecycleManager
         if (storage is null) return [];
         var runs = await storage.ListNonTerminalRunsAsync(cancellationToken).ConfigureAwait(false);
         return runs.Select(ToRunState).ToList();
+    }
+
+    public async Task<IReadOnlyList<RunState>> ListActiveRunsAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        var storage = TryStorage();
+        if (storage is null)
+            return _fallbackRuns.Values.Where(x => x.SessionId == sessionId.ToString() && x.Status is not (RunStatus.Completed or RunStatus.Failed or RunStatus.Cancelled))
+                .OrderByDescending(x => x.StartedAt).ToList();
+        var runs = await storage.ListRunsAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        return runs.Where(x => x.Status is not ("completed" or "failed" or "cancelled")).Select(ToRunState).ToList();
+    }
+
+    public async Task<int> RequeueRunDirectivesAsync(Guid fromRunId, IReadOnlyList<Guid> directiveIds, Guid toRunId, CancellationToken cancellationToken = default)
+    {
+        var storage = TryStorage();
+        return storage is null ? 0 : await storage.RequeueRunDirectivesAsync(fromRunId, directiveIds, toRunId, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<RunState>> ListLeaseEligibleRunsAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
@@ -250,7 +277,43 @@ internal sealed class LifecycleManager : ILifecycleManager
             await storage.CompleteRunAsync(id, cancellationToken).ConfigureAwait(false);
             return;
         }
-        if (_fallbackRuns.TryGetValue(runId, out var state)) _fallbackRuns[runId] = state with { Status = RunStatus.Completed, CompletedAt = DateTimeOffset.UtcNow };
+        if (_fallbackRuns.TryGetValue(runId, out var state))
+            _fallbackRuns[runId] = state with { Status = RunStatus.Completed, CompletedAt = state.CompletedAt ?? DateTimeOffset.UtcNow };
+    }
+
+    public async Task<bool> TryClaimRunCompletionAsync(
+        string runId,
+        string expectedStatus,
+        string? expectedLeaseOwner,
+        int? expectedRecoveryCount,
+        CancellationToken cancellationToken = default)
+    {
+        var storage = TryStorage();
+        if (storage is not null && Guid.TryParse(runId, out var id))
+        {
+            return await storage.TryClaimRunCompletionAsync(
+                id,
+                expectedStatus,
+                expectedLeaseOwner,
+                expectedRecoveryCount,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!Enum.TryParse<RunStatus>(expectedStatus, true, out var expected)
+            || expected is not (RunStatus.Executing or RunStatus.Reviewing))
+            throw new ArgumentException("Successful completion may only be claimed from executing or reviewing.", nameof(expectedStatus));
+
+        while (_fallbackRuns.TryGetValue(runId, out var state))
+        {
+            if (state.CompletedAt is not null
+                || state.Status != expected)
+            {
+                return false;
+            }
+            var claimed = state with { CompletedAt = DateTimeOffset.UtcNow };
+            if (_fallbackRuns.TryUpdate(runId, claimed, state)) return true;
+        }
+        return false;
     }
 
     public async Task SetRunStatusAsync(string runId, string status, string? summary = null, CancellationToken cancellationToken = default)
@@ -263,6 +326,78 @@ internal sealed class LifecycleManager : ILifecycleManager
         }
         if (_fallbackRuns.TryGetValue(runId, out var state) && Enum.TryParse<RunStatus>(status, true, out var parsed))
             _fallbackRuns[runId] = state with { Status = parsed, CompletedAt = parsed is RunStatus.Completed or RunStatus.Failed or RunStatus.Cancelled ? DateTimeOffset.UtcNow : null };
+    }
+
+    public async Task SetRunStatusUnderLeaseAsync(
+        string runId,
+        string status,
+        string? summary,
+        string expectedLeaseOwner,
+        int expectedRecoveryCount,
+        CancellationToken cancellationToken = default)
+    {
+        var storage = TryStorage();
+        if (storage is not null && Guid.TryParse(runId, out var id))
+        {
+            await storage.SetRunStatusUnderLeaseAsync(
+                id,
+                status,
+                summary,
+                expectedLeaseOwner,
+                expectedRecoveryCount,
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (_fallbackRuns.TryGetValue(runId, out var state)
+            && string.Equals(state.LeaseOwner, expectedLeaseOwner, StringComparison.Ordinal)
+            && state.RecoveryCount == expectedRecoveryCount
+            && Enum.TryParse<RunStatus>(status, true, out var parsed))
+        {
+            _fallbackRuns[runId] = state with
+            {
+                Status = parsed,
+                Summary = summary ?? state.Summary,
+                CompletedAt = parsed is RunStatus.Completed or RunStatus.Failed or RunStatus.Cancelled
+                    ? state.CompletedAt ?? DateTimeOffset.UtcNow
+                    : state.CompletedAt
+            };
+        }
+    }
+
+    public async Task SetRunFailedUnderLeaseAsync(
+        string runId,
+        string summary,
+        string errorCategory,
+        string expectedLeaseOwner,
+        int expectedRecoveryCount,
+        CancellationToken cancellationToken = default)
+    {
+        var storage = TryStorage();
+        if (storage is not null && Guid.TryParse(runId, out var id))
+        {
+            await storage.SetRunFailedUnderLeaseAsync(
+                id,
+                summary,
+                errorCategory,
+                expectedLeaseOwner,
+                expectedRecoveryCount,
+                cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (_fallbackRuns.TryGetValue(runId, out var state)
+            && string.Equals(state.LeaseOwner, expectedLeaseOwner, StringComparison.Ordinal)
+            && state.RecoveryCount == expectedRecoveryCount)
+        {
+            _fallbackRuns[runId] = state with
+            {
+                Status = RunStatus.Failed,
+                Summary = summary,
+                TerminalErrorCategory = errorCategory,
+                CompletedAt = state.CompletedAt ?? DateTimeOffset.UtcNow
+            };
+        }
     }
 
     public async Task<int> CountActiveRunsAsync(string sessionId, CancellationToken cancellationToken = default)
@@ -335,12 +470,13 @@ internal sealed class LifecycleManager : ILifecycleManager
         ContextRevision = run.ContextRevision,
         ConfigurationVersion = run.ConfigurationVersion,
         ConfigurationHash = run.ConfigurationHash,
-        ApplicationMode = run.ApplicationMode,
-        AgentMode = run.AgentMode,
         PermissionMode = run.PermissionMode,
         RuntimeProfileId = run.RuntimeProfileId,
         TenantId = run.TenantId.ToString(),
         WorkspaceId = run.WorkspaceId.ToString(),
+        ParentRunId = run.ParentRunId?.ToString(),
+        ParentTaskId = run.ParentTaskId?.ToString(),
+        RunKind = run.RunKind,
         InitiatedByPrincipalId = run.InitiatedByPrincipalId == Guid.Empty ? null : run.InitiatedByPrincipalId.ToString(),
         CheckpointRevision = run.CheckpointRevision,
         FrozenConfigurationHash = run.FrozenConfigurationHash,
@@ -349,6 +485,7 @@ internal sealed class LifecycleManager : ILifecycleManager
         LeaseHeartbeatAt = run.LeaseHeartbeatAt,
         RecoveryCount = run.RecoveryCount,
         Summary = run.Summary,
+        TerminalErrorCategory = run.TerminalErrorCategory,
         StartedAt = run.CreatedAt,
         CompletedAt = run.CompletedAt
     };

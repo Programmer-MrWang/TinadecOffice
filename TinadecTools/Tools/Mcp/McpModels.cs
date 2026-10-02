@@ -24,7 +24,13 @@ public sealed class McpToolSummary
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("description")] public string? Description { get; set; }
-    [JsonPropertyName("input_schema")] public JsonElement InputSchema { get; set; }
+    /// <summary>
+    /// The server's input schema, or null when the caller asked for no schemas. This must stay
+    /// nullable: a non-nullable <see cref="JsonElement"/> left at its default cannot be written by
+    /// the serializer at all, so withholding schemas used to fail the whole call — including
+    /// <c>mcp_search</c>, whose <c>include_schema</c> defaults to false, on every non-empty result.
+    /// </summary>
+    [JsonPropertyName("input_schema")] public JsonElement? InputSchema { get; set; }
 }
 
 public sealed class McpServerToolList
@@ -81,6 +87,31 @@ public sealed class McpSearchResult
 public sealed class McpSearchResponse
 {
     [JsonPropertyName("results")] public List<McpSearchResult> Results { get; set; } = new();
+
+    /// <summary>
+    /// Why the result set is empty (or partial). An empty <c>results</c> with no
+    /// reason is indistinguishable from a broken search, and a caller that cannot
+    /// tell the difference reports "the tool returned nothing".
+    /// </summary>
+    [JsonPropertyName("reason")] public string? Reason { get; set; }
+
+    /// <summary>Config file the tools process read to discover MCP servers.</summary>
+    [JsonPropertyName("config_path")] public string? ConfigPath { get; set; }
+
+    /// <summary>Servers that could not be queried, with their error.</summary>
+    [JsonPropertyName("failures")] public List<McpSearchFailure> Failures { get; set; } = new();
+
+    /// <summary>Configured servers the search attempted to reach.</summary>
+    [JsonPropertyName("servers_queried")] public int ServersQueried { get; set; }
+
+    /// <summary>Tools seen across the reachable servers, before scoring.</summary>
+    [JsonPropertyName("tools_listed")] public int ToolsListed { get; set; }
+}
+
+public sealed class McpSearchFailure
+{
+    [JsonPropertyName("server_id")] public string ServerId { get; set; } = string.Empty;
+    [JsonPropertyName("error")] public string Error { get; set; } = string.Empty;
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
@@ -95,6 +126,7 @@ public sealed class McpSearchResponse
 [JsonSerializable(typeof(McpSearchParams))]
 [JsonSerializable(typeof(McpSearchResult))]
 [JsonSerializable(typeof(McpSearchResponse))]
+[JsonSerializable(typeof(McpSearchFailure))]
 [JsonSerializable(typeof(CallToolResult))]
 internal partial class McpJsonContext : JsonSerializerContext { }
 

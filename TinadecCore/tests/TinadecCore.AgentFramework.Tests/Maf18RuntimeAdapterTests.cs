@@ -9,6 +9,20 @@ namespace TinadecCore.AgentFramework.Tests;
 public sealed class Maf18RuntimeAdapterTests
 {
     [Fact]
+    public void UsageSince_MergesParallelDeltasWithoutCountingTheBaselineTwice()
+    {
+        var baseline = new ModelUsage(10, 2, null, AdditionalCounts: new Dictionary<string, long> { ["requests"] = 1 });
+        var worker = new ModelUsage(3, 1, null, AdditionalCounts: new Dictionary<string, long> { ["requests"] = 2 });
+        var local = Maf18RuntimeAdapter.AddUsage(baseline, worker);
+        var delta = Maf18RuntimeAdapter.UsageSince(local, baseline);
+        var combined = Maf18RuntimeAdapter.AddUsage(Maf18RuntimeAdapter.AddUsage(baseline, delta), delta);
+        Assert.Equal(16, combined!.InputTokens);
+        Assert.Equal(4, combined.OutputTokens);
+        Assert.Null(combined.TotalTokens);
+        Assert.Equal(5, combined.AdditionalCounts!["requests"]);
+    }
+
+    [Fact]
     public void FrameworkPackageFamily_IsLockedTo118()
     {
         Maf18RuntimeAdapter.EnsureCompatible();
@@ -56,10 +70,40 @@ public sealed class Maf18RuntimeAdapterTests
             Tools = [AIFunctionFactory.CreateDeclaration(
                 "write_file",
                 "Writes a file",
-                JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\"}"))]
+                JsonSerializer.Deserialize<JsonElement>("{\"type\":\"object\"}"),
+                null)]
         };
-        Assert.Throws<InvalidOperationException>(() => Maf18RuntimeAdapter.CreateGovernanceAgent(
-            new RecordingChatClient(), "operation.supervisor", "supervisor", "Reviews evidence.", withTool));
+        // A DECLARATION is allowed now: the operation layer may hold a tool surface of its
+        // own (a mode can arm its conversation identity to edit the workspace directly).
+        // MAF cannot invoke a declaration, so the model's call still comes back to the
+        // engine and Core still owns dispatch.
+        _ = Maf18RuntimeAdapter.CreateGovernanceAgent(
+            new RecordingChatClient(), "operation.supervisor", "supervisor", "Reviews evidence.", withTool);
+    }
+
+    /// <summary>
+    /// The line the adapter draws is INVOKABILITY, not layer membership. A tool MAF can
+    /// call itself must still be refused, because it would execute the side effect
+    /// directly and bypass Core's authorization, approval, audit and checkpoint path —
+    /// which is the whole reason the guard exists.
+    /// </summary>
+    [Fact]
+    public void GovernanceAgent_RejectsInvokableTools_KeepsCoreOwnedDispatch()
+    {
+        var invokable = new ChatOptions
+        {
+            Tools = [AIFunctionFactory.Create(
+                new Func<string, string>(_ => "wrote"),
+                "write_file",
+                "Writes a file")]
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(() => Maf18RuntimeAdapter.CreateGovernanceAgent(
+            new RecordingChatClient(), "operation.supervisor", "supervisor", "Reviews evidence.", invokable));
+
+        Assert.Contains("declarative tools", error.Message, StringComparison.Ordinal);
+        Assert.Contains("write_file", error.Message, StringComparison.Ordinal);
+        Assert.Contains("owns authorization and dispatch", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

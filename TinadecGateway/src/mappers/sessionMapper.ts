@@ -1,11 +1,20 @@
 /** Session mapper */
 export interface ExternalSessionDto {
   id: string;
-  project_id: string;
+  /**
+   * Null for a projectless (free-conversation) session. Core omits the field via
+   * `WhenWritingNull`, and a coerced empty string would satisfy truthiness checks
+   * meant to detect free conversations while failing strict equality against a
+   * real project id.
+   */
+  project_id: string | null;
   title: string | null;
   status: string | null;
   mode: string | null;
   mode_version_id: string | null;
+  /** ConversationIdentity (DmaEA graph orchestration), frozen at session creation; null on pre-identity rows. */
+  conversation_node_key: string | null;
+  conversation_template_slug: string | null;
   meeting_model_override: { provider_instance_id: string; model?: string | null } | null;
   summary: string | null;
   history_revision: number | null;
@@ -17,6 +26,10 @@ export interface ExternalSessionDto {
 
 function isRecord(v: unknown): v is Record<string, unknown> { return typeof v === 'object' && v !== null && !Array.isArray(v); }
 
+function nullableId(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
 export function mapSession(core: unknown): ExternalSessionDto | null {
   if (!isRecord(core)) return null;
   const id = String(core.id ?? '');
@@ -27,11 +40,13 @@ export function mapSession(core: unknown): ExternalSessionDto | null {
   const rawLifecycle = core.lifecycle_status ?? core.lifecycleStatus;
   return {
     id,
-    project_id: String(core.project_id ?? core.projectId ?? ''),
+    project_id: nullableId(core.project_id ?? core.projectId),
     title: (core.title as string) ?? null,
     status: (core.status as string) ?? null,
     mode: (core.mode as string) ?? null,
     mode_version_id: (core.mode_version_id as string) ?? (core.modeVersionId as string) ?? null,
+    conversation_node_key: (core.conversation_node_key as string) ?? (core.conversationNodeKey as string) ?? null,
+    conversation_template_slug: (core.conversation_template_slug as string) ?? (core.conversationTemplateSlug as string) ?? null,
     meeting_model_override: override && typeof override.provider_instance_id === 'string'
       ? { provider_instance_id: override.provider_instance_id, model: override.model ?? null }
       : null,

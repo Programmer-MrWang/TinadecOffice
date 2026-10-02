@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Persistence;
 
@@ -14,7 +15,7 @@ namespace TinadecCore.Lifecycle;
 /// in-memory waiter. Content writes may be left orphaned on a database rollback,
 /// but no executable approval/execution relationship is committed partially.
 /// </summary>
-public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExecutionCoordinator
+public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExecutionCoordinator, ILeaseFencedToolExecutionCoordinator
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -71,7 +72,11 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
         var session = await _sessions.FindAsync(request.SessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Session was not found.");
-        if (session.ProjectId != request.ProjectId || session.TenantId != request.TenantId || session.WorkspaceId != request.WorkspaceId)
+        // A projectless (free-conversation) call carries Guid.Empty as its project
+        // sentinel because the wire cannot express null; the session stores NULL.
+        // Comparing the two raw values never matches, so normalize first.
+        if (session.ProjectId != NormalizeProjectId(request.ProjectId)
+            || session.TenantId != request.TenantId || session.WorkspaceId != request.WorkspaceId)
         {
             throw new UnauthorizedAccessException("Tool execution session/project scope is inconsistent.");
         }
@@ -82,13 +87,19 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
         var now = DateTimeOffset.UtcNow;
         var executionId = Guid.NewGuid();
+        // Freeze what the human will be asked to judge at the moment the call is
+        // admitted. Deriving it later would mean re-reading a content blob the run
+        // may already have superseded, and a list endpoint is not the place to
+        // parse parameter payloads.
+        var evidence = ApprovalEvidenceProjector.Project(request.ToolId, request.ParametersJson);
+        var argumentsDigest = ApprovalEvidenceProjector.Encode(evidence);
         var approvalId = needsApproval && !request.DeferApproval ? Guid.NewGuid() : (Guid?)null;
         var execution = new ToolExecutionRecord
         {
             Id = executionId,
             TenantId = request.TenantId,
             WorkspaceId = request.WorkspaceId,
-            ProjectId = request.ProjectId,
+            ProjectId = NormalizeProjectId(request.ProjectId),
             SessionId = request.SessionId,
             RunId = request.RunId,
             TaskId = request.TaskId,
@@ -104,6 +115,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             Status = needsApproval && !request.DeferApproval ? "awaiting_approval" : "requested",
             ParametersHash = request.ParametersHash,
             ParametersReference = parameters.Value,
+            ArgumentsDigest = argumentsDigest,
             ParametersLength = parameters.Length,
             Attempt = 1,
             CreatedAt = now,
@@ -122,7 +134,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
                     Id = pendingApprovalId,
                     TenantId = request.TenantId,
                     WorkspaceId = request.WorkspaceId,
-                    ProjectId = request.ProjectId,
+                    ProjectId = NormalizeProjectId(request.ProjectId),
                     SessionId = request.SessionId,
                     RunId = request.RunId,
                     TaskId = request.TaskId,
@@ -133,7 +145,11 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
                     Risk = NormalizeRisk(request.Risk),
                     RequestHash = request.ParametersHash,
                     ParametersReference = parameters.Value,
-                    Summary = Truncate(request.Summary, 4096),
+                    ArgumentsDigest = argumentsDigest,
+                    // The caller's own summary wins when it supplied one (user tool
+                    // actions phrase these in user terms); otherwise the projected
+                    // command/path is what makes the row decidable at all.
+                    Summary = Truncate(string.IsNullOrWhiteSpace(request.Summary) ? evidence.Summary : request.Summary, 4096),
                     Status = "pending",
                     ExpiresAt = now.Add(_decisionWindow),
                     RequestedByPrincipalId = scope.PrincipalId,
@@ -237,6 +253,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         row.ApprovalId = Guid.NewGuid();
         row.Status = "awaiting_approval";
         row.UpdatedAt = DateTimeOffset.UtcNow;
+        // The deferred mint reaches this path with only the execution row in hand.
+        // Its frozen evidence digest is what lets the approval name the command or
+        // path instead of the bare tool id plus an agent GUID.
+        var hasEvidence = ApprovalEvidenceProjector.TryDecode(row.ArgumentsDigest, out var executionEvidence);
         var approval = new ApprovalRequestRecord
         {
             Id = row.ApprovalId.Value,
@@ -253,7 +273,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             Risk = row.Risk,
             RequestHash = row.ParametersHash,
             ParametersReference = row.ParametersReference,
-            Summary = $"Tool '{row.ToolId}' requested by agent {row.AgentInstanceId}.",
+            ArgumentsDigest = row.ArgumentsDigest,
+            Summary = Truncate(hasEvidence
+                ? executionEvidence.Summary
+                : $"Tool '{row.ToolId}' requested by agent {row.AgentInstanceId}.", 4096),
             Status = "pending",
             ExpiresAt = row.UpdatedAt.Add(_decisionWindow),
             RequestedByPrincipalId = scope.PrincipalId,
@@ -448,6 +471,44 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         return new PreAuthorizationMintResult(await ToSnapshotAsync(fresh ?? execution, cancellationToken).ConfigureAwait(false), source);
     }
 
+    /// <summary>
+    /// Mints from a person's standing rule (todo E7): the dispatcher already matched the rule
+    /// against the call's own parameters (session scope and prefix, so a caller naming a rule id
+    /// cannot ride in on it), so this only records it. The audit names the rule, not the policy.
+    /// </summary>
+    public async Task<PreAuthorizationMintResult?> MintApprovalFromRuleAsync(Guid executionId, Guid ruleId, CancellationToken cancellationToken = default)
+    {
+        var scope = _tenant.Current;
+        var now = DateTimeOffset.UtcNow;
+        await using var db = await _factory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var execution = await db.ToolExecutions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == executionId
+            && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        if (execution is null || !execution.RequiresApproval || execution.ApprovalId is not { } approvalId) return null;
+        var upgraded = await db.ApprovalRequests
+            .Where(x => x.Id == approvalId && x.Status == "pending" && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId)
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(x => x.Status, "approved")
+                .SetProperty(x => x.Decision, "approved")
+                .SetProperty(x => x.DecisionReason, "approval_rule")
+                .SetProperty(x => x.DecidedAt, now)
+                .SetProperty(x => x.ExecutionWindowExpiresAt, now.Add(_executionWindow))
+                .SetProperty(x => x.UpdatedAt, now), cancellationToken).ConfigureAwait(false);
+        if (upgraded != 1) return null;
+        db.ApprovalDecisions.Add(new ApprovalDecisionRecord
+        {
+            Id = Guid.NewGuid(),
+            ApprovalRequestId = approvalId,
+            Decision = "approved",
+            Reason = "approval_rule",
+            DecidedByPrincipalId = Guid.Empty,
+            CreatedAt = now
+        });
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        var fresh = await db.ToolExecutions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == executionId
+            && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        return new PreAuthorizationMintResult(await ToSnapshotAsync(fresh ?? execution, cancellationToken).ConfigureAwait(false), $"approval_rule:{ruleId:N}");
+    }
+
     private async Task<string?> ReadFrozenPermissionModeAsync(Guid runId, CancellationToken cancellationToken)
     {
         if (_lifecycle is null) return null;
@@ -491,13 +552,37 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
     {
         "low" => 0,
         "medium" => 1,
-        "high" => 2,
-        "elevated" => 3,
+        "elevated" => 2,
+        "high" => 3,
         "critical" => 4,
         _ => 5
     };
 
-    public async Task<ToolExecutionStartDecision> TryStartAsync(Guid executionId, CancellationToken cancellationToken = default)
+    public Task<ToolExecutionStartDecision> TryStartAsync(
+        Guid executionId,
+        bool allowStaleRunningReset = false,
+        CancellationToken cancellationToken = default) =>
+        TryStartCoreAsync(executionId, authority: null, allowStaleRunningReset, cancellationToken);
+
+    public Task<ToolExecutionStartDecision> TryStartUnderRunLeaseAsync(
+        Guid executionId,
+        RunExecutionAuthority authority,
+        bool allowStaleRunningReset = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(authority);
+        if (string.IsNullOrWhiteSpace(authority.LeaseOwner))
+            throw new ArgumentException("A run lease owner is required for fenced tool execution.", nameof(authority));
+        if (authority.RecoveryCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(authority), "RecoveryCount must not be negative.");
+        return TryStartCoreAsync(executionId, authority, allowStaleRunningReset, cancellationToken);
+    }
+
+    private async Task<ToolExecutionStartDecision> TryStartCoreAsync(
+        Guid executionId,
+        RunExecutionAuthority? authority,
+        bool allowStaleRunningReset,
+        CancellationToken cancellationToken)
     {
         var scope = _tenant.Current;
         await using var db = await _factory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -508,13 +593,45 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
         var snapshot = await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false);
         if (IsExecutionTerminal(execution.Status)) return new ToolExecutionStartDecision(execution.Status, snapshot, "Tool execution is terminal.");
-        if (execution.Status == "running") return new ToolExecutionStartDecision("already_running", snapshot, "Tool execution is already running.");
+        if (execution.Status == "running" && !allowStaleRunningReset)
+            return new ToolExecutionStartDecision("already_running", snapshot, "Tool execution is already running.");
+        if (execution.Status == "running" && authority is not null
+            && !await RunAuthorityMatchesAsync(db, execution, authority, cancellationToken).ConfigureAwait(false))
+        {
+            return LostRunAuthority(snapshot);
+        }
+        if (execution.Status == "running" && execution.RequiresApproval)
+        {
+            // A running row the caller proved this process cannot hold (host
+            // restart or torn state). The approval consume CAS and the running
+            // mark commit in one transaction, so the approval was provably
+            // consumed and the tool may already have run: never replay a
+            // potentially mutating call automatically.
+            execution.Status = "outcome_unknown";
+            execution.ErrorCategory = RunErrorTaxonomy.ApprovalConsumedWithoutOutcome;
+            execution.SafeErrorMessage = "The host stopped after the approval was consumed; the tool outcome is unknown.";
+            execution.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return new ToolExecutionStartDecision("outcome_unknown", await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false), execution.SafeErrorMessage);
+        }
+        if (execution.Status == "running")
+        {
+            // A stale read-only running row carries no external side effect a
+            // replay could double, so reset it and let the normal start path
+            // drive it again instead of parking it forever on already_running.
+            execution.Status = "requested";
+            execution.UpdatedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            snapshot = await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false);
+        }
         if (execution.Status == "outcome_unknown") return new ToolExecutionStartDecision("outcome_unknown", snapshot, "Recovery decision is required before this execution can continue.");
 
         var run = await db.Runs.AsNoTracking().SingleOrDefaultAsync(x =>
             x.Id == execution.RunId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId,
             cancellationToken).ConfigureAwait(false);
         if (run is null) return new ToolExecutionStartDecision("not_found", snapshot, "Run was not found.");
+        if (authority is not null && !MatchesRunAuthority(run, authority, DateTimeOffset.UtcNow))
+            return LostRunAuthority(snapshot);
         if (run.Status == "cancelled")
         {
             await CancelExecutionAsync(db, execution, cancellationToken).ConfigureAwait(false);
@@ -526,6 +643,26 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         if (!execution.RequiresApproval)
         {
             if (execution.Status != "requested") return new ToolExecutionStartDecision(execution.Status, snapshot, "Tool execution is not ready.");
+            if (authority is not null)
+            {
+                await using var readOnlyStartTransaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+                if (!await TryClaimRunAuthorityAsync(db, execution, authority, cancellationToken).ConfigureAwait(false))
+                {
+                    await readOnlyStartTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return LostRunAuthority(snapshot);
+                }
+                await db.Entry(execution).ReloadAsync(cancellationToken).ConfigureAwait(false);
+                if (execution.Status != "requested")
+                {
+                    await readOnlyStartTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                    return new ToolExecutionStartDecision(execution.Status, await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false), "Tool execution is not ready.");
+                }
+                execution.Status = "running";
+                execution.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                await readOnlyStartTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+                return new ToolExecutionStartDecision("running", await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false));
+            }
             execution.Status = "running";
             execution.UpdatedAt = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -535,7 +672,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         if (execution.ApprovalId is not { } approvalId)
         {
             execution.Status = "failed";
-            execution.ErrorCategory = "approval_missing";
+            execution.ErrorCategory = RunErrorTaxonomy.ApprovalMissing;
             execution.SafeErrorMessage = "Approval-gated execution has no approval record.";
             execution.UpdatedAt = DateTimeOffset.UtcNow;
             execution.CompletedAt = execution.UpdatedAt;
@@ -548,7 +685,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         if (approval is null)
         {
             execution.Status = "failed";
-            execution.ErrorCategory = "approval_missing";
+            execution.ErrorCategory = RunErrorTaxonomy.ApprovalMissing;
             execution.SafeErrorMessage = "Approval record was not found.";
             execution.UpdatedAt = DateTimeOffset.UtcNow;
             execution.CompletedAt = execution.UpdatedAt;
@@ -585,7 +722,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
                 approval.Status = "expired";
                 approval.UpdatedAt = now;
                 execution.Status = "failed";
-                execution.ErrorCategory = "approval_expired";
+                execution.ErrorCategory = RunErrorTaxonomy.ApprovalExpired;
                 execution.SafeErrorMessage = "Approval expired before execution began.";
                 execution.UpdatedAt = now;
                 execution.CompletedAt = execution.UpdatedAt;
@@ -604,7 +741,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             || string.IsNullOrWhiteSpace(approval.NonceSecretReference))
         {
             execution.Status = "failed";
-            execution.ErrorCategory = "approval_binding_mismatch";
+            execution.ErrorCategory = RunErrorTaxonomy.ApprovalBindingMismatch;
             execution.SafeErrorMessage = "Approval does not match the persisted tool execution.";
             execution.UpdatedAt = now;
             execution.CompletedAt = now;
@@ -615,7 +752,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         if (approval.Status is "rejected" or "expired" or "cancelled")
         {
             execution.Status = "failed";
-            execution.ErrorCategory = "not_approved";
+            execution.ErrorCategory = RunErrorTaxonomy.NotApproved;
             execution.SafeErrorMessage = $"Approval decision was '{approval.Status}'.";
             execution.UpdatedAt = now;
             execution.CompletedAt = execution.UpdatedAt;
@@ -627,7 +764,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             // A process may have died after consumption but before a result was
             // persisted. Never replay a potentially mutating call automatically.
             execution.Status = "outcome_unknown";
-            execution.ErrorCategory = "approval_consumed_without_outcome";
+            execution.ErrorCategory = RunErrorTaxonomy.ApprovalConsumedWithoutOutcome;
             execution.SafeErrorMessage = "Approval was consumed without a durable tool outcome.";
             execution.UpdatedAt = now;
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -638,6 +775,12 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             return new ToolExecutionStartDecision("not_approved", snapshot, "Approval is not executable.");
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        if (authority is not null
+            && !await TryClaimRunAuthorityAsync(db, execution, authority, cancellationToken).ConfigureAwait(false))
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return LostRunAuthority(snapshot);
+        }
         var consumed = await db.ApprovalRequests
             .Where(x => x.Id == approvalId
                 && x.TenantId == scope.TenantId
@@ -676,12 +819,77 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         return new ToolExecutionStartDecision("running", await ToSnapshotAsync(execution, cancellationToken).ConfigureAwait(false));
     }
 
-    public async Task<ToolExecutionSnapshot> CompleteAsync(Guid executionId, string resultJson, CancellationToken cancellationToken = default)
+    private static ToolExecutionStartDecision LostRunAuthority(ToolExecutionSnapshot snapshot) =>
+        new(RunErrorTaxonomy.RunLeaseLost, snapshot,
+            "The tool execution caller no longer owns the current run lease epoch.");
+
+    private async Task<bool> RunAuthorityMatchesAsync(
+        LifecycleDbContext db,
+        ToolExecutionRecord execution,
+        RunExecutionAuthority authority,
+        CancellationToken cancellationToken)
+    {
+        var run = await db.Runs.AsNoTracking().SingleOrDefaultAsync(x =>
+            x.Id == execution.RunId
+            && x.TenantId == execution.TenantId
+            && x.WorkspaceId == execution.WorkspaceId,
+            cancellationToken).ConfigureAwait(false);
+        return run is not null && MatchesRunAuthority(run, authority, DateTimeOffset.UtcNow);
+    }
+
+    private static bool MatchesRunAuthority(
+        RunRecord run,
+        RunExecutionAuthority authority,
+        DateTimeOffset now) =>
+        string.Equals(run.LeaseOwner, authority.LeaseOwner, StringComparison.Ordinal)
+        && run.RecoveryCount == authority.RecoveryCount
+        && run.LeaseExpiresAt is { } expiresAt
+        && expiresAt > now
+        && run.CompletedAt is null
+        && run.Status is not ("cancelled" or "completed" or "failed" or "paused");
+
+    /// <summary>
+    /// Acquires a short database row lock on the run while re-validating the exact
+    /// lease epoch. The surrounding tool-start transaction keeps cancellation or a
+    /// lease takeover from winning between this check and the execution/approval
+    /// transition. Whichever transaction claims the run row first becomes the
+    /// authoritative ordering point.
+    /// </summary>
+    private static async Task<bool> TryClaimRunAuthorityAsync(
+        LifecycleDbContext db,
+        ToolExecutionRecord execution,
+        RunExecutionAuthority authority,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var nowMs = now.ToUnixTimeMilliseconds();
+        var claimed = await db.Runs
+            .Where(run => run.Id == execution.RunId
+                && run.TenantId == execution.TenantId
+                && run.WorkspaceId == execution.WorkspaceId
+                && run.LeaseOwner == authority.LeaseOwner
+                && run.RecoveryCount == authority.RecoveryCount
+                && run.LeaseExpiresUnixMilliseconds != null
+                && run.LeaseExpiresUnixMilliseconds > nowMs
+                && run.CompletedAt == null
+                && run.Status != "cancelled"
+                && run.Status != "completed"
+                && run.Status != "failed"
+                && run.Status != "paused")
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(run => run.LeaseHeartbeatAt, now)
+                .SetProperty(run => run.LeaseHeartbeatUnixMilliseconds, nowMs),
+                cancellationToken).ConfigureAwait(false);
+        return claimed == 1;
+    }
+
+    public async Task<ToolExecutionSnapshot> CompleteAsync(Guid executionId, string resultJson, bool? toolSuccess = null, CancellationToken cancellationToken = default)
     {
         var row = await GetExecutionForWriteAsync(executionId, cancellationToken).ConfigureAwait(false);
         if (row.Status != "running") return await ToSnapshotAsync(row, cancellationToken).ConfigureAwait(false);
         var stored = await StoreResultAsync(row, resultJson, cancellationToken).ConfigureAwait(false);
         row.Status = "completed";
+        row.ToolSuccess = toolSuccess;
         row.ResultReference = stored.Value;
         row.ResultHash = stored.Sha256;
         row.ResultLength = stored.Length;
@@ -707,6 +915,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         var body = JsonSerializer.Serialize(new { error_category = errorCategory, message }, JsonOptions);
         var stored = await StoreResultAsync(row, body, cancellationToken).ConfigureAwait(false);
         row.Status = status;
+        row.ToolSuccess = null;
         row.ResultReference = stored.Value;
         row.ResultHash = stored.Sha256;
         row.ResultLength = stored.Length;
@@ -732,7 +941,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         if (normalized == "fail")
         {
             source.Status = "failed";
-            source.ErrorCategory = "recovery_failed";
+            source.ErrorCategory = RunErrorTaxonomy.RecoveryFailed;
             source.SafeErrorMessage = "A human selected fail after the tool outcome became unknown.";
             source.UpdatedAt = DateTimeOffset.UtcNow;
             source.CompletedAt = source.UpdatedAt;
@@ -769,6 +978,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
             Status = needsApproval ? "awaiting_approval" : "requested",
             ParametersHash = source.ParametersHash,
             ParametersReference = source.ParametersReference,
+            ArgumentsDigest = source.ArgumentsDigest,
             ParametersLength = source.ParametersLength,
             WorkspaceSnapshotId = source.WorkspaceSnapshotId,
             WorkspaceSnapshotHash = source.WorkspaceSnapshotHash,
@@ -796,6 +1006,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
                 Risk = source.Risk,
                 RequestHash = source.ParametersHash,
                 ParametersReference = source.ParametersReference,
+                ArgumentsDigest = source.ArgumentsDigest,
                 Summary = $"Retry for tool '{source.ToolId}' after unknown outcome from execution {source.Id}.",
                 Status = "pending",
                 ExpiresAt = now.Add(_decisionWindow),
@@ -834,11 +1045,59 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         foreach (var execution in executions)
         {
             execution.Status = "cancelled";
-            execution.ErrorCategory = "run_cancelled";
+            execution.ErrorCategory = RunErrorTaxonomy.Cancelled;
             execution.SafeErrorMessage = "Run was cancelled before tool execution began.";
             execution.CompletedAt = execution.UpdatedAt = now;
         }
         if (approvals.Count != 0 || executions.Count != 0) await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Observer for the expiry paths TryStartAsync only evaluates when a run
+    /// happens to resume: pending approvals whose decision window already
+    /// elapsed. Live runs are returned for the caller to wake (the engine's
+    /// resume re-enters TryStartAsync, which parks the approval with the
+    /// park_expired signal and escalates the lane to awaiting_user); approvals
+    /// nobody will ever drive again (run-less, or their run is terminal) are
+    /// expired directly so they cannot sit pending forever.
+    /// </summary>
+    public async Task<ApprovalExpirySweepResult> SweepExpiredPendingApprovalsAsync(CancellationToken cancellationToken = default)
+    {
+        var scope = _tenant.Current;
+        var now = DateTimeOffset.UtcNow;
+        await using var db = await _factory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        // SQLite cannot translate DateTimeOffset comparisons; load the pending
+        // set and apply the window in memory, mirroring TryConsumeApprovalAsync.
+        var pending = await db.ApprovalRequests.AsNoTracking()
+            .Where(x => x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.Status == "pending")
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        var elapsed = pending.Where(x => x.ExpiresAt <= now).ToList();
+        if (elapsed.Count == 0) return new ApprovalExpirySweepResult([], 0);
+
+        var runIds = elapsed.Where(x => x.RunId is not null).Select(x => x.RunId!.Value).Distinct().ToList();
+        var runs = await db.Runs.AsNoTracking().Where(x => runIds.Contains(x.Id)).ToListAsync(cancellationToken).ConfigureAwait(false);
+        var liveRunIds = runs.Where(x => !RunStatusMachine.IsTerminal(x.Status)).Select(x => x.Id).ToHashSet();
+
+        var orphaned = elapsed.Where(x => x.RunId is null || !liveRunIds.Contains(x.RunId.Value)).ToList();
+        foreach (var approval in orphaned)
+        {
+            await db.ApprovalRequests
+                .Where(x => x.Id == approval.Id && x.Status == "pending")
+                .ExecuteUpdateAsync(set => set
+                    .SetProperty(x => x.Status, "expired")
+                    .SetProperty(x => x.UpdatedAt, now), cancellationToken).ConfigureAwait(false);
+        }
+
+        // A live run whose approval elapsed is woken, not marked: marking it
+        // here would turn the next TryStartAsync into a hard not_approved
+        // failure instead of the park-and-escalate path the M8 unattended
+        // design requires.
+        var wakeRunIds = elapsed
+            .Where(x => x.RunId is not null && liveRunIds.Contains(x.RunId.Value))
+            .Select(x => x.RunId!.Value)
+            .Distinct()
+            .ToList();
+        return new ApprovalExpirySweepResult(wakeRunIds, orphaned.Count);
     }
 
     public async Task<Guid> CreateToolApprovalAsync(
@@ -946,7 +1205,15 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         return updated == 1;
     }
 
-    public async Task<ToolApprovalDecision> DecideAsync(Guid approvalId, string decision, string? reason, CancellationToken cancellationToken = default)
+    public Task<ToolApprovalDecision> DecideAsync(Guid approvalId, string decision, string? reason, CancellationToken cancellationToken = default) =>
+        DecideCoreAsync(approvalId, decision, reason, decidedByPrincipalId: null, cancellationToken);
+
+    // A delegated gate has no human behind it; leaving the principal empty keeps the audit trail from
+    // attributing the decision to the person who delegated it (the auto policy does the same).
+    public Task<ToolApprovalDecision> DecideDelegatedAsync(Guid approvalId, string decision, string reason, CancellationToken cancellationToken = default) =>
+        DecideCoreAsync(approvalId, decision, reason, decidedByPrincipalId: Guid.Empty, cancellationToken);
+
+    private async Task<ToolApprovalDecision> DecideCoreAsync(Guid approvalId, string decision, string? reason, Guid? decidedByPrincipalId, CancellationToken cancellationToken)
     {
         var normalized = decision.Trim().ToLowerInvariant();
         if (normalized is not ("approved" or "rejected")) throw new ArgumentException("decision must be approved or rejected", nameof(decision));
@@ -997,7 +1264,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         db.ApprovalDecisions.Add(new ApprovalDecisionRecord
         {
             Id = Guid.NewGuid(), ApprovalRequestId = row.Id, Decision = normalized, Reason = decisionReason,
-            DecidedByPrincipalId = scope.PrincipalId, CreatedAt = now
+            DecidedByPrincipalId = decidedByPrincipalId ?? scope.PrincipalId, CreatedAt = now
         });
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -1031,7 +1298,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         ToolExecutionPrepareRequest request,
         bool requiresApproval)
     {
-        var matches = existing.ProjectId == request.ProjectId
+        var matches = existing.ProjectId == NormalizeProjectId(request.ProjectId)
             && existing.SessionId == request.SessionId
             && existing.TaskId == request.TaskId
             && existing.AgentInstanceId == request.AgentInstanceId
@@ -1083,11 +1350,11 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
     }
 
     private static ToolExecutionSnapshot ToSnapshot(ToolExecutionRecord row, string parametersJson, string? resultJson) => new(
-        row.Id, row.TenantId, row.WorkspaceId, row.ProjectId ?? Guid.Empty, row.SessionId, row.RunId, row.TaskId, row.AgentInstanceId,
+        row.Id, row.TenantId, row.WorkspaceId, CoreVirtualToolPolicy.ToWireSentinel(row.ProjectId), row.SessionId, row.RunId, row.TaskId, row.AgentInstanceId,
         row.ApprovalId, row.ToolId, row.ToolCallKey, row.Risk, row.MutatesWorkspace, row.RequiresApproval, row.Status, parametersJson,
         row.ParametersHash, row.Attempt, resultJson, row.ErrorCategory, row.SafeErrorMessage, row.CreatedAt, row.UpdatedAt, row.CompletedAt,
         row.PermissionRequestId, row.AuthorizationDecisionId, row.CapabilityLeaseId, row.LeaseUses,
-        row.WorkspaceSnapshotId, row.WorkspaceSnapshotHash, row.LaneKey);
+        row.WorkspaceSnapshotId, row.WorkspaceSnapshotHash, row.LaneKey, row.ToolSuccess);
 
     // Action approvals carry a server-generated, one-time nonce. Only its hash
     // and a protected-material reference are persisted; the material is never
@@ -1110,9 +1377,23 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
     private static bool IsExecutionTerminal(string status) => status is "completed" or "failed" or "timed_out" or "cancelled";
 
+    /// <summary>
+    /// Maps the wire-level project sentinel (<see cref="Guid.Empty"/>, used because a
+    /// nullable id cannot be expressed on the request) onto the durable NULL that
+    /// projectless rows store, so comparison/idempotency logic sees one representation.
+    /// Implementation lives in <see cref="CoreVirtualToolPolicy.FromWireSentinel"/> so every
+    /// wire↔durable translation point shares one contract (reverse:
+    /// <see cref="CoreVirtualToolPolicy.ToWireSentinel"/>).
+    /// </summary>
+    private static Guid? NormalizeProjectId(Guid projectId) => CoreVirtualToolPolicy.FromWireSentinel(projectId);
+
     private static void ValidatePrepareRequest(ToolExecutionPrepareRequest request)
     {
-        if (request.TenantId == Guid.Empty || request.WorkspaceId == Guid.Empty || request.ProjectId == Guid.Empty
+        // The Core-owned create_workspace virtual tool is the single legal call
+        // without a project: it is the bridge that gives a free conversation one.
+        var projectlessVirtualTool = CoreVirtualToolPolicy.IsProjectlessCreateWorkspace(request.ProjectId, request.ToolId);
+        if (request.TenantId == Guid.Empty || request.WorkspaceId == Guid.Empty
+            || (request.ProjectId == Guid.Empty && !projectlessVirtualTool)
             || request.SessionId == Guid.Empty || request.RunId == Guid.Empty || request.TaskId == Guid.Empty || request.AgentInstanceId == Guid.Empty)
             throw new ArgumentException("Tool execution scope ids must be non-empty.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.ToolId) || string.IsNullOrWhiteSpace(request.ParametersHash))
@@ -1125,8 +1406,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
     private static string NormalizeRisk(string risk) => risk.Trim().ToLowerInvariant() switch
     {
-        "low" or "medium" or "high" or "elevated" or "critical" => risk.Trim().ToLowerInvariant(),
-        _ => "medium"
+        "low" or "medium" or "elevated" or "high" or "critical" => risk.Trim().ToLowerInvariant(),
+        // Fail closed: silently coercing an unknown risk to "medium" would let a
+        // misspelled high-risk tool slide under the auto-approve ceiling.
+        _ => throw new ArgumentException("Risk must be low, medium, elevated, high, or critical.", nameof(risk))
     };
 
     private static string Truncate(string? value, int limit)
@@ -1159,7 +1442,7 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
     {
         var now = DateTimeOffset.UtcNow;
         execution.Status = "cancelled";
-        execution.ErrorCategory = "run_cancelled";
+        execution.ErrorCategory = RunErrorTaxonomy.Cancelled;
         execution.SafeErrorMessage = "Run was cancelled before tool execution began.";
         execution.CompletedAt = execution.UpdatedAt = now;
         if (execution.ApprovalId is { } approvalId)
@@ -1176,3 +1459,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+/// <summary>
+/// Outcome of <see cref="ToolApprovalCoordinator.SweepExpiredPendingApprovalsAsync"/>:
+/// the live runs that must be woken so their parked approvals escalate, and how
+/// many undrivable approvals were expired directly.
+/// </summary>
+public sealed record ApprovalExpirySweepResult(IReadOnlyList<Guid> RunIdsToWake, int OrphanedExpiryCount);

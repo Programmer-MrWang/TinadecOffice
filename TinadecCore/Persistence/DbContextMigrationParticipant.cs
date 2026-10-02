@@ -90,6 +90,97 @@ public static class DbContextSchemaBootstrapper
 
         await DropLegacyCapabilityLeaseNonceAsync(db, isSqlite, cancellationToken).ConfigureAwait(false);
         await DropLegacyNotNullColumnsAsync(db, expectedByTable, isSqlite, cancellationToken).ConfigureAwait(false);
+        await RelaxModelNullableColumnsAsync(db, expectedByTable, isSqlite, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Columns that stay mapped but became nullable in the model (for example
+    /// <c>sessions.project_id</c> when free conversations made the session/project
+    /// binding optional) keep their old NOT NULL constraint on upgraded databases
+    /// and reject NULL inserts forever. Relax them to match the model. PostgreSQL
+    /// alters the column in place; SQLite rebuilds the table (nullability cannot
+    /// be altered), preserving every live column and letting the create script
+    /// that follows reconciliation recreate the model indexes.
+    /// </summary>
+    private static async Task RelaxModelNullableColumnsAsync(
+        DbContext db,
+        Dictionary<(string TableName, string? Schema), List<IProperty>> expectedByTable,
+        bool isSqlite,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entry in expectedByTable)
+        {
+            var tableName = entry.Key.TableName;
+            var actualColumns = await GetTableColumnsAsync(db, tableName, isSqlite, cancellationToken).ConfigureAwait(false);
+            if (actualColumns is null) continue;
+            var table = StoreObjectIdentifier.Table(tableName, entry.Key.Schema);
+            var targets = new List<string>();
+            foreach (var property in entry.Value)
+            {
+                if (!property.IsNullable) continue;
+                var columnName = property.GetColumnName(table);
+                if (columnName is null || !actualColumns.Contains(columnName)) continue;
+                if (await IsNotNullColumnAsync(db, tableName, columnName, isSqlite, cancellationToken).ConfigureAwait(false))
+                    targets.Add(columnName);
+            }
+            if (targets.Count == 0) continue;
+            if (isSqlite)
+            {
+                await RebuildSqliteTableRelaxingColumnsAsync(db, tableName, targets, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                foreach (var column in targets)
+                {
+                    await db.Database.ExecuteSqlRawAsync($"ALTER TABLE \"{tableName}\" ALTER COLUMN \"{column}\" DROP NOT NULL", cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+    }
+
+    private static async Task RebuildSqliteTableRelaxingColumnsAsync(DbContext db, string tableName, IReadOnlyCollection<string> relaxColumns, CancellationToken cancellationToken)
+    {
+        // char(31) separates fields so defaults containing ordinary punctuation survive the round-trip.
+        var rows = await db.Database
+            .SqlQueryRaw<string>("SELECT \"name\" || char(31) || \"type\" || char(31) || \"notnull\" || char(31) || IFNULL(\"dflt_value\", '') || char(31) || \"pk\" AS \"Value\" FROM pragma_table_info({0})", tableName)
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        if (rows.Count == 0) return;
+        var definitions = new List<string>();
+        var names = new List<string>();
+        // pragma_table_info.pk is the 1-based ordinal of the column inside the
+        // primary key (0 when the column is not part of it), not a boolean. A
+        // composite key reports pk = 1, 2, ...; reading it as a boolean silently
+        // dropped every key column after the first from the rebuilt table.
+        var primaryKey = new List<(int Ordinal, string Name)>();
+        foreach (var row in rows)
+        {
+            var parts = row.Split('\u001f');
+            var name = parts[0];
+            var type = string.IsNullOrWhiteSpace(parts[1]) ? "TEXT" : parts[1];
+            var keepNotNull = parts[2] == "1" && !relaxColumns.Contains(name, StringComparer.OrdinalIgnoreCase);
+            var defaultValue = parts[3];
+            var pkOrdinal = parts.Length > 4 && int.TryParse(parts[4], out var parsedOrdinal) ? parsedOrdinal : 0;
+            names.Add(name);
+            definitions.Add($"\"{name}\" {type}{(keepNotNull ? " NOT NULL" : "")}{(string.IsNullOrWhiteSpace(defaultValue) ? "" : $" DEFAULT {defaultValue}")}");
+            if (pkOrdinal > 0) primaryKey.Add((pkOrdinal, name));
+        }
+        if (primaryKey.Count > 0)
+        {
+            // A table-level constraint preserves single and composite keys alike;
+            // SQLite still treats a lone INTEGER PRIMARY KEY as a rowid alias.
+            var ordered = primaryKey.OrderBy(entry => entry.Ordinal).Select(entry => $"\"{entry.Name}\"");
+            definitions.Add($"PRIMARY KEY ({string.Join(", ", ordered)})");
+        }
+        var temp = tableName + "_relax";
+        var columnList = string.Join(", ", names.Select(name => $"\"{name}\""));
+        var script = string.Join(";",
+            "PRAGMA foreign_keys=off",
+            $"CREATE TABLE \"{temp}\" ({string.Join(", ", definitions)})",
+            $"INSERT INTO \"{temp}\" ({columnList}) SELECT {columnList} FROM \"{tableName}\"",
+            $"DROP TABLE \"{tableName}\"",
+            $"ALTER TABLE \"{temp}\" RENAME TO \"{tableName}\"",
+            "PRAGMA foreign_keys=on");
+        await db.Database.ExecuteSqlRawAsync(script, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

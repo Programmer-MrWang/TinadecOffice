@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using TinadecTools.Abstractions;
 using TinadecTools.Runtime;
+using TinadecTools.Runtime.Sandbox;
 
 namespace TinadecTools.Tools.Command;
 
@@ -36,7 +37,7 @@ internal static class ShellToolRegistration
             ShellToolId,
             HandleShellAsync,
             requiresApproval: true,
-            description: "Run a shell command in the workspace. Output streams to the conversation terminal; pass long_lived=true for dev-server style commands that must keep running.",
+            description: "Run a shell command with the run workspace as its working directory; cwd must be an absolute path inside the workspace. Output streams to the conversation terminal; pass long_lived=true for dev-server style commands that must keep running. Approval-gated.",
             inputSchemaJson: ShellInputSchema,
             risk: "high",
             mutatesWorkspace: true,
@@ -53,10 +54,14 @@ internal static class ShellToolRegistration
             retrySafety: "safe");
     }
 
-    private static (string FileName, string Arguments) ResolveShell(string command)
+    // Internal for tests: the cmd quoting rule is the regression surface.
+    internal static (string FileName, string Arguments) ResolveShell(string command)
     {
         if (OperatingSystem.IsWindows())
-            return ("cmd.exe", $"/d /s /c \"{command.Replace("\"", "\\\"")}\"");
+            // cmd has no backslash escaping. Under /d /s /c it strips exactly the
+            // outermost quote pair and executes the rest verbatim, so wrapping the
+            // whole command in quotes preserves every inner quote as-is.
+            return ("cmd.exe", $"/d /s /c \"{command}\"");
         return ("/bin/bash", $"-lc {EscapeSingleQuoted(command)}");
     }
 
@@ -74,7 +79,13 @@ internal static class ShellToolRegistration
 
         string command;
         string? cwd = null;
-        var timeoutMs = 120_000;
+        // A build, test, or install run on a real repository routinely outlives two
+        // minutes, and the tool's own deadline is what ends the command. The former
+        // 120s default cut those commands off and reported a timeout for work that
+        // was still progressing. This stays in step with Core's frozen
+        // `tools.default_timeout_seconds` (600), and Core's wire budget adds its own
+        // margin on top, so the tool always gets to report the outcome its own way.
+        var timeoutMs = 600_000;
         var longLived = false;
         try
         {
@@ -118,12 +129,41 @@ internal static class ShellToolRegistration
             return Fail(request.ToolCallId, $"Working directory '{cwd}' does not exist.");
         }
 
-        var (fileName, arguments) = ResolveShell(command);
         try
         {
-            var result = await TerminalSessionRunner.RunAsync(
-                fileName, arguments, workingDirectory, command,
-                timeoutMs, longLived, request.ToolCallId, cancellationToken).ConfigureAwait(false);
+            if (longLived)
+            {
+                var (streamFileName, streamArguments) = ResolveSandboxCommand(command);
+                var streamPermissions = CommandSandboxRuntime.MergeWithPolicy(
+                    CommandSandboxRuntime.BuildPermissions(null, null, null));
+                var streamingSandbox = await CommandSandboxRuntime.StartStreamingAsync(
+                    streamFileName, streamArguments, workingDirectory, timeoutMs, streamPermissions, cancellationToken).ConfigureAwait(false);
+                var streamed = await TerminalSessionRunner.RunSandboxedStreamingAsync(
+                    streamingSandbox, workingDirectory, command, request.ToolCallId, cancellationToken).ConfigureAwait(false);
+                return Ok(request.ToolCallId, streamed);
+            }
+
+            var (fileName, arguments) = ResolveSandboxCommand(command);
+            var permissions = CommandSandboxRuntime.MergeWithPolicy(
+                CommandSandboxRuntime.BuildPermissions(null, null, null));
+            var sandbox = await CommandSandboxRuntime.ExecuteSandboxedAsync(
+                fileName, arguments, workingDirectory, stdin: null, timeoutMs, permissions,
+                persistGrants: false, cancellationToken).ConfigureAwait(false);
+            if (sandbox.TimedOut)
+                return Fail(request.ToolCallId, sandbox.Error ?? $"Command timed out after {timeoutMs}ms and was terminated.");
+            var result = new ShellToolResult(
+                sandbox.Success,
+                $"sandbox-{request.ToolCallId}",
+                command,
+                "completed",
+                sandbox.ExitCode,
+                sandbox.Stdout,
+                sandbox.Stderr,
+                sandbox.StdoutTruncated,
+                sandbox.StderrTruncated,
+                sandbox.TimedOut,
+                sandbox.DurationMs,
+                sandbox.Error);
             return Ok(request.ToolCallId, result);
         }
         catch (OperationCanceledException)
@@ -136,18 +176,31 @@ internal static class ShellToolRegistration
         }
     }
 
+    internal static (string FileName, List<string> Arguments) ResolveSandboxCommand(string command)
+    {
+        if (OperatingSystem.IsWindows())
+            return ("cmd.exe", ["/d", "/s", "/c", command]);
+        return ("/bin/bash", ["-lc", command]);
+    }
+
     private static string? ResolveWorkingDirectory(string? requested)
     {
         var root = TinadecTools.Tools.FileRW.WorkspacePathResolver.WorkspaceRoot;
         if (string.IsNullOrWhiteSpace(requested)) return root;
-        // Constrain explicit cwd values under the workspace root when it is known.
-        if (!string.IsNullOrWhiteSpace(root))
+        // An explicit cwd goes through the same boundary as every other tool path:
+        // the workspace root set, segment-aware, with the actionable out-of-bounds
+        // message. A shell can write whatever it reaches, so it resolves against the
+        // WRITABLE root only (a read-only root is not a command home). The pre-fix
+        // version compared a raw prefix, which let 'C:\ws-other' pass as inside
+        // 'C:\ws' and skipped the link-traversal check.
+        try
         {
-            var full = Path.GetFullPath(Path.Combine(root, requested));
-            var normalizedRoot = Path.GetFullPath(root);
-            return full.StartsWith(normalizedRoot, StringComparison.OrdinalIgnoreCase) ? full : null;
+            return TinadecTools.Tools.FileRW.WorkspacePathResolver.ResolveDirectory(requested, writable: true);
         }
-        return Directory.Exists(requested) ? requested : null;
+        catch (Exception ex) when (ex is UnauthorizedAccessException or DirectoryNotFoundException or ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static async ValueTask<ToolCallResponse<JsonElement>> HandleTerminalControlAsync(
@@ -222,14 +275,17 @@ internal static class ShellToolRegistration
         Response = JsonSerializer.SerializeToElement(NotApprovedResponse.MESSAGE, ToolCallJsonContext.Default.String)
     };
 
+    // The tool could not execute at all (no command, blocked, bad cwd, spawn/timeout
+    // failure): this is a wire-level failure so Core records it as failed in state
+    // and audit. Same encoding as the registry's NotApproved path (success=false +
+    // string message). A command that really ran but exited non-zero is NOT this —
+    // it returns wire success with an embedded success=false + exit_code result so
+    // the model can read stderr and correct itself.
     private static ToolCallResponse<JsonElement> Fail(long callId, string message) => new()
     {
         CallId = callId,
-        IsSuccess = true,
-        Response = JsonSerializer.SerializeToElement(
-            new ShellToolResult(false, string.Empty, string.Empty, "failed", -1, string.Empty, string.Empty,
-                false, false, false, 0, message),
-            ShellToolJsonContext.Default.ShellToolResult)
+        IsSuccess = false,
+        Response = JsonSerializer.SerializeToElement(message, ToolCallJsonContext.Default.String)
     };
 }
 

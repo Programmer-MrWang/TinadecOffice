@@ -1,7 +1,27 @@
-const { app, BrowserWindow, dialog, ipcMain, protocol, screen, shell } = require('electron');
+const electron = require('electron');
+
+// Fail fast when Electron was launched in Node mode (ELECTRON_RUN_AS_NODE is set).
+// In that mode require('electron') only resolves to the electron.exe path string,
+// so app/BrowserWindow/protocol are all undefined and the first protocol call
+// throws "Cannot read properties of undefined" with no hint about the cause.
+if (typeof electron !== 'object' || !electron.app) {
+  console.error([
+    '[tinadec] Electron 运行在 Node 模式（环境中存在 ELECTRON_RUN_AS_NODE）。',
+    '[tinadec] 该模式下主进程 API（app/BrowserWindow/protocol/IPC）不可用，窗口无法创建。',
+    '[tinadec] 修复：移除该环境变量后重试。',
+    '[tinadec]   PowerShell:  Remove-Item Env:\\ELECTRON_RUN_AS_NODE',
+    '[tinadec]   cmd:         set ELECTRON_RUN_AS_NODE=',
+    '[tinadec]   bash:        unset ELECTRON_RUN_AS_NODE',
+    '[tinadec] 提示：通过 `npm run dev` 启动时，scripts/dev.mjs 已自动剔除该变量。',
+  ].join('\n'));
+  process.exit(1);
+}
+
+const { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, screen, shell } = electron;
 const path = require('node:path');
 const { loadAppConfig, resetGatewayUrl, saveGatewayUrl } = require('./appConfig.cjs');
 const { discoverServices } = require('./serviceDiscovery.cjs');
+const { ensureLocalServices, stopLocalServices } = require('./serviceManager.cjs');
 const layoutStore = require('./layoutStore.cjs');
 const { createDebugStudioWindow, getDebugStudioWindow } = require('./debug-studio.cjs');
 const {
@@ -259,6 +279,17 @@ ipcMain.handle('tinadec:select-background-file', async (event, type) => {
   return result.filePaths[0];
 });
 
+// --- Clipboard IPC ---
+// The selection context menu reads/writes the clipboard through the main
+// process: navigator.clipboard.readText() requires a permission grant and a
+// secure context, which the dev renderer's http origin does not reliably have.
+ipcMain.handle('tinadec:clipboard-read-text', () => clipboard.readText());
+ipcMain.handle('tinadec:clipboard-write-text', (_event, text) => {
+  if (typeof text !== 'string') return false;
+  clipboard.writeText(text);
+  return true;
+});
+
 // --- Background Image Read IPC (for Monet color extraction) ---
 // The renderer runs on an http origin in dev, so canvas getImageData() on a
 // file:// image would be tainted; the main process reads the bytes instead.
@@ -388,13 +419,29 @@ registerTerminalIpc({
 
 // Persist panel states before quit and clean up terminals
 app.on('before-quit', () => {
+  void stopLocalServices().catch(() => {});
   destroyAllTerminals();
   persistPanelStatesForQuit();
   closeAllPetWindows();
 });
 
 app.whenReady().then(async () => {
-  process.env.TINADEC_RESOLVED_GATEWAY_URL = loadAppConfig(appConfigFile()).gateway_url;
+  const gatewayUrl = loadAppConfig(appConfigFile()).gateway_url;
+  process.env.TINADEC_RESOLVED_GATEWAY_URL = gatewayUrl;
+  try {
+    await ensureLocalServices({
+      isPackaged: app.isPackaged,
+      gatewayUrl,
+      resourcesPath: process.resourcesPath,
+      localAppDataPath: process.env.LOCALAPPDATA,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[tinadec] packaged service startup failed:', message);
+    if (app.isPackaged) {
+      dialog.showErrorBox('TinadecOffice', `本地服务启动失败：${message}`);
+    }
+  }
   protocol.handle('tinadec-pet-preview', async (request) => {
     try {
       const url = new URL(request.url);

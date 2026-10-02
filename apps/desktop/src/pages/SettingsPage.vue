@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Circle,
   Cpu,
-  CopyPlus,
   Database,
   Download,
   Dna,
@@ -24,11 +23,10 @@ import {
   Minus,
   Monitor,
   Moon,
+  MessagesSquare,
   MoreHorizontal,
   Palette,
   PanelRight,
-  PackageCheck,
-  PackagePlus,
   PawPrint,
   Plus,
   RefreshCw,
@@ -57,6 +55,7 @@ import ApiDocsSection from '@/settings/sections/ApiDocsSection.vue'
 import AppearanceSection from '@/settings/sections/AppearanceSection.vue'
 import PetsSection from '@/settings/sections/PetsSection.vue'
 import ToolCenterSection from '@/settings/sections/ToolCenterSection.vue'
+import TinaChatSection from '@/settings/sections/TinaChatSection.vue'
 import {
   api,
   type AgentCandidateDto,
@@ -124,49 +123,27 @@ import {
   type ProjectTemplateSummary
 } from '../toolCatalog'
 import PetPreview from '@/components/PetPreview.vue'
+import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 import { UiButton, UiInput, UiCard, UiBadge, UiLabel, UiSkeleton, UiSwitch, UiDropdownMenu } from '@/components/ui'
 import AgentTopologyCanvas from '@/components/AgentTopologyCanvas.vue'
 import AgentEvolutionPanel from '@/components/AgentEvolutionPanel.vue'
 import AgentModesPanel from '@/settings/sections/AgentModesPanel.vue'
 import PromptEngineeringMerged from '@/settings/sections/PromptEngineeringMerged.vue'
 import RuntimeInstancesPanel from '@/settings/sections/RuntimeInstancesPanel.vue'
+import AgentPacksPanel from '@/settings/sections/AgentPacksPanel.vue'
 import PanelStyleControl from '@/components/ui/panel-style-control.vue'
 import { usePanelStyles } from '@/composables/usePanelStyles'
 import { useNotifications } from '@/composables/useNotifications'
-import {
-  installOrUpgradeOfficeAgentPack,
-  officeAgentPackState,
-  refreshOfficeAgentPack,
-} from '@/agentPacks/officeAgentPackBootstrap'
-import {
-  OFFICE_AGENT_PACK_VERSION,
-  officeAgentPackManifest,
-} from '@/agentPacks/OfficeAgentPack'
+import { graphSeedPackManifest } from '@/agentPacks/GraphSeedPack'
 
-type SettingsSection = 'general' | 'model' | 'agentCenter' | 'tools' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
+type SettingsSection = 'general' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
 
 type AgentCenterTab = 'agents' | 'modes' | 'prompts' | 'evolution' | 'runtime'
 
 const modePanelRef = ref<InstanceType<typeof AgentModesPanel> | null>(null)
 const promptsPanelRef = ref<InstanceType<typeof PromptEngineeringMerged> | null>(null)
 const evolutionPanelRef = ref<InstanceType<typeof AgentEvolutionPanel> | null>(null)
-
-const officeAgentPackBusy = computed(() => officeAgentPackState.value.phase === 'checking' || officeAgentPackState.value.phase === 'installing')
-const officeAgentPackCanApply = computed(() => ['idle', 'install', 'upgrade', 'deferred', 'conflict', 'error'].includes(officeAgentPackState.value.phase))
-const officeAgentPackCanClone = computed(() => ['up_to_date', 'newer_installed'].includes(officeAgentPackState.value.phase))
-const officeAgentPackStatusLabel = computed(() => t(`agentPack.status.${officeAgentPackState.value.phase}`))
-const officeAgentPackActionLabel = computed(() => officeAgentPackState.value.phase === 'upgrade'
-  ? t('agentPack.upgradeAction')
-  : officeAgentPackState.value.phase === 'error' || officeAgentPackState.value.phase === 'conflict'
-    ? t('settings.retry')
-  : officeAgentPackState.value.phase === 'idle'
-    ? t('agentPack.checkAction')
-    : t('agentPack.installAction'))
-const officeAgentPackBadgeVariant = computed<'default' | 'secondary' | 'outline'>(() => {
-  if (officeAgentPackState.value.phase === 'up_to_date') return 'default'
-  if (officeAgentPackState.value.phase === 'install' || officeAgentPackState.value.phase === 'upgrade') return 'secondary'
-  return 'outline'
-})
+const agentPacksPanelRef = ref<InstanceType<typeof AgentPacksPanel> | null>(null)
 
 /** Lazily refresh per-tab data when a tab becomes active. */
 function switchAgentCenterTab(tab: AgentCenterTab) {
@@ -255,6 +232,17 @@ function openExternal(url: string) {
 const activeSection = ref<SettingsSection>('general')
 const agentCenterTab = ref<AgentCenterTab>('agents')
 // Pets section moved to settings/sections/PetsSection.vue (D7.2)
+
+/**
+ * Sections whose content is a fixed-width column, horizontally centered in the
+ * content panel. The remaining sections (model / agentCenter / pets / apiDocs)
+ * stay fluid: they are workspaces (tables, canvases, an embedded docs frame)
+ * that should use the full available width.
+ */
+const CENTERED_SECTIONS: ReadonlySet<SettingsSection> = new Set([
+  'general', 'tools', 'archive', 'appearance', 'language', 'about',
+])
+const isCenteredSection = computed(() => CENTERED_SECTIONS.has(activeSection.value))
 
 function selectSettingsSection(section: SettingsSection) {
   activeSection.value = section
@@ -361,6 +349,7 @@ const navItems = computed(() => [
   { key: 'model' as const, icon: KeyRound, label: t('settings.model') },
   { key: 'agentCenter' as const, icon: Workflow, label: t('settings.agentCenter') },
   { key: 'tools' as const, icon: Terminal, label: t('settings.toolLayer') },
+  { key: 'tinachat' as const, icon: MessagesSquare, label: t('tinaChat.manage') },
   { key: 'archive' as const, icon: Archive, label: t('settings.archiveTrash') },
   { key: 'appearance' as const, icon: Palette, label: t('settings.appearance') },
   { key: 'pets' as const, icon: PawPrint, label: t('settings.pets') },
@@ -450,7 +439,7 @@ const firstNeedsKeyProvider = computed(() =>
 )
 
 const agentRuntimeBindings = computed(() =>
-  Object.fromEntries(agents.value.map((agent) => [agent.id, bindingFromModelStrategy(agent)]))
+  Object.fromEntries(agents.value.map((agent) => [agent.id, bindingFromModelStrategy(agent, agent.model_binding)]))
 )
 const topologyAgentLabels = computed(() => Object.fromEntries(
   agents.value.map((agent) => [agent.id, agentTypeLabel(agent.agent_type)])
@@ -458,11 +447,10 @@ const topologyAgentLabels = computed(() => Object.fromEntries(
 const topologyCandidateLabels = computed(() => Object.fromEntries(
   agentCandidates.value.map((candidate) => [candidate.id, agentTypeLabel(candidate.agent_type)])
 ))
-const configuringRuntimeBinding = computed(() =>
-  agents.value.find((agent) => agent.id === configuringAgentId.value)
-    ? bindingFromModelStrategy(agents.value.find((agent) => agent.id === configuringAgentId.value)!)
-    : null
-)
+const configuringRuntimeBinding = computed(() => {
+  const agent = agents.value.find((item) => item.id === configuringAgentId.value)
+  return agent ? bindingFromModelStrategy(agent, agent.model_binding) : null
+})
 const configuringLegacyWarning = computed(() => legacyRouteWarning(configuringRuntimeBinding.value))
 const configuringDirectoryItem = computed(() =>
   agentDirectory.value.find((item) => item.id === configuringAgentId.value) ?? null
@@ -487,6 +475,26 @@ function agentPreviewLine(modeSlug: string, nodeKey: string, preview: { expected
     ? `${selection.provider_instance_id ?? '—'}${selection.model ? ` · ${selection.model}` : ''}`
     : '—'
   return `${modeSlug}:${nodeKey} → ${target}`
+}
+
+/**
+ * 「模型来源」摘要。inherit 态也要有证据：Core 的 `effective_previews`
+ * 已经解析出实际 provider+model，这里把它喂给 runtimeSourceSummary，
+ * 免得「跟随默认」永远显示成「尚未解析」。
+ */
+function agentRuntimeSummary(agentId: string | null | undefined): string {
+  if (!agentId) return ''
+  const item = agentDirectory.value.find((entry) => entry.id === agentId)
+  const binding = agentRuntimeBindings.value[agentId]
+  const resolveName = (providerInstanceId: string) => providers.value.find((provider) => provider.id === providerInstanceId)?.display_name ?? null
+  // fixed/route 绑定的摘要此前退化成裸 provider GUID：bindingFromRuntimeOverride 不填
+  // provider_display_name，而 runtimeSourceSummary 只在 inherit 分支用 providerName 回调。
+  // 在调用侧 hydrate display_name（不改带钉住测试的 runtimeCenterView.ts），让「指定模型」
+  // 保存后摘要立即显示人类可读的 provider 名，而不是看起来「没变化」的 GUID。
+  const hydrated = binding && !binding.provider_display_name && binding.provider_instance_id
+    ? { ...binding, provider_display_name: resolveName(binding.provider_instance_id) }
+    : binding
+  return runtimeSourceSummary(hydrated, item?.effective_previews ?? null, resolveName)
 }
 
 function agentInvocationLine(invocation: { provider_instance_id: string; model?: string | null; status: string; completed_at?: string | null }): string {
@@ -828,7 +836,7 @@ async function loadModelCenter() {
   dismissByKey('model-center')
   try {
     // model-center/overview BFF was deleted; derive the same projection from versioned APIs.
-    const [providerRows, templates, routes, acpAdapters, modelReadinessReceipt, catalogReadinessReceipt] = await Promise.all([
+    const [providerRows, providerTemplates, routeRows, acpAdapters, modelReadinessReceipt, catalogReadinessReceipt] = await Promise.all([
       api.listModelProviders().catch(() => [] as ModelProviderInstanceDto[]),
       api.listModelProviderTemplates().catch(() => [] as ModelProviderTemplateDto[]),
       api.listModelRoutes().catch(() => [] as ModelRouteDto[]),
@@ -838,13 +846,17 @@ async function loadModelCenter() {
     ])
     const overview = aggregateModelCenterOverview({
       providers: providerRows,
-      templates,
-      routes,
+      templates: providerTemplates,
+      routes: routeRows,
       acp_adapters: acpAdapters,
       model_readiness: modelReadinessReceipt,
       catalog_readiness: catalogReadinessReceipt
     })
     modelCenterOverview.value = overview
+    // The routes ref feeds the Routes tab, the route editor, and the
+    // "set default model" If-Match token; leaving it unassigned made every
+    // route write send no precondition (Core 428).
+    routes.value = routeRows
     const instances = providersFromOverview(overview)
     providers.value = instances
     modelReadiness.value = overview.readiness.model ?? null
@@ -876,6 +888,23 @@ function modelApiProvider(providerId: string) {
 
 function modelsForProvider(providerId: string) {
   return (modelCenterOverview.value?.models ?? []).filter((model) => model.provider_instance_id === providerId)
+}
+
+async function setDefaultChatModel(providerInstanceId: string, modelId: string) {
+  modelCenterBusy.value = true
+  try {
+    // “设为默认模型”= 把 chat 路由指向该模型；路由/候选链等工程概念对用户隐藏。
+    const chatRoute = routes.value.find((route: { purpose: string }) => route.purpose === 'chat')
+    await api.saveModelRoute('chat', { candidates: [{ provider_instance_id: providerInstanceId, model: modelId }] },
+      undefined,
+      chatRoute?.revision != null ? { expected_revision: chatRoute.revision } : undefined)
+    notify.success(t('settings.defaultModelSet', { model: modelId }))
+    await loadModelCenter()
+  } catch (error) {
+    notify.error(error instanceof Error ? error : new Error(String(error)))
+  } finally {
+    modelCenterBusy.value = false
+  }
 }
 
 function openAddModelModal(providerId: string) {
@@ -1084,7 +1113,7 @@ async function loadAgentCenter() {
         api.listAgentModes().catch(() => [] as AgentModeDto[]),
         api.listAgentCandidates().catch(() => [] as AgentCandidateDto[]),
         api.getToolLayerReadiness().catch(() => null),
-        api.getAgentPack(officeAgentPackManifest.metadata.pack_id).catch(() => null),
+        api.getAgentPack(graphSeedPackManifest.metadata.pack_id).catch(() => null),
       ])
       const managedAgentIds = new Set(
         (packDetail?.resources ?? [])
@@ -1123,6 +1152,9 @@ async function loadAgentCenter() {
           enabled: item.enabled,
           is_built_in: item.managed || item.source_kind !== 'custom' || managedAgentIds.has(item.id),
           model_strategy: item.configured_strategy as unknown as Record<string, unknown>,
+          // 用户级运行时绑定：这才是「在智能体中心设过的模型」。缺了它，保存成功后
+          // 重新 seed 会拿未变的定义策略把选择打回原样（症状：设置成功但立刻回弹）。
+          model_binding: item.model_binding ?? null,
           status: item.status,
           revision: item.revision,
           version: item.version,
@@ -1131,6 +1163,7 @@ async function loadAgentCenter() {
       })
       agentCandidates.value = candidates as unknown as AgentCandidateDto[]
       toolLayerReadiness.value = toolReadiness
+      void agentPacksPanelRef.value?.reloadPackInventory()
       // Harness manifest is non-critical: fall back to the legacy tool list for older Core builds.
       api.getHarnessManifest()
         .then((manifest) => {
@@ -1283,17 +1316,17 @@ async function cloneAgent() {
   }
 }
 
-async function openOfficeAgentPackCloneFlow() {
+async function openGraphSeedPackCloneFlow() {
   agentCenterTab.value = 'agents'
   if (!agents.value.some((agent) => agent.is_built_in)) await loadAgentCenter()
-  const officeSlugs = new Set(officeAgentPackManifest.resources.agents.map((agent) => agent.slug))
+  const packSlugs = new Set(graphSeedPackManifest.resources.agents.map((agent) => agent.slug))
   const managedAgent = agents.value.find((agent) =>
-    agent.is_built_in && officeSlugs.has(agent.slug ?? agent.name),
+    agent.is_built_in && packSlugs.has(agent.slug ?? agent.name),
   )
   if (!managedAgent) {
     status.warning({
-      key: 'office-agent-pack-clone',
-      source: 'OfficeAgentPack',
+      key: 'graph-seed-pack-clone',
+      source: 'GraphSeedPack',
       message: t('agentPack.managedReadOnly'),
     })
     return
@@ -1372,13 +1405,16 @@ function openAgentConfig(agent: AgentViewDto) {
   agentToolQuery.value = ''
   agentToolSourceFilter.value = 'all'
   agentToolRiskFilter.value = 'all'
-  const binding = bindingFromModelStrategy(agent)
+  // 从运行时绑定 seed（而不是 agent 定义策略）：绑定写入不改定义，只读定义会回弹。
+  const binding = bindingFromModelStrategy(agent, agent.model_binding)
   agentRuntimeSelection.value = binding?.selection_kind ?? 'inherit'
-  agentRuntimeModelKey.value = binding?.provider_instance_id && binding.model_id
-    ? modelOptionKey(binding.provider_instance_id, binding.model_id)
-    : runtimeModels.value[0]
-      ? modelOptionKey(runtimeModels.value[0].provider_instance_id, runtimeModels.value[0].model_id)
-      : ''
+  agentRuntimeModelKey.value = binding?.provider_instance_id
+    // CLI/ACP 运行时的 fixed 绑定没有 model：此时 key 就是裸 provider id
+    // （与 agentModelStrategy() 的 CLI/ACP 分支同一把钥匙）。
+    ? (binding.model_id ? modelOptionKey(binding.provider_instance_id, binding.model_id) : binding.provider_instance_id)
+    // 无绑定（跟随默认）时保持空选择，不再猜 runtimeModels[0]：列表首项是任意模型，
+    // 在 runtimeModels 尚未加载/为空时还会把刚保存的选择打回原样（问题 1 的回弹竞态）。
+    : ''
   agentRuntimeRoutePurpose.value = binding?.route_purpose
     || (agent as AgentViewDto & { model_route_purpose?: string }).model_route_purpose
     || routes.value[0]?.purpose
@@ -1452,7 +1488,25 @@ async function saveAgentModelStrategy(agent: AgentViewDto) {
   if (!strategy) return
   agentRuntimeBusy.value = true
   try {
-    await publishAgentDraft(agent, { model_strategy: strategy } as Partial<AgentDefinitionDto>, agent.revision, t('settings.agentModelStrategyPublished', { name: agent.name }))
+    // 运行时绑定（配置体验改造 A）：覆盖记录，pack 管理的智能体同样可写，
+    // 不再走 draft/publish，也就没有 412/409 managed_resource_read_only。
+    // 三档原样透传。此前 route 被静默降级成 inherit，用户选「按用途路由」保存后
+    // 会变成「跟随默认」——Core 现已支持 mode='route' + route_purpose。
+    const saved = await api.putAgentRuntimeBinding(agent.id, {
+      mode: strategy.kind as 'inherit' | 'route' | 'fixed',
+      provider_instance_id: (strategy as { provider_instance_id?: string }).provider_instance_id ?? null,
+      model: (strategy as { model?: string | null }).model ?? null,
+      route_purpose: (strategy as { route_purpose?: string }).route_purpose ?? null,
+    })
+    // 定向 patch（问题 1 修复）：PUT 响应体已是权威的最新绑定（含 revision/updated_at），
+    // 直接写回 agents 那一行并据其重新 seed 选择，不再 loadAgentCenter() 全量重载——
+    // 后者会触发 ~30 个往返、无条件 openAgentConfig re-seed，并在 runtimeModels 尚未
+    // 加载时把选择打回列表首项（症状：设置成功但立刻回弹）。
+    const patched: AgentViewDto = { ...agent, model_binding: saved as unknown as AgentViewDto['model_binding'] }
+    const index = agents.value.findIndex((item) => item.id === agent.id)
+    if (index >= 0) agents.value[index] = patched
+    openAgentConfig(patched)
+    notify.success(t('settings.runtimeBindingSaved', { name: agent.name }))
   } catch (error) {
     notify.error(new Error(agentSaveErrorMessage(error)), { title: agent.name })
   } finally {
@@ -1788,6 +1842,7 @@ import '../settings/settings.css'
 <!-- Full-width draggable bar for window dragging -->
 <div class="top-drag-bar" />
 <div class="settings-window-controls">
+      <CommandPaletteButton />
       <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" @click="minimizeWindow">
         <Minus :size="14" />
       </UiButton>
@@ -1815,6 +1870,7 @@ import '../settings/settings.css'
           :class="{ active: activeSection === item.key }"
           :title="item.label"
           :aria-label="item.label"
+          :aria-current="activeSection === item.key ? 'page' : undefined"
             @click="selectSettingsSection(item.key)"
         >
           <component :is="item.icon" :size="16" />
@@ -1824,7 +1880,10 @@ import '../settings/settings.css'
 
       <div class="settings-content" :style="settingsContentStyle" v-bind="settingsContentDataAttrs">
         <Transition name="section-fade" mode="out-in">
-        <div :key="activeSection" class="settings-section-wrapper">
+        <div
+          :key="activeSection"
+          :class="['settings-section-wrapper', { 'settings-section-wrapper--centered': isCenteredSection }]"
+        >
         <template v-if="activeSection === 'general'">
           <GeneralSection />
         </template>
@@ -2151,6 +2210,15 @@ import '../settings/settings.css'
                     </div>
                   </div>
                   <UiBadge :variant="statusVariant(model.status)">{{ statusLabel(model.status) }}</UiBadge>
+                  <UiButton
+                    variant="outline"
+                    size="sm"
+                    :disabled="modelCenterBusy"
+                    :title="t('settings.setDefaultModel')"
+                    @click="setDefaultChatModel(provider.id, model.model_id)"
+                  >
+                    {{ t('settings.setDefaultModel') }}
+                  </UiButton>
                   <UiButton
                     variant="ghost"
                     size="sm"
@@ -2550,52 +2618,11 @@ import '../settings/settings.css'
                 </UiButton>
               </div>
             </div>
-            <section class="agent-pack-status-band" data-testid="office-agent-pack-status">
-              <PackageCheck class="agent-pack-status-icon" aria-hidden="true" />
-              <div class="agent-pack-status-copy">
-                <div class="agent-pack-status-title">
-                  <strong>{{ t('agentPack.name') }}</strong>
-                  <UiBadge :variant="officeAgentPackBadgeVariant">{{ officeAgentPackStatusLabel }}</UiBadge>
-                  <UiBadge variant="outline">{{ t('agentPack.managed') }}</UiBadge>
-                </div>
-                <p>
-                  {{ t('agentPack.versionSummary', {
-                    bundled: OFFICE_AGENT_PACK_VERSION,
-                    installed: officeAgentPackState.active_version ?? t('agentPack.notInstalled'),
-                  }) }}
-                </p>
-              </div>
-              <div class="agent-pack-status-actions">
-                <UiButton
-                  v-if="officeAgentPackCanClone"
-                  variant="outline"
-                  size="sm"
-                  @click="openOfficeAgentPackCloneFlow"
-                >
-                  <CopyPlus data-icon="inline-start" />
-                  {{ t('agentPack.cloneAction') }}
-                </UiButton>
-                <UiButton
-                  v-if="officeAgentPackCanApply"
-                  size="sm"
-                  :disabled="officeAgentPackBusy"
-                  @click="installOrUpgradeOfficeAgentPack"
-                >
-                  <PackagePlus data-icon="inline-start" />
-                  {{ officeAgentPackActionLabel }}
-                </UiButton>
-                <UiButton
-                  variant="ghost"
-                  size="icon"
-                  :disabled="officeAgentPackBusy"
-                  :title="t('agentPack.refreshStatus')"
-                  :aria-label="t('agentPack.refreshStatus')"
-                  @click="refreshOfficeAgentPack"
-                >
-                  <RefreshCw data-icon="inline-start" />
-                </UiButton>
-              </div>
-            </section>
+            <AgentPacksPanel
+              ref="agentPacksPanelRef"
+              @clone="openGraphSeedPackCloneFlow"
+              @uninstalled="loadAgentCenter()"
+            />
             <div class="ac-subtabs" role="tablist" data-testid="agent-center-subtabs">
               <button :class="['ac-subtab', { active: agentCenterTab === 'agents' }]" role="tab" :aria-selected="agentCenterTab === 'agents'" @click="agentCenterTab = 'agents'">{{ t('settings.agents') }}</button>
               <button :class="['ac-subtab', { active: agentCenterTab === 'modes' }]" role="tab" :aria-selected="agentCenterTab === 'modes'" @click="agentCenterTab = 'modes'">{{ t('settings.agentModes') }}</button>
@@ -2716,9 +2743,9 @@ import '../settings/settings.css'
                 <button class="agent-card-select" @click="openAgentConfig(agent)">
                   <div class="agent-card-icon"><Workflow :size="17" /></div>
                   <div class="agent-card-main">
-                    <strong>{{ agentTypeLabel(agent.agent_type) }}</strong>
-                    <span>{{ agentSourceKindLabel(agentSourceKindFor(agent.id)) }} · {{ agent.id }}</span>
-                    <small :title="runtimeSourceSummary(agentRuntimeBindings[agent.id])">{{ runtimeSourceSummary(agentRuntimeBindings[agent.id]) || t('settings.runtimeUnresolved') }}</small>
+                    <strong>{{ agent.name || agentTypeLabel(agent.agent_type) }}</strong>
+                    <span>{{ agent.description || agentSourceKindLabel(agentSourceKindFor(agent.id)) }}</span>
+                    <small :title="agentRuntimeSummary(agent.id)">{{ agentRuntimeSummary(agent.id) || t('settings.runtimeUnresolved') }}</small>
                   </div>
                   <UiBadge :variant="agent.enabled ? 'default' : 'secondary'">
                     {{ agent.enabled ? t('settings.defaultEnabled') : t('settings.statusDisabled') }}
@@ -2744,9 +2771,9 @@ import '../settings/settings.css'
                 <button class="agent-card-select" @click="openAgentConfig(agent)">
                   <div class="agent-card-icon execution"><Cpu :size="17" /></div>
                   <div class="agent-card-main">
-                    <strong>{{ agentTypeLabel(agent.agent_type) }}</strong>
-                    <span>{{ agentSourceKindLabel(agentSourceKindFor(agent.id)) }} · {{ agent.id }}</span>
-                    <small :title="runtimeSourceSummary(agentRuntimeBindings[agent.id])">{{ runtimeSourceSummary(agentRuntimeBindings[agent.id]) || t('settings.runtimeUnresolved') }}</small>
+                    <strong>{{ agent.name || agentTypeLabel(agent.agent_type) }}</strong>
+                    <span>{{ agent.description || agentSourceKindLabel(agentSourceKindFor(agent.id)) }}</span>
+                    <small :title="agentRuntimeSummary(agent.id)">{{ agentRuntimeSummary(agent.id) || t('settings.runtimeUnresolved') }}</small>
                   </div>
                   <UiBadge :variant="agent.enabled ? 'default' : 'secondary'">
                     {{ agent.enabled ? t('settings.defaultEnabled') : t('settings.statusDisabled') }}
@@ -2877,7 +2904,7 @@ import '../settings/settings.css'
                   </div>
                   <div>
                     <span>{{ t('settings.effectiveRuntime') }}</span>
-                    <strong>{{ runtimeSourceSummary(configuringRuntimeBinding) || t('settings.runtimeUnresolved') }}</strong>
+                    <strong>{{ agentRuntimeSummary(configuringAgentId) || t('settings.runtimeUnresolved') }}</strong>
                   </div>
                 </div>
 
@@ -2909,14 +2936,14 @@ import '../settings/settings.css'
 
                 <div v-if="agentRuntimeSelection === 'inherit'" class="runtime-source-current">
                   <ShieldCheck :size="16" />
-                  <span>{{ t('settings.runtimeInheritedCurrent', { source: runtimeSourceSummary(configuringRuntimeBinding) || t('settings.runtimeUnresolved') }) }}</span>
+                  <span>{{ t('settings.runtimeInheritedCurrent', { source: agentRuntimeSummary(configuringAgentId) || t('settings.runtimeUnresolved') }) }}</span>
                 </div>
                 <div v-else-if="agentRuntimeSelection === 'route'" class="settings-field runtime-source-picker">
                   <UiLabel>{{ t('settings.routePurpose') }}</UiLabel>
                   <select v-model="agentRuntimeRoutePurpose" class="settings-select">
-                    <option value="" disabled>{{ t('settings.selectRoutePurpose') }}</option>
-                    <option v-for="route in routes" :key="route.id ?? route.purpose" :value="route.purpose">
-                      {{ route.purpose }}
+                    <option value="" disabled>{{ t('settings.routePurpose') }}</option>
+                    <option v-for="route in routes" :key="route.id" :value="route.purpose">
+                      {{ route.purpose }} · {{ route.candidates.length }}
                     </option>
                   </select>
                   <p v-if="routes.length === 0" class="agent-config-hint">{{ t('settings.noRuntimeMatches') }}</p>
@@ -3153,6 +3180,10 @@ import '../settings/settings.css'
 
         <template v-if="activeSection === 'tools'">
           <ToolCenterSection />
+        </template>
+
+        <template v-if="activeSection === 'tinachat'">
+          <TinaChatSection />
         </template>
 
         <template v-if="activeSection === 'archive'">

@@ -54,12 +54,20 @@ public sealed record RunReplay(
 
 internal sealed class RunReplayService : IRunReplayService
 {
+    // Must match the engine's checkpoint serialization options (Web): a bare
+    // Deserialize silently mismatches property names and lane projections read
+    // back as empty shapes.
+    private static readonly JsonSerializerOptions CheckpointJsonOptions = new(JsonSerializerDefaults.Web);
+
     private static readonly HashSet<string> MilestoneTypes = new(StringComparer.Ordinal)
     {
         "task.accepted",
         "task_graph.created",
         "worker.completed",
+        "worker.blocked",
         "worker.failed",
+        "worker.tool_round",
+        "worker.budget_exhausted",
         "supervision.completed",
         "supervision.user_decision",
         "context.patch.accepted",
@@ -70,6 +78,9 @@ internal sealed class RunReplayService : IRunReplayService
         "evolution.agent_candidate_created",
         "git.steward.reviewed",
         "user.response",
+        "run.model_retry_scheduled",
+        "run.model_retry_resumed",
+        "run.model_retry_recovered",
         "run.failed"
     };
 
@@ -102,7 +113,13 @@ internal sealed class RunReplayService : IRunReplayService
         {
             var checkpointRow = await _lifecycle.GetCurrentRunCheckpointAsync(runId, cancellationToken).ConfigureAwait(false);
             if (checkpointRow is not null)
-                checkpoint = JsonSerializer.Deserialize<FullDuplexCheckpointV1>(checkpointRow.Content);
+            {
+                // Explicit web options: the engine serializes the checkpoint with
+                // camelCase naming; a bare Deserialize here silently mismatches
+                // property names and lane projections read back as empty shapes
+                // (explicit scope item, DmaEA graph orchestration round).
+                checkpoint = JsonSerializer.Deserialize<FullDuplexCheckpointV1>(checkpointRow.Content, CheckpointJsonOptions);
+            }
         }
         catch
         {
@@ -119,13 +136,18 @@ internal sealed class RunReplayService : IRunReplayService
         }
 
         var tasks = new Dictionary<string, RunReplayTask>(StringComparer.Ordinal);
-        foreach (var item in events.Where(item => item.EventType is "worker.completed" or "worker.failed"))
+        foreach (var item in events.Where(item => item.EventType is "worker.completed" or "worker.blocked" or "worker.failed"))
         {
             var taskKey = PayloadString(item.Payload, "task_key") ?? PayloadString(item.Payload, "task_id") ?? item.EventId;
             tasks[taskKey] = new RunReplayTask(
                 taskKey,
                 laneByTask.TryGetValue(taskKey, out var laneKey) ? laneKey : "main",
-                item.EventType == "worker.failed" ? "failed" : PayloadString(item.Payload, "status") ?? "completed",
+                item.EventType switch
+                {
+                    "worker.failed" => "failed",
+                    "worker.blocked" => "blocked",
+                    _ => PayloadString(item.Payload, "status") ?? "completed"
+                },
                 PayloadString(item.Payload, "summary") ?? string.Empty,
                 PayloadArray(item.Payload, "evidence"));
         }

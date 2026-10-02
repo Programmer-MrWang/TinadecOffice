@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import ChatPanel from './ChatPanel.vue'
 import type { MessageDto } from '../api'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
@@ -46,7 +46,6 @@ const baseProps = {
   orchestration: null,
   busy: false,
   draft: '',
-  mode: 'auto' as AgentMode,
   permission: 'default' as PermissionLevel,
 }
 
@@ -71,6 +70,22 @@ function mountPanel(messages: MessageDto[] = []) {
 }
 
 describe('ChatPanel persistent composer', () => {
+  it('anchors each run to its own answer instead of moving old activity into the next turn', async () => {
+    const w = mount(ChatPanel, {
+      props: { ...baseProps, messages: [msg('user-1'), { ...msg('answer-1'), role: 'assistant', run_id: 'run-1' }, msg('user-2')] },
+      global: { stubs: { transition: false, ComposerBar: true, ChatHeader: true, MessageList: {
+        props: ['activityByMessage', 'liveTurns'],
+        template: '<div data-testid="activity-probe">{{ JSON.stringify({ activityByMessage, liveTurns }) }}</div>',
+      } } },
+    })
+    const old = { runId: 'run-1', thinkingSteps: [], toolCalls: [] }
+    const current = { runId: 'run-2', thinkingSteps: [], toolCalls: [] }
+    await w.setProps({ busy: true, turnActivities: { 'run-1': old, 'run-2': current } })
+    const projection = JSON.parse(w.get('[data-testid="activity-probe"]').text())
+    expect(projection.activityByMessage).toEqual({ 'answer-1': old })
+    expect(projection.liveTurns).toEqual([current])
+    w.unmount()
+  })
   it('keeps the same composer element when the first message docks the panel', async () => {
     const wrapper = mountPanel([])
     await nextTick()
@@ -110,6 +125,43 @@ describe('ChatPanel persistent composer', () => {
     await wrapper.setProps({ messages: [msg('m1'), msg('m2')] })
     await nextTick()
     expect(wrapper.find('.composer-box').exists()).toBe(true)
+    wrapper.unmount()
+    document.body.innerHTML = ''
+  })
+})
+
+describe('ChatPanel send payload', () => {
+  /**
+   * 回归护栏：此前这里把 composer 的 `meeting_model_override`（对象）读成
+   * `payload.meeting_model`（字符串）再以 `meeting_model` 键 emit，`as never`
+   * 压掉了类型错误，HomeController 于是永远拿到 undefined。
+   */
+  it('passes the composer meeting_model_override object through verbatim', async () => {
+    const override = { provider_instance_id: 'prov-1', model: 'gpt-x' }
+    const wrapper = mount(ChatPanel, {
+      props: {
+        ...baseProps,
+        messages: [msg('m1')],
+        currentSession: { id: 's1', meeting_model_override: override } as never,
+      },
+      global: { stubs: { ChatHeader: true, MessageList: true } },
+    })
+    await nextTick()
+
+    wrapper.findComponent({ name: 'ComposerBar' }).vm.$emit('submit', {
+      dispatch_mode: 'queued',
+      target_run_id: null,
+      mode_version_id: null,
+      meeting_model_override: override,
+    })
+    await nextTick()
+
+    expect(wrapper.emitted('send')![0]![0]).toEqual({
+      dispatch_mode: 'queued',
+      target_run_id: null,
+      mode_version_id: null,
+      meeting_model_override: override,
+    })
     wrapper.unmount()
     document.body.innerHTML = ''
   })

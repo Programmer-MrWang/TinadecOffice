@@ -14,6 +14,10 @@
   <ItemGroup>
     <InternalsVisibleTo Include="TinadecCore.AgentFramework.Tests" />
     <InternalsVisibleTo Include="TinadecCore.Api.Tests" />
+    <!-- Runtime is the composition root: its PDP adapter consumes the resource
+         envelope decision step (ToolResourceAllowList / ToolResourcePathRegistry)
+         without widening those types to the public surface. -->
+    <InternalsVisibleTo Include="TinadecCore.Runtime" />
   </ItemGroup>
 
   <ItemGroup>

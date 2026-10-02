@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ShieldCheck, Gavel, Eye } from '@lucide/vue'
 import { api, type ApprovalDto, type PermissionRequestDto, type SupervisionFindingDto } from '@/api'
 import { useUserActionStore } from '@/stores/userAction'
 import UserActionStatusBadge from '@/components/governance/UserActionStatusBadge.vue'
 import PreAuthorizationDialog from '@/components/governance/PreAuthorizationDialog.vue'
+import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 
 /**
  * Three independent state machines, three columns (docs/app-core-ui.md §6):
@@ -25,6 +26,14 @@ const loading = ref(false)
 const loadError = ref<string | null>(null)
 const deciding = ref<string | null>(null)
 const preAuthOpen = ref(false)
+
+// Lightweight board refresh: approvals/permissions change out-of-band (agent
+// runs mint new requests), so poll on an interval, pause while the page is
+// hidden, and never overlap an in-flight load. Background ticks leave the
+// Refresh button's loading state alone.
+const REFRESH_INTERVAL_MS = 12_000
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+let loadInFlight = false
 
 const openApprovals = computed(() => approvals.value.filter((a) => a.status === 'pending'))
 const openPermissions = computed(() =>
@@ -50,8 +59,10 @@ function permissionFromApprovalProjection(x: ApprovalDto): PermissionRequestDto 
   }
 }
 
-async function loadAll(): Promise<void> {
-  loading.value = true
+async function loadAll(background = false): Promise<void> {
+  if (loadInFlight) return
+  loadInFlight = true
+  if (!background) loading.value = true
   loadError.value = null
   try {
     const [a, p] = await Promise.all([
@@ -71,7 +82,8 @@ async function loadAll(): Promise<void> {
   } catch (e) {
     loadError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    loading.value = false
+    loadInFlight = false
+    if (!background) loading.value = false
   }
 }
 
@@ -95,7 +107,20 @@ async function decidePermission(id: string, approve: boolean): Promise<void> {
   }
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  void loadAll()
+  refreshTimer = setInterval(() => {
+    if (document.visibilityState !== 'visible') return
+    void loadAll(true)
+  }, REFRESH_INTERVAL_MS)
+})
+
+onUnmounted(() => {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+})
 </script>
 
 <template>
@@ -103,10 +128,11 @@ onMounted(loadAll)
     <header class="approval-board__header">
       <h1>{{ t('governance.boardTitle', 'Governance decisions') }}</h1>
       <div class="approval-board__header-actions">
+        <CommandPaletteButton />
         <button type="button" class="detail-dialog__btn" data-testid="open-pre-auth" @click="preAuthOpen = true">
           {{ t('governance.preAuthorize', 'Pre-authorize') }}
         </button>
-        <button type="button" class="detail-dialog__btn" :disabled="loading" @click="loadAll">
+        <button type="button" class="detail-dialog__btn" :disabled="loading" @click="void loadAll()">
           {{ loading ? t('common.loading', 'Loading…') : t('common.refresh', 'Refresh') }}
         </button>
       </div>

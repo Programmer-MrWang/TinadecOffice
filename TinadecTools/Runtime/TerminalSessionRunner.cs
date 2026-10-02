@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TinadecTools.Runtime.Sandbox;
 
 namespace TinadecTools.Runtime;
 
@@ -15,6 +16,7 @@ public sealed class TerminalSession
     public required string Command { get; init; }
     public required string WorkingDirectory { get; init; }
     public required Process Process { get; init; }
+    public IDisposable? Cleanup { get; init; }
     public DateTimeOffset StartedAt { get; init; }
     /// <summary>False while the session is still tracked as a live call attachment.</summary>
     public volatile bool Exited;
@@ -249,6 +251,10 @@ public static class TerminalSessionHost
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
+            // The wire protocol is UTF-8; without these, child output is decoded
+            // with the machine OEM codepage (GBK on zh-CN Windows).
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
 
@@ -265,6 +271,28 @@ public static class TerminalSessionHost
         };
         Register(session);
 
+        var lifetimeCts = new CancellationTokenSource();
+        _ = Task.Run(() => AwaitExitAsync(session, lifetimeCts.Token));
+        StartOutputPumps(session, () => Volatile.Read(ref session.AttachedCallId), lifetimeCts.Token);
+        return session;
+    }
+
+    internal static TerminalSession StartSession(
+        Process process,
+        IDisposable cleanup,
+        string workingDirectory,
+        string command)
+    {
+        var session = new TerminalSession
+        {
+            TerminalSessionId = $"ts-{Guid.NewGuid():N}",
+            Command = command,
+            WorkingDirectory = workingDirectory,
+            Process = process,
+            Cleanup = cleanup,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+        Register(session);
         var lifetimeCts = new CancellationTokenSource();
         _ = Task.Run(() => AwaitExitAsync(session, lifetimeCts.Token));
         StartOutputPumps(session, () => Volatile.Read(ref session.AttachedCallId), lifetimeCts.Token);
@@ -300,6 +328,7 @@ public static class TerminalSessionHost
             writer.WriteNumber("exit_code", session.ExitCode);
             writer.WriteBoolean("timed_out", session.TimedOut);
         });
+        session.Cleanup?.Dispose();
     }
 }
 
@@ -315,7 +344,7 @@ public sealed record ShellToolResult(
     bool Success,
     string TerminalSessionId,
     string Command,
-    string Status,          // completed | long_lived | timed_out | failed | rejected
+    string Status,          // completed | long_lived (execution failures surface as wire-level errors instead)
     int ExitCode,
     string Stdout,
     string Stderr,
@@ -324,6 +353,13 @@ public sealed record ShellToolResult(
     bool TimedOut,
     long DurationMs,
     string? Error = null);
+
+/// <summary>
+/// Raised when a shell command could not execute to completion as a tool call
+/// (session limit, timeout kill). Surfaced as a wire-level failure so Core records
+/// the execution as failed instead of completed.
+/// </summary>
+public sealed class ShellToolExecutionException(string message) : Exception(message);
 
 /// <summary>
 /// Session-aware terminal execution built on top of <see cref="TerminalRunner"/>'s
@@ -335,6 +371,50 @@ public static class TerminalSessionRunner
 {
     private const int MaxCapturedChars = 64 * 1024;
     private const long LongLivedSettleMs = 3_000;
+
+    /// <summary>
+    /// Runs a process that was started by a streaming sandbox backend. The
+    /// cleanup handle remains attached to the terminal session until exit or kill.
+    /// </summary>
+    internal static async ValueTask<ShellToolResult> RunSandboxedStreamingAsync(
+        SandboxStreamingProcess sandbox,
+        string workingDirectory,
+        string command,
+        long callId,
+        CancellationToken cancellationToken)
+    {
+        if (!TerminalSessionHost.CanAdmit)
+        {
+            sandbox.Dispose();
+            throw new ShellToolExecutionException("Too many active terminal sessions.");
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var session = TerminalSessionHost.StartSession(sandbox.Process, sandbox.Cleanup, workingDirectory, command);
+        session.AttachedCallId = callId;
+        var process = session.Process;
+        var exitTask = process.WaitForExitAsync(cancellationToken);
+        var finished = await Task.WhenAny(
+            exitTask,
+            Task.Delay(TimeSpan.FromMilliseconds(LongLivedSettleMs), cancellationToken)).ConfigureAwait(false);
+        if (finished == exitTask)
+        {
+            await DrainOutputAsync(session, 500).ConfigureAwait(false);
+            session.AttachedCallId = -1;
+            session.Exited = true;
+            var output = TerminalSessionHost.ReadReplay(session);
+            var (stdout, stderr, truncated) = SplitReplay(output);
+            return new ShellToolResult(process.ExitCode == 0, session.TerminalSessionId, session.Command,
+                "completed", process.ExitCode, stdout, stderr, truncated, truncated, false,
+                stopwatch.ElapsedMilliseconds);
+        }
+
+        await DrainOutputAsync(session, 500).ConfigureAwait(false);
+        session.AttachedCallId = -1;
+        return new ShellToolResult(true, session.TerminalSessionId, session.Command, "long_lived", -1,
+            TerminalSessionHost.ReadReplay(session), string.Empty, false, false, false,
+            stopwatch.ElapsedMilliseconds);
+    }
 
     public static async ValueTask<ShellToolResult> RunAsync(
         string shellFileName,
@@ -348,8 +428,7 @@ public static class TerminalSessionRunner
     {
         if (!TerminalSessionHost.CanAdmit)
         {
-            return new ShellToolResult(false, string.Empty, command, "rejected", -1, string.Empty, string.Empty,
-                false, false, false, 0, "Too many active terminal sessions.");
+            throw new ShellToolExecutionException("Too many active terminal sessions.");
         }
 
         var stopwatch = Stopwatch.StartNew();
@@ -361,7 +440,6 @@ public static class TerminalSessionRunner
         {
             // Give fast-failing commands a moment to surface their error, then
             // hand control back: the call completes, the session lives on.
-            var settle = Task.Delay(TimeSpan.FromMilliseconds(LongLivedSettleMs), cancellationToken);
             var exitTask = process.WaitForExitAsync(cancellationToken);
             var finished = await Task.WhenAny(
                 exitTask,
@@ -413,11 +491,9 @@ public static class TerminalSessionRunner
             session.Exited = true;
             TerminalSessionHost.KillSafe(process);
             await DrainOutputAsync(session, 1000).ConfigureAwait(false);
-            var output = TerminalSessionHost.ReadReplay(session);
-            var (stdout, stderr, truncated) = SplitReplay(output);
-            return new ShellToolResult(false, session.TerminalSessionId, session.Command, "timed_out", -1,
-                stdout, stderr, truncated, truncated, true, stopwatch.ElapsedMilliseconds,
-                $"Command timed out after {timeoutMs}ms and was terminated.");
+            // The tool could not execute to completion: wire-level failure. Any
+            // output produced before the kill already streamed as wire events.
+            throw new ShellToolExecutionException($"Command timed out after {timeoutMs}ms and was terminated.");
         }
 
         // Emit buffered output events *before* the response line, otherwise the

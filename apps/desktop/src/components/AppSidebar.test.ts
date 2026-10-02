@@ -8,7 +8,7 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }))
 
-const { confirmMock } = vi.hoisted(() => ({ confirmMock: vi.fn(async () => true) }))
+const { confirmMock } = vi.hoisted(() => ({ confirmMock: vi.fn(async (..._args: unknown[]) => true) }))
 vi.mock('@/composables/useNotifications', () => ({
   useNotifications: () => ({
     confirm: (...args: unknown[]) => confirmMock(...args),
@@ -31,7 +31,10 @@ const session: SessionDto = {
 function factory(overrides: Record<string, unknown> = {}) {
   return mount(AppSidebar, {
     global: {
-      stubs: { BrandLogo: true, TinadecCalligraphy: true },
+      // RowContextMenu wraps its panel in <Transition>; test-utils stubs it by
+      // default, which would render the menu as an empty stub and break every
+      // menu assertion below.
+      stubs: { BrandLogo: true, TinadecCalligraphy: true, transition: false },
     },
     props: {
       projects: [project],
@@ -53,6 +56,25 @@ async function expandProject(wrapper: ReturnType<typeof factory>) {
 }
 
 describe('AppSidebar lifecycle management', () => {
+  it('opens the chatroom while a run is busy and exposes the selected observer page', async () => {
+    const wrapper = factory({ busy: true, collapsed: true, chatroomActive: true })
+    const button = wrapper.get('[data-testid="sidebar-chatroom"]')
+    expect(button.attributes('aria-current')).toBe('page')
+    expect(button.attributes('title')).toBe('sidebar.chatroom')
+    await button.trigger('click')
+    expect(wrapper.emitted('go-chatroom')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('keeps the selected state on the full project row, including actions', () => {
+    const wrapper = factory()
+    const row = wrapper.get('.project-row')
+    expect(row.classes()).toContain('active')
+    expect(row.find('.project-row-action').exists()).toBe(true)
+    expect(row.find('.project-row-main').attributes('aria-current')).toBe('location')
+    wrapper.unmount()
+  })
+
   beforeEach(() => {
     confirmMock.mockClear()
     document.body.querySelectorAll('.row-context-menu').forEach((node) => node.remove())
@@ -119,5 +141,29 @@ describe('AppSidebar lifecycle management', () => {
     await expandProject(wrapper)
     await wrapper.find('.session-more').trigger('click')
     expect(menuButtons()).toHaveLength(3)
+  })
+
+  it('lists a freshly created free conversation before its first message', () => {
+    // A new conversation carries the default title until its first message
+    // generates one; hiding that title made every fresh free conversation
+    // invisible in the sidebar.
+    const fresh: SessionDto = {
+      id: 's-free',
+      project_id: null,
+      title: 'Tinadec session',
+      status: 'ready',
+      created_at: '2026-09-10T00:00:00Z',
+      updated_at: '2026-09-10T00:00:00Z',
+    }
+
+    const wrapper = factory({
+      sessions: [session, fresh],
+      selectedProjectId: null,
+      selectedSessionId: null,
+    })
+
+    const freeRows = wrapper.findAll('.free-conversation-group .session-item')
+    expect(freeRows).toHaveLength(1)
+    expect(freeRows[0]!.text()).toContain('Tinadec session')
   })
 })

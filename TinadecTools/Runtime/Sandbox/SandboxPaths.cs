@@ -35,6 +35,15 @@ internal static class SandboxPaths
 
     // ── external grant normalization ──────────────────────────────────────────
 
+    /// <summary>
+    /// Normalizes an extra sandbox grant (command_run's additional_read_paths /
+    /// additional_write_paths). The sandbox is a separate, approval-gated capability
+    /// with its own confinement (<see cref="ValidateWorkingDirectory"/> /
+    /// <see cref="EnsureNotBroadWriteTarget"/>), so a grant is NOT restricted to the
+    /// workspace roots: that is a deliberate product decision, not an oversight.
+    /// Registered follow-up: reconcile these grants with the frozen workspace roots
+    /// so a run cannot persist write access outside its workspace.
+    /// </summary>
     internal static string NormalizeGrantPath(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);

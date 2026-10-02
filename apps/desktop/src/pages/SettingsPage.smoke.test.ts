@@ -110,10 +110,49 @@ describe('SettingsPage smoke (D7 safety net)', () => {
       'AppearanceSection',
       'PetsSection',
       'ToolCenterSection',
+      // The Agent Center panels were extracted rather than written here, so they
+      // are exactly as easy to orphan as a section.
+      'AgentModesPanel',
+      'PromptEngineeringMerged',
+      'RuntimeInstancesPanel',
+      'AgentPacksPanel',
     ]
     for (const name of sections) {
       expect(settingsPageSource).toContain(`import ${name} from '@/settings/sections/${name}.vue'`)
-      expect(settingsPageSource).toContain(`<${name} />`)
+      // `<Name` rather than `<Name />`: a panel that declares props never closes its tag.
+      expect(settingsPageSource).toContain(`<${name}`)
     }
+  })
+
+  it('assigns the routes ref from loadModelCenter (regression: route writes sent no If-Match)', () => {
+    // The Routes tab, the route editor, and setDefaultChatModel all read
+    // `routes.value`; a shadowing local left it permanently empty, so route
+    // PUTs omitted the precondition and Core answered 428.
+    expect(settingsPageSource).toContain('routes.value = routeRows')
+    // The fetched rows must not be captured by a same-named local binding.
+    expect(settingsPageSource).not.toMatch(/const \[[^\]]*\broutes\b[^\]]*\] = await Promise\.all/)
+  })
+
+  it('centers exactly the fixed-width sections and leaves workspaces fluid', () => {
+    // Policy: general / tools / archive / appearance / language / about are a
+    // fixed 780px column centred in the content panel; model / agentCenter /
+    // pets / apiDocs stay fluid because they are workspaces (tables, canvases,
+    // an embedded docs frame) that should use the full available width.
+    const centered = settingsPageSource.match(
+      /const CENTERED_SECTIONS[\s\S]*?= new Set\(\[([\s\S]*?)\]\)/,
+    )?.[1]
+    expect(centered, 'CENTERED_SECTIONS declaration').toBeTruthy()
+
+    const listed = Array.from(centered!.matchAll(/'([a-zA-Z]+)'/g), (m) => m[1])
+    expect(new Set(listed)).toEqual(
+      new Set(['general', 'tools', 'archive', 'appearance', 'language', 'about']),
+    )
+
+    // The modifier must be bound to the keyed wrapper so it swaps per section.
+    expect(settingsPageSource).toContain('settings-section-wrapper--centered')
+    expect(settingsPageSource).toContain('isCenteredSection')
+    expect(settingsPageSource).toMatch(
+      /:class="\['settings-section-wrapper', \{ 'settings-section-wrapper--centered': isCenteredSection \}\]"/,
+    )
   })
 })

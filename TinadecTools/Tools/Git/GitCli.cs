@@ -19,14 +19,20 @@ internal static class GitCli
     /// Validate repository_path is a git worktree; returns the top-level dir on success.
     /// Returns null and sets <paramref name="error"/> on failure.
     /// </summary>
-    public static string? ResolveRepo(string repositoryPath, out string error)
+    /// <param name="writable">
+    /// True for repository-mutating commands (commit, stage, branch, push, worktree):
+    /// such a repository must live in the writable workspace root, never in a
+    /// read-only root.
+    /// </param>
+    public static string? ResolveRepo(string repositoryPath, out string error, bool writable = false)
     {
         error = string.Empty;
         string path;
         try
         {
             path = WorkspacePathResolver.ResolveDirectory(
-                string.IsNullOrWhiteSpace(repositoryPath) ? "." : repositoryPath);
+                string.IsNullOrWhiteSpace(repositoryPath) ? "." : repositoryPath,
+                writable);
         }
         catch (Exception ex)
         {
@@ -108,6 +114,14 @@ internal static class GitCli
             // git not found: TerminalRunner catches and returns Success=false with ex.Message in Stderr.
             if (!r.Success && r.ExitCode < 0 && r.Stderr.Contains("cannot find", StringComparison.OrdinalIgnoreCase))
                 return new GitExecResult(false, r.ExitCode, r.Stdout, GitNotFoundCode);
+
+            // A timeout leaves Stderr empty by definition. Callers build their
+            // failure messages from Stderr, so report the timeout explicitly
+            // instead of letting the failure surface as an empty string.
+            if (r.TimedOut)
+                return new GitExecResult(false, -1, r.Stdout, string.IsNullOrWhiteSpace(r.Stderr)
+                    ? $"git {string.Join(' ', arguments)} timed out after {timeoutMs} ms."
+                    : r.Stderr);
 
             if (r.StdoutTruncated || r.StderrTruncated)
                 return new GitExecResult(false, r.ExitCode, r.Stdout,

@@ -18,7 +18,7 @@ export default defineConfig({
       // shim re-exporting both runtime-dom and runtime-vapor so the emitted import
       // resolves under both build and vitest.
       vue: path.resolve(__dirname, './src/lib/vue-shim.ts'),
-      // ponytail: dedupe vue reactivity — desktop nested 3.5.41 vs root 3.6.0-rc.2 caused
+      // ponytail: dedupe vue reactivity — desktop nested 3.5.41 vs root 3.6.0-rc.7 caused
       // dual @vue/reactivity Ref brands (TS2345). Force all @vue/* to the single
       // root install so vue-tsc sees one Ref identity.
       '@vue/reactivity': path.resolve(__dirname, '../../node_modules/@vue/reactivity/dist/reactivity.esm-bundler.js'),
@@ -47,5 +47,13 @@ export default defineConfig({
     css: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    setupFiles: ['./src/testSetup.ts'],
+    // The 5s default is vitest's guess, not a measurement of this suite: it has claimed a
+    // different victim almost every run (SettingsPage.agentPack, AppearanceSection, and on
+    // 2026-09-22 the source-tree scan in toolPresentation plus a ChatroomPanel mount, both
+    // while a dotnet solution gate shared the machine). Those tests do real filesystem walks
+    // and happy-dom mounts, so their cost tracks machine load, and a red that depends on what
+    // else is running is noise that trains people to rerun the gate.
+    testTimeout: 20_000,
   }
 });

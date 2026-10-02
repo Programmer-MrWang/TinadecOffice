@@ -83,11 +83,22 @@ internal static class RipgrepRunner
         var searchPath = WorkspacePathResolver.ResolveDirectory(args.Path);
         var rgPath = ResolveRgPath();
         if (!File.Exists(rgPath))
-            return Fail($"ripgrep not found at '{rgPath}'. Set {RgPathEnvVar} or place rg next to the executable.");
+            // Name every way out and say what is NOT affected: the failure used to read
+            // like a broken tool, so a caller could not tell a missing optional
+            // dependency from a defect.
+            return Fail(
+                $"file_search could not run: no ripgrep binary was found (looked for '{rgPath}'). "
+                + $"Fix any ONE of: set {RgPathEnvVar} to an existing rg executable; place rg "
+                + "(rg.exe on Windows) next to the TinadecTools executable; or put rg on PATH. "
+                + "Binaries: https://github.com/BurntSushi/ripgrep/releases. "
+                + "Every other tool works without ripgrep.");
 
         var psi = BuildProcessStartInfo(rgPath, args, searchPath);
         using var process = new Process { StartInfo = psi };
         process.Start();
+        // rg reads files, never stdin, so the pipe is closed immediately: the child
+        // must not keep a handle the host still uses for its own protocol.
+        process.StandardInput.Close();
 
         // 并发读取 stderr，防止死锁
         var stderrTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
@@ -193,6 +204,9 @@ internal static class RipgrepRunner
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
+            // Never let rg inherit the tool host's protocol stdin: a child holding
+            // that live pipe handle can block its own exit and wedge the caller.
+            RedirectStandardInput  = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding  = Encoding.UTF8,
             CreateNoWindow         = true

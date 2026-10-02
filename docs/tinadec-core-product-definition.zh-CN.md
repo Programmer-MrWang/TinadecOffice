@@ -3,6 +3,7 @@
 > 状态：产品与架构基线（Baseline）
 > 文档状态：持续维护的产品基线（不使用递增文档版本号）
 > 日期：2026-08-22
+> TinaChat 增量更新：2026-09-18；用户确认作为 `TinadecCore/TinaChat` 内部模块，后端首批已实现并通过下述验证，尚未发布。
 > 适用范围：TinadecCore、DmaEA，以及 TinadecOffice 四产品之间的契约边界
 > 事实基线：截至 2026-08-22，当前工作树统一以 MAF `1.18.0` 为规范基线；实现状态仍须按本文标记区分，未提交工作树不等同于已发布能力。TinadecOffice 尚未发布首个正式版，公开 API 固定为 `/api/v1`。
 
@@ -239,7 +240,7 @@ flowchart TB
 - 每次升级必须通过编译、架构、checkpoint 恢复、人工介入、工具循环上限和 OpenTelemetry 契约测试。
 - 实验性上下文压缩和 RC 声明式配置只能位于 Tinadec 适配器之后，不得成为公共配置格式。
 - Core 自身必须维持模型轮次、工具调用、工具轮次、token、时间、成本、副作用次数和递归深度硬预算。这些预算属于 Tinadec 产品策略，必须独立版本化，不得从 MAF 默认常量推导。
-- MAF 自动审批轮次只可作为 Core `max_tool_rounds` 的安全上限，不能授予权限、替代 Action Approval 或绕过持久 Tool Dispatcher。两者计数语义不同，Core 仍须独立记录工具轮次和审批状态。
+- MAF 自动审批轮次只可作为 Core `max_tool_rounds` 的安全上限，不能授予权限、替代 Action Approval 或绕过持久 Tool Dispatcher。两者计数语义不同，Core 仍须独立记录工具轮次和审批状态。Core 的 `max_tool_rounds <= 0` 表示不启用 round gate；只有正值才受安全上限约束，`max_tool_calls` 继续作为独立的绝对调用保险丝。
 - 若接入 MAF Workflow checkpoint，应将其 JSON 作为 Core `RunCheckpoint` 引用的不透明 sidecar；Core 继续拥有 tenant scope、CAS、事件水位、审批、租约和副作用 receipt。
 - Workflow 恢复必须冻结稳定且唯一的 agent `Id`/`Name` 与拓扑。MAF executor identity 由规范化的 `Name_Id` 构成，身份或拓扑漂移应使恢复失败关闭。
 - MAF HITL 使用非阻塞 pending-request 路径：先持久化 external request 与 checkpoint，再释放请求线程；恢复时由 Core 校验 tenant、授权、过期、请求哈希和一次性消费。
@@ -312,8 +313,8 @@ DmaEA 用“专业化 + 双层治理 + 受控演化”解决这一矛盾：
 
 ### 6.2 不变量
 
-1. 每个正式模式至少包含一个会议智能体和一个受 Core 管控的执行层派发边界。支持任务分解、并发、副作用、重试、重规划或子智能体生成的模式必须配置 `task_planner`；`simple_qa` 可由确定性的单任务派发器代替模型规划智能体。
-2. 只有会议智能体拥有 `direct_user_output`。
+1. 正式模式通过对话标记或能力解析对话身份；当前 Core 为每个运行冻结一名负责答复的对话身份。图模式由该身份编制任务图，solo 模式允许其在授权内执行和派发，不要求名为 `meeting` 或 `task_planner` 的全局固定实例。
+2. `direct_user_output` 属于当前运行绑定的对话职责。TinaChat 会话可以有多个具有对话理解能力的参与者，各自以稳定身份发言和提交意图；这不自动赋予运行调度或工具授权。
 3. 执行层只能在任务、上下文切片、工具范围和预算内工作。
 4. 子智能体的有效权限不得超过父实例与当前 run 的交集。
 5. 模型输出是建议或内容，不是授权凭证、事务提交或审计事实。
@@ -329,7 +330,7 @@ DmaEA 用“专业化 + 双层治理 + 受控演化”解决这一矛盾：
 
 | 智能体 | 目标职责 | 允许做 | 不允许做 | 默认触发 |
 | --- | --- | --- | --- | --- |
-| 会议智能体 `meeting` | 唯一用户入口、意图分类、粗计划、派发、汇总 | 创建/绑定 run，向执行层派发，形成正式答复 | 直接执行高风险工具、自行授权 | 用户消息、任务事件、监督结果 |
+| 对话理解智能体（`meeting` 是既有模板名） | 理解用户目标、识别含糊或未核实陈述、整理可修订的意图、派发与答复 | 在配置能力与授权内提出简报、创建/绑定 run、提交结果 | 把猜测当成事实或授权、扩大消息受众、自行绕过工具审批 | 获授权的用户消息、协作请求、任务事件 |
 | 上下文压缩智能体 `context_compressor` | 维护可验证的结构化摘要 | 提交带来源的 context patch | 覆盖新版本目标、删除原始证据 | token 阈值、里程碑、任务结束 |
 | 能力推荐智能体 `capability_advisor` | 推荐模型、工具、技能或专业 worker | 产生候选和理由 | 直接授予能力 | 新任务、能力缺口、重规划 |
 | 监督智能体 `supervisor` | 检查目标、证据、质量和风险 | `pass/revise/escalate`，提出修正 | 伪造执行证据、突破硬策略 | 产物完成、风险事件、最终输出前 |
@@ -355,12 +356,18 @@ DmaEA 用“专业化 + 双层治理 + 受控演化”解决这一矛盾：
 
 执行层内部以 **lane（泳道）** 作为横向调度单元：任务节点归属某个 lane（缺省为隐式 `main`），引擎按 lane 并行推进、按 lane 汇聚监督与完成判定。落地面（M1–M3 实现，M6 可观测收口）：
 
+> **出厂开关（必读）**：`DmaEA/Configuration/default-agent-runtime.toml:25` 的 `lanes_enabled = false` 是出厂默认值，且 `FrozenRunConfiguration` 的 workspace override 解析没有 `orchestration` 段——**当前没有受支持的配置路径可以在运行时打开 lane**。本节描述的是已实现的代码路径，不是出厂即可用的行为；只有测试通过自定义 TOML（`TinadecAgent:ProfileConfigPath`）打开它。
+
 - **lane 状态机**：`planning` → `executing` → `waiting` / `gate_review` → `finalizing` → `done`（终态 `failed`）。`waiting` 表示该 lane 的任务在等跨 lane 前置（lane_done / lane_tasks_completed / lane_supervision_pass 三种谓词，记录在 `LaneWait`，含 `required_criteria` 与观测 `facts_hash`）；`gate_review` 表示该 lane 已到达需要跨 lane 门控裁决的检查点。`escalated` 标记 lane 已升级人工/治理层介入。
 - **完成判定命名**：任务图节点的成功判据字段为 `success_criteria`；跨 lane 门控按 `LaneWait.required_criteria` 逐条裁决。两者语义不同——前者是单任务完成的判据，后者是放行下游 lane 的门控条件；不要混用字段名。
 - **可观测投影**（M6）：`GET /api/v1/runs/{runId}/orchestration`、`GET /api/v1/sessions/{sessionId}/orchestration` 与 `GET /api/v1/runs/{runId}/replay` 均投影 `lanes` 数组（`lane_key`/`status`/`escalated`/`task_keys`/`waits`）与每个节点的 `lane_key`（缺省 `main`）；checkpoint 缺失或不可读时退化为空 lanes / 隐式 main lane，不影响事件账本重建。Gateway 外部 DTO（`Lane`/`LaneWait`/`OrchestrationSnapshot.lanes`）与 Desktop 生成客户端类型同批更新；Desktop Workbench 任务图按 `lane_key` 渲染泳道并以徽标标注 `waiting`/`gate_review`。
 - **泳道规划智能体实例（M8，2026-09-03）**：goal-only 的 `LANE_OPEN` 指令（只带 `goal`，`tasks` 可选）把 lane 打开在 `planning` 相位，由该 lane 专属的任务规划实例派生任务图——引擎为每条 lane 派生并映射 `LanePlannerIds`，规划指令携带 `Lane: {lane_key}` 标记，事件序列 `orchestration.lane_planning` → `orchestration.lane_planned`（含 `planner_instance_id`/`task_count`）；任务预算取冻结的 per-lane 上限，run 级 spawn 预算 8→16 以容纳泳道规划实例与泳道 worker。跨 lane 门控评审同样路由到该 lane 自己的规划实例（只能收紧、不能推翻代码事实）。
 - **变更泳道的授权条件（M8，2026-09-03）**：声明变更工具（mutating）的 lane 在准入时必须携带 `pre_authorization` 引用或冻结为无人值守权限模式（`full-access`）。执行期放行分两层：PDP 权限请求层在无 capability grant 时按冻结模式放行——`full-access` 直接签发 run 级 grant+lease（reason=`full_access_auto_grant`），`auto-approve` 模式且共享 auto-approve 规则命中（enabled、非 human-only、风险 ≤ 上限）时签发（reason=`auto_policy_released`，不消费预算），`ask`/未声明模式一律挂起；预授权 grant（`POST /api/v1/approvals/pre-authorizations` 同时铸造每工具一条 run 级 capability grant）由 PDP 的 grant 搜索直接命中。ActionApproval 层保持单一消费点：`approval.pre_authorized_minted`（full-access 铸造 / 预授权记录消费 / auto-policy 预算消费，`approval.auto_decided` 留痕）；两层均未命中则泊车 `approval.park_expired` 并冻结 lane 升级 `awaiting_user`。lane 内工具执行携带内部 `lane_key`（不进 HTTP DTO）。三条路已由真实 TinadecTools 子进程 + 真实临时 git 仓的 E2E 验证（scripted 模型）。
 - lane 结构是引擎内部调度状态的可观测投影，不是第三方可写资源；修改 lane 划分与门控谓词仍然只能通过 run 指令与任务图变更完成。
+
+> **Phase 2 注记（2026-09-13，lane 当前不可达）**：Phase 2 起每个模式都冻结声明图（`FrozenRunConfigurationV1.Graph` 恒非 null），`RunFreezeGate` 因此在 admission 即拒 `lanes_enabled=true`（`graph_tier_lanes_unsupported`，`RunFreezeGate.cs:77-82`）——**lane 机制在当前版本不可达**，不是静默降级（`FullDuplexEndpointTests.InvokeStream_LanesEnabled_IsRejectedAtAdmission` 钉住该行为）。lane 与智能体包**零绑定**：包 manifest（`GraphSeedPack` 及其前身 `OfficeAgentPack`）内 "lane" 命中数为 0，开关只在 TOML 运行时基线（`default-agent-runtime.toml` 的 `[orchestration]`）。其契约面（`lane_key` DTO 字段、三张表 LaneKey 列、审批 lane 匹配、replay/orchestration 的 `lanes` 投影、Desktop 任务图泳道渲染）继续在每次 run 上使用——正常 run 的 lane 缺省为隐式 `main`。本节描述的是已实现且保留的代码路径与契约面，不是出厂即可用的编排行为。
+
+> **模块边界（2026-09-14，WS-9 代码组织拆分）**：lane 编排自 `FullDuplexRunEngine.cs`（4878 行）拆出——编排成员（lane tick、lane 规划、gate review、等待汇聚、指令链、升级人工）留在同一类的 partial 文件 `DmaEA/FullDuplexRunEngine.Lanes.cs`；lane 模型与序列化契约（`DurableLane`/`LaneWait`/`LaneWaitJsonConverter`/`CriterionVerdict`）连同 `LaneStatus` 状态常量归位 `DmaEA/Orchestration/LaneModel.cs`（命名空间 `TinadecCore.DmaEA.Orchestration`，与 `OrchestrationDirectiveValidator` 同目录）。这是**纯组织拆分**：契约字段、JSON 键、事件名、DB 列、审批匹配与投影形状一律不变；lane 引擎主文件降至约 3470 行。后续若要对声明图档启用 lane，落点即 `DmaEA/Orchestration/`。
 
 ### 6.5 模型能力画像
 
@@ -413,9 +420,9 @@ sequenceDiagram
 
 | 产品模式 | 典型拓扑 | 工具策略 | 适用场景 |
 | --- | --- | --- | --- |
-| `simple_qa` | `meeting` -> Core 单任务派发器 -> 检索 worker | 只读、单任务、禁止生成子智能体 | 简单问答、知识检索 |
+| `simple_qa`（目标态 id，当前代码无此模式） | `meeting` -> Core 单任务派发器 -> 检索 worker | 只读、单任务、禁止生成子智能体 | 简单问答、知识检索 |
 | `plan_only` | `meeting` + `task_planner` + 可选 `supervisor` | 禁止副作用 | 方案、规格、评审 |
-| `controlled_execution` | `meeting` + `task_planner` + 少量 worker + `supervisor` | 写操作逐项审批 | 单任务开发和办公自动化 |
+| `controlled_execution`（目标态 id，当前代码无此模式） | `meeting` + `task_planner` + 少量 worker + `supervisor` | 写操作逐项审批 | 单任务开发和办公自动化 |
 | `full_duplex` | 完整治理层 + 并行执行层 | 动态权限、快照与审批 | 长任务、多任务和持续协作 |
 
 `conversation.ask/plan/spec/vibe/auto/agent` 与 `space.full_duplex` 继续存在于通用 TOML fallback 中，用于无正式 ModeVersion 时的开发启动和预算基线；TinadecOffice 的正式 `default-mode` 拓扑则由 `OfficeAgentPack` 发布到关系库。面向用户的模式名称与内部 profile id 应解耦。简单模式仍保留 `operation/execution` 责任边界，但不要求为单次只读检索调用模型规划器。Core 必须创建可审计的单一 TaskNode，由确定性派发器绑定检索 worker；meeting 不得绕过执行层直接调用工具。
@@ -459,7 +466,7 @@ run 创建时必须持久化以下引用和哈希：
 
 ### 8.4 状态机
 
-规范状态为：`planning`、`understanding`、`executing`、`replanning`、`awaiting_approval`、`paused`、`reviewing`、`completed`、`failed`、`cancelled`。这里的 `planning` 是 run 状态，不是智能体层级名称。
+规范状态为 12 个（唯一事实源 `Abstractions/RunStatus/RunStatusMachine.cs:12-17`）：`planning`、`understanding`、`executing`、`replanning`、`awaiting_approval`、`awaiting_delegate`、`awaiting_user`、`paused`、`reviewing`、`completed`、`failed`、`cancelled`。这里的 `planning` 是 run 状态，不是智能体层级名称。
 
 所有状态变化必须通过事件账本，并携带 `tenant_id`、`workspace_id`、`session_id`、`run_id`、`turn_id`、`seq`、`trace_id` 和幂等键。
 
@@ -574,7 +581,7 @@ spec:
 
 ### 9.7 Agent Pack 生命周期
 
-- Agent Pack manifest 使用 Pack 内稳定 key 与 `agent:<key>`、`prompt:<key>`、`mode:<key>` 引用，不携带环境 UUID、secret 或机器路径。首版 schema 是 `tinadec.io/agent-pack/v1alpha1`；TinadecOffice 制品固定为 `tinadec.office.agent-pack` / `tinadec.office` / `0.1.0`，包含 14 个 Agent、`baseline-prompt`、`default-mode` 和推荐 WorkspaceDefaults。
+- Agent Pack manifest 使用 Pack 内稳定 key 与 `agent:<key>`、`prompt:<key>`、`mode:<key>` 引用，不携带环境 UUID、secret 或机器路径。首版 schema 是 `tinadec.io/agent-pack/v1alpha1`；TinadecOffice 制品为 `tinadec.office.agent-pack` / `tinadec.office` / 当前 `0.2.4`，包含 14 个 Agent、5 个 PromptPipeline、7 个 Mode（`default-mode` + `conversation.{plan,spec,ask,vibe,auto,agent}`）和推荐 WorkspaceDefaults。
 - Envelope 对 manifest 执行 RFC 8785/JCS canonicalization 后计算 SHA-256，Core 必须重算。首版信任边界是当前工作区 owner 授权、用户确认 owner/version/hash 与审计；完整性哈希不等同于发布者数字签名。
 - install preview 只在同一 tenant/workspace/principal 下有效 15 分钟，返回 `install|upgrade|up_to_date|newer_installed|conflict`、资源/default 差异、警告和基础 revision。PUT 必须提交同一 envelope、`preview_id` 和 `Idempotency-Key`；upgrade 还必须携带 preview ETag 对应的 `If-Match`。
 - Core 在同一事务中按 Prompt -> Agent -> Mode -> defaults 安装。首装只在 defaults 为空或精确等价于旧 DevSeed 基线时采用推荐值；升级只推进仍指向上一 Pack 版本的 defaults，任何用户自定义值都保留。
@@ -652,6 +659,7 @@ flowchart TD
 3. 策略自动批准默认关闭：`auto_approve_enabled` 默认 `false`；仅当无委托且调用者无人类权限时介入；human-only 工具（`git_push`、`command_run`、`git_worktree_remove`、`mcp_invoke` 及 `*_delete`/`delete_*`）与超过风险上限（默认 medium）的请求永不自动批准；per-run 预算耗尽时**升级为 `awaiting_user` 而非拒绝**——拒绝是终态，之后不可能再由人补批，升级保留了人工兜底。
 4. 决策可归因、不可冒充：自动批准的决策 `DecisionSource="auto_policy"`，两个 `DecidedBy*` 列置空——策略决定永远不冒充人或 agent；每次决策追加 `approval.auto_decided` 审计事件，治理决策记录可区分 user/agent/delegation/auto_policy 四种来源。
 5. 执行窗口仍是硬边界：决策窗口到期 park（`approval.park_expired` 事件，执行保持 `awaiting_approval`），执行窗口到期仍 fail-closed（`approval_expired`，执行失败）——旁路不改变"过窗不跑"。
+6. 自动 run 的工具执行必须携带当前 run 的执行 epoch（`LeaseOwner + RecoveryCount`）。Lifecycle 在同一数据库事务里先校验并锁定该 epoch，再消费一次性 ActionApproval、把 ToolExecution 置为 `running`；旧 owner、过期 lease、terminal/paused run 均以 `run_lease_lost` 或对应终态 fail-closed，且不得调用 provider。进程内 in-flight 注册必须早于 execution start claim；cancel 的终态提交一旦成功，立即广播本机工具取消。若 provider 已经可能接收了 mutating 请求，则仍按 `outcome_unknown` 处理，绝不自动重放。
 
 **残余风险**
 
@@ -660,6 +668,26 @@ flowchart TD
 - 策略自动批准已接入 Lifecycle 工具审批链（M8，2026-09-03，闭环）：`Abstractions` 新增 `IToolApprovalAutoPolicy` 端口，Governance 侧 `ToolApprovalAutoPolicy`/`AutoApprovePolicyRules` 提供纯规则实现（不写库、不铸 grant，失败只能不放行、不会错放）；`ToolApprovalCoordinator` 在 full-access 与预授权均未命中时调用，批准以 `approval.auto_decided` 事件留痕。预算由调用方按自身决策记录计数——Governance 权限请求路（`AuthorizationDecisions`）与 Lifecycle 工具路（`ApprovalDecisions`，reason=`auto_policy_approved`）两套预算各自独立、不跨库共享，耗尽均升级挂起而非拒绝。同一缺口在 PDP 权限请求层同批闭环：无 grant 时按冻结模式放行（`full-access` 直接签发 run 级 grant+lease，reason=`full_access_auto_grant`；`auto-approve` 模式且共享规则命中时签发，reason=`auto_policy_released`，不消费预算——预算仍由审批层单点消费），`ask`/未声明模式保持挂起，M5④ 的 decide 路径语义不变；预授权 API 同时铸造每工具一条 run 级 capability grant，使 PDP 的 grant 搜索直接命中（记录本身仍由审批层按 max_uses 消费，grant 只作准入包络）。
 - 风险上限与 human-only 清单是静态全局配置，不随租户/工作区差异化；预算按 run 内次数计数，不是成本度量。
 - **M8 诚实缺口（2026-09-03）**：① 真实模型（非 scripted）全链路 live smoke 未做——E2E（`UnattendedLaneEndToEndTests` 三用例）用 scripted 模型驱动真实 TinadecTools 子进程与真实临时 git 仓验证治理链路，真实模型实跑需配 API key 另行 smoke；② RiskRank 取保守路径：共享规则对 `elevated` 按不可识别处理（永不自动批准），权限请求通路的 RiskRank 保持原样（零行为变化）——方案中"统一采用工具审批链版本"未做，两套预算（Governance 权限路 vs Lifecycle 工具路）各自独立、不跨库共享为刻意决策；③ `AutoApproveOptions.HumanOnlyTools` 含 `command_run` 而实际命令工具 id 是 `shell`——该清单项因此永不命中（语义未改，仅记录观察）；④ 默认 `AutoApproveRiskMax=medium` 不放行 high 风险变更工具（shell/git_commit），无人值守提交必须显式抬升到 high（E2E 已验证必须显式配置）。
+
+### 10.6 委托审批门（2026-09-29）
+
+用户可按消息把"点审批"这一下交给智能体：权限模式 `delegate-conversation`（对话身份结合用户目标决定）、`delegate-reviewer`（审查员在独立上下文决定）、`delegate-both`（先审查员、后对话身份，二者都批才执行，任一驳回即拒）。这是 §10.3 委托包络在"对话身份 / 审查员"两种受托者上的落地，但**不走** `ApprovalDelegationRecord`：PDP 禁止祖先/后代智能体互批，对话身份恰是每个执行者的祖先。
+
+**机制**：委托模式下 PDP 对可委托的写以 `delegated_gate_release` 签发限定该声明、单次的 lease，调用停在工具审批层；Core 的门服务逐门询问（每门一次独立模型调用、无工具面），全部批准后经与人点击同一条转移落库（决策行不记人类主体，`approval.decided` 标 `decided_by=delegated_gates`），并以每门一条记录留下"看了什么、依据什么、结论"。
+
+**补偿控制**
+
+1. 门只做加法：委托只替代审批点击，请求哈希、冻结清单、实例授权、一次性消费、执行窗口一条不少。
+2. 人工裁决边界：推送、删除、MCP/外连、Core 虚拟工具及 elevated/high/critical/未知风险在 PDP 停下；门服务对经其他路径进入审批层的同类也拒绝判断。shell/command_run 默认等人，仅具体会话的低/中风险 opt-in 可进入委托门；PDP 与门服务使用同一条 `DelegatedApprovalRules`，规则不能跳过风险上限。
+3. 不自批：执行者本人不是审查员；对话身份自己发起的调用（solo 主人自己干活）直接退回给人。
+4. 不默认放行：答不清、无路由、超时、模型报错一律退回给人；人任何时候都可以直接决定，人先决定则门的结论作废（`superseded`）。
+5. 独立上下文：审查员只看到去密钥的参数、所服务的任务与客观事实，不看对话；只有对话身份的门看到用户目标。密钥键的值任意深度替换，不进任何门。
+6. 有界：每 run 门决定上限（默认 200），超了交还给人；门行 CAS 认领，宿主死亡后可重认领，不会双判。
+
+**残余风险**
+
+- 批准质量取决于门所用模型；门提示词尚未经真实模型评测（当前只有脚本化模型的端到端验证）。
+- 委托最多到 `medium`，`DelegatedApprovalRiskMax` 可以进一步收窄；`elevated/high/critical` 与未知风险必须由人工裁决，常驻规则不能提高这一上限。`delegate_tool` 只允许具体会话中的 `shell`/`command_run`，且仅把低/中风险调用交给委托门；推送、MCP、删除等人工工具不能借此放行。旧的宽泛规则在读取时同样被拒绝。显式 `full-access` 与人工前缀授权仍是独立的用户选择，不等于模型委托审批。
 
 ## 11. 上下文、记忆与压缩
 
@@ -761,10 +789,10 @@ stateDiagram-v2
 
 - 管理面：agents、modes、prompts、agent packs、policies、models、tools、candidates 和 workspace defaults。
 - 运行面：sessions、interactions、runs、controls、events、approvals、permission requests、user tool actions、context versions 和 snapshots。
-- 观测面：readiness、traces、metrics、evaluations 和 audit export。
+- 观测面：readiness 已实现（`GET /api/v1/readiness`、`tool-layer-readiness`）；`traces`/`metrics` 目前是返回空数组的桩（`StubEndpoints.cs:378-381`），`evaluations` 与 `audit export` 尚无任何路由或实现。
 - 所有公开 JSON 使用 `snake_case`、RFC 9457 Problem Details、幂等键和并发 revision。
 - Agent Pack 使用 `GET /api/v1/agent-packs`、`GET /api/v1/agent-packs/{pack_id}`、`POST /api/v1/agent-packs/install-preview` 和 `PUT /api/v1/agent-packs/{pack_id}`；Gateway 只能原样代理，App 不能直接写 Core 数据库。
-- 当前 v1 客户端以 `POST /sessions/{id}/interactions` 提交 `queued/insert/parallel` 交互，也可使用 `invoke-stream` 完成全双工运行；两者都属于当前 `/api/v1` 契约。后续若合并或调整语义，直接更新 `/api/v1`、测试和本文，不保留旧兼容入口。
+- 普通 v1 会话以 `POST /sessions/{id}/interactions` 提交 `queued/insert/parallel` 交互，运行输出经 `GET /api/v1/runs/{runId}/stream` 读取。TinaChat 通过 §14.4 的已采纳意图入口调用同一 Core 准入器，其隔离执行会话拒绝普通 interaction/insert。旧 `invoke-stream` 路由**已退役并返回 404**，不再是 `/api/v1` 契约的一部分。
 
 ### 14.2 南向接口
 
@@ -781,6 +809,24 @@ stateDiagram-v2
 - provider 可以通过 capability negotiation 描述当前实现能力，但这不是 API 版本协商，也不产生旧契约兼容义务。
 - `AgentVersion` 等领域版本、内部 schema revision 和内容哈希用于冻结与审计，不得被解释为 HTTP API 版本迭代。
 
+### 14.4 TinaChat：具名参与者、通信权限与意图交接
+
+**2026-09-18，首批工作树实现。** TinaChat 放在 `TinadecCore/TinaChat`，作为 Core 内部 .NET 模块加载，通信数据仍由 Core 拥有。CLI、MCP 与独立项目交付是后续入口，不把通信平台放入工具子进程。源码接入与调用说明见 [`TinadecCore/TinaChat/README.md`](../TinadecCore/TinaChat/README.md)。
+
+参与者包含 human/agent、稳定 ID、工作区内唯一 handle、显示名字、职位、说明与可选 Core 定义映射。对话理解、群管理员、原文接收和执行权限分别配置。注册者可管理自己的具名参与者；每次操作验证实际主体与租户/工作区成员记录，单纯声明 actor_id 或职位不能冒充其他主体。
+
+`/api/v1/tina-chat` 提供原有 participants、conversations、members、messages、inbox/ack、workspace-policy、intents/generate/decision/execute 21 个操作，以及 observer 下4个管理员读取，共25个操作。普通群成员先邀请后本人接受，新加入或重新加入的成员不自动获取此前历史。消息受众随发送冻结，后续读取重新验证成员和跨工作区策略；引用和整理材料受来源限制。普通通信默认关闭跨区发现/通信，confidential 内容不跨区。
+
+用户可作为最高权限观察者，在侧边栏“聊天室”查看其管理范围内全部群聊、私聊、保密/限定受众原文及发送/接收身份。租户 owner/admin 观察本租户全部活跃工作区，工作区 owner/admin 只观察管理范围，均由实际成员记录核验且不跨租户。观察不要求入群，不改变其他智能体可见范围、接收确认或执行权限；会话观察记入管理员审计。界面支持搜索、类型/工作区筛选、历史翻页和自动刷新，权限撤回后清空受保护内容。只呈现已经保存到 TinaChat 的通信。
+
+独立执行体可以配置不接收人类原文，但在消息显式允许向既定受众分享整理材料时接收意图简报。简报保留用户陈述、约束、假设、未决问题、阻塞问题和验收条件。支持多个不同名字的理解者；模型生成只产生提案，不直接执行。owner/admin 按会话 revision 采纳，旧版本被替代；blocking_questions 未解决时拒绝执行。
+
+执行入口为已采纳简报与接收参与者建立稳定的隔离 Core session，重试复用相同 session/run。上下文读取、运行准入、恢复和旧式目标补丁均尊重该绑定；不读取原始群聊、无关 session 历史或长期记忆。工具和模型执行复用现有 Core 路径，首版执行权限为 ask，禁用 Agent Pack 仍阻断准入。TinaChat 不把普通聊天文字直接当成已确认的目标变更。
+
+首批验证：API 定向回归 71/71（含 11 个 TinaChat 用例）、AgentFramework 309/309、Architecture 17/17；Gateway 49/49 与构建通过。捕获实际模型请求证明原文、无关历史与运行中注入的旧式补丁没有进入隔离执行。模型为脚本替身，数据库为隔离 SQLite；没有真实供应商或 PostgreSQL 演练。
+
+当前边界：已经提供管理员只读聊天观察 UI；消息发送/群组管理 UI、自动唤醒/推送、结果自动回群、附件与访客问答、工作区级智能体委托、独立 agent 凭据、CLI/MCP 或独立宿主尚未实现。普通 Core 历史未迁移。当前一个主体可管理自己的多个参与者，不能把这等同于不可信外部智能体之间的凭据隔离。意图生成使用已配置 chat 路由；资料中的定义映射不自动决定模型与模式。受众规则不等同于任意自然语言内容的自动脱敏。
+
 ## 15. 安全、可靠性与可观测性
 
 ### 15.1 安全基线
@@ -793,6 +839,10 @@ stateDiagram-v2
 - 演化、快照恢复、Git 历史修改和外部发布需要独立风险策略。
 
 ### 15.2 可靠性目标
+
+流式呈现契约（2026-09-23）：每次模型尝试的公开推理以 `model.output.started/delta/completed/failed` 会话事件回传，负载含 `run_id`、`turn_id`、`response_id`，与工具活动共用持久事件序号。只显示提供方公开返回的推理文本或摘要，不导出受保护推理、提示词或工具参数，不将编排事件伪称为模型思维链。每个 run 的活动独立；界面按真实 `message.run_id` 归档，允许“推理 → 工具 → 推理”交错，不重排阶段。
+
+最终会话智能体的正文通过既有 run SSE 的 `answer.started/delta/failed` 提供实时、可撤换预览；重试/失败清空旧预览。正式 `delta` 仍在完成裁决后给出全文，客户端用它替换预览，随后 `done` 挂接持久消息。预览不是完成事实，也不授予工具执行权；断流/重连沿用序号去重。工具详情默认折叠，审批依据及裁决入口不受折叠影响。
 
 - HTTP/SSE 断开不取消已接纳 run。
 - 同一幂等键只产生一个逻辑 interaction、run 或 tool execution。
@@ -811,29 +861,31 @@ stateDiagram-v2
 
 “多智能体更多”不是成功指标；只有质量或可靠性收益大于额外成本时才启用更多角色。
 
-## 16. 当前实现盘点（2026-08-22）
+## 16. 当前实现盘点（2026-08-22 快照，部分行已过时）
 
-本盘点以当前 MAF `1.18.0` 工作树为准；“已实现”表示代码和测试已存在，不等于已发布的独立产品能力。
+本盘点以 2026-08-22 的 MAF `1.18.0` 工作树为准；“已实现”表示代码和测试已存在，不等于已发布的独立产品能力。
+
+> **注意**：本节是 2026-08-22 的历史快照，2026-08-29 之后的运营层触发链、M5–M8 泳道/审批收口与 Pack 0.2.x 均未回写。与本文其它章节或 `AGENTS.md` 的 M 段记录冲突时，以代码和 M 段记录为准；下表中已核实的错误行已就地更正。
 
 | 能力 | 状态 | 当前事实 | 主要缺口 |
 | --- | --- | --- | --- |
 | .NET/MAF 模块化 Core | 已实现 | .NET 10、MAF 1.18；MAF 特定行为收口于 DmaEA 内部适配器 | 继续保持公开契约和持久状态不泄漏 MAF 类型 |
-| 持久化全双工 run | 已实现 | task planning、动态 worker、meeting 汇总、监督、暂停/恢复/取消、checkpoint 恢复 | 队列超限项尚未持久化 |
-| 正式智能体配置 | 部分实现 | 11 张表、draft/revision、不可变版本、mode/prompt 发布 API | `AgentConfigurationService` 仍是桩；验证逻辑集中于 endpoint |
+| 持久化全双工 run | 已实现 | task planning、动态 worker、meeting 汇总、监督、暂停/恢复/取消、checkpoint 恢复；队列超限交互已持久化为 `RunDirectiveRecord` 并追加 `run.queued` 事件（`InteractionsEndpoints.cs:187-226`） | 完整恢复 UX 与外部副作用补偿 |
+| 正式智能体配置 | 已实现 | `AgentConfigurationDbContext` 的 19 张表、draft/revision、不可变版本、mode/prompt 发布 API；`AgentConfigurationService` 为真实实现（123 行） | 验证逻辑仍较集中在 endpoint 层 |
 | Bundled Agent Pack | 已实现首版 | App-owned manifest 经预览和用户确认安装；Core 持有 workspace-scoped 版本、来源、托管绑定和默认值采用状态 | 数字签名、市场分发、rollback/uninstall 和跨组织信任库 |
 | 每智能体模型策略 | 已实现 | `inherit`、`route`（有序 candidate 链）、`fixed`；`model_invocations` 全量归因（策略来源、fallback 位次、用量） | 能力/评测驱动选择与完整 fallback policy |
 | 工具治理 | 已实现主要部分 | manifest v2 冻结、agent/mode/manifest 交集、PDP/租约/委托、单次审批、恢复和拒绝 fail-closed | 通用远程 provider transport、ACP 权限桥 |
-| 上下文 | 部分实现 | context revision、snapshot、patch 冲突和 stale evidence | `context_compressor` 尚未作为事件驱动角色进入热路径 |
-| 监督 | 部分实现 | `pass/revise/escalate` 质量门 | 不是委托审批代理；尚无 ApprovalDelegation |
-| 演化 | 部分实现 | 候选生成/晋升/拒绝 API 与临时 agent lineage | 正常 run 不会自动观察并生成候选；缺 eval/canary/revoke 闭环 |
-| Git 智能体 | 已实现基线 | `OfficeAgentPack` 发布 `git_steward` 与 `worker.git`；当前 `worker.git` 可按冻结能力/工具被选择，Desktop 写操作入口和真实 Git commit 治理 E2E 已收口，`git_steward` 本期保持 dormant | Git steward 事件触发、快照智能体调度与远程 provider |
+| 上下文 | 部分实现 | context revision、snapshot、patch 冲突和 stale evidence；`context_compressor` 已由运营层触发链调度（`OperationalTriggers.cs`，发 `context.compacted`） | 向量检索（embedding 路由未配置）、补丁文本未回流进 prompt |
+| 监督 | 部分实现 | `pass/revise/escalate` 质量门；`revise` 已走真实重规划 | 不是委托审批代理；监督修订预算耗尽时静默通过 |
+| 演化 | 部分实现 | 候选生成/晋升/拒绝 API 与临时 agent lineage；run 收口时 `experience_curator` 按 `[memory]` 白名单生成候选 | 缺 eval/canary/revoke 闭环 |
+| Git 智能体 | 已实现基线 | `OfficeAgentPack` 发布 `git_steward` 与 `worker.git`；当前 `worker.git` 可按冻结能力/工具被选择，Desktop 写操作入口和真实 Git commit 治理 E2E 已收口；`git_steward` 自 2026-08-29 起由触发链调度（仅对触碰 `git_*` 工具的 run 发 `git.steward.reviewed`） | 快照智能体调度与远程 provider |
 | 工作区快照 | 已实现主要部分 | 文件系统/Git provider、HEAD/index/worktree 捕获、ContentStore、创建/恢复幂等、冲突检查和高风险写前 guard | 完整 restore plan 展示、外部副作用补偿和快照智能体调度 |
 | 用户工具动作 | 已实现基线 | `UserToolAction`、权限请求、租约、ActionApproval、快照 override、结果/审计引用和 `/api/v1/user/tool-actions` | 更完整的用户动作历史、恢复决定 UI 和远程 provider |
 | 动态权限 | 已实现主要部分 | PermissionRequest、PDP 求交、CapabilityGrant/Delegation/Lease、冻结策略、Agent/用户工具授权闭环、nonce fail-closed | ACP 请求桥接、远程 provider 契约 |
 | 独立交付 | 工作树升级中 | Contracts、Abstractions、Runtime 可从源码打包，Api 可 `dotnet publish` | 尚未发布包源、稳定 SDK、CLI 和容器 |
 | 四产品解耦 | 部分实现 | 代码目录已分离 | Core 直接托管 TinadecTools；独立 Tool HTTP/WS 服务尚不存在 |
 
-当前热路径主要使用 `meeting`、`task_planner`、动态 worker 与 `supervisor`。`context_compressor`、`capability_advisor/skill_recommender` 和 `evolution` 目前主要是配置声明，不应对外描述为完整自治闭环。
+当前热路径使用 `meeting`、`task_planner`、动态 worker 与 `supervisor`，并在四个引擎锚点旁路调度四个运营角色（`context_compressor`、`skill_recommender`、`evolution`、`git_steward`）——它们不进入任务图、不产生用户可见输出。它们已不是“仅配置声明”，但演化评测/canary/revoke 闭环仍未完成，不应对外描述为完整自治闭环。
 
 ## 17. 实施路线图
 

@@ -98,7 +98,10 @@ internal static class WindowsSandboxRunner
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = request.Stdin is not null,
+            // The runner's own stdin carries the serialized request, so a sandboxed
+            // child must never inherit it: an inherited live handle both leaks the
+            // request pipe and can block the child's exit.
+            RedirectStandardInput = true,
             CreateNoWindow = true
         };
 
@@ -135,8 +138,8 @@ internal static class WindowsSandboxRunner
         if (request.Stdin is not null)
         {
             process.StandardInput.Write(request.Stdin);
-            process.StandardInput.Close();
         }
+        process.StandardInput.Close();
 
         using var timeoutCts = new CancellationTokenSource(request.TimeoutMs);
 

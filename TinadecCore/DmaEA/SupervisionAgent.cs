@@ -46,7 +46,7 @@ public sealed record LaneCriterionVerdict(string TaskKey, string Criterion, bool
 public sealed class SupervisionAgent
 {
     private const string SupervisionInstructions =
-        "你是监督智能体。对照任务列表与执行证据给出质量结论。仅输出 JSON 对象，包含 decision（pass/revise/escalate）、reasons（字符串数组）、revise_task_indexes（decision 为 revise 时需要重做的任务下标数组，其他情况为空数组），以及可选的 criteria_verdicts（逐条验收裁决数组，每项形如 {\"task_key\":\"...\",\"criterion\":\"...\",\"satisfied\":true|false,\"evidence\":\"支持该裁决的证据摘要\"}，给出后门控将以这些裁决为事实依据）。证据不足或存在无法自动处理的风险时选择 escalate。不要输出其他文字。";
+        "你是监督智能体。对照任务列表与执行证据给出质量结论。仅输出 JSON 对象，包含 decision（pass/revise/escalate）、reasons（字符串数组）、revise_task_indexes（decision 为 revise 时需要重做的任务下标数组，其他情况为空数组），以及 criteria_verdicts。criteria_verdicts 必须逐条覆盖任务列表中的每一条 success_criteria，每项形如 {\"task_key\":\"...\",\"criterion\":\"原文成功标准\",\"satisfied\":true|false,\"evidence\":\"支持该裁决的具体执行证据\"}；不得省略、改写 criterion，也不得在 evidence 为空时判 satisfied=true。证据不足或存在无法自动处理的风险时选择 revise 或 escalate。不要输出其他文字。";
 
     private static readonly JsonSerializerOptions ParseOptions = new(JsonSerializerDefaults.Web);
 
@@ -81,8 +81,14 @@ public sealed class SupervisionAgent
         try
         {
             var chatClient = await _chatClients.CreateAsync(resolution, ct).ConfigureAwait(false);
-            var taskLines = string.Join("\n", tasks.Select((task, index) => $"{index}. {task.Title} | criteria: {string.Join("; ", task.SuccessCriteria)}"));
-            var evidenceLines = string.Join("\n", results.Select(result => $"task {result.TaskNodeId}: [{result.Status}] {result.Summary}"));
+            var taskLines = string.Join("\n", tasks.Select((task, index) =>
+                $"{index}. key={task.TaskKey ?? index.ToString(System.Globalization.CultureInfo.InvariantCulture)} | title={task.Title} | criteria: {string.Join("; ", task.SuccessCriteria)}"));
+            var evidenceLines = string.Join("\n", results.Select(result =>
+                $"task {result.TaskNodeId}: [{result.Status}] {result.Summary}\n"
+                + string.Join("\n", result.Evidence
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Take(8)
+                    .Select(item => $"  evidence: {item}"))));
             var prompt = $"用户目标:\n{userGoal}\n\n任务列表:\n{taskLines}\n\n执行证据 (第 {revisionRound} 轮修正后):\n{evidenceLines}";
             using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
                 chatClient,
@@ -118,36 +124,39 @@ public sealed class SupervisionAgent
 
     private static SupervisionVerdict? TryParseVerdict(string? text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
-        try
+        // Reasoning models may surround the verdict object with thinking prose or
+        // markdown fences. Try each balanced object candidate until one carries a
+        // decision, rather than spanning the first '{' to the last '}'.
+        foreach (var candidate in ModelOutputText.ExtractJsonCandidates(text, array: false))
         {
-            var parsed = JsonSerializer.Deserialize<VerdictBody>(text.Substring(start, end - start + 1), ParseOptions);
-            if (parsed is null || string.IsNullOrWhiteSpace(parsed.Decision)) return null;
-            var decision = parsed.Decision.Trim().ToLowerInvariant() switch
+            try
             {
-                "pass" => SupervisionDecision.Pass,
-                "revise" => SupervisionDecision.Revise,
-                "escalate" => SupervisionDecision.Escalate,
-                _ => SupervisionDecision.Escalate
-            };
-            var indexes = (parsed.ReviseTaskIndexes ?? [])
-                .Where(index => index >= 0 && index < 100)
-                .Distinct()
-                .ToArray();
-            var criterionVerdicts = (parsed.CriterionVerdicts ?? [])
-                .Where(item => !string.IsNullOrWhiteSpace(item.TaskKey) && !string.IsNullOrWhiteSpace(item.Criterion))
-                .Select(item => new LaneCriterionVerdict(item.TaskKey!.Trim(), item.Criterion!.Trim(), item.Satisfied, item.Evidence))
-                .ToList();
-            return new SupervisionVerdict(decision, parsed.Reasons ?? [], decision == SupervisionDecision.Revise ? indexes : [],
-                criterionVerdicts.Count > 0 ? criterionVerdicts : null);
+                var parsed = JsonSerializer.Deserialize<VerdictBody>(candidate, ParseOptions);
+                if (parsed is null || string.IsNullOrWhiteSpace(parsed.Decision)) continue;
+                var decision = parsed.Decision.Trim().ToLowerInvariant() switch
+                {
+                    "pass" => SupervisionDecision.Pass,
+                    "revise" => SupervisionDecision.Revise,
+                    "escalate" => SupervisionDecision.Escalate,
+                    _ => SupervisionDecision.Escalate
+                };
+                var indexes = (parsed.ReviseTaskIndexes ?? [])
+                    .Where(index => index >= 0 && index < 100)
+                    .Distinct()
+                    .ToArray();
+                var criterionVerdicts = (parsed.CriterionVerdicts ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item.TaskKey) && !string.IsNullOrWhiteSpace(item.Criterion))
+                    .Select(item => new LaneCriterionVerdict(item.TaskKey!.Trim(), item.Criterion!.Trim(), item.Satisfied, item.Evidence))
+                    .ToList();
+                return new SupervisionVerdict(decision, parsed.Reasons ?? [], decision == SupervisionDecision.Revise ? indexes : [],
+                    criterionVerdicts.Count > 0 ? criterionVerdicts : null);
+            }
+            catch (JsonException)
+            {
+                // Not the verdict object; try the next balanced candidate.
+            }
         }
-        catch (JsonException)
-        {
-            return null;
-        }
+        return null;
     }
 
     private sealed class VerdictBody

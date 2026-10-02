@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
 
@@ -31,6 +32,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
     private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _defaultTimeout;
     private readonly string? _defaultWorkspaceRoot;
+    private readonly string? _additionalReadRoots;
 
     private readonly object _stateLock = new();
     private readonly Dictionary<string, ManagedProcess> _processes = new(StringComparer.OrdinalIgnoreCase);
@@ -51,6 +53,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
         _startupTimeout = TimeSpan.FromSeconds(Double(configuration, "TinadecTools:StartupTimeoutSeconds", 30));
         _defaultTimeout = TimeSpan.FromSeconds(Double(configuration, "TinadecTools:DefaultTimeoutSeconds", 120));
         _defaultWorkspaceRoot = configuration["TinadecTools:DefaultWorkspaceRoot"];
+        _additionalReadRoots = configuration[ToolHostEnvironment.AdditionalReadRootsConfigurationKey];
     }
 
     /// <summary>
@@ -255,6 +258,14 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
             CreateNoWindow = true
         };
 
+        // The child is scoped to its working directory as the single writable root;
+        // extra readable roots travel as an environment variable the tool-side
+        // resolver reads at startup.
+        if (!string.IsNullOrWhiteSpace(_additionalReadRoots))
+        {
+            startInfo.Environment[ToolHostEnvironment.AdditionalReadRootsVariable] = _additionalReadRoots;
+        }
+
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start the TinadecTools process.");
         var managed = new ManagedProcess(process, root, _logger, RaiseBroadcast);
 
@@ -309,7 +320,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
 
     private void RemoveFailedProcess(ManagedProcess process, Exception exception)
     {
-        _logger.LogWarning(exception, "TinadecTools manifest handshake failed for workspace root {Root}", process.Root);
+        _logger.TryLogWarning(exception, "TinadecTools manifest handshake failed for workspace root {Root}", process.Root);
         lock (_stateLock)
         {
             if (_processes.TryGetValue(process.Root, out var current) && ReferenceEquals(current, process))

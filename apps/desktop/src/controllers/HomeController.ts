@@ -3,6 +3,8 @@ import {
   api,
   createUserToolActionForPath,
   type ApprovalDto,
+  type ApprovalRuleDto,
+  type CreateApprovalRuleInput,
   type DoctorReportDto,
   type EventEnvelope,
   type MessageDto,
@@ -12,17 +14,22 @@ import {
   type RuntimeReadinessReceiptDto,
   type SessionDto,
   type ToolExecutionTimelineItemDto,
+  type ToolDescriptorDto,
 } from '@/api'
 import { basenameFromPath } from '@/format'
 import { getDispatchPref } from '@/lib/dispatchPref'
+import { attachmentsForSend, readyAttachmentCount, settleSentAttachments } from '@/lib/pendingAttachments'
+import { followSession, subscribeToSessionEvents } from '@/lib/sessionEventBus'
 import { useAgentActivity } from '@/composables/useAgentActivity'
+import { projectRunReply } from '@/lib/runReply'
 import { useNotifications } from '@/composables/useNotifications'
-import type { AgentMode, PermissionLevel } from '@/types/mode'
+import type { PermissionLevel } from '@/types/mode'
 // generated client is canonical; api.ts stays as compat alias (see bottom of api.ts)
 import type { DispatchMode, MeetingModelOverrideDto } from '@/api'
 import { userToolActionIdempotencyKey, userToolActionToApproval } from '@/userToolAction'
-import { createRunStream, type RunStreamHandle } from '@/composables/useRunStream'
+import { createRunStream, type RunStreamHandle } from '@/lib/runStream'
 import { generatedApi } from '@/generated/client'
+import { useRunStore } from '@/stores/run'
 
 // ---------------------------------------------------------------------------
 // HomeController — the single domain controller for the Home page.
@@ -36,6 +43,7 @@ const projects = ref<ProjectDto[]>([])
 const sessions = ref<SessionDto[]>([])
 const messages = ref<MessageDto[]>([])
 const approvals = ref<ApprovalDto[]>([])
+const approvalRules = ref<ApprovalRuleDto[]>([])
 const events = ref<EventEnvelope[]>([])
 const doctor = ref<DoctorReportDto | null>(null)
 const readiness = ref<RuntimeReadinessReceiptDto | null>(null)
@@ -48,36 +56,39 @@ const selectedSessionId = ref<string | null>(null)
 const pendingSessionId = ref<string | null>(null)
 const draft = ref('')
 const modelBaseUrl = ref('https://api.openai.com/v1')
-const modelName = ref('gpt-5.4-mini')
+// 空串 = 未解析。硬编码兜底值会在 readiness 回执缺 model_route 时冒充真实模型名，
+// 让「没配好模型」看起来像「配好了」。UI 在空值时显示「未配置」。
+const modelName = ref('')
 const modelApiKey = ref('')
 const shellCommand = ref('npm test')
 const busy = ref(false)
-const eventSource = ref<EventSource | null>(null)
-const rightRailCollapsed = ref(false)
-const rightRailWidth = ref(420)
-const AGENT_MODE_KEY = 'tinadec.agent_mode'
-const AGENT_MODES: AgentMode[] = ['plan', 'spec', 'ask', 'vibe', 'auto', 'agent']
-function readStoredMode(): AgentMode {
-  if (typeof localStorage === 'undefined') return 'auto'
-  try {
-    const value = localStorage.getItem(AGENT_MODE_KEY)
-    return value && (AGENT_MODES as string[]).includes(value) ? (value as AgentMode) : 'auto'
-  } catch {
-    return 'auto'
-  }
-}
-const currentMode = ref<AgentMode>(readStoredMode())
-watch(currentMode, (mode) => {
-  try { localStorage.setItem(AGENT_MODE_KEY, mode) } catch { /* storage unavailable */ }
-})
+// 模式身份只剩「已发布的 ModeVersion」：六值 agent_mode 词表已从契约删除，
+// 因此不再有本地存储的"当前模式"——选择跟着会话走（session.mode_version_id）。
 const currentPermission = ref<PermissionLevel>('default')
 const runs = ref<Array<{ id: string; status: string }>>([])
-const queuedMessages = ref<Array<{ id: string; content: string }>>([])
+/**
+ * Messages waiting in the session's queue. `interactionId` is set when Core holds the message
+ * (queued delivery never runs beside an unfinished run); the card then leaves when Core admits,
+ * rejects or dequeues it, and acting on it takes it out of Core's queue first.
+ */
+const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string }>>([])
 const runStreams = new Map<string, RunStreamHandle>()
 const runText = new Map<string, string>()
+const provisionalReplies = new Set<string>()
+// 运行指示（问题 3 修复）：是否有活跃的 run 流。runStreams 是非响应式 Map，computed
+// 无法追踪，故用显式 ref 并在每次 set/delete/clear 后 syncWorking()。用流数量而非
+// activeRuns.length：activeRuns 含 lane_waiting/gate_review 等长驻态，会让指示永久
+// 亮起；流随 done/error 的 disconnect+delete 天然归零。
+const working = ref(false)
+// 最近一次 run stream 活动时间（ack/delta/heartbeat 等任意 chunk）：供 UI 区分
+// 「链路活着但暂无输出」与「链路已断」。
+const lastStreamActivityAt = ref<number | null>(null)
+function syncWorking() { working.value = runStreams.size > 0 }
 
 const currentProject = computed(() => projects.value.find((p) => p.id === selectedProjectId.value) ?? null)
-const activeRuns = computed(() => runs.value.filter((r) => ['running', 'ready', 'pending', 'queued'].includes(r.status)))
+// 活动运行 = 非终态且不驻留人工决策（对齐 Core CountActiveRunsAsync 的口径，
+// 词表以共享 12 态为准，不再使用自造的 running/ready/pending/queued）。
+const activeRuns = computed(() => runs.value.filter((r) => !['completed', 'failed', 'cancelled', 'awaiting_user'].includes(r.status)))
 const currentSession = computed(() => sessions.value.find((s) => s.id === selectedSessionId.value) ?? null)
 const recentEvents = computed(() => events.value.slice(-8).reverse())
 
@@ -86,15 +97,16 @@ const {
   activity: agentActivity,
   toolCalls: agentToolCalls,
   thinkingSteps: agentThinkingSteps,
+  turnActivities: agentTurnActivities,
   agentStates: agentStatesMap,
   progressEvents: agentProgressEvents,
 } = useAgentActivity(sessionIdRef, orchestration)
 
 const { notify, banner, dismissByKey } = useNotifications()
 
-function generateTitle(content: string): string {
+function generateTitle(content: string, attachmentNames: readonly string[] = []): string {
   const trimmed = content.trim()
-  if (!trimmed) return 'New chat'
+  if (!trimmed) return attachmentNames[0] ?? 'New chat'
   const firstLine = trimmed.split('\n')[0]
   if (firstLine.length <= 50) return firstLine
   return firstLine.substring(0, 47) + '...'
@@ -118,18 +130,21 @@ async function run(label: string, action: () => Promise<void>) {
 async function loadInitial() {
   busy.value = true
   try {
-    const [projectList, settings, report, readinessReceipt] = await Promise.all([
+    // GET /model-settings 是恒空的旧 stub（ControlPlaneEndpoints 501 家族），
+    // 模型事实一律来自 readiness/model-readiness/model-providers。
+    const [projectList, report, readinessReceipt] = await Promise.all([
       api.listProjects(),
-      api.getModelSettings(),
       api.doctor(),
       api.readiness(),
     ])
     projects.value = projectList
-    modelSettings.value = settings
     doctor.value = report
     readiness.value = readinessReceipt
-    modelBaseUrl.value = settings.base_url
-    modelName.value = settings.model
+    // 头部的模型名/地址改由统一 readiness receipt 供给（model_route/model_provider 项）。
+    const items = (readinessReceipt as { items?: Array<{ id: string; data?: { model?: string; base_url?: string } }> }).items ?? []
+    const routeData = items.find((item) => item.id === 'model_route')?.data
+    if (routeData?.model) modelName.value = routeData.model
+    if (routeData?.base_url) modelBaseUrl.value = routeData.base_url
     selectedProjectId.value = projectList[0]?.id ?? null
     await loadSessions()
     dismissByKey('home-load')
@@ -147,41 +162,43 @@ async function loadInitial() {
 }
 
 async function loadSessions() {
-  if (projects.value.length === 0) {
-    sessions.value = []
-    selectedSessionId.value = null
-    return
-  }
-  const allSessions = await Promise.all(
-    projects.value.map((p) => api.listSessions(p.id)),
-  )
-  sessions.value = allSessions.flat()
+  // Unfiltered listing covers both project-bound sessions and free conversations
+  // (sessions without a project), so the sidebar stays correct with zero projects.
+  sessions.value = await api.listSessions()
   if (!selectedProjectId.value) {
-    selectedSessionId.value = null
+    if (selectedSessionId.value && !sessions.value.find((s) => s.id === selectedSessionId.value)) {
+      selectedSessionId.value = null
+    }
     return
   }
-  const projectSessions = sessions.value.filter((s) => s.project_id === selectedProjectId.value)
+  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
 }
 
+let sessionRead = 0
 async function loadMessagesAndApprovals() {
+  const read = ++sessionRead
+  const session = selectedSessionId.value
   if (!selectedSessionId.value) {
     messages.value = []
     approvals.value = []
+    approvalRules.value = []
     orchestration.value = null
     toolExecutions.value = []
     runs.value = []
     return
   }
-  const [messageList, approvalList, orchestrationSnapshot, toolTimeline, runList] = await Promise.all([
-    api.listMessages(selectedSessionId.value),
-    api.listApprovals(selectedSessionId.value),
-    api.getOrchestrationSnapshot(selectedSessionId.value),
-    api.listToolExecutions(selectedSessionId.value, { limit: 12 }),
-    api.listRuns(selectedSessionId.value).catch(() => [] as unknown[]),
+  const [messageList, approvalList, ruleList, orchestrationSnapshot, toolTimeline, runList] = await Promise.all([
+    api.listMessages(session!),
+    api.listApprovals(session!),
+    api.listApprovalRules(session!).catch(() => [] as ApprovalRuleDto[]),
+    api.getOrchestrationSnapshot(session!),
+    api.listToolExecutions(session!, { limit: 12 }),
+    api.listRuns(session!).catch(() => [] as unknown[]),
   ])
+  if (session !== selectedSessionId.value || read !== sessionRead) return
   // Keep optimistic pending sends until the backend echoes them: the
   // session-select reload races the first POST (new session has no messages
   // yet), and wiping the optimistic append bounces the composer back to the
@@ -191,32 +208,52 @@ async function loadMessagesAndApprovals() {
   )
   messages.value = pendingEcho.length ? [...messageList, ...pendingEcho] : messageList
   approvals.value = approvalList
+  approvalRules.value = ruleList
   orchestration.value = orchestrationSnapshot
   toolExecutions.value = toolTimeline
   runs.value = (Array.isArray(runList) ? runList : []).map((r) => ({ id: String((r as Record<string, unknown>).id), status: String((r as Record<string, unknown>).status ?? '') }))
+  // 状态源统一（问题 3 修复）：ChatHeader 的 run-pills 读 Pinia runStore.runs，而
+  // runStore.fetchRuns 此前只在无入口的 WorkbenchPage 调用 → Home 页 pills 恒空。
+  // 把 Home 已拉取的 run 列表（含 session_id，WorkbenchPage.control 依赖）同步进 store。
+  // HomeController 是模块级单例，可能早于 Pinia 安装被求值，故惰性获取 + 兜底。
+  try {
+    useRunStore().runs = (Array.isArray(runList) ? runList : []) as never
+  } catch { /* Pinia 尚未安装：pills 退回空态，不阻断聊天 */ }
   attachActiveRuns()
 }
 
-function streamDelta(chunk: import('@/generated/client').SseChunk): string {
-  const payload = chunk.payload as Record<string, unknown>
-  return typeof payload.delta === 'string' ? payload.delta : ''
-}
 
 function attachRun(runId: string) {
   if (runStreams.has(runId)) return
+  const session = selectedSessionId.value
   const handle = createRunStream({
     runId,
+    onActivity: (chunk) => {
+      if (session !== selectedSessionId.value) return
+      // 活性信号：任意去重后的 chunk（含 ack/heartbeat）都刷新活动时间，供 UI 区分
+      // 「链路活着但暂无输出」与「链路已断」。
+      lastStreamActivityAt.value = Date.now()
+      // ack 是「智能体已接收」的最早信号：乐观把该 run 置为 planning 并同步进 store，
+      // 让 ChatHeader 的 pill 立即出现，而不必等首个 delta 或 done。
+      if (chunk.kind === 'ack') {
+        runs.value = runs.value.some((r) => r.id === runId)
+          ? runs.value.map((r) => (r.id === runId ? { ...r, status: 'planning' } : r))
+          : [...runs.value, { id: runId, status: 'planning' }]
+        try { useRunStore().runs = runs.value as never } catch { /* Pinia 未就绪 */ }
+      }
+    },
     onChunk: (chunk) => {
-      if (chunk.kind === 'delta') {
-        const delta = streamDelta(chunk)
-        if (delta) {
-          const next = `${runText.get(runId) ?? ''}${delta}`
-          runText.set(runId, next)
-          streamingText.value = new Map(streamingText.value).set(runId, next)
-        }
+      if (session !== selectedSessionId.value) return
+      const reply = projectRunReply({ text: runText.get(runId) ?? '', provisional: provisionalReplies.has(runId) }, chunk)
+      if (reply) {
+        if (reply.provisional) provisionalReplies.add(runId)
+        else provisionalReplies.delete(runId)
+        runText.set(runId, reply.text)
+        streamingText.value = new Map(streamingText.value).set(runId, reply.text)
         return
       }
       if (chunk.kind === 'done' || chunk.kind === 'error') {
+        provisionalReplies.delete(runId)
         if (chunk.kind === 'error') {
           const payload = chunk.payload as Record<string, unknown>
           const message = payload.safe_error_message ?? payload.message ?? payload.error_category
@@ -225,6 +262,7 @@ function attachRun(runId: string) {
         void loadMessagesAndApprovals()
         runStreams.get(runId)?.disconnect()
         runStreams.delete(runId)
+        syncWorking()
       }
     },
     onError: (error) => {
@@ -233,6 +271,7 @@ function attachRun(runId: string) {
     },
   })
   runStreams.set(runId, handle)
+  syncWorking()
   handle.connect()
 }
 
@@ -251,12 +290,16 @@ async function openProject() {
   })
 }
 
-async function createSession(projectId: string) {
+async function createSession(projectId: string | null) {
+  const targetProjectId = projectId ?? null
   if (pendingSessionId.value) {
     const existing = sessions.value.find((s) => s.id === pendingSessionId.value)
-    if (existing && existing.project_id === projectId) {
+    // Compare normalized project identity: Core omits project_id for a free
+    // conversation, so the value can arrive as null or undefined while the
+    // argument is null — a raw === check would miss and create a duplicate.
+    if (existing && (existing.project_id ?? null) === targetProjectId) {
       selectedSessionId.value = pendingSessionId.value
-      selectedProjectId.value = projectId
+      selectedProjectId.value = targetProjectId
       return
     }
   }
@@ -264,7 +307,7 @@ async function createSession(projectId: string) {
     const session = await api.createSession(projectId, 'Tinadec session')
     sessions.value = [session, ...sessions.value]
     selectedSessionId.value = session.id
-    selectedProjectId.value = projectId
+    selectedProjectId.value = projectId ?? null
     pendingSessionId.value = session.id
   })
 }
@@ -276,12 +319,14 @@ async function createSession(projectId: string) {
 async function refreshProjectsAndSessions() {
   const projectList = await api.listProjects()
   projects.value = projectList
-  const allSessions = await Promise.all(projectList.map((p) => api.listSessions(p.id)))
-  sessions.value = allSessions.flat()
+  // Unfiltered listing, same as loadSessions: per-project queries never return
+  // free conversations, so archiving/trashing anything would drop them from the
+  // sidebar until a full reload.
+  sessions.value = await api.listSessions()
   if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value)) {
     selectedProjectId.value = projectList[0]?.id ?? null
   }
-  const projectSessions = sessions.value.filter((s) => s.project_id === selectedProjectId.value)
+  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
@@ -339,19 +384,38 @@ const streamingText = ref<Map<string, string>>(new Map())
 const invokeError = ref<string | null>(null)
 const lastCursor = ref<number | null>(null)
 
+/**
+ * The run a "stop" would cancel: the newest run that has not reached a terminal
+ * state. Parked runs (awaiting_user) are included on purpose — a run waiting on an
+ * approval the user no longer wants is exactly the one they most need to stop, and
+ * the composer offered no way to do it.
+ */
+const stoppableRunId = computed(
+  () => runs.value.find((r) => !['completed', 'failed', 'cancelled'].includes(r.status))?.id ?? null,
+)
 
-async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; agent_mode?: AgentMode; permission_mode?: PermissionLevel }) {
+/**
+ * The live text of that run. The controller has accumulated this per delta all along
+ * but nothing ever rendered it, so a user saw nothing at all until the entire reply
+ * was persisted — which reads as a hung agent.
+ */
+const streamingReply = computed(() =>
+  stoppableRunId.value && !messages.value.some((message) => message.role === 'assistant' && message.run_id === stoppableRunId.value)
+    ? streamingText.value.get(stoppableRunId.value) ?? '' : '',
+)
+
+
+async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; permission_mode?: PermissionLevel }) {
   await run('send message', async () => {
     let sessionId = selectedSessionId.value
-    if (!sessionId && selectedProjectId.value) {
-      const session = await api.createSession(selectedProjectId.value, 'Tinadec session')
+    if (!sessionId) {
+      // Created in the mode being sent: ChatPanel resets the picker to the new session's own
+      // mode, so a session created on the default would flip the picker back after this send.
+      const session = await api.createSession(selectedProjectId.value ?? null, 'Tinadec session', opts?.mode_version_id ?? null)
       sessions.value = [session, ...sessions.value]
       selectedSessionId.value = session.id
       sessionId = session.id
       pendingSessionId.value = session.id
-    }
-    if (!sessionId) {
-      throw new Error('Open a project before sending a message.')
     }
     const snapshotContent = content
     draft.value = ''
@@ -361,27 +425,39 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     const modeVersionId = opts?.mode_version_id ?? null
     const targetRunId = opts?.target_run_id ?? null
     const meetingModelOverride = opts?.meeting_model_override ?? null
-    const requestedMode = opts?.agent_mode ?? currentMode.value
     const requestedPermission = opts?.permission_mode ?? currentPermission.value
     if (dispatchMode === 'insert' && !targetRunId) throw new Error('插入模式需选择目标 run')
+    // Taken before the request, not after it: a send that fails must leave the chips
+    // alone so the same selection can be retried. Core binds these rows to the message
+    // it appends, so the optimistic bubble carries the same projection a reload shows.
+    const outgoing = attachmentsForSend()
+    if (dispatchMode === 'insert' && outgoing.attachmentIds.length > 0) {
+      throw new Error('转向消息不追加新消息，因此不能携带附件；请把文件作为单独一条消息发送')
+    }
     try {
-      messages.value = [...messages.value, { id: `pending-${clientMessageId}`, session_id: sessionId, role: 'user', content: snapshotContent, created_at: new Date().toISOString() } as MessageDto]
+      messages.value = [...messages.value, { id: `pending-${clientMessageId}`, session_id: sessionId, role: 'user', content: snapshotContent, created_at: new Date().toISOString(), attachments: outgoing.summaries } as MessageDto]
       // new interaction path (snake_case)
       const resp = await api.createInteraction(sessionId, {
         content: snapshotContent,
         client_message_id: clientMessageId,
         mode_version_id: modeVersionId,
-        agent_mode: modeVersionId ? null : requestedMode,
         permission_mode: requestedPermission,
         dispatch_mode: dispatchMode,
         target_run_id: targetRunId,
         meeting_model_override: meetingModelOverride,
+        ...(outgoing.attachmentIds.length > 0 ? { attachment_ids: outgoing.attachmentIds } : {}),
       })
-      if (resp.run_id) {
+      settleSentAttachments(outgoing)
+      // An admitted interaction names its own turn; a queued one names the run it waits behind
+      // and no turn — that run's status is not "queued", so it is left alone.
+      const waitingBehind = resp.status === 'queued' && !resp.turn_id && Boolean(resp.interaction_id)
+      if (resp.run_id && !waitingBehind) {
         attachRun(resp.run_id)
         runs.value = [{ id: resp.run_id, status: resp.status || 'planning' }, ...runs.value.filter((run) => run.id !== resp.run_id)]
       }
-      if (!resp.run_id && resp.status === 'queued') queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent }]
+      if (waitingBehind || (!resp.run_id && resp.status === 'queued')) {
+        queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent, interactionId: waitingBehind ? resp.interaction_id : undefined }]
+      }
       // optionally still stream via invoke for backwards compat if needed; interaction SSE will arrive via events
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -390,7 +466,8 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
       // (docs/app-core-ui.md §4.1). The legacy invoke-stream / POST messages
       // fallbacks were removed so failures surface visibly instead of
       // silently degrading to a non-durable path.
-      if (code === 'context_conflict') {
+      if (msg.includes('mode_unavailable') || msg.includes('模式不可用')) invokeError.value = '当前对话模式不可用，请在输入框左下角重新选择模式'
+      else if (code === 'context_conflict') {
         // §4.1-4: show revision conflict guidance; user must re-read before resending.
         invokeError.value = '上下文已更新（检测到新的目标修订）。请重新读取当前状态后再发送。'
       } else if (msg.includes('model_not_configured') || msg.includes('No model')) invokeError.value = '模型未配置，请在设置中选择模型后重试'
@@ -401,7 +478,7 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
       throw err
     }
     if (pendingSessionId.value === sessionId) {
-      const title = generateTitle(snapshotContent)
+      const title = generateTitle(snapshotContent, outgoing.summaries.map((row) => row.file_name))
       try {
         await api.updateSessionTitle(sessionId, title)
         const idx = sessions.value.findIndex((s) => s.id === sessionId)
@@ -416,21 +493,81 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
   })
 }
 
-function dismissQueued(id: string) {
+/**
+ * Edit-and-resend. The cut is the irreversible half, so it happens first and alone:
+ * if Core refuses it (an active run is still reading that history) nothing is lost.
+ * Both exits hand the corrected text to the composer instead of sending it blind —
+ * `handleSend` reports failures through `run()` rather than throwing, so an auto-send
+ * could drop the user's words into a history that no longer has the original. A
+ * non-empty composer aborts the whole operation: two unsent texts must never collide.
+ */
+async function editAndResend(payload: { id: string; content: string }) {
+  const sessionId = selectedSessionId.value
+  if (!sessionId) return
+  if (draft.value.trim()) {
+    invokeError.value = '输入框里还有未发送的内容，先发送或清空它，再编辑历史消息。'
+    return
+  }
+  invokeError.value = null
+  try {
+    await api.revertSessionMessage(sessionId, payload.id)
+  } catch (err) {
+    const code = (err as { code?: unknown }).code
+    const msg = err instanceof Error ? err.message : String(err)
+    invokeError.value = code === 'active_run_conflict' || msg.includes('active_run_conflict')
+      ? '这条消息正被一个 run 使用，先停止它才能改写它的历史。'
+      : msg
+    draft.value = payload.content
+    return
+  }
+  draft.value = payload.content
+  await loadMessagesAndApprovals()
+}
+
+function forgetQueued(id: string) {
   queuedMessages.value = queuedMessages.value.filter((item) => item.id !== id)
 }
 
-function editQueued(id: string) {
-  const item = queuedMessages.value.find((q) => q.id === id)
-  if (!item) return
-  draft.value = item.content
-  dismissQueued(id)
+/**
+ * Takes a message Core holds out of its queue. False when it already left (admitted or decided):
+ * then acting on it again would send the same words twice.
+ */
+async function dequeue(item: { interactionId?: string }): Promise<boolean> {
+  if (!item.interactionId || !selectedSessionId.value) return true
+  try {
+    await api.cancelInteraction(selectedSessionId.value, item.interactionId)
+    return true
+  } catch (err) {
+    const status = (err as { status?: number }).status
+    // 404: Core no longer knows it as queued; nothing is waiting to be taken out.
+    return status === 404
+  }
 }
 
-async function steerQueued(id: string, targetRunId: string) {
+async function dismissQueued(id: string) {
+  const item = queuedMessages.value.find((q) => q.id === id)
+  if (!item) return
+  if (await dequeue(item)) forgetQueued(id)
+}
+
+async function editQueued(id: string) {
+  const item = queuedMessages.value.find((q) => q.id === id)
+  if (!item) return
+  if (!(await dequeue(item))) return
+  draft.value = item.content
+  forgetQueued(id)
+}
+
+/**
+ * Steers a run with a waiting message. `interrupt` is the hard insert: Core cuts off what the run is
+ * doing (a model call is redone, tool calls not yet started are skipped) instead of letting the
+ * steering apply at its next step.
+ */
+async function steerQueued(id: string, targetRunId: string, interrupt = false) {
   if (!selectedSessionId.value) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
+  if (!(await dequeue(item))) return
   let sent = false
   await run('steer message', async () => {
     await api.createInteraction(selectedSessionId.value!, {
@@ -439,29 +576,32 @@ async function steerQueued(id: string, targetRunId: string) {
       mode_version_id: null,
       dispatch_mode: 'insert',
       target_run_id: targetRunId,
+      ...(interrupt ? { interrupt: true } : {}),
     })
     sent = true
   })
-  if (sent) dismissQueued(id)
+  if (sent) forgetQueued(id)
 }
 
 async function promoteQueued(id: string) {
   if (!selectedSessionId.value) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
+  if (!(await dequeue(item))) return
   let sent = false
   await run('promote message', async () => {
     await api.createInteraction(selectedSessionId.value!, {
       content: item.content,
-      client_message_id: newId(),
+      // A message Core already holds keeps its id, so running it now reuses the words the user
+      // already sent instead of posting them a second time.
+      client_message_id: item.interactionId ? item.id : newId(),
       mode_version_id: null,
-      agent_mode: currentMode.value,
       dispatch_mode: 'parallel',
       target_run_id: null,
     })
     sent = true
   })
-  if (sent) dismissQueued(id)
+  if (sent) forgetQueued(id)
 }
 
 async function requestShellApproval() {
@@ -470,17 +610,18 @@ async function requestShellApproval() {
     if (!projectPath) throw new Error('Select a registered project before requesting a shell action.')
     const command = shellCommand.value.trim()
     if (!command) throw new Error('Enter a command before requesting a shell action.')
-    const windows = typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)
+    // 'shell' is the governed command tool id (same one agent workers use);
+    // Core resolves it from the live provider manifest and its frozen schema
+    // takes { command, cwd }, not the legacy command_run executable shape.
     const params = {
-      executable: windows ? 'cmd.exe' : '/bin/sh',
-      arguments: windows ? ['/d', '/c', command] : ['-lc', command],
-      working_directory: projectPath,
+      command,
+      cwd: projectPath,
     }
     const idempotencyKey = await userToolActionIdempotencyKey('desktop:home:shell', {
       project_path: projectPath,
       command,
     })
-    const action = await createUserToolActionForPath(projectPath, 'command_run', params, idempotencyKey)
+    const action = await createUserToolActionForPath(projectPath, 'shell', params, idempotencyKey)
     const approval = userToolActionToApproval(action, `Run command: ${command}`, {
       sessionId: selectedSessionId.value,
       cwd: projectPath,
@@ -489,9 +630,76 @@ async function requestShellApproval() {
   })
 }
 
-async function decideApproval(approval: ApprovalDto, decision: 'approved' | 'rejected') {
+async function decideApproval(
+  approval: ApprovalDto,
+  decision: 'approved' | 'rejected',
+  scope?: 'once' | 'run',
+) {
   await run('decide approval', async () => {
-    await api.decideApproval(approval.id, decision)
+    await api.decideApproval(approval.id, decision, null, scope)
+    await loadMessagesAndApprovals()
+  })
+}
+
+/**
+ * Decide by id, for the chat's inline approve/reject buttons. Those buttons sit on a
+ * tool card, which knows the approval id but not the whole approval record, and the
+ * chat had no handler at all before — the button existed and clicked into nothing.
+ */
+async function decideApprovalById(approvalId: string, decision: 'approved' | 'rejected', scope?: 'once' | 'run') {
+  await run('decide approval', async () => {
+    await api.decideApproval(approvalId, decision, null, scope)
+    await loadMessagesAndApprovals()
+  })
+}
+
+async function revokeApprovalRule(rule: ApprovalRuleDto) {
+  await run('revoke approval rule', async () => {
+    await api.revokeApprovalRule(rule.id)
+    approvalRules.value = approvalRules.value.filter((item) => item.id !== rule.id)
+  })
+}
+
+async function createApprovalRule(input: CreateApprovalRuleInput) {
+  await run('create approval rule', async () => {
+    const created = await api.createApprovalRule(input)
+    approvalRules.value = [created, ...approvalRules.value.filter((item) => item.id !== created.id)]
+  })
+}
+
+/** Cancel the run the composer is currently bound to. */
+async function stopRun() {
+  const runId = stoppableRunId.value
+  if (!runId) return
+  await run('stop run', async () => {
+    await api.controlRun(runId, 'cancel')
+    await loadMessagesAndApprovals()
+  })
+}
+
+/** Run a catalogued tool with the active workspace/session context. The
+ * provider remains the authority for approval and execution policy. */
+async function executeCatalogTool(tool: ToolDescriptorDto) {
+  const sessionId = selectedSessionId.value
+  const cwd = currentProject.value?.path
+  if (!sessionId || !cwd) {
+    notify.warning({
+      key: 'tool-catalog-context',
+      title: '需要工作区',
+      message: '请选择一个项目和会话后再运行工具。',
+      source: 'tools',
+    })
+    return
+  }
+  await run(`run ${tool.display_name}`, async () => {
+    const response = tool.execute_endpoint.includes('/tool-runtime/')
+      ? await api.executeToolRuntime(tool.id, { session_id: sessionId, cwd, arguments: {} })
+      : await api.executeCodeTool(tool.id, { session_id: sessionId, cwd, arguments: {} })
+    if (response.approval_summary) {
+      notify.info({ key: `tool-approval-${tool.id}`, title: '工具需要审批', message: response.approval_summary, source: 'tools' })
+    } else {
+      notify.success({ key: `tool-complete-${tool.id}`, title: '工具已完成', message: response.summary, source: 'tools' })
+    }
     await loadMessagesAndApprovals()
   })
 }
@@ -501,43 +709,38 @@ function recordApproval(approval: ApprovalDto) {
 }
 
 /**
- * Fan-out for terminal widgets. The controller owns the single SSE connection, so
- * agent terminal panels subscribe here instead of opening their own EventSource.
+ * Fan-out seam for terminal widgets. It stays on the controller because that is where
+ * widgets already reach, but the connection itself is no longer the controller's to
+ * own: one session stream per window lives in `sessionEventBus`, which
+ * `useAgentActivity` also subscribes to instead of opening a second EventSource.
  */
-const eventListeners = new Set<(event: EventEnvelope) => void>()
 function onEvent(handler: (event: EventEnvelope) => void): () => void {
-  eventListeners.add(handler)
-  return () => {
-    eventListeners.delete(handler)
-  }
+  return subscribeToSessionEvents(handler)
 }
 
-function reconnectEvents() {
-  eventSource.value?.close()
-  eventSource.value = api.connectEvents(selectedSessionId.value, async (event) => {
-    for (const listener of [...eventListeners]) {
-      try {
-        listener(event)
-      } catch {
-        // A failing terminal widget must not break the session event pipeline.
-      }
-    }
-    const bySeq = new Map(events.value.map((item) => [item.seq, item]))
-    bySeq.set(event.seq, event)
-    events.value = [...bySeq.values()].sort((left, right) => left.seq - right.seq).slice(-80)
-    if (
-      event.type.startsWith('message.') ||
-      event.type.startsWith('approval.') ||
-      event.type.startsWith('tool.') ||
-      event.type.startsWith('run.') ||
-      event.type.startsWith('task') ||
-      event.type.startsWith('supervision.') ||
-      event.type.startsWith('context.') ||
-      event.type.startsWith('step.')
-    ) {
-      await loadMessagesAndApprovals()
-    }
-  })
+async function handleSessionEvent(event: EventEnvelope) {
+  const bySeq = new Map(events.value.map((item) => [item.seq, item]))
+  bySeq.set(event.seq, event)
+  events.value = [...bySeq.values()].sort((left, right) => left.seq - right.seq).slice(-80)
+  // Core took a waiting message out of the queue: it runs now, was rejected, or was dequeued.
+  if (event.type === 'interaction.queued_executed' || event.type === 'interaction.queue_cancelled' || event.type === 'interaction.queued_unreadable') {
+    const directive = event.payload?.['directive_id']
+    if (typeof directive === 'string') queuedMessages.value = queuedMessages.value.filter((item) => item.interactionId !== directive)
+    const released = event.payload?.['released_run_id']
+    if (event.type === 'interaction.queued_executed' && typeof released === 'string') attachRun(released)
+  }
+  if (
+    event.type.startsWith('message.') ||
+    event.type.startsWith('approval.') ||
+    event.type.startsWith('tool.') ||
+    event.type.startsWith('run.') ||
+    event.type.startsWith('task') ||
+    event.type.startsWith('supervision.') ||
+    event.type.startsWith('context.') ||
+    event.type.startsWith('step.')
+  ) {
+    await loadMessagesAndApprovals()
+  }
 }
 
 watch(selectedProjectId, () => {
@@ -545,12 +748,19 @@ watch(selectedProjectId, () => {
 })
 
 watch(selectedSessionId, () => {
+  messages.value = messages.value.filter((message) => message.session_id === selectedSessionId.value)
+  orchestration.value = null
+  approvals.value = []
+  toolExecutions.value = []
+  runs.value = []
   for (const stream of runStreams.values()) stream.disconnect()
   runStreams.clear()
+  syncWorking()
   runText.clear()
+  provisionalReplies.clear()
   streamingText.value = new Map()
   void loadMessagesAndApprovals()
-  reconnectEvents()
+  followSession(selectedSessionId.value)
   queuedMessages.value = []
 })
 
@@ -560,7 +770,8 @@ function start() {
   if (started) return
   started = true
   void loadInitial()
-  reconnectEvents()
+  subscribeToSessionEvents(handleSessionEvent)
+  followSession(selectedSessionId.value)
 }
 
 export const homeController = {
@@ -569,6 +780,7 @@ export const homeController = {
   sessions,
   messages,
   approvals,
+  approvalRules,
   events,
   recentEvents,
   doctor,
@@ -585,10 +797,6 @@ export const homeController = {
   modelApiKey,
   shellCommand,
   busy,
-  eventSource,
-  rightRailCollapsed,
-  rightRailWidth,
-  currentMode,
   currentPermission,
   currentProject,
   currentSession,
@@ -598,6 +806,8 @@ export const homeController = {
   agentStatesMap,
   agentProgressEvents,
   streamingText,
+  working,
+  lastStreamActivityAt,
   invokeError,
   lastCursor,
   // Methods
@@ -619,17 +829,27 @@ export const homeController = {
   promoteQueued,
   sendMessage: async (opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }) => {
     const content = draft.value.trim()
-    if (!content) return
+    // Empty is sendable when a finished upload is there to speak for the turn; Core appends
+    // it as a message and starts no run. Same rule the Send button reads, from the same owner.
+    if (!content && readyAttachmentCount() === 0) return
     await handleSend(content, opts)
   },
-  handleWelcomeSend: (payload: { content: string; agent_mode: AgentMode; permission_mode: PermissionLevel; mode_version_id?: string | null }) => handleSend(payload.content, payload),
+  handleWelcomeSend: (payload: { content: string; permission_mode: PermissionLevel; mode_version_id?: string | null }) => handleSend(payload.content, payload),
+  editAndResend,
   requestShellApproval,
   decideApproval,
+    decideApprovalById,
+    revokeApprovalRule,
+    createApprovalRule,
+  stopRun,
+  executeCatalogTool,
+  stoppableRunId,
+  streamingReply,
+  agentTurnActivities,
   recordApproval,
   loadMessagesAndApprovals,
   updateDraft: (value: string) => { draft.value = value },
-  updateMode: (value: AgentMode) => { currentMode.value = value },
   updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
-  setSelectedProject: (id: string) => { selectedProjectId.value = id },
+  setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
   setSelectedSession: (id: string) => { selectedSessionId.value = id },
 }

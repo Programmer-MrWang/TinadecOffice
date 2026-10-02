@@ -10,7 +10,7 @@ Re-harvest with `/ponytail-debt` after bulk refactors.
 |----------|--------------------|--------------|
 | `TinadecGateway/src/openapi.snapshot.test.ts:8` | CI drift gate is a zero-dep raw file snapshot compare | Fine until snapshots need selective/field-level diffing |
 | `TinadecGateway/src/mappers/agentsMapper.ts:5` | Passthrough mapper, snake_case only | Core validates ownership/lifecycle; add field mapping when external contract diverges from Core DTOs |
-| `TinadecGateway/src/index.ts:120` | Minimal RFC9457 catch-all error handler | Reuse `toProblemDetails`/`CODE_MAP`; keep `X-Request-Id` principal header |
+| `TinadecGateway/src/index.ts:132` | Minimal RFC9457 catch-all error handler | Reuse `toProblemDetails`/`CODE_MAP`; keep `X-Request-Id` principal header |
 
 ## Core (.NET)
 
@@ -19,8 +19,8 @@ Re-harvest with `/ponytail-debt` after bulk refactors.
 | `TinadecCore/Lifecycle/StorageLifecycleService.cs:315` | Admission-grace filter runs in memory because EF Core SQLite cannot translate DateTimeOffset comparisons | Stored unix-ms column keeps the filter in SQL when the runs table grows |
 | `TinadecCore/Lifecycle/StorageLifecycleService.cs:788` | SQLite-only additive column alignment for runtime-owned runs table | Fold into real migrations if PostgreSQL parity is required for these columns |
 | `TinadecCore/Memory/ProjectSessionStore.cs:505` | Dual-provider idempotent column migration: SQLite pragma + PG `ADD COLUMN IF NOT EXISTS` | Replace with generated migrations when the session schema stabilizes |
-| `TinadecCore/Api/Endpoints/InteractionsEndpoints.cs:96` | Interaction with no run yet stays as transient queued interaction, no durable event | Persist a durable queued event when steering needs crash-safe replay |
-| `TinadecCore/Api/Endpoints/AgentConfigurationEndpoints.cs:551` | Strong publish validation requires ≥1 `template` AND ≥1 `assemble`; whitelist + cycle check run separately | Single-pass validator if publish checks multiply |
+| `TinadecCore/AspNetCore/Endpoints/InteractionsEndpoints.cs:187-226` | Queued interactions are now persisted (`RunDirectiveRecord` + `run.queued` event) — this entry is resolved and kept only as history | — |
+| `TinadecCore/AspNetCore/Endpoints/AgentConfigurationEndpoints.cs` | Strong publish validation requires ≥1 `template` AND ≥1 `assemble`; whitelist + cycle check run separately | Single-pass validator if publish checks multiply |
 
 ## TinadecTools
 
@@ -37,11 +37,9 @@ Re-harvest with `/ponytail-debt` after bulk refactors.
 | Location | Shortcut & ceiling | Upgrade path |
 |----------|--------------------|--------------|
 | `apps/desktop/src/main.ts:4` | Tolerate Vue 3.5 (no vaporInteropPlugin) vs 3.6-rc | Remove guard once root vue pins ≥3.6 stable |
-| `apps/desktop/vite.config.ts:21` | Dedupe vue reactivity: nested desktop 3.5.41 vs root 3.6.0-rc.2 caused split-identity bugs | Drop dedupe after nested copies are gone |
+| `apps/desktop/vite.config.ts:21` | Dedupe vue reactivity: nested desktop 3.5.41 vs root 3.6.0-rc.7 caused split-identity bugs | Drop dedupe after nested copies are gone |
 | `apps/desktop/src/generated/client.ts:10` | Hand-written minimal fetch wrapper | Swap to openapi-fetch now that external OpenAPI is live |
-| `apps/desktop/src/composables/useRunStream.ts:8` | fetch+ReadableStream instead of EventSource | Needed to control `Last-Event-ID`/`?cursor=` and `id=seq` dedup; keep until native EventSource covers both |
-| `apps/desktop/src/transport/sseTransport.ts:9` | Transport seam placeholder; real SSE lives in `useRunStream.ts` | Wire WS upgrade through this seam in stage 2 |
-| `apps/desktop/src/stores/workbench.ts:41` | Approval transport via httpTransport | Seam reserved for stage-2 WS upgrade |
+| `apps/desktop/src/lib/runStream.ts` | fetch+ReadableStream instead of EventSource (file moved out of `composables/useRunStream.ts`, which is now deleted) | Needed to control `Last-Event-ID`/`?cursor=` and `id=seq` dedup; keep until native EventSource covers both |
 | `apps/desktop/src/pages/WorkbenchPage.vue:127` | `unknown` cast bridges generated snapshot → legacy panel type | Make panel consume `generated/client.ts` DTOs directly (single canonical type) |
 | `apps/desktop/src/pages/SettingsPage.vue:478` | Agent tool panel reuses `manifestTools` filters, no new deps | Extract component when the panel grows beyond settings page |
 | `apps/web/src/platform/webShim.ts:18` | Terminal intentionally undefined so `isTerminalAvailable()` gates the UI | Defining it turns on every `window.tinadec.terminal.*` call site — only do so with a real web terminal |
