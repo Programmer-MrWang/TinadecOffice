@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   listMessages: vi.fn(async () => []),
   revertSessionMessage: vi.fn(),
   listApprovals: vi.fn(async () => []),
+  listApprovalRules: vi.fn(async () => []),
   getOrchestrationSnapshot: vi.fn(async () => null),
   listToolExecutions: vi.fn(async () => []),
   listRuns: vi.fn(async () => []),
@@ -52,6 +53,7 @@ vi.mock('@/api', () => ({
     listMessages: h.listMessages,
     revertSessionMessage: h.revertSessionMessage,
     listApprovals: h.listApprovals,
+    listApprovalRules: h.listApprovalRules,
     getOrchestrationSnapshot: h.getOrchestrationSnapshot,
     listToolExecutions: h.listToolExecutions,
     listRuns: h.listRuns,
@@ -116,6 +118,36 @@ describe('HomeController session read ownership', () => {
     await flushPromises()
     expect(homeController.messages.value.map((message) => message.id)).toEqual(['new-message'])
     h.listMessages.mockResolvedValue([])
+  })
+
+  it('does not let a late session roster restore the old selection after creating a new session', async () => {
+    let resolveRoster!: (value: never[]) => void
+    let staleSignal!: AbortSignal
+    h.listSessions.mockImplementationOnce((_projectId?: string, signal?: AbortSignal) => {
+      staleSignal = signal!
+      return new Promise<never[]>((resolve) => { resolveRoster = resolve })
+    })
+
+    homeController.setSelectedProject('project-1')
+    await nextTick()
+    h.createSession.mockResolvedValueOnce({
+      id: 'new-session',
+      project_id: null,
+      title: 'Tinadec session',
+      status: 'active',
+      created_at: '2026-10-02T00:00:00Z',
+      updated_at: '2026-10-02T00:00:00Z',
+    })
+
+    await homeController.createSession('project-1')
+    expect(homeController.selectedSessionId.value).toBe('new-session')
+    expect(staleSignal.aborted).toBe(true)
+
+    resolveRoster([{ id: 'old-session', project_id: null, title: '旧会话', status: 'active' }] as never[])
+    await flushPromises()
+
+    expect(homeController.selectedSessionId.value).toBe('new-session')
+    expect(homeController.sessions.value.some((session) => session.id === 'new-session')).toBe(true)
   })
 })
 

@@ -1,8 +1,8 @@
 # GATEWAY KNOWLEDGE
 
 **Last Updated:** 2026-10-02
-**Last Updated By:** 增加 Core-owned approval-rules 只代理路由，并同步 external OpenAPI snapshot。
-**Last Verified Commit:** 3828f84；approval-rules 路由由 Core 负责校验，Gateway runtime proxy 15/15，OpenAPI snapshot 通过。
+**Last Updated By:** Gateway SSE 主动断开修复；run/events 流直接透传 upstream Response，避免 Elysia 对已取消 reader 重复 release。
+**Last Verified Commit:** c064863；runtime proxy/openapi 16/16。
 **Branch:** Astra
 
 ## OVERVIEW

@@ -2743,7 +2743,7 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ name, path })
   }),
-  listSessions: (projectId?: string) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`),
+  listSessions: (projectId?: string, signal?: AbortSignal) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, cache: 'no-store' }),
   // mode_version_id decides which agent holds the conversation. Omitted = the workspace default.
   createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null) => request<SessionDto>('/api/v1/sessions', {
     method: 'POST',
@@ -2757,13 +2757,13 @@ export const api = {
     method: 'PATCH',
     body: JSON.stringify({ title })
   }),
-  listMessages: (sessionId: string) => request<MessageDto[]>(`/api/v1/sessions/${sessionId}/messages`),
+  listMessages: (sessionId: string, signal?: AbortSignal) => request<MessageDto[]>(`/api/v1/sessions/${sessionId}/messages`, { signal, cache: 'no-store' }),
   postMessage: (sessionId: string, content: string) => request<MessageDto>(`/api/v1/sessions/${sessionId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content })
   }),
   revertSessionMessage: (sessionId: string, messageId: string) => request<SessionHistoryRevertDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/revert`, { method: 'POST' }),
-  getOrchestrationSnapshot: (sessionId: string) => request<OrchestrationSnapshotDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/orchestration`),
+  getOrchestrationSnapshot: (sessionId: string, signal?: AbortSignal) => request<OrchestrationSnapshotDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/orchestration`, { signal, cache: 'no-store' }),
   // Session organization + graph (Core OrganizationEndpoints, proxied verbatim by the Gateway).
   /** The session's organization, or null before its first run creates one (404 `organization_not_started`). */
   getOrganization: async (sessionId: string): Promise<OrganizationDto | null> => {
@@ -2803,26 +2803,26 @@ export const api = {
     request<SessionTopologyDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/topology${querySuffix({
       run_id: params.run_id, include_finished: params.include_finished, max_runs: params.max_runs, max_tasks: params.max_tasks,
     })}`, { cache: 'no-store' }),
-  listToolExecutions: (sessionId: string, params: { run_id?: string; limit?: number } = {}) => {
+  listToolExecutions: (sessionId: string, params: { run_id?: string; limit?: number } = {}, signal?: AbortSignal) => {
     const search = new URLSearchParams();
     if (params.run_id) search.set('run_id', params.run_id);
     if (params.limit !== undefined) search.set('limit', String(params.limit));
     const suffix = search.toString() ? `?${search.toString()}` : '';
-    return request<ToolExecutionTimelineItemDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/tool-executions${suffix}`);
+    return request<ToolExecutionTimelineItemDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/tool-executions${suffix}`, { signal, cache: 'no-store' });
   },
-  listRuns: (sessionId: string) => request<OrchestrationRunDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/runs`),
+  listRuns: (sessionId: string, signal?: AbortSignal) => request<OrchestrationRunDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/runs`, { signal, cache: 'no-store' }),
   listTaskNodes: (sessionId: string) => request<TaskNodeDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/task-nodes`),
   listContextPacks: (sessionId: string) => request<ContextPackDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/context-packs`),
   listSupervisionFindings: (sessionId: string) => request<SupervisionFindingDto[]>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/supervision-findings`),
-  listApprovals: (sessionId?: string, status?: string) => {
+  listApprovals: (sessionId?: string, status?: string, signal?: AbortSignal) => {
     const search = new URLSearchParams();
     if (status) search.set('status', status);
     if (sessionId) search.set('session_id', sessionId);
     const suffix = search.toString() ? `?${search.toString()}` : '';
-    return request<ApprovalDto[]>(`/api/v1/approvals${suffix}`);
+    return request<ApprovalDto[]>(`/api/v1/approvals${suffix}`, { signal, cache: 'no-store' });
   },
-  listApprovalRules: (sessionId: string) =>
-    request<ApprovalRuleDto[]>(`/api/v1/approval-rules?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' }),
+  listApprovalRules: (sessionId: string, signal?: AbortSignal) =>
+    request<ApprovalRuleDto[]>(`/api/v1/approval-rules?sessionId=${encodeURIComponent(sessionId)}`, { signal, cache: 'no-store' }),
   createApprovalRule: (input: CreateApprovalRuleInput) =>
     request<ApprovalRuleDto>('/api/v1/approval-rules', { method: 'POST', body: JSON.stringify(input) }),
   revokeApprovalRule: (id: string) =>

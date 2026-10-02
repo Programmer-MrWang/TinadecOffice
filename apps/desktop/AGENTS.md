@@ -1,8 +1,8 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-02
-**Last Updated By:** Codex 修复 org_execute_report 工具登记、组织治理动词双语缺键，工具卡复用统一图标目录，i18n 守卫读取 Core 动词集合。
-**Last Verified Commit:** 0670533 后本工作树 Desktop 定向 55/55、typecheck 通过；未执行真实 Electron 视觉验收或模型验收。
+**Last Updated By:** Codex 修复新建会话时旧 session roster 请求迟到导致选中会话回退；补 AbortController、读取代次与 HomeController 回归测试。
+**Last Verified Commit:** edafd21；HomeController 定向 18/18、`vue-tsc` 通过；未做真实 Electron 走查。
 **Branch:** Astra
 
 ### 2026-10-02 前端 UX 改进

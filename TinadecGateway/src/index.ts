@@ -684,7 +684,10 @@ const app = new Elysia()
     set.headers['connection'] = 'keep-alive';
     set.headers['x-accel-buffering'] = 'no';
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
-    return response.body;
+    // Preserve the upstream Response so client cancellation closes the stream through
+    // Fetch's normal response lifecycle instead of making Elysia release an already
+    // cancelled reader (ERR_STREAM_RELEASE_LOCK).
+    return new Response(response.body, { status: response.status, headers: response.headers });
   }, { detail: { summary: 'Run stream (SSE)', tags: ['Runs'], description: 'Durable SSE with id=seq and event=kind, Last-Event-ID / ?cursor= & ?after_seq resume. Kinds: ack/queued/assigned/steering/context_conflict/control/ephemeral_agent/delta/done/error. occurred_at is the durable journal timestamp; idle keep-alive is an SSE comment ": heartbeat" that never advances the cursor' } })
   .get('/api/v1/runs/:runId/task-nodes', async ({ params, set, request }) => {
     const headers = forwardHeaders(request);
@@ -854,7 +857,7 @@ const app = new Elysia()
     set.headers['cache-control'] = 'no-cache';
     set.headers['x-accel-buffering'] = 'no';
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
-    return response.body;
+    return new Response(response.body, { status: response.status, headers: response.headers });
   }, { detail: { summary: 'Session events SSE', tags: ['System'], description: 'Durable event journal feed (EventEnvelope): event: {EventType}, fields event_id/event_type/timestamp/session_id/run_id/payload; 15s heartbeat SSE comment; Last-Event-ID / ?cursor resume' } })
   .get('/api/v1/approvals', async ({ query, set, request }) => {
     const headers = forwardHeaders(request);

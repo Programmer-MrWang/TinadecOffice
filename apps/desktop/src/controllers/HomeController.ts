@@ -161,27 +161,57 @@ async function loadInitial() {
   }
 }
 
+let sessionListRead = 0
+let sessionListAbort: AbortController | null = null
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+    || error instanceof Error && error.name === 'AbortError'
+}
+
 async function loadSessions() {
   // Unfiltered listing covers both project-bound sessions and free conversations
   // (sessions without a project), so the sidebar stays correct with zero projects.
-  sessions.value = await api.listSessions()
-  if (!selectedProjectId.value) {
-    if (selectedSessionId.value && !sessions.value.find((s) => s.id === selectedSessionId.value)) {
-      selectedSessionId.value = null
+  const read = ++sessionListRead
+  sessionListAbort?.abort()
+  const loadAbort = new AbortController()
+  sessionListAbort = loadAbort
+  try {
+    const sessionList = await api.listSessions(undefined, loadAbort.signal)
+    // A late response from a previous project/session view must never replace the
+    // current roster. This is separate from the transcript read guard below:
+    // replacing the roster can move selectedSessionId back to an old conversation
+    // before the transcript guard ever has a chance to protect the model send.
+    if (read !== sessionListRead || loadAbort.signal.aborted) return
+    sessions.value = sessionList
+    if (!selectedProjectId.value) {
+      if (selectedSessionId.value && !sessions.value.find((s) => s.id === selectedSessionId.value)) {
+        selectedSessionId.value = null
+      }
+      return
     }
-    return
-  }
-  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
-  if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
-    selectedSessionId.value = projectSessions[0]?.id ?? null
+    const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
+    if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
+      selectedSessionId.value = projectSessions[0]?.id ?? null
+    }
+  } catch (error) {
+    if (!isAbortError(error)) throw error
+  } finally {
+    if (sessionListAbort === loadAbort) sessionListAbort = null
   }
 }
 
 let sessionRead = 0
+let sessionLoadAbort: AbortController | null = null
 async function loadMessagesAndApprovals() {
   const read = ++sessionRead
+  sessionLoadAbort?.abort()
+  const loadAbort = new AbortController()
+  sessionLoadAbort = loadAbort
+  const { signal } = loadAbort
   const session = selectedSessionId.value
   if (!selectedSessionId.value) {
+    sessionLoadAbort = null
     messages.value = []
     approvals.value = []
     approvalRules.value = []
@@ -190,14 +220,19 @@ async function loadMessagesAndApprovals() {
     runs.value = []
     return
   }
-  const [messageList, approvalList, ruleList, orchestrationSnapshot, toolTimeline, runList] = await Promise.all([
-    api.listMessages(session!),
-    api.listApprovals(session!),
-    api.listApprovalRules(session!).catch(() => [] as ApprovalRuleDto[]),
-    api.getOrchestrationSnapshot(session!),
-    api.listToolExecutions(session!, { limit: 12 }),
-    api.listRuns(session!).catch(() => [] as unknown[]),
-  ])
+  const loaded = await Promise.all([
+    api.listMessages(session!, signal),
+    api.listApprovals(session!, undefined, signal),
+    api.listApprovalRules(session!, signal).catch(() => [] as ApprovalRuleDto[]),
+    api.getOrchestrationSnapshot(session!, signal),
+    api.listToolExecutions(session!, { limit: 12 }, signal),
+    api.listRuns(session!, signal).catch(() => [] as unknown[]),
+  ]).catch((error) => {
+    if (error instanceof DOMException && error.name === 'AbortError') return null
+    throw error
+  })
+  if (!loaded) return
+  const [messageList, approvalList, ruleList, orchestrationSnapshot, toolTimeline, runList] = loaded
   if (session !== selectedSessionId.value || read !== sessionRead) return
   // Keep optimistic pending sends until the backend echoes them: the
   // session-select reload races the first POST (new session has no messages
@@ -220,6 +255,7 @@ async function loadMessagesAndApprovals() {
     useRunStore().runs = (Array.isArray(runList) ? runList : []) as never
   } catch { /* Pinia 尚未安装：pills 退回空态，不阻断聊天 */ }
   attachActiveRuns()
+  if (sessionLoadAbort === loadAbort) sessionLoadAbort = null
 }
 
 
@@ -304,6 +340,10 @@ async function createSession(projectId: string | null) {
     }
   }
   await run('create session', async () => {
+    // A session roster read that started before this explicit create must not be
+    // allowed to arrive after the create and restore the old selected session.
+    sessionListRead++
+    sessionListAbort?.abort()
     const session = await api.createSession(projectId, 'Tinadec session')
     sessions.value = [session, ...sessions.value]
     selectedSessionId.value = session.id
@@ -319,13 +359,13 @@ async function createSession(projectId: string | null) {
 async function refreshProjectsAndSessions() {
   const projectList = await api.listProjects()
   projects.value = projectList
-  // Unfiltered listing, same as loadSessions: per-project queries never return
-  // free conversations, so archiving/trashing anything would drop them from the
-  // sidebar until a full reload.
-  sessions.value = await api.listSessions()
   if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value)) {
     selectedProjectId.value = projectList[0]?.id ?? null
   }
+  // Unfiltered listing, same as loadSessions: per-project queries never return
+  // free conversations, so archiving/trashing anything would drop them from the
+  // sidebar until a full reload.
+  await loadSessions()
   const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
@@ -411,6 +451,8 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     if (!sessionId) {
       // Created in the mode being sent: ChatPanel resets the picker to the new session's own
       // mode, so a session created on the default would flip the picker back after this send.
+      sessionListRead++
+      sessionListAbort?.abort()
       const session = await api.createSession(selectedProjectId.value ?? null, 'Tinadec session', opts?.mode_version_id ?? null)
       sessions.value = [session, ...sessions.value]
       selectedSessionId.value = session.id
@@ -748,6 +790,7 @@ watch(selectedProjectId, () => {
 })
 
 watch(selectedSessionId, () => {
+  sessionLoadAbort?.abort()
   messages.value = messages.value.filter((message) => message.session_id === selectedSessionId.value)
   orchestration.value = null
   approvals.value = []

@@ -72,6 +72,46 @@ public sealed class StorageApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ContextProvider_UsesOnlyTheRequestedSessionHistory()
+    {
+        var client = _factory!.CreateClient();
+        var project = await (await client.PostAsJsonAsync("/api/v1/projects", new
+        {
+            name = "Context isolation",
+            path = Path.Combine(_root, "context-isolation-workspace")
+        })).Content.ReadFromJsonAsync<JsonElement>();
+        var projectId = project.GetProperty("id").GetGuid();
+
+        var sessionA = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = projectId,
+            title = "Session A"
+        })).Content.ReadFromJsonAsync<JsonElement>();
+        var sessionB = await (await client.PostAsJsonAsync("/api/v1/sessions", new
+        {
+            project_id = projectId,
+            title = "Session B"
+        })).Content.ReadFromJsonAsync<JsonElement>();
+        var sessionAId = sessionA.GetProperty("id").GetGuid();
+        var sessionBId = sessionB.GetProperty("id").GetGuid();
+
+        await PostMessageAsync(client, sessionAId, "SESSION_A_PRIVATE_SENTINEL");
+        await PostMessageAsync(client, sessionBId, "SESSION_B_ONLY_SENTINEL");
+
+        var provider = _factory.Services.GetRequiredService<IContextProvider>();
+        var context = await provider.BuildContextAsync(new ContextBuildRequest(
+            sessionBId.ToString(),
+            RunId: null,
+            ReviewedMemoryLimit: 0,
+            RecentMessageLimit: 32));
+        var history = Assert.Single(context.Evidence.Where(item => item.Source == "session_history"));
+
+        Assert.Contains("SESSION_B_ONLY_SENTINEL", history.Content);
+        Assert.DoesNotContain("SESSION_A_PRIVATE_SENTINEL", history.Content);
+        Assert.DoesNotContain("SESSION_A_PRIVATE_SENTINEL", string.Join("\n", context.Evidence.Select(item => item.Content)));
+    }
+
+    [Fact]
     public async Task RevertHistory_DropsMessagesFromConversation_ButKeepsRowsAndResequence()
     {
         var client = _factory!.CreateClient();
