@@ -29,6 +29,21 @@ describe('repairLayout', () => {
     expect(out.columns).toBeTruthy()
   })
 
+  it('restores the page preset when a persisted page snapshot has no cards', () => {
+    const ctx = makeCtx()
+    const out = repairLayout({ version: 1, pageId: 'market', columns: {}, cards: {} }, ctx)
+
+    expect(out.pageId).toBe('market')
+    expect(Object.values(out.cards).map((card) => card.descriptorId)).toEqual([
+      'marketFilter',
+      'marketCatalog',
+      'marketDetail',
+    ])
+    expect(out.columns.left.primary.tabIds).toHaveLength(1)
+    expect(out.columns.center.primary.tabIds).toHaveLength(1)
+    expect(out.columns.right.primary.tabIds).toHaveLength(1)
+  })
+
   it('drops cards with unknown descriptorId', () => {
     const ctx = makeCtx()
     const out = repairLayout(

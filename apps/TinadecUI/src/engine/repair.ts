@@ -285,8 +285,13 @@ export function repairLayout(
       }
     }
   }
+  // Market was added after layout persistence shipped, so an older page entry can
+  // be structurally valid while containing no cards at all. Recover that one page
+  // from its preset; other pages keep their existing unknown-card repair semantics.
+  const hasNoRenderableMarketCards = pageId === 'market'
+    && (Object.keys(cards).length === 0 || referenced.size === 0)
   const orphaned = Object.values(cards).some((c) => !referenced.has(c.id))
-  if (orphaned) return buildPreset(pageId, preset)
+  if (hasNoRenderableMarketCards || orphaned) return buildPreset(pageId, preset)
 
   const gap = typeof r.gap === 'number' && r.gap >= 0 && r.gap <= 32 ? r.gap : 8
   const edgeInset =
