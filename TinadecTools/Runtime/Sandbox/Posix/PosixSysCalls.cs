@@ -23,22 +23,25 @@ internal static class PosixSysCalls
 
     private const string Libc = "libc";
 
-    [DllImport(Libc, EntryPoint = "syscall")]
+    // SetLastError on every one of these: the landlock calls go through syscall(2), and without
+    // the errno marshal the launcher's failure messages say "no errno recorded" for a kernel
+    // rejection that was EOPNOTSUPP all along.
+    [DllImport(Libc, EntryPoint = "syscall", SetLastError = true)]
     private static extern nint Syscall3(nint number, nint a1, nint a2, nint a3);
 
-    [DllImport(Libc, EntryPoint = "syscall")]
+    [DllImport(Libc, EntryPoint = "syscall", SetLastError = true)]
     private static extern nint Syscall4(nint number, nint a1, nint a2, nint a3, nint a4);
 
-    [DllImport(Libc, EntryPoint = "setpgid")]
+    [DllImport(Libc, EntryPoint = "setpgid", SetLastError = true)]
     internal static extern int SetPgid(int pid, int pgid);
 
-    [DllImport(Libc, EntryPoint = "getpgid")]
+    [DllImport(Libc, EntryPoint = "getpgid", SetLastError = true)]
     internal static extern int GetPgid(int pid);
 
-    [DllImport(Libc, EntryPoint = "kill")]
+    [DllImport(Libc, EntryPoint = "kill", SetLastError = true)]
     internal static extern int Kill(int pid, int sig);
 
-    [DllImport(Libc, EntryPoint = "prctl")]
+    [DllImport(Libc, EntryPoint = "prctl", SetLastError = true)]
     internal static extern int Prctl(int option, int arg2, int arg3, int arg4, int arg5);
 
     /// <summary>

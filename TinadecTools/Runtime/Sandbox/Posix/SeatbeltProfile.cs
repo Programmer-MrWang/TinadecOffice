@@ -26,13 +26,44 @@ internal static class SeatbeltProfile
             return sb.ToString();
 
         sb.Append("(allow file-write*\n");
-        foreach (var path in writeTargets)
+        foreach (var path in writeTargets.SelectMany(FormsOf).Distinct(StringComparer.Ordinal))
         {
             var clause = IsDirectory(path) ? "subpath" : "literal";
             sb.Append("  (").Append(clause).Append(' ').Append(Quote(path)).Append(")\n");
         }
         sb.Append(")\n");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// A grant in both its declared and its resolved form. Seatbelt matches the path the kernel
+    /// ends up using, and macOS exposes the temp directory as <c>/var</c> — a symlink to
+    /// <c>/private/var</c> — so a profile carrying only the declared form denied writes inside the
+    /// very directory it granted (measured on the CI runner: <c>Operation not permitted</c> on a
+    /// file under <c>/var/folders/…</c>). The declared form stays because a path that does not
+    /// exist yet has no resolved form to offer, and granting both cannot widen anything: they name
+    /// the same directory.
+    /// </summary>
+    private static IEnumerable<string> FormsOf(string path)
+    {
+        yield return path;
+        var resolved = Resolve(path);
+        if (resolved is not null && !string.Equals(resolved, path, StringComparison.Ordinal))
+            yield return resolved;
+    }
+
+    private static string? Resolve(string path)
+    {
+        try
+        {
+            return Directory.Exists(path)
+                ? new DirectoryInfo(path).ResolveLinkTarget(true)?.FullName
+                : new FileInfo(path).ResolveLinkTarget(true)?.FullName;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static bool IsDirectory(string path)

@@ -32,7 +32,7 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
     /// nothing. This directory sits beside the test binaries, where the runner user could write if
     /// the sandbox let it.
     /// </summary>
-    private readonly string _outside = Path.Combine(AppContext.BaseDirectory, "sandbox-integration-outside");
+    private readonly string _outside = Path.Combine(AppContext.BaseDirectory, "sandbox-integration-outside-" + Guid.NewGuid().ToString("N"));
 
     public PosixSandboxIntegrationTests()
     {
@@ -100,6 +100,14 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         if (!OnPosix) return;
 
         var target = Path.Combine(_outside, "denied.txt");
+
+        // Control first: prove this location is writable by an unconstrained process, otherwise
+        // "the file is not there afterwards" could mean the directory was missing rather than the
+        // kernel refusing. The ubuntu leg failed exactly this way the first time it ran.
+        File.WriteAllText(target, "unconstrained");
+        Assert.Equal("unconstrained", File.ReadAllText(target));
+        File.Delete(target);
+
         var response = await RunAsync($"echo started; printf denied > '{target}'");
 
         Assert.Contains("started", response.Stdout);

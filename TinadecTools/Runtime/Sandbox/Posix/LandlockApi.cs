@@ -131,27 +131,50 @@ internal static class LandlockApi
         }
     }
 
+    /// <summary>
+    /// The only rights the kernel accepts on a grant that is not a directory. This exists because
+    /// of <c>/dev/null</c>: it is a character device, and a path-beneath rule whose parent is
+    /// neither a directory nor a regular file is refused (EOPNOTSUPP) — which, before this was
+    /// handled, failed the whole confinement and every sandboxed command on Linux with it.
+    /// Creating and removing are directory-scoped, so the narrowed set deliberately drops them:
+    /// the command may write that one device, not mint new entries beside it.
+    /// </summary>
+    internal static ulong FileScopedRights(ulong handled) => handled & (ACCESS_WRITE_FILE | ACCESS_TRUNCATE);
+
     private static bool TryAddPathRule(int rulesetFd, string path, ulong access, nint rulePtr, out string? error)
     {
         error = null;
-        var fd = Open(Path.TrimEndingDirectorySeparator(path), O_PATH | O_CLOEXEC | O_RDONLY);
-        if (fd < 0)
+        var full = Path.TrimEndingDirectorySeparator(path);
+
+        // A grant that cannot be opened at all is a misconfiguration, and running the command
+        // anyway would be the silent downgrade this backend refuses to make.
+        if (!TryOpenRuleable(full, out var fd))
         {
-            // A grant that cannot be opened is not a reason to run the command unconstrained.
-            error = $"cannot open granted write path '{path}' ({LastError()})";
+            error = $"cannot open granted write path '{full}' ({PosixSysCalls.LastErrorString()})";
             return false;
         }
 
         try
         {
-            var rule = new PathBeneathAttr { AllowedAccess = access, ParentFd = fd };
-            Marshal.StructureToPtr(rule, rulePtr, fDeleteOld: false);
-            if (PosixSysCalls.LandlockAddRule(rulesetFd, RULE_PATH_BENEATH, rulePtr, 0) != 0)
+            if (TryAddRule(rulesetFd, fd, access, rulePtr))
+                return true;
+
+            var parent = Path.GetDirectoryName(full);
+            if (!string.IsNullOrEmpty(parent) && TryOpenRuleable(parent, out var parentFd))
             {
-                error = $"landlock_add_rule failed for '{path}' ({PosixSysCalls.LastErrorString()})";
-                return false;
+                try
+                {
+                    if (TryAddRule(rulesetFd, parentFd, FileScopedRights(access), rulePtr))
+                        return true;
+                }
+                finally
+                {
+                    CloseFd(parentFd);
+                }
             }
-            return true;
+
+            error = $"landlock_add_rule failed for '{full}' ({PosixSysCalls.LastErrorString()})";
+            return false;
         }
         finally
         {
@@ -159,17 +182,24 @@ internal static class LandlockApi
         }
     }
 
+    private static bool TryOpenRuleable(string path, out int fd)
+    {
+        fd = Open(Path.TrimEndingDirectorySeparator(path), O_PATH | O_CLOEXEC | O_RDONLY);
+        return fd >= 0;
+    }
+
+    private static bool TryAddRule(int rulesetFd, int parentFd, ulong access, nint rulePtr)
+    {
+        var rule = new PathBeneathAttr { AllowedAccess = access, ParentFd = parentFd };
+        Marshal.StructureToPtr(rule, rulePtr, fDeleteOld: false);
+        return PosixSysCalls.LandlockAddRule(rulesetFd, RULE_PATH_BENEATH, rulePtr, 0) == 0;
+    }
+
     [DllImport("libc", EntryPoint = "open")]
     private static extern int Open(string path, int flags);
 
     [DllImport("libc", EntryPoint = "close")]
     private static extern int CloseFd(int fd);
-
-    private static string LastError()
-    {
-        var errno = Marshal.GetLastPInvokeError();
-        return errno == 0 ? "unknown" : $"errno {errno}";
-    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RulesetAttr

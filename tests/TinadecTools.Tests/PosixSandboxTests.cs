@@ -24,6 +24,38 @@ public sealed class PosixSandboxTests : IDisposable
 
     // ── seatbelt profile (macOS) ──────────────────────────────────────────────
 
+    /// <summary>
+    /// The narrowed right set that makes a non-directory grant possible. /dev/null is a character
+    /// device, and landlock_add_rule refuses any directory-scoped right on it — the whole handled
+    /// set therefore has to collapse to exactly write-and-truncate, no more. The values are pinned
+    /// literally so widening the set (adding MAKE_REG, say) turns this red instead of turning every
+    /// sandboxed Linux command into exit 126, which is what the first CI run measured.
+    /// </summary>
+    [Theory]
+    [InlineData(1, 1UL << 1)]
+    [InlineData(2, 1UL << 1)]
+    [InlineData(4, (1UL << 1) | (1UL << 14))]
+    public void FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(int abi, ulong expected)
+    {
+        Assert.Equal(expected, LandlockApi.FileScopedRights(LandlockApi.HandledAccessFs(abi)));
+    }
+
+    [Fact]
+    public void SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers()
+    {
+        // The macOS leg measured writes denied *inside* the granted temp dir: /var is a symlink to
+        // /private/var and seatbelt matches the resolved path. Both forms must be in the profile,
+        // and nothing else may appear — a grant that silently grows clauses is a widening.
+        var workspace = Path.Combine(_root, "workspace");
+        Directory.CreateDirectory(workspace);
+
+        var profile = SeatbeltProfile.Build([workspace]);
+
+        var clauses = profile.Split('\n').Count(line => line.Contains("(subpath ") || line.Contains("(literal "));
+        Assert.True(clauses is 1 or 2, $"expected one clause per grant, or two when the path resolves elsewhere: {profile}");
+        Assert.Contains($"(subpath {Quote(workspace)})", profile);
+    }
+
     [Fact]
     public void SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants()
     {
