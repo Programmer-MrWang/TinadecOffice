@@ -154,10 +154,13 @@ jobs:
 
       - name: Generate SHA256SUMS
         working-directory: release-artifacts
-        # office-channel/SHA256SUMS is the build-job verification gate; the release
-        # ships one top-level sums file covering every published asset. Both files
-        # share the basename, and GitHub release asset names must be unique, so the
-        # inner copy must never reach `gh release create`.
+        # The published release must carry one sums file covering every published
+        # asset. Measured against a simulated artifact layout, the previous find
+        # uploaded office-channel/SHA256SUMS (a build-job gate that lists only the
+        # four module zips and the catalog) as the release's "SHA256SUMS", while
+        # excluding the generated top-level file — so the installers shipped with
+        # no checksums. Skip every SHA256SUMS in the scan and publish the top-level
+        # one explicitly.
         run: find . -type f ! -name 'SHA256SUMS' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 
       - name: Validate Office channel catalog

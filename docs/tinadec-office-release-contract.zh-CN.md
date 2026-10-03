@@ -90,4 +90,4 @@ Windows x64 构建从同一份 `apps/desktop/runtime` 生成 NSIS、portable 和
 5. `catalog.json` 中的大小、SHA-256、URL 和包元数据与实际 Release 资产一致。
 6. 三个运行时模块 ZIP 的每一个文件与完整版 `win-unpacked/resources/runtime` 内置运行时逐字节一致（双向：模块包不缺文件，完整版也没有模块包不认识的内容）。归档器是 bsdtar——脚本必须显式解析 `System32/tar.exe`，因为 Git Bash 的 GNU tar 不支持 zip 且会把盘符路径当作远程主机；bsdtar 产出的 `./` 条目前缀在路径安全与成员匹配时统一归一化。
 
-非 tag 构建可以生成临时 ZIP 和 catalog 作为 CI 工件，但只有 tag 构建发布 GitHub Release。Release 只发布一份顶层 `SHA256SUMS`（覆盖全部资产）：`office-channel/SHA256SUMS` 是 build 任务的验证门禁产物，它的 basename 与顶层文件相同，同时上传会因 GitHub 资产名唯一性而被拒绝。
+非 tag 构建可以生成临时 ZIP 和 catalog 作为 CI 工件，但只有 tag 构建发布 GitHub Release。Release 只发布一份顶层 `SHA256SUMS`，其内容覆盖全部已发布资产（含 NSIS 与 portable 安装包）；`office-channel/SHA256SUMS` 是 build 任务的验证门禁产物，不进入 Release——实测过旧写法会把这份只列四个模块包与 catalog 的内层清单当作发布校验和上传，安装包因此没有校验和。
