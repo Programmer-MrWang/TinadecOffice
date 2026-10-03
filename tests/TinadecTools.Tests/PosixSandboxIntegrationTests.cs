@@ -34,6 +34,10 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
     /// </summary>
     private readonly string _outside = Path.Combine(AppContext.BaseDirectory, "sandbox-integration-outside-" + Guid.NewGuid().ToString("N"));
 
+    /// <summary>The grant list of the last confined run, echoed into failure messages: both ubuntu
+    /// readings so far have said "exit 0, no file", which is only explainable by what was writable.</summary>
+    private string _lastGrants = "(no run yet)";
+
     public PosixSandboxIntegrationTests()
     {
         Directory.CreateDirectory(_outside);
@@ -131,8 +135,10 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         var response = await RunAsync($"echo started; printf denied > '{target}'");
 
         Assert.Contains("started", response.Stdout);
-        Assert.False(File.Exists(target), "the sandbox let a command write outside its grants");
-        Assert.False(response.Success, $"exit={response.ExitCode} stderr={response.Stderr}");
+        Assert.False(File.Exists(target), $"the sandbox let a command write outside its grants: target={target} grants=[{_lastGrants}]");
+        Assert.False(
+            response.Success,
+            $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} target={target} fileNowExists={File.Exists(target)} grants=[{_lastGrants}]");
         // A launcher that could not install Landlock also produces no file — but it never runs the
         // command, so "started" would be missing too. Naming the prefix keeps the two readings apart.
         Assert.DoesNotContain(LauncherFailurePrefix, response.Stderr);
@@ -148,7 +154,7 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
 
         var response = await RunAsync($"printf '%s|%s\\n' \"${KeptVariable}\" \"${DroppedVariable}\"; env", [KeptVariable]);
 
-        Assert.True(response.Success, $"exit={response.ExitCode} stderr={response.Stderr} error={response.Error}");
+        Assert.True(response.Success, $"exit={response.ExitCode} stderr={response.Stderr} error={response.Error} grants=[{_lastGrants}]");
         Assert.Contains("kept-value", response.Stdout);
         // env(1) lists the whole environment, so the dropped value appearing anywhere is a leak.
         Assert.DoesNotContain("dropped-value", response.Stdout);
@@ -189,6 +195,8 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
             EnvironmentVariableNames = [.. extraEnvironmentNames ?? []]
         };
 
+        _lastGrants = string.Join(", ", permissions.WritePaths) + $" | TMPDIR={environmentProbe()}";
+
         return await CommandSandboxRuntime.ExecuteSandboxedAsync(
             "/bin/sh",
             ["-c", script],
@@ -198,6 +206,12 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
             permissions,
             persistGrants: false,
             CancellationToken.None);
+    }
+
+    private static string environmentProbe()
+    {
+        var tmpdir = Environment.GetEnvironmentVariable("TMPDIR");
+        return string.IsNullOrEmpty(tmpdir) ? Path.GetTempPath() : tmpdir;
     }
 
     private static void TryDelete(string path)
