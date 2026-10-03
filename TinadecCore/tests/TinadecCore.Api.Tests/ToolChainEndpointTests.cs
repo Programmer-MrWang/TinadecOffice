@@ -799,7 +799,6 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         // Force an extra engine pass over the same checkpoint: the fed-back turn
         // already carries its result, so this pass must not resume the dead
         // execution, re-dispatch it, or emit the failure a second time.
-        var callsBeforeExtraPass = provider.CallCount;
         await _factory.Services.GetRequiredService<IFullDuplexRunEngine>().EnqueueAsync(runId);
 
         var chunks = await active.Completion.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
@@ -818,8 +817,12 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         Assert.False(string.IsNullOrWhiteSpace(payload.GetProperty("error_category").GetString()));
 
         // No task was failed by the dispatch error, and the tool was not re-called.
+        // The exact-two-tool-calls count IS the anti-re-dispatch guard: an extra engine
+        // pass that resumed the dead execution would make it three. It must not be
+        // written as a delta against a counter snapshot taken here — the sibling task's
+        // own tool call can still be in flight at this point, which is how this test
+        // failed under CI load (Expected 1, Actual 2) while passing in isolation.
         Assert.DoesNotContain(events, item => item.EventType == "worker.failed");
-        Assert.Equal(callsBeforeExtraPass, provider.CallCount);
         Assert.Equal(2, provider.CallCount);
     }
 
@@ -903,6 +906,17 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         Assert.Single(events.Where(e => e.EventType == "supervision.user_review.requested"));
         Assert.DoesNotContain(events, e => e.EventType == "run.failed");
         Assert.Equal(1, provider.CallCount);
+        // The ordering guard against the real leak: nothing may be reviewed, decided or
+        // answered after the run asked the person for a decision. An expiry park found on
+        // a parallel worker snapshot used to leave the owner checkpoint un-parked, so the
+        // next wake opened a supervision round, passed it (w1 completed, w2 closed-failed)
+        // and finalized the run — measured in CI as status=completed with the review
+        // request already journaled and the buttons still on screen.
+        var journal = events.ToArray();
+        var reviewAt = Array.FindIndex(journal, e => e.EventType == "supervision.user_review.requested");
+        Assert.True(reviewAt >= 0, "the expiry review request was never journaled");
+        Assert.DoesNotContain(journal.Skip(reviewAt + 1),
+            e => e.EventType is "supervision.requested" or "supervision.completed" or "user.response");
         var status = (await client.GetFromJsonAsync<JsonElement>($"/api/v1/runs/{runId}/orchestration"))
             .GetProperty("run").GetProperty("status").GetString();
         Assert.True(status == "awaiting_user", $"status={status} reviewEvents={string.Join(",", events.Select(e => e.EventType))} replay={await client.GetStringAsync($"/api/v1/runs/{runId}/replay")}");

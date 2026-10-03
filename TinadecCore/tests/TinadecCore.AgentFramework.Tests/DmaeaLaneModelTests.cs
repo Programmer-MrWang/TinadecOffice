@@ -272,6 +272,42 @@ public sealed class DmaeaLaneModelTests : IDisposable
         "max_tool_rounds = 4"
     ];
 
+    /// <summary>
+    /// The worker that discovers a parked approval-expiry review owns a private
+    /// checkpoint snapshot, and the merge back onto the owner checkpoint lands only
+    /// that worker's task node. The run-level park must be copied by name, or the next
+    /// wake reads the run as un-parked and supervision finalizes it past the user
+    /// decision the escalation just asked for. Measured in CI as status=completed with
+    /// `supervision.user_review.requested` already in the journal.
+    /// </summary>
+    [Fact]
+    public void PropagateExpiryPark_CarriesTheRunLevelParkOutOfAWorkerSnapshot()
+    {
+        var owner = new FullDuplexCheckpointV1 { Phase = "executing" };
+        var worker = new FullDuplexCheckpointV1 { Phase = "awaiting_user", AwaitingApprovalExpiryReview = true };
+
+        FullDuplexRunEngine.PropagateExpiryPark(owner, worker);
+
+        Assert.True(owner.AwaitingApprovalExpiryReview);
+        Assert.Equal("awaiting_user", owner.Phase);
+    }
+
+    /// <summary>
+    /// An ordinary approval wait is not an expiry review: it must not park the run on a
+    /// user decision nobody asked for.
+    /// </summary>
+    [Fact]
+    public void PropagateExpiryPark_LeavesAnOrdinaryWaitAlone()
+    {
+        var owner = new FullDuplexCheckpointV1 { Phase = "executing" };
+        var worker = new FullDuplexCheckpointV1 { Phase = "awaiting_user" };
+
+        FullDuplexRunEngine.PropagateExpiryPark(owner, worker);
+
+        Assert.False(owner.AwaitingApprovalExpiryReview);
+        Assert.Equal("executing", owner.Phase);
+    }
+
     private AgentRuntimeConfigurationSnapshot LoadSnapshot(IReadOnlyList<string> lines)
     {
         Directory.CreateDirectory(_directory);

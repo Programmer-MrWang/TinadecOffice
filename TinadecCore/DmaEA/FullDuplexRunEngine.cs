@@ -1544,6 +1544,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             if (result.Waiting)
             {
                 parallelWaiting = true;
+                PropagateExpiryPark(checkpoint, result.Checkpoint);
                 continue;
             }
             if (result.Result is not null)
@@ -1616,6 +1617,21 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var index = target.Tasks.FindIndex(item => item.TaskId == taskId);
         if (index < 0) throw new InvalidDataException($"Parallel worker task {taskId} is missing from the owner checkpoint.");
         target.Tasks[index] = updated;
+    }
+
+    /// <summary>
+    /// A parked approval-expiry review is run-level state, but the worker that discovers it
+    /// owns a private checkpoint snapshot and <see cref="MergeParallelTaskCheckpoint"/> lands
+    /// only that worker's task node. Copy the park by name: otherwise the owner checkpoint
+    /// stays in its previous phase, the guards at the tick head read it as no longer parked,
+    /// and supervision finalizes the run past the user decision the escalation just asked for
+    /// — the run answers "done" while the pending review button is still on screen.
+    /// </summary>
+    internal static void PropagateExpiryPark(FullDuplexCheckpointV1 target, FullDuplexCheckpointV1 source)
+    {
+        if (!source.AwaitingApprovalExpiryReview) return;
+        target.AwaitingApprovalExpiryReview = true;
+        target.Phase = "awaiting_user";
     }
 
 
