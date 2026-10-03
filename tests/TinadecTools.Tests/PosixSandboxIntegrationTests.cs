@@ -42,11 +42,12 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
     public PosixSandboxIntegrationTests()
     {
         Directory.CreateDirectory(_outside);
-        if (OperatingSystem.IsLinux())
+        if (OnPosix)
         {
             // The launcher re-execs "this binary" in production. Under a test host that binary is
-            // xunit's, which does not know the reserved argument, so point it at the TinadecTools
-            // apphost that the project reference copies beside the test runner.
+            // xunit's — on macOS the host answers to /Users/runner/.dotnet/dotnet, which takes the
+            // reserved argument as a project path, exits 0 and confines nothing. Point it at the
+            // TinadecTools apphost the project reference copies beside the test runner instead.
             PosixSandboxBackend.LauncherExecutable = static () => Path.Combine(AppContext.BaseDirectory, "TinadecTools");
         }
     }
