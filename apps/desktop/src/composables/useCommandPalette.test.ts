@@ -96,7 +96,7 @@ describe('useCommandPalette', () => {
     }) as Record<string, string>
     // An entry reaches the palette three ways, and all three are legitimate: the shared
     // button itself, `AppHeader` (which renders it), or `UieShell` (which renders
-    // AppHeader) — Home and Chatroom, the two surfaces people actually live on, come
+    // AppHeader) — Home, the surface people actually live on, comes
     // through the shell, so a scan for the button alone would call them bare.
     const missing = Object.entries(pages)
       .filter(([, source]) =>

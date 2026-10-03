@@ -144,7 +144,6 @@ export const appCommands: readonly AppCommand[] = [
   go('view.goChat', 'palette.goChat', 'home'),
   go('view.goWorkbench', 'palette.goWorkbench', 'workbench'),
   go('view.goCode', 'palette.goCode', 'code-editor'),
-  go('view.goChatroom', 'palette.goChatroom', 'chatroom'),
   go('view.goLibrary', 'palette.goLibrary', 'library'),
   go('view.goSnapshots', 'palette.goSnapshots', 'snapshots'),
   go('view.goGovernance', 'palette.goGovernance', 'governance-board'),

@@ -1,7 +1,6 @@
 import type { Component } from 'vue'
 import { createCardRegistry, type CardRegistry } from '../../engine/registry'
 import NavCard from './home/NavCard.vue'
-import ChatroomCard from './home/ChatroomCard.vue'
 import ChatCard from './home/ChatCard.vue'
 import HomePickerCard from './home/HomePickerCard.vue'
 import GitCard from './home/GitCard.vue'
@@ -27,7 +26,6 @@ export function buildUieRegistry(): CardRegistry {
 
   const cards: UieCardDescriptor[] = [
     { type: 'nav', component: NavCard, minWidth: 220, minHeight: 120, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: '项目' },
-    { type: 'chatroom', component: ChatroomCard, minWidth: 320, minHeight: 240, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: '聊天室' },
     { type: 'chat', component: ChatCard, minWidth: 320, minHeight: 200, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: '聊天' },
     { type: 'homePicker', component: HomePickerCard, minWidth: 240, minHeight: 160, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: 'Home' },
     { type: 'git', component: GitCard, minWidth: 260, minHeight: 160, singleton: true, movable: true, closable: true, detachable: true, defaultTitle: 'Git' },

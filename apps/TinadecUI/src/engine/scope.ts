@@ -16,7 +16,7 @@ import type { LayoutScope, UiePageId } from './types'
 
 /**
  * Pages whose layout is remembered per project. Only workspace-bound pages are
- * listed: market/chatroom content is not tied to a project, so they keep one
+ * listed: market content is not tied to a project, so it keeps one
  * page-wide layout regardless of the active project.
  */
 export const PROJECT_SCOPED_PAGES: ReadonlySet<UiePageId> = new Set<UiePageId>(['home'])

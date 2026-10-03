@@ -6,7 +6,6 @@ import {
   ChevronRight,
   FolderOpen,
   MessageSquare,
-  MessagesSquare,
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
@@ -37,7 +36,6 @@ const props = defineProps<{
   selectedSessionId: string | null
   busy: boolean
   collapsed?: boolean
-  chatroomActive?: boolean
   panelStyle?: Record<string, string>
   panelDataAttrs?: Record<string, string>
 }>()
@@ -50,7 +48,6 @@ const emit = defineEmits<{
   'go-settings': []
   'go-market': []
   'go-workbench': []
-  'go-chatroom': []
   'toggle-collapse': []
   'rename-project': [id: string, name: string]
   'rename-session': [id: string, title: string]
@@ -213,19 +210,6 @@ function openDebugStudio() {
       >
         <MessageSquare :size="16" class="sidebar-icon" />
         <span class="sidebar-label">{{ t('sidebar.newChat') }}</span>
-      </UiButton>
-      <UiButton
-        variant="ghost"
-        size="sm"
-        class="sidebar-nav-item w-full justify-start"
-        :class="{ 'bg-accent text-accent-foreground': chatroomActive }"
-        :aria-current="chatroomActive ? 'page' : undefined"
-        :title="t('sidebar.chatroom')"
-        data-testid="sidebar-chatroom"
-        @click="emit('go-chatroom')"
-      >
-        <MessagesSquare :size="16" class="sidebar-icon" />
-        <span class="sidebar-label">{{ t('sidebar.chatroom') }}</span>
       </UiButton>
       <UiButton
         variant="ghost"

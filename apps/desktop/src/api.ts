@@ -6,7 +6,6 @@ import { createRunStream, runStreamDelta, type RunStreamHandle } from '@/lib/run
 
 export type { MessageDto }
 
-export type TinaChatObserverAccess = components['schemas']['TinaChatObserverAccessDto']
 export type TinaChatObservedConversation = components['schemas']['TinaChatObservedConversationDto']
 export type TinaChatObservedConversationPage = components['schemas']['TinaChatObservedConversationPage']
 export type TinaChatObservedDetail = components['schemas']['TinaChatObservedConversationDetail']
@@ -2677,18 +2676,6 @@ function streamAdmittedInteraction(
 
 export const api = {
   gatewayUrl,
-  tinaChatObserverAccess: (signal?: AbortSignal) => request<TinaChatObserverAccess>('/api/v1/tina-chat/observer/access', { signal, cache: 'no-store' }),
-  tinaChatObserverConversations: (params: { query?: string; kind?: string; workspace_id?: string; offset?: number; limit?: number } = {}, signal?: AbortSignal) => {
-    const search = new URLSearchParams()
-    for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== '') search.set(key, String(value))
-    return request<TinaChatObservedConversationPage>(`/api/v1/tina-chat/observer/conversations?${search}`, { signal, cache: 'no-store' })
-  },
-  tinaChatObserverConversation: (id: string, signal?: AbortSignal) => request<TinaChatObservedDetail>(`/api/v1/tina-chat/observer/conversations/${encodeURIComponent(id)}`, { signal, cache: 'no-store' }),
-  tinaChatObserverMessages: (id: string, params: { before_sequence?: number; after_sequence?: number; limit?: number } = {}, signal?: AbortSignal) => {
-    const search = new URLSearchParams()
-    for (const [key, value] of Object.entries(params)) if (value !== undefined) search.set(key, String(value))
-    return request<TinaChatObservedMessagePage>(`/api/v1/tina-chat/observer/conversations/${encodeURIComponent(id)}/messages?${search}`, { signal, cache: 'no-store' })
-  },
   // Participant and conversation writes below are actor-scoped: Core re-verifies the authenticated
   // principal against every actor_id on each call, so a stale local identity fails closed here.
   tinaChatParticipants: (query?: string, signal?: AbortSignal) => {

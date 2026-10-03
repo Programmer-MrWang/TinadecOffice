@@ -24,7 +24,7 @@ function closeWindow() {
     <div class="window-controls">
       <!--
         The palette itself stays mounted once, in App.vue; this row only asks it to open.
-        This header is the live window chrome: Home and Chatroom render it through TinadecUI's
+        This header is the live window chrome: Home renders it through TinadecUI's
         `UieShell`, and Code/Library/Market render it directly. Workbench, Settings, Governance and
         Snapshots have their own bars and mount `CommandPaletteButton` themselves.
       -->

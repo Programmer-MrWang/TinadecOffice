@@ -56,13 +56,14 @@ async function expandProject(wrapper: ReturnType<typeof factory>) {
 }
 
 describe('AppSidebar lifecycle management', () => {
-  it('opens the chatroom while a run is busy and exposes the selected observer page', async () => {
-    const wrapper = factory({ busy: true, collapsed: true, chatroomActive: true })
-    const button = wrapper.get('[data-testid="sidebar-chatroom"]')
-    expect(button.attributes('aria-current')).toBe('page')
-    expect(button.attributes('title')).toBe('sidebar.chatroom')
+  it('keeps the observer-side navigation clickable while a run is busy', async () => {
+    // 这条原本是聊天室的用例（它是唯一刻意不接 :disabled="busy" 的按钮）；聊天室界面删除后，
+    // 同一个保证落在市场按钮上——busy 期间挡住导航就是运行中连页面都切不了。
+    const wrapper = factory({ busy: true, collapsed: true })
+    const button = wrapper.get('[title="sidebar.market"]')
+    expect(button.attributes('disabled')).toBeUndefined()
     await button.trigger('click')
-    expect(wrapper.emitted('go-chatroom')).toHaveLength(1)
+    expect(wrapper.emitted('go-market')).toHaveLength(1)
     wrapper.unmount()
   })
 
