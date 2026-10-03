@@ -54,6 +54,16 @@ internal static class SeatbeltProfile
 
     private static string? Resolve(string path)
     {
+        // .NET's link resolver is asked for the final target and answers null when the last
+        // component is itself a real directory — which is exactly the shape of
+        // /var/folders/.../T/something: the link is two components up. The measured macOS runner
+        // showed both forms of one directory in the same log, so the profile has to ask the OS.
+        if (!OperatingSystem.IsWindows())
+        {
+            var canonical = PosixSysCalls.RealPath(path);
+            if (!string.IsNullOrEmpty(canonical)) return canonical;
+        }
+
         try
         {
             return Directory.Exists(path)

@@ -66,6 +66,31 @@ internal static class PosixSysCalls
     internal static int LandlockRestrictSelf(int rulesetFd, int flags)
         => (int)Syscall3(SYS_landlock_restrict_self, rulesetFd, 0, flags);
 
+    /// <summary>
+    /// The kernel's canonical path for <paramref name="path"/>, or null when it cannot be resolved.
+    /// <c>realpath(path, NULL)</c> allocates PATH_MAX bytes inside libc, so the caller owns the
+    /// return and must hand it back to libc's own <c>free</c> — not the CLR allocator.
+    /// </summary>
+    internal static string? RealPath(string path)
+    {
+        var pointer = RealPathPtr(path, nint.Zero);
+        if (pointer == nint.Zero) return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(pointer);
+        }
+        finally
+        {
+            Free(pointer);
+        }
+    }
+
+    [DllImport(Libc, EntryPoint = "realpath", SetLastError = true)]
+    private static extern nint RealPathPtr(string path, nint buffer);
+
+    [DllImport(Libc, EntryPoint = "free")]
+    private static extern void Free(nint pointer);
+
     /// <summary>The errno the last failing P/Invoke left behind, phrased for a tool result.</summary>
     internal static string LastErrorString()
     {

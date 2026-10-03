@@ -88,10 +88,30 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
 
         // On macOS this doubles as "sandbox-exec accepted the generated profile": a profile it
         // cannot parse makes it exit non-zero without running anything, so the marker would be
-        // missing and the file would not exist.
-        Assert.True(response.Success, $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} error={response.Error}");
+        // missing and the file would not exist. The profile is quoted back on failure because the
+        // first two readings showed a denial here that only the clause list can explain.
+        Assert.True(
+            response.Success,
+            $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} error={response.Error} profile={SeatbeltProfile.Build([_granted])}");
         Assert.Contains("started", response.Stdout);
         Assert.Equal("written", File.ReadAllText(target));
+    }
+
+    [Fact]
+    public void SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant()
+    {
+        if (!OperatingSystem.IsMacOS()) return; // /var is only a symlink there
+
+        var resolved = PosixSysCalls.RealPath(_granted);
+        Assert.NotNull(resolved);
+
+        var profile = SeatbeltProfile.Build([_granted]);
+
+        // Both forms, because the command writes the declared path while seatbelt matches the
+        // resolved one; the first runner reading proved .NET's resolver leaves the profile without
+        // the second, and the write is then refused inside the directory it grants.
+        Assert.Contains(_granted, profile);
+        Assert.Contains(resolved!, profile);
     }
 
     [Fact]
