@@ -47,9 +47,24 @@ env:
 
 jobs:
   build:
-    name: Build Windows x64
-    runs-on: windows-2022
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    strategy:
+      # A red macOS leg must not hide whether Linux produced a working AppImage: every leg reports
+      # for itself, so fail-fast is off.
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            label: win-x64
+            packageScript: package:win
+          - os: ubuntu-24.04
+            label: linux-x64
+            packageScript: package:linux
+          - os: macos-15
+            label: osx-arm64
+            packageScript: package:mac
     steps:
       - uses: actions/checkout@v4
 
@@ -105,28 +120,39 @@ jobs:
         working-directory: TinadecGateway
         run: bun test src
 
-      - name: Build and package Windows application
-        run: npm run package:win -w @tinadec/desktop
+      - name: Build and package the application
+        # The stager resolves the target from the runner itself, so no leg can stage a runtime for
+        # another platform; the leg name is what the runner is, not what someone typed.
+        run: npm run ${{ matrix.packageScript }} -w @tinadec/desktop
 
       - name: Verify package output
+        if: matrix.label == 'win-x64'
         run: npm run verify:package -w @tinadec/desktop
 
       - name: Smoke test unpacked application
+        if: matrix.label == 'win-x64'
         run: npm run smoke:packaged -w @tinadec/desktop
 
       - name: Smoke test installed application
+        if: matrix.label == 'win-x64'
         run: npm run smoke:installed -w @tinadec/desktop
 
       - name: Package Office channel artifacts
+        if: matrix.label == 'win-x64'
         run: node apps/desktop/scripts/package-office-channel.mjs
 
       - name: Verify Office channel artifacts
+        if: matrix.label == 'win-x64'
         run: node apps/desktop/scripts/verify-office-channel.mjs
 
+      # Three literal steps rather than one: a multi-line path list cannot be handed through a
+      # matrix expression without guessing how the runner joins it, and the Windows artifact name is
+      # what the release job below downloads.
       - name: Upload Windows package
+        if: matrix.label == 'win-x64'
         uses: actions/upload-artifact@v4
         with:
-          name: TinadecOffice-windows-x64
+          name: TinadecOffice-win-x64
           path: |
             apps/desktop/release/*-win-x64-setup.exe
             apps/desktop/release/*-win-x64-setup.exe.blockmap
@@ -135,6 +161,24 @@ jobs:
             apps/desktop/release/office-channel/*.zip
             apps/desktop/release/office-channel/catalog.json
             apps/desktop/release/office-channel/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Linux package
+        if: matrix.label == 'linux-x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinadecOffice-linux-x64
+          path: apps/desktop/release/*-linux-x64.AppImage
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload macOS package
+        if: matrix.label == 'osx-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinadecOffice-osx-arm64
+          path: apps/desktop/release/*-osx-arm64.dmg
           if-no-files-found: error
           retention-days: 14
 
@@ -149,7 +193,7 @@ jobs:
       - name: Download verified package
         uses: actions/download-artifact@v4
         with:
-          name: TinadecOffice-windows-x64
+          name: TinadecOffice-win-x64
           path: release-artifacts
 
       - name: Generate SHA256SUMS
