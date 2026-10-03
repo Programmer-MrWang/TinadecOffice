@@ -1,8 +1,8 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-03
-**Last Updated By:** dev 启动加了 `.vite` 依赖戳守卫（`scripts/viteCacheGuard.mjs` + 6 例守卫测试）：升级 Vue 后旧预打包运行时不再被端给新编译的 Vapor SFC（2026-10-03 的空白窗口事故）。其前：跨平台移植 Phase 4（`serviceManager.cjs` 数据根按平台解析、POSIX `detached` 起服务并按进程组终止）。
-**Last Verified Commit:** 基线 `f2ef34a`（其前 `cd08ee9` Phase 4、`95d18a4` POSIX 沙箱、`1ecdadc` secret store、`e3ad6d6` POSIX CI 门禁）。本轮实测：`node --test` 全量清单 **41/41**（electron 面 35 + 新增 `scripts/viteCacheGuard.test.mjs` 6），真文件系统临时目录跑通"首启删→戳相符留→版本变删"三态；守卫用两轮注入变异验过牙齿（5 红 / 3 红）。vitest、`vue-tsc`、`vite build`、真 Electron **本轮未跑**。
+**Last Updated By:** 跨平台移植 Phase 5 第一刀：打包侧的"平台"从写死的 `win-x64` 变成一张可测的表（`scripts/runtimeTargets.mjs`），`check-runtime.mjs` 改为按 OS 认二进制头（PE/ELF/Mach-O，流式读头）并补 POSIX 执行位检查。同日先前：dev 启动的 `.vite` 依赖戳守卫、全局聊天室界面移除。
+**Last Verified Commit:** 基线 `540e141`（其前 `777acca` 聊天室移除、`60aed83` 文档更正）。本轮实测（Windows 本机）：desktop `node --test` 全清单 **50/50**（41 旧 + `scripts/runtimeTargets.test.mjs` 9 新）；拿机器上那份**真实 419MB win-x64 staging 产物**跑新校验器 **EXIT=0** 并逐个打印 `pe machine 0x8664`；同一份产物冒充 `--target=linux-x64` **EXIT=1**（先按文件名就拒：Linux 包里没有 `.exe`）。Linux/macOS 两条腿的 staging **本轮未跑**：`--target=linux-x64/osx-arm64` 只有在对应 runner 上才成立（Bun standalone 与 electron-builder 都不跨平台产出），所以"AppImage/dmg 能出"这句现在还不成立，属推断不是实测。vitest、`vue-tsc`、`vite build`、真 Electron **本轮未跑**。
 **Branch:** main
 
 ### 2026-10-02 前端 UX 改进
@@ -15,9 +15,11 @@
 
 类型检查原在 `GraphSeedPack.test.ts:172` 失败：模式的 `bindings` 可选，测试直接 `.find`。现在安全取值并断言该绑定存在，仍严格验证每个模式的对话身份与工具开关，没有放宽清单契约。GraphSeedPack 已升到 3.0.1，治理审查角色声明 `org_execute_report`，用于执行受边界校验的 pause/resume/stop run 报告动作。图工程组织界面存在不代表后端闭环；当前缺口与重开的任务见 `docs/agent-graph/review-2026-10-01.zh-CN.md`。
 
-### WINDOWS DISTRIBUTION（2026-09-24）
+### RUNTIME STAGING AND WINDOWS DISTRIBUTION（2026-09-24；2026-10-04 起按平台参数化）
 
 Windows x64 发布由 `npm run package:win -w @tinadec/desktop` 负责。`stage-runtime.mjs` 生成 Core .NET self-contained single-file、Gateway Bun standalone、TinadecTools self-contained IL single-file、ripgrep 与 PortableGit；`check-runtime.mjs` 校验文件和 PE 架构。`package-win.mjs` 使用未签名的 NSIS + Portable（`CSC_IDENTITY_AUTO_DISCOVERY=false`），`verify-package-output.mjs` 校验 app.asar、解包后的 node-pty/ConPTY、runtime 和 `latest.yml`。`serviceManager.cjs` 只在 packaged 且 Gateway 为精确本地 `127.0.0.1:48730` 时启动并拥有 Core/Gateway，数据位于 `%LOCALAPPDATA%\\TinadecOffice`。`smoke-packaged-windows.mjs` 与 `smoke-installed-windows.mjs` 覆盖真实启动、健康、工具清单和静默卸载；`.github/workflows/desktop-release.yml` 在 `vX.Y.Z` tag 且版本与 `apps/desktop/package.json` 一致时发布 GitHub Release。**Office 渠道门禁（2026-10-03）**：tag 构建额外从同一 staging 生成 `tinadec-office-{core,gateway,tools}-X.Y.Z-win-x64.zip` 与 AgentPack ZIP，`package-office-channel.mjs` 写入 ZIP 根 `tinadec-package.json` 与 `catalog.json`（契约见 `docs/tinadec-office-release-contract.zh-CN.md`），`verify-office-channel.mjs` 在 build 任务上做发布前门禁：包元数据一致性、归档路径安全（bsdtar 的 `./` 条目前缀统一归一化）、x64 PE（流式读头部——TinadecTools.exe 超 60MB，整体缓冲会 ENOBUFS）、AgentPack RFC 8785 digest、catalog 哈希/大小，以及**模块 ZIP ↔ `win-unpacked/resources/runtime` 逐字节双向对照**（两个方向的变异都验证过会精确变红）。归档器必须显式解析 `System32/tar.exe`：Git Bash 的 GNU tar 不支持 zip 且把盘符路径当远程主机。Release 只上传一份**顶层** `SHA256SUMS`，内容覆盖全部已发布资产（含 NSIS 与 portable）；`office-channel/SHA256SUMS` 只作 build 任务门禁、不进 Release——旧写法用 `-not -path './SHA256SUMS'` 排除顶层文件、却把内层那份（只列四个模块包与 catalog）当作 `SHA256SUMS` 资产发布，安装包因此没有校验和。此成因是拿真实产物布局在临时目录复现两条命令量出来的，最初我把它误判成"重名资产导致每次 tag 发布必炸"，模拟证明旧上传列表 basename 全唯一、不会 422。应用内 `electron-updater` 尚未接入。
+
+**三平台矩阵的形状（2026-10-04，Phase 5 第一刀）**：`scripts/runtimeTargets.mjs` 是平台事实的唯一所有者——`win-x64 / linux-x64 / osx-arm64` 三条，各带 dotnet rid、bun target、可执行后缀、二进制头格式，以及**只有 Windows 才带 PortableGit**（POSIX 用系统 git，由 `serviceManager.cjs` 运行时探测）。`osx-x64` 是**刻意不做**（macOS x64 runner 已弃用）；`linux-arm64` 有 ripgrep pin 但没有矩阵条目，等两条腿绿了再加。`stage-runtime.mjs` 与 `check-runtime.mjs` 默认取**本机能诚实产出的目标**，不匹配就大声退出——"在半台机器上凑一个没人跑过的 runtime"比不打包更坏；CI 用 `--target=` 显式指定。校验器换掉了整读文件的旧写法：TinadecTools 超 60MB，`readFileSync` 会打爆管道缓冲（本仓上过的真实坑），现在只按位置读头几段，并打印 `pe machine 0x8664` / `elf class 2, machine 62` / `macho cputype 0x100000c` 这种可核对字段；另加 POSIX 执行位检查——tar 与 Bun standalone 的产出在有些宿主没有 owner-execute 位，Windows 构建永远暴露不了这类失败，而打包版只会在 spawn 那一刻报一句看不懂权限错误。守卫 `scripts/runtimeTargets.test.mjs` 9 例：矩阵成员、后缀、PortableGit 归属、未知 target 点名、native-only 的三条回落、合成 ELF/Mach-O 的**错架构必须拒**、以及"读本机自己的可执行文件必须归成本机格式"这条不依赖夹具的活断言。
 
 ### POSIX MAIN-PROCESS PORTABILITY（2026-10-03，Phase 4；打包与冒烟仍待 Phase 5–6）
 

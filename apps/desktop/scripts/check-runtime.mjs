@@ -2,6 +2,12 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertBinaryFormat } from "./binaryFormat.mjs";
+import {
+	hostRuntimeTarget,
+	resolveRuntimeTarget,
+	runtimeBinaryName,
+} from "./runtimeTargets.mjs";
 
 const desktopDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const runtimeDir = join(desktopDir, "runtime");
@@ -9,7 +15,12 @@ const core = join(runtimeDir, "core");
 const gateway = join(runtimeDir, "gateway");
 const tools = join(runtimeDir, "tools");
 const native = join(runtimeDir, "native");
-const git = join(runtimeDir, "git");
+
+const target = (() => {
+	const argument = process.argv.find((entry) => entry.startsWith("--target="));
+	if (!argument) return hostRuntimeTarget();
+	return resolveRuntimeTarget(argument.slice("--target=".length));
+})();
 
 function requireFile(path, label) {
 	if (!existsSync(path) || !statSync(path).isFile() || statSync(path).size === 0) {
@@ -35,20 +46,14 @@ function readJson(path, label) {
 	}
 }
 
-function peMachine(path) {
-	const bytes = readFileSync(requireFile(path, "PE executable"));
-	if (bytes.length < 0x40 || bytes.readUInt16LE(0) !== 0x5a4d) return 0;
-	const peOffset = bytes.readUInt32LE(0x3c);
-	if (peOffset + 6 > bytes.length || bytes.readUInt32LE(peOffset) !== 0x00004550) {
-		return 0;
-	}
-	return bytes.readUInt16LE(peOffset + 4);
-}
-
-function requireAmd64(path, label) {
-	const machine = peMachine(path);
-	if (machine !== 0x8664) {
-		throw new Error(`${label} is not Windows x64 PE: ${path}`);
+/// A staged binary that cannot be executed is the one failure mode a Windows build never shows:
+/// tar extraction and Bun's standalone output both land without the owner-execute bit on some
+/// hosts, and the packaged app then dies at spawn with a message about permissions.
+function requireExecutableBit(path, label) {
+	if (target.platform === "win32") return;
+	const mode = statSync(path).mode;
+	if ((mode & 0o100) === 0) {
+		throw new Error(`${label} is not executable (mode ${mode.toString(8)}): ${path}`);
 	}
 }
 
@@ -77,44 +82,45 @@ requireDirectory(core, "Staged Core runtime");
 requireDirectory(gateway, "Staged Gateway runtime");
 requireDirectory(tools, "Staged Tools runtime");
 requireDirectory(native, "Staged native runtime");
-requireDirectory(git, "Staged Git runtime");
 
-const coreExe = requireFile(join(core, "TinadecCore.Api.exe"), "Core executable");
-const coreSettings = join(core, "appsettings.json");
-const coreToml = join(core, "Configuration", "default-agent-runtime.toml");
-const gatewayExe = requireFile(join(gateway, "TinadecGateway.exe"), "Gateway executable");
-const toolsExe = requireFile(join(tools, "TinadecTools.exe"), "TinadecTools executable");
-const toolsSettings = requireFile(join(tools, "Nlog.config"), "TinadecTools config");
-const nativeRg = requireFile(join(native, "rg", "rg.exe"), "Native ripgrep executable");
-const toolsRg = requireFile(join(tools, "rg.exe"), "Tools ripgrep executable");
-const gitExe = requireFile(join(git, "cmd", "git.exe"), "PortableGit git executable");
-const gitBash = requireFile(join(git, "bin", "bash.exe"), "PortableGit Bash executable");
+const rgName = runtimeBinaryName("rg", target);
+const binaries = [
+	[requireFile(join(core, runtimeBinaryName("TinadecCore.Api", target)), "Core executable"), "Core executable"],
+	[requireFile(join(gateway, runtimeBinaryName("TinadecGateway", target)), "Gateway executable"), "Gateway executable"],
+	[requireFile(join(tools, runtimeBinaryName("TinadecTools", target)), "TinadecTools executable"), "TinadecTools executable"],
+	[requireFile(join(native, "rg", rgName), "Native ripgrep executable"), "Native ripgrep executable"],
+	[requireFile(join(tools, rgName), "Tools ripgrep executable"), "Tools ripgrep executable"],
+];
 
-for (const [path, label] of [
-	[coreExe, "Core executable"],
-	[gatewayExe, "Gateway executable"],
-	[toolsExe, "TinadecTools executable"],
-	[nativeRg, "Native ripgrep executable"],
-	[toolsRg, "Tools ripgrep executable"],
-	[gitExe, "PortableGit git executable"],
-	[gitBash, "PortableGit Bash executable"],
-]) {
-	requireAmd64(path, label);
+// PortableGit is a Windows packaging artifact; on Linux and macOS git comes from the system and is
+// probed by the service host at runtime. Requiring this directory on a POSIX package would reject a
+// complete build for a file that must not be there.
+if (target.portableGit) {
+	const git = requireDirectory(join(runtimeDir, "git"), "Staged Git runtime");
+	binaries.push(
+		[requireFile(join(git, "cmd", "git.exe"), "PortableGit git executable"), "PortableGit git executable"],
+		[requireFile(join(git, "bin", "bash.exe"), "PortableGit Bash executable"), "PortableGit Bash executable"],
+	);
 }
 
-readJson(coreSettings, "Core appsettings");
-requireFile(coreToml, "Core runtime TOML");
-requireFile(toolsSettings, "TinadecTools config");
+for (const [path, label] of binaries) {
+	requireExecutableBit(path, label);
+	// Headers are read in bounded pieces: TinadecTools is over 60 MB and slurping it here was a
+	// real failure of an earlier version of this check.
+	const { detail } = await assertBinaryFormat(path, target, label);
+	console.log(`${label}: ${target.format} ${detail}`);
+}
 
+readJson(join(core, "appsettings.json"), "Core appsettings");
+requireFile(join(core, "Configuration", "default-agent-runtime.toml"), "Core runtime TOML");
+requireFile(join(tools, "Nlog.config"), "TinadecTools config");
+
+const toolsExe = binaries[2][0];
+const gatewayExe = binaries[1][0];
 const toolsVersion = runProbe(toolsExe, ["--version"], "TinadecTools --version");
-const gatewayVersion = runProbe(
-	gatewayExe,
-	["--version"],
-	"Gateway --version",
-	true,
-);
+const gatewayVersion = runProbe(gatewayExe, ["--version"], "Gateway --version", true);
 console.log(`TinadecTools --version exited successfully${toolsVersion ? `: ${toolsVersion}` : ""}.`);
 console.log(
 	`Gateway --version ${gatewayVersion ? `returned: ${gatewayVersion}` : "is not a version-only command; executable launch was checked without keeping a service running"}.`,
 );
-console.log("Staged runtime path, resource, architecture, and short-entry checks passed.");
+console.log(`Staged ${target.key} runtime passed its path, resource, format, and entry checks.`);

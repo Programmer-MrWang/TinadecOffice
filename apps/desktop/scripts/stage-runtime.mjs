@@ -15,11 +15,14 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-	RIPGREP_ASSET,
-	RIPGREP_SHA256,
-	RIPGREP_URL,
-	RIPGREP_VERSION,
+	ripgrepStagedName,
+	ripgrepTarget,
 } from "../../../scripts/ripgrep-pin.mjs";
+import {
+	hostRuntimeTarget,
+	resolveRuntimeTarget,
+	runtimeBinaryName,
+} from "./runtimeTargets.mjs";
 
 for (const key of Object.keys(process.env)) {
 	if (key.toLowerCase() === "version" || key.toLowerCase() === "ice-version") {
@@ -33,18 +36,38 @@ const runtimeDir = join(desktopDir, "runtime");
 const cacheDir = join(desktopDir, ".runtime-cache");
 const stagingDir = join(cacheDir, "runtime.staging");
 const npmCli = process.env.npm_execpath;
-const rid = "win-x64";
+
+// `--target` selects the shipping matrix entry; the default is whatever this machine can honestly
+// build. Cross-staging was never possible anyway: the Bun standalone and electron-builder both run
+// natively, so a runtime assembled on the wrong OS is one nobody executed.
+const target = (() => {
+	const index = process.argv.indexOf("--target");
+	if (index === -1) return hostRuntimeTarget();
+	const requested = process.argv[index + 1];
+	if (!requested || requested.startsWith("--")) {
+		throw new Error("stage:runtime --target needs a value (for example: --target=linux-x64).");
+	}
+	return resolveRuntimeTarget(requested.replace(/^--target=/, "").replace(/^=/, ""));
+})();
+
+if (target.platform !== process.platform || target.arch !== process.arch) {
+	throw new Error(
+		`stage:runtime target '${target.key}' needs a ${target.platform}/${target.arch} host, ` +
+			`this machine is ${process.platform}/${process.arch}.`,
+	);
+}
+if (!npmCli) {
+	throw new Error("stage:runtime must be launched through npm.");
+}
+
 const PORTABLE_GIT_VERSION = "2.55.0.windows.3";
 const PORTABLE_GIT_ASSET = "PortableGit-2.55.0.3-64-bit.7z.exe";
 const PORTABLE_GIT_SHA256 =
 	"ab00566336b5472120f9a52d34f2e79c5406535792acb0548001ffd0bd090e5d";
 
-if (process.platform !== "win32" || process.arch !== "x64") {
-	throw new Error("stage:runtime must run on native Windows x64.");
-}
-if (!npmCli) {
-	throw new Error("stage:runtime must be launched through npm.");
-}
+const coreExe = runtimeBinaryName("TinadecCore.Api", target);
+const gatewayExe = runtimeBinaryName("TinadecGateway", target);
+const toolsExe = runtimeBinaryName("TinadecTools", target);
 
 function removeTree(path) {
 	if (!existsSync(path)) return;
@@ -154,40 +177,57 @@ async function downloadPinned(label, url, asset, expectedSha256) {
 	}
 }
 
-function extractZip(archive, destination) {
-	run(
-		"powershell.exe",
-		[
-			"-NoProfile",
-			"-NonInteractive",
-			"-Command",
-			`Expand-Archive -LiteralPath ${quotePowerShell(archive)} -DestinationPath ${quotePowerShell(destination)} -Force`,
-		],
-		rootDir,
-	);
+/// Archives come in two shapes: ripgrep's Windows asset is a zip, its Linux assets are tar.gz
+/// (the musl builds, so the packaged binary does not care about the host glibc), and the macOS
+/// assets are zip again. Expand-Archive only exists on Windows and GNU tar from Git Bash cannot
+/// read zips, so the extractor is chosen by the asset, never by the host.
+function extractArchive(archive, destination, asset) {
+	if (asset.endsWith(".zip")) {
+		if (process.platform === "win32") {
+			run("powershell.exe", [
+				"-NoProfile",
+				"-NonInteractive",
+				"-Command",
+				`Expand-Archive -LiteralPath ${quotePowerShell(archive)} -DestinationPath ${quotePowerShell(destination)} -Force`,
+			]);
+			return;
+		}
+		run("tar", ["-xf", archive, "-C", destination]);
+		return;
+	}
+	if (asset.endsWith(".tar.gz")) {
+		run("tar", ["-xzf", archive, "-C", destination]);
+		return;
+	}
+	throw new Error(`stage:runtime has no extractor for '${asset}'.`);
+}
+
+function markExecutable(path) {
+	if (process.platform === "win32") return;
+	chmodSync(path, 0o755);
 }
 
 async function stageRipgrep() {
-	const archive = await downloadPinned(
-		`ripgrep ${RIPGREP_VERSION}`,
-		RIPGREP_URL,
-		RIPGREP_ASSET,
-		RIPGREP_SHA256,
-	);
+	// The pin table is keyed by the same target names the runtime matrix uses, and it owns the
+	// version, the URL and the checksum — staging must not grow its own copies.
+	const pin = ripgrepTarget(target.key);
+	const staged = pin.binary;
+	const archive = await downloadPinned(`ripgrep for ${target.key}`, pin.url, pin.asset, pin.sha256);
 	const extractDir = join(stagingDir, "extract", "ripgrep");
 	removeTree(extractDir);
 	mkdirSync(extractDir, { recursive: true });
-	extractZip(archive, extractDir);
-	const extracted = requireFile(
-		join(extractDir, RIPGREP_ASSET.replace(/\.zip$/, ""), "rg.exe"),
-		"Extracted ripgrep executable",
-	);
-	const native = join(stagingDir, "native", "rg", "rg.exe");
-	const tools = join(stagingDir, "tools", "rg.exe");
+	extractArchive(archive, extractDir, pin.asset);
+
+	const inside = pin.asset.replace(/\.(tar\.gz|zip)$/, "");
+	const extracted = requireFile(join(extractDir, inside, staged), "Extracted ripgrep executable");
+	const native = join(stagingDir, "native", "rg", staged);
+	const tools = join(stagingDir, "tools", staged);
 	mkdirSync(dirname(native), { recursive: true });
 	mkdirSync(dirname(tools), { recursive: true });
 	copyFileSync(extracted, native);
 	copyFileSync(extracted, tools);
+	markExecutable(native);
+	markExecutable(tools);
 	removeTree(join(stagingDir, "extract"));
 	return native;
 }
@@ -255,7 +295,7 @@ async function stagePortableGit() {
 
 function stageCore() {
 	const output = join(stagingDir, "core");
-	console.log("Publishing Core...");
+	console.log(`Publishing Core for ${target.rid}...`);
 	run(
 		"dotnet",
 		[
@@ -264,7 +304,7 @@ function stageCore() {
 			"-c",
 			"Release",
 			"-r",
-			rid,
+			target.rid,
 			"--self-contained",
 			"true",
 			"-p:PublishSingleFile=true",
@@ -284,23 +324,23 @@ function stageCore() {
 			config,
 		);
 	}
-	requireFile(join(output, "TinadecCore.Api.exe"), "Core executable");
+	requireFile(join(output, coreExe), "Core executable");
 	requireFile(join(output, "appsettings.json"), "Core appsettings");
 	requireFile(config, "Core runtime TOML");
 	console.log("Core publish completed.");
 }
 
 function stageGateway() {
-	const output = join(stagingDir, "gateway", "TinadecGateway.exe");
+	const output = join(stagingDir, "gateway", gatewayExe);
 	mkdirSync(dirname(output), { recursive: true });
-	console.log("Compiling Gateway...");
+	console.log(`Compiling Gateway for ${target.bunTarget}...`);
 	run(
 		"bun",
 		[
 			"build",
 			"src/index.ts",
 			"--compile",
-			"--target=bun-windows-x64",
+			`--target=${target.bunTarget}`,
 			"--outfile",
 			output,
 		],
@@ -313,7 +353,7 @@ function stageGateway() {
 function stageTools(ripgrep) {
 	const output = join(stagingDir, "tools");
 	const project = join(rootDir, "TinadecTools", "TinadecTools.csproj");
-	console.log("Publishing TinadecTools...");
+	console.log(`Publishing TinadecTools for ${target.rid}...`);
 	run(
 		"dotnet",
 		[
@@ -322,7 +362,7 @@ function stageTools(ripgrep) {
 			"-c",
 			"Release",
 			"-r",
-			rid,
+			target.rid,
 			"--self-contained",
 			"true",
 			"-p:PublishAot=false",
@@ -333,12 +373,12 @@ function stageTools(ripgrep) {
 		rootDir,
 		dotnetCacheEnv,
 	);
-	copyFileSync(ripgrep, join(output, "rg.exe"));
+	copyFileSync(ripgrep, join(output, ripgrepStagedName(target.key)));
 	const toolsConfig = join(output, "Nlog.config");
 	if (!existsSync(toolsConfig)) {
 		copyFileSync(join(rootDir, "TinadecTools", "Nlog.config"), toolsConfig);
 	}
-	requireFile(join(output, "TinadecTools.exe"), "TinadecTools executable");
+	requireFile(join(output, toolsExe), "TinadecTools executable");
 	requireFile(join(output, "Nlog.config"), "TinadecTools Nlog config");
 	console.log("TinadecTools publish completed.");
 }
@@ -349,21 +389,28 @@ mkdirSync(join(stagingDir, "core"), { recursive: true });
 mkdirSync(join(stagingDir, "gateway"), { recursive: true });
 mkdirSync(join(stagingDir, "tools"), { recursive: true });
 mkdirSync(join(stagingDir, "native"), { recursive: true });
-mkdirSync(join(stagingDir, "git"), { recursive: true });
 for (const directory of Object.values(dotnetCacheEnv)) {
 	mkdirSync(directory, { recursive: true });
 }
 
 try {
 	const ripgrep = await stageRipgrep();
-	await stagePortableGit();
+	if (target.portableGit) {
+		mkdirSync(join(stagingDir, "git"), { recursive: true });
+		await stagePortableGit();
+	} else {
+		// POSIX ships system git; the service host probes it on PATH and reports the result in
+		// diagnostics (electron/serviceManager.cjs). Staging a PortableGit here would be a Windows
+		// artifact inside a Linux package.
+		console.log(`Skipping PortableGit for ${target.key}: system git is probed at runtime.`);
+	}
 	stageCore();
 	stageGateway();
 	stageTools(ripgrep);
 	removeFilesByExtension(stagingDir, ".pdb");
 	removeTree(runtimeDir);
 	renameSync(stagingDir, runtimeDir);
-	console.log(`Staged win-x64 runtime at ${runtimeDir}.`);
+	console.log(`Staged ${target.key} runtime at ${runtimeDir}.`);
 } catch (error) {
 	removeTree(stagingDir);
 	throw error;
