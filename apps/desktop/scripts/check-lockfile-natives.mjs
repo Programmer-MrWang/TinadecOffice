@@ -12,6 +12,13 @@ const rootDir = resolve(desktopDir, "..", "..");
 /// bug in npm/cli#4828 lists only the Windows variants — so on a Linux or macOS runner the
 /// require() fails at startup and the log says "Cannot find module @rollup/rollup-linux-x64-gnu"
 /// instead of "this lockfile is incomplete".
+///
+/// Hand-writing the missing entries is not enough either: an entry nested under its parent
+/// (`node_modules/vite/node_modules/@esbuild/linux-x64`) is silently dropped by `npm ci` on every
+/// host that did not generate the lockfile, while a hoisted one survives. Verified by installing
+/// all three views from the same lock. The shape that survives on all of them is a declaration in
+/// the root package.json — which is also the only shape npm keeps correct when somebody on another
+/// OS regenerates the lock.
 const NATIVE_FAMILIES = [
 	{
 		parent: "rollup",
@@ -46,11 +53,12 @@ function nativeEntry(entries, name) {
 	);
 }
 
-/// Returns the list of problems; empty means this host's `npm ci` will have every native the build
-/// loads. A family whose parent is no longer in the tree is skipped, so an upgrade that drops
-/// rollup doesn't leave this script demanding a package nothing imports.
-export function missingNativePackages(lock, target) {
+/// Returns the list of problems; empty means a real `npm ci` on that target's host installs every
+/// native the build loads. A family whose parent is no longer in the tree is skipped, so an upgrade
+/// that drops rollup doesn't leave this script demanding a package nothing imports.
+export function missingNativePackages(lock, target, rootOptionalDependencies) {
 	const entries = packageEntries(lock);
+	const declaredAtRoot = rootOptionalDependencies ?? {};
 	const problems = [];
 
 	for (const family of NATIVE_FAMILIES) {
@@ -82,6 +90,20 @@ export function missingNativePackages(lock, target) {
 					`which cannot serve ${target.key} (${key})`,
 			);
 		}
+
+		if (declaredAtRoot[required] === undefined) {
+			problems.push(
+				`'${required}' is not in the root package.json optionalDependencies, so npm ci drops ` +
+					`it on every host that did not generate this lockfile`,
+			);
+		} else if (entry.version !== declaredAtRoot[required]) {
+			// esbuild refuses to start when its JS side and the binary disagree about the version, so
+			// a pin that drifts from what vite resolved is a build failure with a confusing message.
+			problems.push(
+				`'${required}' is pinned at ${declaredAtRoot[required]} but the lockfile carries ` +
+					`${entry.version}; pin the version ${family.parent} actually resolved`,
+			);
+		}
 	}
 
 	return problems;
@@ -91,19 +113,36 @@ export function readLockfile(path = join(rootDir, "package-lock.json")) {
 	return JSON.parse(readFileSync(path, "utf8"));
 }
 
+export function readRootOptionalDependencies(path = join(rootDir, "package.json")) {
+	return JSON.parse(readFileSync(path, "utf8")).optionalDependencies ?? {};
+}
+
+/// Every native the matrix needs across every target — exactly what the root package.json has to
+/// declare, so a new RUNTIME_TARGETS row can't quietly stop being covered.
+export function requiredNativePackages(targetKeys = runtimeTargetKeys()) {
+	const names = new Set();
+	for (const key of targetKeys) {
+		const target = resolveRuntimeTarget(key);
+		for (const family of NATIVE_FAMILIES) {
+			const required = family.nameFor(target.platform, target.arch);
+			if (required) names.add(required);
+		}
+	}
+	return [...names].sort();
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
 	const raw = process.argv[2];
 	const target = raw ? resolveRuntimeTarget(raw) : hostRuntimeTarget();
-	const problems = missingNativePackages(readLockfile(), target);
+	const problems = missingNativePackages(readLockfile(), target, readRootOptionalDependencies());
 	if (problems.length > 0) {
 		console.error(
 			`The lockfile cannot install the native packages ${target.key} needs:\n` +
 				problems.map((p) => `  - ${p}`).join("\n") +
-				`\nRegenerate it from a clean tree: npm ci fails on this platform until the missing ` +
-				`variants are listed (npm/cli#4828 prunes them on the host that generated the lockfile).`,
+				`\nDeclare them in the root package.json's optionalDependencies, then run ` +
+				`npm install --package-lock-only (npm/cli#4828 prunes undeclared platform binaries).`,
 		);
 		process.exit(1);
 	}
-	console.log(`${target.key}: every build-time native package is in the lockfile.`);
-	console.log(`Checked families for ${runtimeTargetKeys().join(", ")} targets.`);
+	console.log(`${target.key}: every build-time native package is declared, locked and installable.`);
 }

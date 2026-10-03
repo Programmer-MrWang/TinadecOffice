@@ -36,6 +36,14 @@
   "devDependencies": {
     "concurrently": "^9.2.1"
   },
+  "optionalDependencies": {
+    "@esbuild/darwin-arm64": "0.27.7",
+    "@esbuild/linux-x64": "0.27.7",
+    "@esbuild/win32-x64": "0.27.7",
+    "@rollup/rollup-darwin-arm64": "4.60.4",
+    "@rollup/rollup-linux-x64-gnu": "4.60.4",
+    "@rollup/rollup-win32-x64-msvc": "4.60.4"
+  },
   "overrides": {
     "@vue/compiler-core": "3.6.0-rc.10",
     "@vue/compiler-dom": "3.6.0-rc.10",
