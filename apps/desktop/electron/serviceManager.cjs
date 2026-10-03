@@ -1,5 +1,6 @@
 const { closeSync, existsSync, mkdirSync, openSync } = require('node:fs');
 const { spawn, spawnSync } = require('node:child_process');
+const { homedir } = require('node:os');
 const { join } = require('node:path');
 
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:48730';
@@ -25,6 +26,29 @@ function bundledRuntimePaths(resourcesPath, platform = process.platform) {
     gitCmdDir,
     gitBinDir,
   };
+}
+
+/**
+ * Where the product keeps its data, logs and default workspace on this platform.
+ *
+ * Windows has `%LOCALAPPDATA%`, and for a long time that was the only branch — on Linux or
+ * macOS a packaged app failed at startup with "LOCALAPPDATA is unavailable" rather than
+ * writing anywhere. POSIX now follows the platform's own convention (XDG on Linux,
+ * Application Support on macOS) and falls back to the home directory when the variable is
+ * unset, because a desktop session without XDG_DATA_HOME is normal, not a misconfiguration.
+ * @returns {string}
+ */
+function officeRootFor({ platform, localAppDataPath, environment, homedirImpl }) {
+  if (platform === 'win32') {
+    const base = localAppDataPath || environment?.LOCALAPPDATA;
+    if (!base) throw new Error('LOCALAPPDATA is unavailable.');
+    return join(base, 'TinadecOffice');
+  }
+  const home = homedirImpl?.() || environment?.HOME;
+  if (!home) throw new Error('Neither a home directory nor $HOME is available for the data root.');
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'TinadecOffice');
+  const xdg = (environment?.XDG_DATA_HOME ?? '').trim();
+  return join(xdg || join(home, '.local', 'share'), 'TinadecOffice');
 }
 
 function canonicalLocalGatewayUrl(gatewayUrl) {
@@ -126,6 +150,8 @@ function createServiceManager({
   spawnImpl = spawn,
   spawnSyncImpl = spawnSync,
   environment = process.env,
+  homedirImpl = homedir,
+  signalGroupImpl = (pid, signal) => process.kill(-pid, signal),
   healthTimeoutMs = 800,
   startupTimeoutMs = 90_000,
   pollIntervalMs = 250,
@@ -150,7 +176,12 @@ function createServiceManager({
       child = spawnImpl(command, args, {
         cwd,
         env,
-        detached: false,
+        // A POSIX child that leads its own process group can be terminated as a tree with
+        // one signal. That matters here specifically because Core spawns TinadecTools as its
+        // own child: killing just Core would leave a tool host holding the workspace.
+        // Windows keeps the group semantics it has (taskkill /t /f) instead of detached,
+        // which would change console inheritance for the whole service tree.
+        detached: platform !== 'win32',
         windowsHide: true,
         stdio: ['ignore', logFd, logFd],
       });
@@ -217,17 +248,27 @@ function createServiceManager({
       return;
     }
 
-    try {
-      child.kill('SIGTERM');
-    } catch {
-      return;
-    }
+    // Services start detached on POSIX, so the pid is also the process-group id and one
+    // signal reaches Core and the TinadecTools hosts it spawned. If the group signal does
+    // not land (the child never became a leader, or it is already gone), fall back to the
+    // single process rather than assume the tree is clean.
+    const signalTree = (signal) => {
+      try {
+        signalGroupImpl(child.pid, signal);
+        return true;
+      } catch {
+        try {
+          child.kill(signal);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    };
+
+    if (!signalTree('SIGTERM')) return;
     if (await waitForExit(child, 3_000)) return;
-    try {
-      child.kill('SIGKILL');
-    } catch {
-      return;
-    }
+    if (!signalTree('SIGKILL')) return;
     await waitForExit(child, 1_000);
   }
 
@@ -255,7 +296,6 @@ function createServiceManager({
 
   function requireRuntime(resourcesPath, localAppDataPath) {
     if (!resourcesPath) throw new Error('Electron resources path is unavailable.');
-    if (!localAppDataPath) throw new Error('LOCALAPPDATA is unavailable.');
     const paths = bundledRuntimePaths(resourcesPath, platform);
     for (const name of ['core', 'gateway', 'tools']) {
       if (!existsSync(paths[name])) {
@@ -263,13 +303,15 @@ function createServiceManager({
       }
     }
     if (platform === 'win32') {
+      // PortableGit ships in the Windows package; on Linux and macOS the tools use the
+      // system git, so requiring those directories here would refuse a good install.
       for (const name of ['gitCmdDir', 'gitBinDir']) {
         if (!existsSync(paths[name])) {
           throw new Error(`Bundled ${name} runtime is missing: ${paths[name]}`);
         }
       }
     }
-    const officeRoot = join(localAppDataPath, 'TinadecOffice');
+    const officeRoot = officeRootFor({ platform, localAppDataPath, environment, homedirImpl });
     const dataRoot = join(officeRoot, 'data');
     const logsDir = join(officeRoot, 'logs');
     const workspaceRoot = join(officeRoot, 'workspaces', 'default');
@@ -400,6 +442,7 @@ module.exports = {
   createServiceManager,
   ensureLocalServices: serviceManager.ensureLocalServices,
   matchesServiceIdentity,
+  officeRootFor,
   probeService,
   shouldManageLocalServices,
   stopLocalServices: serviceManager.stopLocalServices,

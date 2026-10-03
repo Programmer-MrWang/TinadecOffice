@@ -1,9 +1,9 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-10-02
-**Last Updated By:** Codex 修复新建会话时旧 session roster 请求迟到导致选中会话回退；补 AbortController、读取代次与 HomeController 回归测试。
-**Last Verified Commit:** edafd21；HomeController 定向 18/18、`vue-tsc` 通过；未做真实 Electron 走查。
-**Branch:** Astra
+**Last Updated:** 2026-10-03
+**Last Updated By:** 跨平台移植 Phase 4（主进程可移植）：`serviceManager.cjs` 数据根按平台解析（win `%LOCALAPPDATA%` / mac `~/Library/Application Support` / linux `$XDG_DATA_HOME`→`~/.local/share`）、POSIX 以 `detached` 起服务并按进程组终止；同日先前：新建会话 roster 迟到导致选中会话回退的修复 + 会话隔离回归。
+**Last Verified Commit:** 基线 `95d18a4`（其前 `1ecdadc` secret store、`e3ad6d6` POSIX CI 门禁）。本轮实测：`node --test` Electron 面 **35/35**（原 31，新增 4 条数据根/进程组用例，含"Linux 上缺 PortableGit 目录也必须起得来"与"组信号到达时不再逐个 kill"）；vitest、`vue-tsc`、build、真 Electron **本轮未跑**。POSIX 的打包与冒烟（Phase 5–6）尚未做，所以"Linux/macOS 有可分发安装版"这句话现在不成立——本阶段只交付主进程可移植性。
+**Branch:** main
 
 ### 2026-10-02 前端 UX 改进
 
@@ -18,6 +18,16 @@
 ### WINDOWS DISTRIBUTION（2026-09-24）
 
 Windows x64 发布由 `npm run package:win -w @tinadec/desktop` 负责。`stage-runtime.mjs` 生成 Core .NET self-contained single-file、Gateway Bun standalone、TinadecTools self-contained IL single-file、ripgrep 与 PortableGit；`check-runtime.mjs` 校验文件和 PE 架构。`package-win.mjs` 使用未签名的 NSIS + Portable（`CSC_IDENTITY_AUTO_DISCOVERY=false`），`verify-package-output.mjs` 校验 app.asar、解包后的 node-pty/ConPTY、runtime 和 `latest.yml`。`serviceManager.cjs` 只在 packaged 且 Gateway 为精确本地 `127.0.0.1:48730` 时启动并拥有 Core/Gateway，数据位于 `%LOCALAPPDATA%\\TinadecOffice`。`smoke-packaged-windows.mjs` 与 `smoke-installed-windows.mjs` 覆盖真实启动、健康、工具清单和静默卸载；`.github/workflows/desktop-release.yml` 在 `vX.Y.Z` tag 且版本与 `apps/desktop/package.json` 一致时发布 GitHub Release。**Office 渠道门禁（2026-10-03）**：tag 构建额外从同一 staging 生成 `tinadec-office-{core,gateway,tools}-X.Y.Z-win-x64.zip` 与 AgentPack ZIP，`package-office-channel.mjs` 写入 ZIP 根 `tinadec-package.json` 与 `catalog.json`（契约见 `docs/tinadec-office-release-contract.zh-CN.md`），`verify-office-channel.mjs` 在 build 任务上做发布前门禁：包元数据一致性、归档路径安全（bsdtar 的 `./` 条目前缀统一归一化）、x64 PE（流式读头部——TinadecTools.exe 超 60MB，整体缓冲会 ENOBUFS）、AgentPack RFC 8785 digest、catalog 哈希/大小，以及**模块 ZIP ↔ `win-unpacked/resources/runtime` 逐字节双向对照**（两个方向的变异都验证过会精确变红）。归档器必须显式解析 `System32/tar.exe`：Git Bash 的 GNU tar 不支持 zip 且把盘符路径当远程主机。Release 只上传一份**顶层** `SHA256SUMS`，内容覆盖全部已发布资产（含 NSIS 与 portable）；`office-channel/SHA256SUMS` 只作 build 任务门禁、不进 Release——旧写法用 `-not -path './SHA256SUMS'` 排除顶层文件、却把内层那份（只列四个模块包与 catalog）当作 `SHA256SUMS` 资产发布，安装包因此没有校验和。此成因是拿真实产物布局在临时目录复现两条命令量出来的，最初我把它误判成"重名资产导致每次 tag 发布必炸"，模拟证明旧上传列表 basename 全唯一、不会 422。应用内 `electron-updater` 尚未接入。
+
+### POSIX MAIN-PROCESS PORTABILITY（2026-10-03，Phase 4；打包与冒烟仍待 Phase 5–6）
+
+`serviceManager.cjs` 的三处 Windows 假设已收口，且都是**注入式可测**的（`platform`/`environment`/`homedirImpl`/`signalGroupImpl`）：
+
+- **数据根**：`officeRootFor()` 按平台解析——win32 `%LOCALAPPDATA%\TinadecOffice`（仍要求它有值，绝不拿 homedir 猜一个）；darwin `~/Library/Application Support/TinadecOffice`；linux `$XDG_DATA_HOME`，**未设置时回落 `~/.local/share`**（非 login 上下文没有 XDG 变量是常态，不是配错）。旧行为是 POSIX 直接抛 `LOCALAPPDATA is unavailable`，packaged 应用连数据目录都建不出来。
+- **进程树终止**：POSIX 以 `detached: true` 起 Core/Gateway，因此 pid 即组 id，一次 `kill(-pid)` 能连带 Core 自己起的 TinadecTools 子进程；只有组信号落空才退回单进程 `kill`。`win32` 保持 `detached:false` + `taskkill /t /f`（改了会动控制台继承语义）。为什么必须杀树：只杀 Core 会留下握着工作区的工具宿主。
+- **Git**：`gitCmdDir`/`gitBinDir` 的存在性检查收窄到 win32——PortableGit 是 Windows 打包件，Linux/macOS 用系统 git，按旧代码会因为"缺目录"拒绝一个完整的 Linux 安装。`buildServiceEnvironment` 本来就不在非 win32 注入那两个目录。
+
+**未做（别当成已完成）**：`stage-runtime.mjs` 仍只产 `win-x64`，electron-builder 仍只有 NSIS/portable，`smoke-packaged-windows.mjs` 之外没有 POSIX 冒烟，AppImage/dmg 与三平台 CI 矩阵属 Phase 5–6。`terminalManager.cjs` 的 darwin/linux shell 目录分支存在但从未在真机走过（WSL 探测与 cmd.exe 默认仍只在 win32 路径上）。
 
 Electron + Vue 3 desktop app. Vite renders the UI; Electron provides the window/preload bridge; renderer talks to Gateway only.
 

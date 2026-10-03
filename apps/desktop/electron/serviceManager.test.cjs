@@ -10,6 +10,7 @@ const {
   bundledRuntimePaths,
   canonicalLocalGatewayUrl,
   createServiceManager,
+  officeRootFor,
   shouldManageLocalServices,
 } = require('./serviceManager.cjs');
 
@@ -337,6 +338,119 @@ test('non-Windows shutdown falls back to owned-process signals', async () => {
     await manager.stopLocalServices();
     assert.deepEqual(children.map((child) => child.killCalls), [['SIGTERM'], ['SIGTERM']]);
     assert.deepEqual(manager.ownedServiceLabels(), []);
+  } finally {
+    await manager.stopLocalServices();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ── cross-platform data root and process-tree termination ────────────────────
+
+test('the data root follows each platform’s own convention', () => {
+  const home = path.join(path.sep, 'home', 'tester');
+  assert.equal(
+    officeRootFor({ platform: 'win32', localAppDataPath: 'C:\Users\t\AppData\Local', environment: {} }),
+    path.join('C:\Users\t\AppData\Local', 'TinadecOffice'));
+  assert.equal(
+    officeRootFor({ platform: 'darwin', environment: {}, homedirImpl: () => home }),
+    path.join(home, 'Library', 'Application Support', 'TinadecOffice'));
+  assert.equal(
+    officeRootFor({ platform: 'linux', environment: { XDG_DATA_HOME: '/xdg/data' }, homedirImpl: () => home }),
+    path.join('/xdg/data', 'TinadecOffice'));
+  assert.equal(
+    officeRootFor({ platform: 'linux', environment: {}, homedirImpl: () => home }),
+    path.join(home, '.local', 'share', 'TinadecOffice'));
+});
+
+test('an unset XDG_DATA_HOME falls back to $HOME instead of failing startup', () => {
+  // A desktop session launched from a non-login context legitimately has no XDG variable.
+  const root = officeRootFor({ platform: 'linux', environment: { HOME: '/srv/tinadec' }, homedirImpl: () => '' });
+  assert.equal(root, path.join('/srv/tinadec', '.local', 'share', 'TinadecOffice'));
+});
+
+test('Windows still requires LOCALAPPDATA and never guesses a home directory', () => {
+  assert.throws(
+    () => officeRootFor({ platform: 'win32', localAppDataPath: '', environment: {}, homedirImpl: () => '/home/x' }),
+    /LOCALAPPDATA/);
+});
+
+test('Linux starts services detached and terminates the process group, not just the child', async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), 'tinadec-service-linux-'));
+  const resourcesPath = path.join(root, 'resources');
+  const paths = bundledRuntimePaths(resourcesPath, 'linux');
+  for (const file of [paths.core, paths.gateway, paths.tools]) {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, '');
+  }
+  // Deliberately no git/cmd or git/bin: that is what a Linux package actually contains, and
+  // the startup path must accept it.
+  const runtime = { resourcesPath, localAppDataPath: path.join(root, 'unused'), paths };
+  const xdgData = path.join(root, 'xdg-data');
+  const ready = new Set();
+  const launches = [];
+  const groupSignals = [];
+  let nextPid = 500;
+  const manager = createServiceManager({
+    platform: 'linux',
+    environment: { XDG_DATA_HOME: xdgData, PATH: '/usr/bin' },
+    homedirImpl: () => root,
+    signalGroupImpl: (pid, signal) => {
+      groupSignals.push({ pid, signal });
+      const target = launches.find((launch) => launch.child.pid === pid)?.child;
+      if (target) {
+        target.exitCode = 0;
+        target.emit('close');
+      }
+    },
+    startupTimeoutMs: 100,
+    pollIntervalMs: 1,
+    fetchImpl: async (url) => {
+      if (!ready.has(url)) throw new Error('not listening');
+      return healthResponse(url.startsWith(CORE_URL) ? coreHealth : gatewayHealth);
+    },
+    spawnImpl: (command, args, options) => {
+      const child = new FakeChild(nextPid++);
+      launches.push({ command, args, options, child });
+      ready.add(command === runtime.paths.core
+        ? `${CORE_URL}/api/v1/health`
+        : `${DEFAULT_GATEWAY_URL}/api/v1/health`);
+      return child;
+    },
+    spawnSyncImpl: () => {
+      throw new Error('taskkill is a Windows path; a POSIX stop must not reach for it');
+    },
+  });
+
+  try {
+    assert.deepEqual(
+      await manager.ensureLocalServices({
+        isPackaged: true,
+        gatewayUrl: DEFAULT_GATEWAY_URL,
+        resourcesPath: runtime.resourcesPath,
+        localAppDataPath: undefined,
+      }),
+      { started: true, ownsCore: true, ownsGateway: true },
+    );
+
+    // No .exe suffix, and the bundled PortableGit dirs are absent: requiring them is what
+    // made a complete Linux install refuse to start.
+    assert.ok(!runtime.paths.tools.endsWith('.exe'));
+    assert.equal(existsSync(runtime.paths.gitCmdDir), false);
+    assert.equal(launches[0].options.detached, true);
+    assert.equal(
+      launches[0].options.env.TinadecPersistence__DataRoot,
+      path.join(xdgData, 'TinadecOffice', 'data'));
+    assert.equal(launches[0].options.env.PATH, `${runtime.paths.toolsDir}:/usr/bin`);
+
+    await manager.stopLocalServices();
+    assert.deepEqual(groupSignals.map((entry) => entry.signal), ['SIGTERM', 'SIGTERM']);
+    assert.deepEqual(
+      groupSignals.map((entry) => entry.pid).sort(),
+      launches.map((launch) => launch.child.pid).sort(),
+    );
+    for (const launch of launches) {
+      assert.deepEqual(launch.child.killCalls, [], 'the group signal reached the tree; no per-child kill');
+    }
   } finally {
     await manager.stopLocalServices();
     rmSync(root, { recursive: true, force: true });
