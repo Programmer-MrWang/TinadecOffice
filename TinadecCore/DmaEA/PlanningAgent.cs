@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using TinadecCore.Abstractions.Ports;
@@ -103,18 +102,20 @@ public sealed class PlanningAgent
                 ? rosterInstructions + "\n\n" + PlanningInstructions
                 : assembledInstructions.Trim() + "\n\n" + rosterInstructions + "\n\n" + PlanningInstructions
         };
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             chatClient,
             "operation.task_planner",
             "task_planner",
             "Creates the execution task graph without performing side effects.",
-            options);
-
-        var response = await agent.RunAsync(ctx.UserGoal, cancellationToken: ct).ConfigureAwait(false);
-        LastUsage = Maf18RuntimeAdapter.NormalizeUsage(response.Usage);
-        var answer = ModelOutputText.AnswerText(response.Text);
+            options,
+            ctx.UserGoal,
+            ct).ConfigureAwait(false);
+        LastUsage = turn.Usage;
+        var answer = turn.AnswerText;
         LastResponseHead = answer.Length <= MaxResponseHeadLength ? answer : answer[..MaxResponseHeadLength];
-        var tasks = TryParseTasks(response.Text, out var parsed, out var parseError);
+        // Parsing reads the raw text: TryParseTasks strips thinking markup and fences itself,
+        // and its parse-error detail is what the retry hint and run.plan_diagnostic carry.
+        var tasks = TryParseTasks(turn.RawText, out var parsed, out var parseError);
         LastParseErrorDetail = parseError;
         LastPlanWasParsed = parsed;
         if (!parsed)

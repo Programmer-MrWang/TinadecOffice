@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Hosting;
@@ -469,7 +468,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 return new GateDecision("escalate", [resolution.Error ?? "Chat route is unavailable."]);
             }
             var chatClient = await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false);
-            using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+            var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
                 chatClient,
                 "operation.task_planner",
                 "task_planner",
@@ -477,10 +476,12 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 new ChatOptions
                 {
                     Instructions = "你是任务规划智能体，正在执行门控评审（gate review）。对照给出的代码事实与逐条验收裁决，判断本 lane 是否可以开始执行。只能收紧、不能放宽：任何一条验收裁决不满足或事实哈希不符都必须拒绝放行。仅输出 JSON 对象：{\"decision\":\"proceed|wait_more|escalate\",\"reasons\":[...]}，不要输出其他文字。"
-                });
-            var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-            checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
-            return ParseGateDecision(response.Text)
+                },
+                prompt,
+                cancellationToken).ConfigureAwait(false);
+            checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
+            // Raw text: the gate decision is JSON and its reader walks balanced candidates.
+            return ParseGateDecision(turn.RawText)
                 ?? new GateDecision("escalate", ["Gate review response was unparsable; manual confirmation is required."]);
         }
         catch (OperationCanceledException)

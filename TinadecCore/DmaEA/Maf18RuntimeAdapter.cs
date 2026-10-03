@@ -48,11 +48,93 @@ internal static class Maf18RuntimeAdapter
     }
 
     /// <summary>
-    /// Creates an operation-layer model agent with a stable identity and non-sensitive
-    /// OpenTelemetry. Governance agents never receive tools: durable Core policy must
-    /// authorize and dispatch every side effect.
+    /// One governance model turn as Tinadec sees it. MAF's response type never leaves the
+    /// adapter: usage is already normalized to <see cref="ModelUsage"/>, and the text is
+    /// offered twice — <see cref="RawText"/> for the JSON readers that strip thinking markup
+    /// themselves, <see cref="AnswerText"/> for prose that must never carry it.
     /// </summary>
-    internal static OpenTelemetryAgent CreateGovernanceAgent(
+    internal sealed record GovernanceTurn(string? RawText, string AnswerText, ModelUsage? Usage)
+    {
+        /// <summary>The one definition of "the model answered nothing": whitespace or
+        /// reasoning-only output counts as no answer. Callers keep their own failure policy.</summary>
+        public bool HasAnswer => !string.IsNullOrWhiteSpace(AnswerText);
+
+        public string AnswerOr(string fallback) => HasAnswer ? AnswerText : fallback;
+    }
+
+    /// <summary>
+    /// Runs one governance turn end to end — create the agent, run it, dispose it — and hands
+    /// back a Tinadec-owned result. This is the only governance entry point: callers never see
+    /// <c>OpenTelemetryAgent</c>, never call MAF's <c>RunAsync</c>, and never normalize usage
+    /// themselves, so a MAF upgrade lands inside this file instead of at nine call sites.
+    /// </summary>
+    /// <remarks>
+    /// Failures propagate with their original types on purpose. <c>RunInterruptedException</c>
+    /// derives from <see cref="OperationCanceledException"/> and drives the interrupt path, and
+    /// <c>ModelInvocationExhaustedException</c> derives from <see cref="InvalidOperationException"/>,
+    /// which is what the engine's error classifier trusts to surface a controlled message.
+    /// Re-typing either here would silently break both.
+    /// </remarks>
+    internal static async Task<GovernanceTurn> RunGovernanceTurnAsync(
+        IChatClient chatClient,
+        string id,
+        string name,
+        string description,
+        ChatOptions chatOptions,
+        string prompt,
+        CancellationToken cancellationToken)
+    {
+        using var agent = CreateGovernanceAgent(chatClient, id, name, description, chatOptions);
+        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return new GovernanceTurn(
+            response.Text,
+            ModelOutputText.AnswerText(response.Text),
+            NormalizeUsage(response.Usage));
+    }
+
+    /// <summary>
+    /// Tinadec-owned view of how the adapter wired a governance agent. It exists so the MAF
+    /// wiring (identity, telemetry, concurrency, tool invocation) stays asserted without
+    /// handing MAF types to anything outside this file.
+    /// </summary>
+    internal sealed record GovernanceAgentWiring(
+        string Id,
+        string? Name,
+        bool SensitiveDataEnabled,
+        bool ConcurrentInvocationAllowed,
+        bool ApprovalResponseBindingDisabled,
+        bool FunctionInvokingClientAttached,
+        bool InvokerConcurrentInvocationAllowed,
+        int? MaxOutputTokens);
+
+    internal static GovernanceAgentWiring InspectGovernanceWiring(
+        IChatClient chatClient,
+        string id,
+        string name,
+        string description,
+        ChatOptions chatOptions)
+    {
+        using var agent = CreateGovernanceAgent(chatClient, id, name, description, chatOptions);
+        var options = agent.GetService<ChatClientAgentOptions>()
+            ?? throw new InvalidOperationException("The governance agent exposes no ChatClientAgentOptions.");
+        var invoker = agent.GetService<IChatClient>()?.GetService<FunctionInvokingChatClient>();
+        return new GovernanceAgentWiring(
+            agent.Id,
+            agent.Name,
+            agent.EnableSensitiveData,
+            options.AllowConcurrentInvocation,
+            options.DisableApprovalResponseBinding,
+            invoker is not null,
+            invoker?.AllowConcurrentInvocation ?? false,
+            chatOptions.MaxOutputTokens);
+    }
+
+    /// <summary>
+    /// Creates an operation-layer model agent with a stable identity and non-sensitive
+    /// OpenTelemetry. Private on purpose: governance callers go through
+    /// <see cref="RunGovernanceTurnAsync"/> so no MAF agent type escapes this adapter.
+    /// </summary>
+    private static OpenTelemetryAgent CreateGovernanceAgent(
         IChatClient chatClient,
         string id,
         string name,

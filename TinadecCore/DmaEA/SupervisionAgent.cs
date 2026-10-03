@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using TinadecCore.Abstractions.Ports;
@@ -90,7 +89,7 @@ public sealed class SupervisionAgent
                     .Take(8)
                     .Select(item => $"  evidence: {item}"))));
             var prompt = $"用户目标:\n{userGoal}\n\n任务列表:\n{taskLines}\n\n执行证据 (第 {revisionRound} 轮修正后):\n{evidenceLines}";
-            using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+            var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
                 chatClient,
                 "operation.supervisor",
                 "supervisor",
@@ -100,10 +99,12 @@ public sealed class SupervisionAgent
                     Instructions = string.IsNullOrWhiteSpace(assembledInstructions)
                         ? SupervisionInstructions
                         : assembledInstructions.Trim() + "\n\n" + SupervisionInstructions
-                });
-            var response = await agent.RunAsync(prompt, cancellationToken: ct).ConfigureAwait(false);
-            LastUsage = Maf18RuntimeAdapter.NormalizeUsage(response.Usage);
-            var verdict = TryParseVerdict(response.Text);
+                },
+                prompt,
+                ct).ConfigureAwait(false);
+            LastUsage = turn.Usage;
+            // Raw text: the verdict reader walks balanced JSON candidates itself.
+            var verdict = TryParseVerdict(turn.RawText);
             if (verdict is null)
             {
                 _logger?.LogWarning("Supervision response could not be parsed; escalating instead of guessing.");

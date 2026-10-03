@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Hosting;
@@ -4600,21 +4599,19 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             instructions += "\n\n" + LaneOpenProtocol;
         }
         var prompt = $"Interaction kind: {checkpoint.InteractionKind}\nUser message:\n{checkpoint.UserGoal}\n\n{targetSummary}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             "operation.meeting",
             "meeting",
             "Produces the only formal user-facing response from governed evidence.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
-        // Strip inline reasoning before the user-facing answer and before lane-protocol
-        // line extraction, so thinking markup never reaches the user or the directive parser.
-        var answer = ModelOutputText.AnswerText(response.Text);
-        if (string.IsNullOrWhiteSpace(answer)) throw new InvalidOperationException("Meeting agent returned no output.");
-        return await FinalizeInteractionTextAsync(run, configuration, checkpoint, answer, cancellationToken).ConfigureAwait(false);
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
+        // The turn's answer is already reasoning-stripped, so thinking markup reaches neither
+        // the user nor the lane-protocol line extraction below.
+        if (!turn.HasAnswer) throw new InvalidOperationException("Meeting agent returned no output.");
+        return await FinalizeInteractionTextAsync(run, configuration, checkpoint, turn.AnswerText, cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -5289,23 +5286,21 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var evidence = string.Join("\n", checkpoint.Tasks.Select(FormatTaskEvidenceForMeeting));
         var instructions = assembly.Instructions + "\n\nYou are the conversation agent responsible for this run's reply. Reply directly and honestly in the user's language. Summarize completed work, evidence, limits, and next action. Do not claim tools ran if evidence does not say so." + escalation;
         var prompt = $"Current user goal:\n{checkpoint.UserGoal}\n\nExecution evidence:\n{evidence}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             "operation.meeting",
             "meeting",
             "Produces the only formal user-facing response from governed evidence.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
-        // Strip inline reasoning so the only user-facing answer never carries thinking markup.
-        var answer = ModelOutputText.AnswerText(response.Text);
-        if (string.IsNullOrWhiteSpace(answer))
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
+        // The only user-facing answer is already reasoning-stripped by the adapter.
+        if (!turn.HasAnswer)
         {
             throw new MeetingResponseUnavailableException("empty_model_response", "Meeting agent returned no output.");
         }
-        return answer;
+        return turn.AnswerText;
     }
 
     private const int MeetingEvidenceLineLimit = 400;
@@ -5774,19 +5769,18 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var instructions = assembly.Instructions
             + "\n\nYou are the context compression agent. Compress the session context into a structured summary with these sections: 当前目标 / 关键约束 / 已完成事项 / 待处理事项 / 重要结论 / 风险点. Preserve the current goal and constraints exactly, keep approval conclusions, and never invent new facts.";
         var prompt = $"Current user goal:\n{checkpoint.UserGoal}\n\nSession context evidence:\n{evidence}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             $"operation.{match.Agent.Id}",
             match.Agent.Id,
             "Compresses session context into a structured summary patch.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
-        // Strip inline reasoning so the compressed context patch is clean prose, not thinking markup.
-        var summary = ModelOutputText.AnswerText(response.Text);
-        if (string.IsNullOrWhiteSpace(summary)) throw new InvalidOperationException("Context compressor returned no output.");
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
+        // The patch is clean prose: the adapter already stripped inline reasoning.
+        if (!turn.HasAnswer) throw new InvalidOperationException("Context compressor returned no output.");
+        var summary = turn.AnswerText;
 
         var baseRevision = await _conversations.GetContextRevisionAsync(checkpoint.SessionId, cancellationToken).ConfigureAwait(false);
         var result = await _conversations.ApplyContextPatchAsync(new ContextPatchRequest(
@@ -5846,18 +5840,19 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var instructions = assembly.Instructions
             + "\n\nYou are the capability advisor. Recommend execution capabilities for the current task graph. Respond with strict JSON only: {\"recommendations\":[{\"skill\":\"...\",\"reason\":\"...\",\"confidence\":\"high|medium|low\"}]}. Advise only; never execute, approve, or address the user.";
         var prompt = $"Current user goal:\n{checkpoint.UserGoal}\n\nTask graph:\n{taskSummary}\n\nSession context evidence:\n{evidence}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             $"operation.{match.Agent.Id}",
             match.Agent.Id,
             "Advises the planner on capable execution specialists without deciding.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
 
-        var recommendations = ParseRecommendations(response.Text);
+        // Raw text on purpose: the JSON reader walks balanced candidates itself, so thinking
+        // prose around the recommendation object still parses.
+        var recommendations = ParseRecommendations(turn.RawText);
         if (recommendations.Count == 0)
         {
             await AppendEventAsync(runId, "capability.recommendation.empty", "Capability advisor produced no usable recommendations.", new
@@ -5956,18 +5951,19 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             + "\"agent_candidates\":[{\"name\":\"...\",\"layer\":\"execution\",\"agent_type\":\"task_executor\",\"confidence\":0.7,\"proposal\":{\"slug\":\"...\",\"display_name\":\"...\",\"layer\":\"execution\",\"role\":\"task_executor\",\"system_prompt\":\"...\",\"description\":\"...\",\"capabilities\":[]}}]}. "
             + "Only propose candidates backed by concrete evidence from this run; an empty object means nothing was worth keeping. Candidates are never applied without human review.";
         var prompt = $"Current user goal:\n{checkpoint.UserGoal}\n\nExecution evidence:\n{evidence}\n\nSupervision decision: {checkpoint.SupervisionDecision ?? "none"}\n\nSession context evidence:\n{string.Join("\n", context.Evidence.Select(item => $"[{item.Source}] {item.Content}"))}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             $"operation.{match.Agent.Id}",
             match.Agent.Id,
             "Curates reusable experience from finished runs as reviewable candidates.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
 
-        var (memoryCandidates, agentCandidates) = ParseCurationOutput(response.Text);
+        // Raw text: the curator is a reasoning model and ParseCurationOutput walks balanced
+        // object candidates, so its thinking prose must not be cut away first.
+        var (memoryCandidates, agentCandidates) = ParseCurationOutput(turn.RawText);
         // Candidate scope/kind must stay inside the frozen [memory] policy; the
         // curator cannot widen its own write surface.
         memoryCandidates = memoryCandidates
@@ -6094,18 +6090,17 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var instructions = assembly.Instructions
             + "\n\nYou are the git steward. Review the change scope and commit boundaries this run touched. Respond with a short suggestion covering: change scope, suggested commit boundary, and review risks. Advise only; never execute git operations or bypass approvals.";
         var prompt = $"Current user goal:\n{checkpoint.UserGoal}\n\nGit-touching tasks:\n{string.Join("\n", gitTasks)}";
-        using var agent = Maf18RuntimeAdapter.CreateGovernanceAgent(
+        var turn = await Maf18RuntimeAdapter.RunGovernanceTurnAsync(
             await factory.CreateAsync(resolution, cancellationToken).ConfigureAwait(false),
             $"operation.{match.Agent.Id}",
             match.Agent.Id,
             "Reviews git change scope and commit boundaries without executing git.",
-            new ChatOptions { Instructions = instructions });
-        var response = await agent.RunAsync(prompt, cancellationToken: cancellationToken).ConfigureAwait(false);
-        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(
-            checkpoint.ModelUsage,
-            Maf18RuntimeAdapter.NormalizeUsage(response.Usage));
-        var suggestionText = ModelOutputText.AnswerText(response.Text);
-        var suggestion = string.IsNullOrWhiteSpace(suggestionText) ? "No git steward suggestion produced." : suggestionText;
+            new ChatOptions { Instructions = instructions },
+            prompt,
+            cancellationToken).ConfigureAwait(false);
+        checkpoint.ModelUsage = Maf18RuntimeAdapter.AddUsage(checkpoint.ModelUsage, turn.Usage);
+        // An advisory role with nothing to say still records that it said nothing.
+        var suggestion = turn.AnswerOr("No git steward suggestion produced.");
         await AppendEventAsync(runId, "git.steward.reviewed", "Git steward reviewed the run's change scope.", new
         {
             run_id = run.RunId,

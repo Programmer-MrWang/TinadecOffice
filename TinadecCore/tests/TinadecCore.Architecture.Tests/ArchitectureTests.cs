@@ -160,6 +160,31 @@ public sealed class ArchitectureTests
         });
     }
 
+    /// <summary>
+    /// Assembly references only prove that DmaEA links MAF. This proves the agent surface is
+    /// used by exactly one type: every governance turn goes through
+    /// <c>Maf18RuntimeAdapter.RunGovernanceTurnAsync</c> and gets a Tinadec-owned result back,
+    /// so no caller holds an <c>OpenTelemetryAgent</c> or calls MAF's <c>RunAsync</c>. A MAF
+    /// upgrade then lands in that one file instead of at the nine governance call sites.
+    /// </summary>
+    [Fact]
+    public void MafTypesAreUsedOnlyInsideTheDmaeaAdapter()
+    {
+        var result = Types.InAssembly(DmaEAAssembly)
+            .Should().NotHaveDependencyOn("Microsoft.Agents.AI")
+            .GetResult();
+
+        // Only the adapter may touch MAF — including the compiler-generated state machines
+        // nested inside it, which carry the awaited agent across the turn. Matching on the
+        // full-name prefix keeps this true whichever name form NetArchTest reports.
+        var failing = result.FailingTypeNames ?? Enumerable.Empty<string>();
+        var outsideAdapter = failing
+            .Where(name => !name.StartsWith("TinadecCore.DmaEA.Maf18RuntimeAdapter", StringComparison.Ordinal))
+            .ToArray();
+
+        Assert.Empty(outsideAdapter);
+    }
+
     [Fact]
     public void PersistenceDoesNotDependOnBusinessModulesOrApi()
     {
