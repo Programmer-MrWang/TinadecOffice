@@ -34,9 +34,10 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
     /// </summary>
     private readonly string _outside = Path.Combine(AppContext.BaseDirectory, "sandbox-integration-outside-" + Guid.NewGuid().ToString("N"));
 
-    /// <summary>The grant list of the last confined run, echoed into failure messages: both ubuntu
-    /// readings so far have said "exit 0, no file", which is only explainable by what was writable.</summary>
-    private string _lastGrants = "(no run yet)";
+    /// <summary>What the last confined run actually was pointed at: the grant list, the launcher
+    /// binary and TMPDIR. Both ubuntu readings so far said "exit 0, no file" or "exit 0, no
+    /// output", which is only explainable by what the child could write and what it exec'd.</summary>
+    private string _lastRun = "(no run yet)";
 
     public PosixSandboxIntegrationTests()
     {
@@ -135,10 +136,11 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         var response = await RunAsync($"echo started; printf denied > '{target}'");
 
         Assert.Contains("started", response.Stdout);
-        Assert.False(File.Exists(target), $"the sandbox let a command write outside its grants: target={target} grants=[{_lastGrants}]");
+        Assert.False(File.Exists(target), $"the sandbox let a command write outside its grants: target={target} run=[{_lastRun}]");
         Assert.False(
             response.Success,
-            $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} target={target} fileNowExists={File.Exists(target)} grants=[{_lastGrants}]");
+            $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} error={response.Error} " +
+                $"target={target} fileNowExists={File.Exists(target)} run=[{_lastRun}]");
         // A launcher that could not install Landlock also produces no file — but it never runs the
         // command, so "started" would be missing too. Naming the prefix keeps the two readings apart.
         Assert.DoesNotContain(LauncherFailurePrefix, response.Stderr);
@@ -152,10 +154,21 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         Environment.SetEnvironmentVariable(KeptVariable, "kept-value");
         Environment.SetEnvironmentVariable(DroppedVariable, "dropped-value");
 
-        var response = await RunAsync($"printf '%s|%s\\n' \"${KeptVariable}\" \"${DroppedVariable}\"; env", [KeptVariable]);
+        // The probe is the control: without it, an empty stdout can be read as "the environment was
+        // dropped" when the real reading is "the command never ran at all".
+        var response = await RunAsync(
+            $"printf '__tinadec_probe__\\n'; printf '%s|%s\\n' \"${KeptVariable}\" \"${DroppedVariable}\"; env",
+            [KeptVariable]);
 
-        Assert.True(response.Success, $"exit={response.ExitCode} stderr={response.Stderr} error={response.Error} grants=[{_lastGrants}]");
-        Assert.Contains("kept-value", response.Stdout);
+        Assert.True(
+            response.Success,
+            $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr} error={response.Error} run=[{_lastRun}]");
+        Assert.True(
+            response.Stdout.Contains("__tinadec_probe__"),
+            $"the confined child never ran the script; stdout={response.Stdout} stderr={response.Stderr} run=[{_lastRun}]");
+        Assert.True(
+            response.Stdout.Contains("kept-value"),
+            $"stdout={response.Stdout} exit={response.ExitCode} stderr={response.Stderr} run=[{_lastRun}]");
         // env(1) lists the whole environment, so the dropped value appearing anywhere is a leak.
         Assert.DoesNotContain("dropped-value", response.Stdout);
         Assert.Contains("PATH=", response.Stdout);
@@ -195,7 +208,8 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
             EnvironmentVariableNames = [.. extraEnvironmentNames ?? []]
         };
 
-        _lastGrants = string.Join(", ", permissions.WritePaths) + $" | TMPDIR={environmentProbe()}";
+        _lastRun = string.Join(", ", permissions.WritePaths)
+            + $" | TMPDIR={environmentProbe()} | launcher={PosixSandboxBackend.LauncherExecutable()}";
 
         return await CommandSandboxRuntime.ExecuteSandboxedAsync(
             "/bin/sh",
