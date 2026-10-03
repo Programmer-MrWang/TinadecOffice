@@ -82,6 +82,25 @@ public sealed class WorkspaceResourceClaimTests
     }
 
     [Fact]
+    public void AnAbsoluteTargetOnAnotherVolume_YieldsNoClaim()
+    {
+        if (!OperatingSystem.IsWindows()) return; // POSIX has no second volume, so the case can't be spelled.
+
+        // The Windows CI runner checks the repo out on D:, which turns "/elsewhere/app.ts" into
+        // D:\elsewhere\app.ts while the root stays C:\work\app. Across volumes Path.GetRelativePath
+        // answers with a rooted path rather than a ".." walk, and that answer used to be handed back
+        // as a workspace-relative claim — path://D:/elsewhere/app.ts, a grant for a path the tool
+        // itself refuses. Neither directory has to exist: this is pure path arithmetic.
+        var claim = ToolResourcePathRegistry.TryBuildResourceClaim(
+            "read_file",
+            Params("""{"filepath":"D:/elsewhere/app.ts"}"""),
+            @"C:\work\app",
+            mutating: false);
+
+        Assert.Null(claim);
+    }
+
+    [Fact]
     public void TargetlessTools_KeepTheLevelOnlyDecision()
     {
         Assert.False(ToolResourcePathRegistry.IsRegistered("mcp_search"));

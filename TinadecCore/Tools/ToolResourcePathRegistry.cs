@@ -147,7 +147,11 @@ internal static class ToolResourcePathRegistry
         if (string.IsNullOrWhiteSpace(workspaceRoot)) return null;
         try
         {
-            return Path.GetRelativePath(Path.GetFullPath(workspaceRoot), trimmed);
+            var relative = Path.GetRelativePath(Path.GetFullPath(workspaceRoot), trimmed);
+            // Across volumes GetRelativePath returns a rooted path instead of a ".." walk, and a
+            // rooted answer is not a workspace-relative claim: the grant would name a path the tool
+            // process itself refuses to touch, so the two layers would disagree about who is covered.
+            return Path.IsPathRooted(relative) ? null : relative;
         }
         catch (Exception ex) when (ex is ArgumentException or PathTooLongException or NotSupportedException)
         {
