@@ -23,7 +23,11 @@ const write = (name, bytes) => {
 function elf({ classBits = 2, machine = 62 } = {}) {
 	const head = Buffer.alloc(64);
 	head.writeUInt32BE(0x7f454c46, 0);
-	head[5] = classBits;
+	// The real e_ident layout, so a reader that grabs EI_DATA (5) instead of EI_CLASS (4) cannot
+	// pass by agreeing with this fixture the way it did on a Windows host.
+	head[4] = classBits;
+	head[5] = 1; // EI_DATA: little endian
+	head[6] = 1; // EI_VERSION
 	head.writeUInt16LE(machine, 18);
 	return head;
 }

@@ -36,7 +36,10 @@ export async function readBinaryFormat(path) {
 	if (head[0] === 0x7f && head.readUInt32BE(0) === 0x7f454c46) {
 		return {
 			format: "elf",
-			detail: `class ${head[5]}, machine ${head.readUInt16LE(18)}`,
+			// e_ident is 0..15: 4 is EI_CLASS (2 = 64-bit), 5 is EI_DATA. Reading the wrong one of
+			// the two looks fine against a fixture written by the same hand and fails against every
+			// real binary on a Linux runner, which is how this was caught.
+			detail: `class ${head[4]}, machine ${head.readUInt16LE(18)}`,
 		};
 	}
 
