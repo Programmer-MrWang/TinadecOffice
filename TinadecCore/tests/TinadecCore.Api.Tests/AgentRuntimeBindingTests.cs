@@ -80,19 +80,29 @@ public sealed class AgentRuntimeBindingTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// A2 + A1：CLI/ACP 运行时（driver=claude-cli → protocol=acp）的 fixed 绑定 model 为 null
-    /// 应被接受（200 而非 400），并同样产出 user_binding 预览——BindingToStrategy 不因 model
-    /// 为空而跳过，FreezeStrategyAsync 对 ACP/OpencodeServe 协议放行 null model。
+    /// A2 + A1：harness 运行时（`connection_kind = cli`，协议由 HarnessCatalog 按 (harness, channel)
+    /// 给出）的 fixed 绑定 model 为 null 应被接受（200 而非 400），并同样产出 user_binding 预览——
+    /// BindingToStrategy 不因 model 为空而跳过，FreezeStrategyAsync 对进程承载的协议放行 null model。
+    /// <para>
+    /// The driver strings here are catalog harness ids, not the old channel-in-the-name drivers
+    /// (`claude-cli`, `codex-cli`, `cursor-acp`). Those inferred `protocol = acp` from the driver
+    /// string alone, which is the coupling that let three binaries with no ACP endpoint claim the
+    /// channel; a provider naming one of them is now an unrecognized harness and must be edited
+    /// manually rather than silently bound.
+    /// </para>
     /// </summary>
-    [Fact]
-    public async Task PutRuntimeBinding_With_CliProvider_And_Null_Model_Is_Accepted()
+    [Theory]
+    [InlineData("opencode", "opencode-serve")]
+    [InlineData("codebuddy", "acp")]
+    public async Task PutRuntimeBinding_With_HarnessProvider_And_Null_Model_Is_Accepted(string driver, string expectedProtocol)
     {
         var client = _factory!.CreateClient();
 
         using var providerResponse = await client.PostAsJsonAsync("/api/v1/model-providers",
-            new { driver = "claude-cli", display_name = "Claude Code", connection_kind = "cli" });
+            new { driver, display_name = "Harness runtime", connection_kind = "cli", binary_path = "/usr/local/bin/whatever" });
         var providerBody = await providerResponse.Content.ReadAsStringAsync();
         Assert.True(providerResponse.IsSuccessStatusCode, $"cli provider save failed: {providerResponse.StatusCode} {providerBody}");
+        Assert.Equal(expectedProtocol, JsonSerializer.Deserialize<JsonElement>(providerBody).GetProperty("protocol").GetString());
         var providerId = JsonSerializer.Deserialize<JsonElement>(providerBody).GetProperty("id").GetGuid();
 
         var agents = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/agents");

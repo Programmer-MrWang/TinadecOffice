@@ -113,7 +113,7 @@ public sealed class ControlPlaneService
         JsonElement Value(string key) => cfg != null && cfg.TryGetValue(key, out var v) ? v : default;
         string? String(string key) => Value(key).ValueKind == JsonValueKind.String ? Value(key).GetString() : null;
         string[] Models() => Value("models").ValueKind == JsonValueKind.Array ? Value("models").EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray() : Array.Empty<string>();
-        return new { id = row.Id, driver = row.Driver, protocol = ChatProtocols.Normalize(String("protocol") ?? ChatProtocols.InferFromDriver(row.Driver)), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
+        return new { id = row.Id, driver = row.Driver, protocol = HarnessCatalog.ResolveProtocol(String("protocol"), row.Driver, String("channel")), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
 
     public async Task<IResult> RefreshProviderModels(Guid id, CancellationToken ct)
     {
@@ -125,7 +125,7 @@ public sealed class ControlPlaneService
         if (version != null) cfg = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(await ReadAsync(_content, version.ContentReference, ct));
         var baseUrl = cfg != null && cfg.TryGetValue("base_url", out var b) && b.ValueKind == JsonValueKind.String ? b.GetString() : null;
         if (string.IsNullOrWhiteSpace(baseUrl)) return Results.BadRequest(new { code = "MODEL_DISCOVERY_INVALID", message = "Provider has no base_url configured; model discovery requires an HTTP model endpoint." });
-        var protocol = ChatProtocols.Normalize(cfg != null && cfg.TryGetValue("protocol", out var proto) && proto.ValueKind == JsonValueKind.String ? proto.GetString() : ChatProtocols.InferFromDriver(row.Driver));
+        var protocol = HarnessCatalog.ResolveProtocol(cfg != null && cfg.TryGetValue("protocol", out var proto) && proto.ValueKind == JsonValueKind.String ? proto.GetString() : null, row.Driver, null);
         string? apiKey = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult() ? await _secrets.GetAsync(row.SecretReference, ct) : null;
         try
         {
@@ -158,11 +158,14 @@ public sealed class ControlPlaneService
 
     // Well-known model CLIs the workbench can host. Discovery probes default install locations so
     // users can connect a local CLI runtime without manually typing a path.
+    // Transitional table: HarnessCatalog is now the source of harness facts and this row list loses
+    // its launch_args guesses while the discover/connect routes still name drivers by the old
+    // channel-in-the-name strings. It goes away with the catalog-driven rewrite of these routes.
     private static readonly KnownCli[] KnownClis =
     [
         new("claude-cli", "Claude Code", "claude", "~/.claude", null, null),
         new("codex-cli", "Codex CLI", "codex", "~/.codex", null, null),
-        new("cursor-acp", "Cursor ACP", "cursor-agent", null, null, "--acp-port 0"),
+        new("cursor-acp", "Cursor ACP", "cursor-agent", null, null, null),
         new("opencode", "OpenCode", "opencode", null, "http://127.0.0.1:4096", "serve --port 4096")
     ];
 
@@ -194,11 +197,12 @@ public sealed class ControlPlaneService
     }
 
     /// <summary>
-    /// Starts (or reuses) a discovered CLI runtime and persists it as an enabled provider.
-    /// ACP CLIs are spawned with a free <c>--acp-port</c>; opencode is spawned with
-    /// <c>serve --port</c>. The saved provider carries the reachable <c>server_url</c> and
-    /// effective launch args so later runs can respawn it after a restart. Routes are not
-    /// touched — binding the provider to the chat route stays a manual model-center action.
+    /// Starts (or reuses) a discovered harness runtime and persists it as an enabled provider.
+    /// opencode's HTTP server shape is spawned with <c>serve --port</c> and stored with the
+    /// reachable <c>server_url</c>, so later runs can respawn it after a restart. ACP is a stdio
+    /// session and has no port to inject: an ACP connect stores the harness's own argv and proves
+    /// readiness by handshake, not by polling a URL. Routes are not touched — binding the provider
+    /// to the chat route stays a manual model-center action.
     /// </summary>
     public async Task<IResult> ConnectCliRuntime(JsonElement input, CancellationToken ct)
     {
@@ -208,8 +212,9 @@ public sealed class ControlPlaneService
         if (string.IsNullOrWhiteSpace(driver)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = "driver is required." });
         if (string.IsNullOrWhiteSpace(binaryPath)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = "binary_path is required." });
         if (!File.Exists(binaryPath)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"binary_path does not exist: {binaryPath}" });
-        var protocol = ChatProtocols.Normalize(Get("protocol") ?? ChatProtocols.InferFromDriver(driver));
-        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"driver '{driver}' is not a CLI runtime (protocol {protocol})." });
+        var channel = Get("channel");
+        var protocol = HarnessCatalog.ResolveProtocol(Get("protocol"), driver, channel);
+        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}' and '{ChatProtocols.OpencodeServe}'." });
 
         CliRuntimeEndpoint endpoint;
         try
@@ -230,10 +235,11 @@ public sealed class ControlPlaneService
             display_name = Get("display_name") ?? driver,
             connection_kind = "cli",
             protocol,
+            channel,
             binary_path = binaryPath,
             home_path = Get("home_path"),
             server_url = endpoint.ServerUrl,
-            launch_args = Get("launch_args") ?? (protocol == ChatProtocols.OpencodeServe ? $"serve --port {port}" : $"--acp-port {port}"),
+            launch_args = Get("launch_args") ?? (protocol == ChatProtocols.OpencodeServe ? $"serve --port {port}" : null),
             enabled = true
         });
         // Internal system path: the CLI process just spawned is the source of truth, so the
@@ -464,8 +470,8 @@ public sealed class ControlPlaneService
         var version = await db.ProviderVersions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == provider.CurrentVersionId, ct);
         if (version is null) return false;
         var config = JsonSerializer.Deserialize<JsonElement>(await ReadAsync(_content, version.ContentReference, ct));
-        var protocol = config.TryGetProperty("protocol", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : ChatProtocols.InferFromDriver(provider.Driver);
-        return ChatProtocols.Normalize(protocol) is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
+        string? Text(string key) => config.TryGetProperty(key, out var property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+        return HarnessCatalog.ResolveProtocol(Text("protocol"), provider.Driver, Text("channel")) is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
     }
 
     public async Task<IResult> ListPrompts(CancellationToken ct)

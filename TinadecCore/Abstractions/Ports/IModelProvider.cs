@@ -71,13 +71,13 @@ public sealed class ChatResolution
     public string? ModelId { get; init; }
     /// <summary>Wire protocol the resolved provider speaks; one of <see cref="ChatProtocols"/>.</summary>
     public string? Protocol { get; init; }
-    /// <summary>Local HTTP endpoint of a CLI runtime (opencode serve); null for HTTP API providers.</summary>
+    /// <summary>Local HTTP endpoint of a CLI runtime that serves over HTTP (<c>opencode serve</c>); null for HTTP API providers and for stdio harness sessions.</summary>
     public string? ServerUrl { get; init; }
-    /// <summary>Bearer token issued by an ACP CLI on startup, when the agent prints one.</summary>
+    /// <summary>Bearer token an HTTP-serving CLI runtime prints on startup, when it issues one. Never used by the stdio ACP channel.</summary>
     public string? Token { get; init; }
-    /// <summary>Absolute path to the CLI executable for <see cref="Acp"/> / <see cref="OpencodeServe"/> protocols.</summary>
+    /// <summary>Absolute path to the harness executable; required by every process-backed protocol (<see cref="Acp"/>, <see cref="HeadlessCli"/>, <see cref="Tui"/>) in place of an endpoint URL.</summary>
     public string? BinaryPath { get; init; }
-    /// <summary>CLI launch arguments (e.g. <c>serve --port 4096</c>, <c>--acp-port 0</c>).</summary>
+    /// <summary>CLI launch arguments, already materialized from the harness catalog's argv template for the selected channel (e.g. <c>serve --port 4096</c>, <c>--acp</c>).</summary>
     public string? LaunchArgs { get; init; }
     public string? HomePath { get; init; }
     public string? Error { get; init; }
@@ -91,7 +91,11 @@ public sealed class ChatResolution
 
 /// <summary>
 /// Canonical chat wire-protocol identifiers carried by <see cref="ChatResolution.Protocol"/>
-/// and stored in provider configuration JSON (<c>protocol</c> key).
+/// and stored in provider configuration JSON (<c>protocol</c> key). This axis answers <em>which
+/// dialect</em> is spoken; it is not <em>how the process is reached</em>
+/// (<see cref="AgentChannels"/>) and not <em>local process or HTTP API</em>
+/// (<c>connection_kind</c>). Resolve a harness's protocol through
+/// <see cref="HarnessCatalog.ResolveProtocol"/>, never from its driver name alone.
 /// </summary>
 public static class ChatProtocols
 {
@@ -105,8 +109,18 @@ public static class ChatProtocols
     public const string AnthropicMessages = "anthropic-messages";
 
     /// <summary>
-    /// Agent Client Protocol (ACP): the client hosts a CLI subprocess (claude/codex/cursor-agent)
-    /// that exposes a JSON-RPC 2.0 + SSE server on a local port; chat runs through that process.
+    /// Agent Client Protocol: a persistent JSON-RPC 2.0 session carried over the harness
+    /// subprocess's stdio, one frame per line (NDJSON). Two details the wire format fixes and the
+    /// serializer has to honor: field names are <em>camelCase</em> (<c>sessionId</c>,
+    /// <c>sessionUpdate</c>, <c>stopReason</c>) and <c>protocolVersion</c> is the <em>integer</em>
+    /// 1 — neither matches Core's snake_case API-boundary convention, so ACP needs its own
+    /// serialization context rather than a reused one.
+    /// <para>
+    /// The client declares <c>fs.readTextFile</c>, <c>fs.writeTextFile</c> and <c>terminal</c>
+    /// capabilities as false, which is not a restriction: it means Core does not act as the
+    /// harness's file or terminal proxy. The harness still reads and writes its session working
+    /// directory with its own tools, so the session's <c>cwd</c> is what governs its blast radius.
+    /// </para>
     /// </summary>
     public const string Acp = "acp";
 
@@ -115,6 +129,20 @@ public static class ChatProtocols
     /// (POST /session, POST /session/{id}/message, GET /session/{id}/event).
     /// </summary>
     public const string OpencodeServe = "opencode-serve";
+
+    /// <summary>
+    /// Headless CLI protocol: the harness is invoked once with the prompt on argv, emits
+    /// line-delimited JSON on stdout, and exits. Declared by <see cref="HarnessCatalog"/> for
+    /// vendors that offer no ACP endpoint. No chat client implements it yet — the runner is batch 2.
+    /// </summary>
+    public const string HeadlessCli = "headless-cli";
+
+    /// <summary>
+    /// TUI protocol: an interactive full-screen harness hosted in a real PTY, observed, injected
+    /// into, and audited — not programmatically driven. Declared by <see cref="HarnessCatalog"/>;
+    /// the backend is batch E (ConPTY on Windows, openpty plus posix_spawn elsewhere).
+    /// </summary>
+    public const string Tui = "tui";
 
     /// <summary>
     /// Normalizes a stored protocol value; blank or unknown values fall back to
@@ -126,16 +154,30 @@ public static class ChatProtocols
         AnthropicMessages => AnthropicMessages,
         Acp => Acp,
         OpencodeServe => OpencodeServe,
+        HeadlessCli => HeadlessCli,
+        Tui => Tui,
         _ => OpenAiChat
     };
 
-    /// <summary>Infers the protocol from a provider driver name when no explicit protocol is configured.</summary>
+    /// <summary>
+    /// Infers a protocol from a provider driver name when no explicit protocol and no harness
+    /// channel are configured. Covers HTTP API drivers <em>only</em>.
+    /// <para>
+    /// A harness's protocol is a property of a (harness, channel) pair, so it comes from
+    /// <see cref="HarnessCatalog.ProtocolFor"/>. The removed rows here mapped <c>claude-cli</c>,
+    /// <c>codex-cli</c> and <c>cursor-acp</c> all to <see cref="Acp"/>; none of those binaries
+    /// offered an ACP endpoint, and the driver name encoding a channel
+    /// (<c>-cli</c>, <c>-acp</c>) was the same category error this narrowing ends.
+    /// </para>
+    /// <para>
+    /// <c>claude</c> below is the Anthropic HTTP API driver and stays distinct from the
+    /// <c>claude-code</c> catalog harness id that names the vendor's CLI.
+    /// </para>
+    /// </summary>
     public static string InferFromDriver(string? driver) => driver?.Trim().ToLowerInvariant() switch
     {
         "anthropic" or "claude" => AnthropicMessages,
         "openai-responses" => OpenAiResponses,
-        "claude-cli" or "codex-cli" or "cursor-acp" => Acp,
-        "opencode" => OpencodeServe,
         _ => OpenAiChat
     };
 }

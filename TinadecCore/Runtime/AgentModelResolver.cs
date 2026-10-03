@@ -393,8 +393,8 @@ internal sealed class AgentModelResolver : IAgentModelResolver
     {
         await using var stream = await _content.OpenReadAsync(new ContentReference(version.ContentReference, version.ContentHash, version.ContentLength, "application/json"), ct).ConfigureAwait(false);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
-        var configured = document.RootElement.TryGetProperty("protocol", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
-        return ChatProtocols.Normalize(configured ?? ChatProtocols.InferFromDriver(provider.Driver));
+        string? Text(string key) => document.RootElement.TryGetProperty(key, out var property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
+        return HarnessCatalog.ResolveProtocol(Text("protocol"), provider.Driver, Text("channel"));
     }
 
     private static ModelStrategyDto? ReadModeNodeStrategy(string? snapshot, string nodeKey)

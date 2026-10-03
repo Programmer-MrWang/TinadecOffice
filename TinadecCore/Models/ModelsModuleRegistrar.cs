@@ -112,7 +112,7 @@ internal sealed class ModelProvider : IModelProvider, IChatResolver
         var configJson = await ReadContentAsync(providerVersion.ContentReference, cancellationToken).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(configJson);
         string? String(string key) => doc.RootElement.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-        var protocol = ChatProtocols.Normalize(String("protocol") ?? ChatProtocols.InferFromDriver(provider.Driver));
+        var protocol = HarnessCatalog.ResolveProtocol(String("protocol"), provider.Driver, String("channel"));
         var isCli = protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
 
         var model = string.IsNullOrWhiteSpace(candidate.Model) ? String("model") : candidate.Model;

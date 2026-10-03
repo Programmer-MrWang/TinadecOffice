@@ -360,10 +360,10 @@ public static class AgentConfigurationEndpoints
             var provider = await modelDb.Providers.AsNoTracking().SingleOrDefaultAsync(x => x.Id == pid && x.TenantId == t && x.DeletedAt == null, ct);
             if (provider is null) return Results.NotFound(new { code = "not_found", message = "Model provider was not found." });
             if (!provider.Enabled) return Results.Conflict(new { code = "provider_disabled", message = "The model provider is disabled." });
-            // CLI/ACP 运行时（claude-cli/codex-cli/cursor-acp/opencode）的 fixed 绑定没有 model：
-            // 模型身份由 CLI 进程自身决定，这是合法契约（ModelStrategyJson.Parse 的 OptionalString、
+            // harness 运行时（opencode 以及任何 HarnessCatalog 收录的 driver）的 fixed 绑定没有 model：
+            // 模型身份由 harness 进程自身决定，这是合法契约（ModelStrategyJson.Parse 的 OptionalString、
             // runtimeCenterView.test.ts）。其余协议仍要求显式 model，避免绑定保存成功、下一次 run 才炸。
-            var protocol = ChatProtocols.InferFromDriver(provider.Driver);
+            var protocol = HarnessCatalog.ResolveProtocol(null, provider.Driver, null);
             var isCliRuntime = protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
             if (!isCliRuntime && string.IsNullOrWhiteSpace(model))
                 return Results.BadRequest(new { code = "invalid_request", message = "model is required for fixed binding" });
