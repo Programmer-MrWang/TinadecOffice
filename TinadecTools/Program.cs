@@ -16,6 +16,13 @@ if (OperatingSystem.IsWindows() && WindowsSandboxSetup.IsSetupMode(args))
 if (OperatingSystem.IsWindows() && WindowsSandboxRunner.IsRunnerMode(args))
     return WindowsSandboxRunner.RunRunner();
 
+// The Linux sandbox's own child half: this process installs Landlock, sets its group, and
+// execve's the commanded binary. It runs before any workspace snapshot, registry
+// registration, or console reconfiguration, because none of that may happen in a process
+// that is about to become the user's command.
+if (OperatingSystem.IsLinux() && TinadecTools.Runtime.Sandbox.Posix.LinuxSandboxLauncher.IsMode(args))
+    return TinadecTools.Runtime.Sandbox.Posix.LinuxSandboxLauncher.Run(args);
+
 // The wire protocol is BOM-free UTF-8; without this, a zh-CN Windows console
 // defaults stdin/stdout to GBK and Core cannot deserialize the JSON lines.
 Console.InputEncoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);

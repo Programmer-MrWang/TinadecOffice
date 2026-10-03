@@ -9,7 +9,17 @@ internal static class SandboxPaths
 {
     internal const uint TnadIdentifierAuthority = 0x54494E41; // "TINA"
 
-    private static readonly StringComparison Cmp = OperatingSystem.IsWindows()
+    /// <summary>
+    /// The one comparer for sandbox paths and environment-variable names. Both axes of the
+    /// sandbox (containment checks and grant deduplication) must agree with the file system's
+    /// own case rules: on Linux <c>/ws</c> and <c>/WS</c> are two different directories, so a
+    /// case-insensitive union there would silently collapse two grants into one.
+    /// </summary>
+    internal static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
+
+    private static readonly StringComparison Cmp = PathComparer == StringComparer.OrdinalIgnoreCase
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
 
@@ -76,15 +86,26 @@ internal static class SandboxPaths
 
     private static string[] BuildProhibited()
     {
-        if (!OperatingSystem.IsWindows()) return [];
-        var list = new List<string>(8);
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86));
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.System));
-        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.Personal));
-        Add(list, () => Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "..")));
+        var list = new List<string>(12);
+        if (OperatingSystem.IsWindows())
+        {
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.Windows));
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86));
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.System));
+            Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.Personal));
+            Add(list, () => Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "..")));
+            return list.ToArray();
+        }
+
+        // POSIX has no drive root to catch beyond `/`, so the equivalents of "the Windows
+        // directory" and "Program Files" have to be named: a persistent write grant on any
+        // of these is the system, not the project.
+        Add(list, () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)); // $HOME
+        Add(list, () => Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".."))); // typically /home
+        foreach (var p in new[] { "/root", "/usr", "/etc", "/var", "/bin", "/sbin", "/lib", "/opt" })
+            list.Add(p);
         return list.ToArray();
     }
 

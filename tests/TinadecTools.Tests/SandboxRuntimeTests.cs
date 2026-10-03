@@ -32,7 +32,7 @@ public sealed class SandboxRuntimeTests
     }
 
     [Fact]
-    public void MergeGrants_DeduplicatesPathsAndEnvironmentNames()
+    public void MergeGrants_DeduplicatesUnderThePlatformsOwnCaseRules()
     {
         var existing = new SandboxPolicyFile
         {
@@ -49,9 +49,30 @@ public sealed class SandboxRuntimeTests
 
         var merged = SandboxPolicyStore.MergeGrants(permissions, existing);
 
-        Assert.Single(merged.ReadPaths);
+        // A trailing separator is never part of a path's identity, so that pair merges
+        // everywhere. Case variants are two different directories on Linux and two spellings
+        // of one directory on Windows — the dedupe has to follow the file system, not a habit.
         Assert.Single(merged.WritePaths);
-        Assert.Single(merged.EnvironmentVariables);
+        Assert.Equal(OperatingSystem.IsWindows() ? 1 : 2, merged.ReadPaths.Count);
+        Assert.Equal(OperatingSystem.IsWindows() ? 1 : 2, merged.EnvironmentVariables.Count);
+    }
+
+    [Fact]
+    public void EnsureNotBroadWriteTarget_RefusesTheHomeAndSystemDirectories()
+    {
+        var home = Path.TrimEndingDirectorySeparator(
+            Path.GetFullPath(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+        Assert.Throws<UnauthorizedAccessException>(
+            () => SandboxPaths.EnsureNotBroadWriteTarget(home));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => SandboxPaths.EnsureNotBroadWriteTarget("/"));
+            Assert.Throws<UnauthorizedAccessException>(() => SandboxPaths.EnsureNotBroadWriteTarget("/usr"));
+        }
+
+        // A real project directory must remain grantable, or this guard is just a refusal.
+        SandboxPaths.EnsureNotBroadWriteTarget(WorkspacePathResolver.WorkspaceRoot);
     }
 
     [Fact]

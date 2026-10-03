@@ -69,15 +69,10 @@ internal static class SandboxPolicyStore
     }
 
     private static List<string> Union(IEnumerable<string> existing, IEnumerable<string> additions)
-    {
-        var cmp = OperatingSystem.IsWindows()
-            ? StringComparer.OrdinalIgnoreCase
-            : StringComparer.Ordinal;
-        return [.. existing
+        => [.. existing
             .Concat(additions)
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .Select(s => s.TrimEnd('\\', '/'))
-            .Distinct(cmp)
+            .Distinct(SandboxPaths.PathComparer)
             .OrderBy(s => s)];
-    }
 }

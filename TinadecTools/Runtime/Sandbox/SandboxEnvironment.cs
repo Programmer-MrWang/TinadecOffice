@@ -4,7 +4,8 @@ namespace TinadecTools.Runtime.Sandbox;
 
 internal static class SandboxEnvironment
 {
-    private static readonly HashSet<string> RetainFromHost = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> RetainFromHost = new(
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal)
     {
         "PATH", "PATHEXT", "SystemRoot", "TEMP", "TMP",
         "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE",
@@ -13,17 +14,47 @@ internal static class SandboxEnvironment
         "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
     };
 
+    /// <summary>
+    /// POSIX additions, and they are not decoration: without <c>HOME</c> git cannot find its
+    /// config and reports a template-directory error, <c>TMPDIR</c> is where every build
+    /// system writes, and a terminal-less <c>TERM</c> makes curses/less/ssh behave oddly
+    /// enough that the failure looks like a broken sandbox rather than a missing variable.
+    /// </summary>
+    private static readonly string[] PosixRetain =
+    [
+        "HOME", "USER", "LOGNAME", "SHELL", "TERM", "TZ", "TMPDIR",
+        "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME",
+    ];
+
     internal static Dictionary<string, string> Build(
         IReadOnlyDictionary<string, string>? sandboxAccountDirs,
         IEnumerable<string>? extraEnvVarNames)
     {
-        var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var env = new Dictionary<string, string>(
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
         foreach (var name in RetainFromHost)
         {
             var value = Environment.GetEnvironmentVariable(name);
             if (!string.IsNullOrEmpty(value))
                 env[name] = value;
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            foreach (var name in PosixRetain)
+            {
+                var value = Environment.GetEnvironmentVariable(name);
+                if (!string.IsNullOrEmpty(value))
+                    env[name] = value;
+            }
+
+            // Redirect the caches a build tool insists on writing, instead of granting write
+            // access to the user's real home. This is the POSIX form of what the Windows
+            // backend does by pointing the sandbox account at its own profile and cache dirs.
+            var scratch = SandboxCacheDirectory(env);
+            foreach (var key in new[] { "NPM_CONFIG_CACHE", "PIP_CACHE_DIR", "CARGO_HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME" })
+                env[key] = Path.Combine(scratch, key == "PIP_CACHE_DIR" ? "pip" : key == "CARGO_HOME" ? "cargo" : key == "NPM_CONFIG_CACHE" ? "npm" : key.ToLowerInvariant());
         }
 
         if (sandboxAccountDirs is not null)
@@ -66,5 +97,20 @@ internal static class SandboxEnvironment
             && name.IndexOf('=') < 0
             && name.IndexOf('\0') < 0
             && !name.Any(char.IsWhiteSpace);
+    }
+
+    /// <summary>
+    /// The one POSIX scratch root a confined command may write outside the workspace, and
+    /// therefore the one path <c>PosixSandboxBackend</c> must add to its write grants. Cache
+    /// variables point here rather than at the user's real home.
+    /// </summary>
+    internal static string SandboxCacheDirectory(IReadOnlyDictionary<string, string> environment)
+    {
+        var root = environment.TryGetValue("TMPDIR", out var tmpDir) && !string.IsNullOrWhiteSpace(tmpDir)
+            ? tmpDir
+            : Path.GetTempPath();
+        var directory = Path.Combine(root, "tinadec-sandbox-cache");
+        Directory.CreateDirectory(directory);
+        return directory;
     }
 }

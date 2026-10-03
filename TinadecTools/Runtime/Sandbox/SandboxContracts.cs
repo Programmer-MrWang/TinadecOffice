@@ -87,5 +87,6 @@ internal interface ISandboxBackend
 [JsonSerializable(typeof(SandboxPolicyFile))]
 [JsonSerializable(typeof(SandboxRunnerRequest))]
 [JsonSerializable(typeof(SandboxRunnerResponse))]
+[JsonSerializable(typeof(Posix.LinuxSandboxPayload))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class SandboxJsonContext : JsonSerializerContext { }

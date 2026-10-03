@@ -13,6 +13,14 @@ internal static class CommandSandboxRuntime
             try { return new Windows.WindowsSandboxBackend(); }
             catch { return new UnsupportedSandboxBackend(); }
         }
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            // One constructor covers both POSIX platforms; it fails closed per-launch when a
+            // specific mechanism (landlock ABI, sandbox-exec) is missing rather than running
+            // the command unconstrained.
+            try { return new Posix.PosixSandboxBackend(); }
+            catch { return new UnsupportedSandboxBackend(); }
+        }
         return new UnsupportedSandboxBackend();
     }
 
@@ -88,9 +96,9 @@ internal static class CommandSandboxRuntime
         var policy = SandboxPolicyStore.Load();
         return new SandboxPermissions
         {
-            ReadPaths = [.. policy.ReadPaths.Concat(additional.ReadPaths).Distinct(StringComparer.OrdinalIgnoreCase)],
-            WritePaths = [.. policy.WritePaths.Concat(additional.WritePaths).Distinct(StringComparer.OrdinalIgnoreCase)],
-            EnvironmentVariableNames = [.. policy.EnvironmentVariables.Concat(additional.EnvironmentVariableNames).Distinct(StringComparer.OrdinalIgnoreCase)]
+            ReadPaths = [.. policy.ReadPaths.Concat(additional.ReadPaths).Distinct(SandboxPaths.PathComparer)],
+            WritePaths = [.. policy.WritePaths.Concat(additional.WritePaths).Distinct(SandboxPaths.PathComparer)],
+            EnvironmentVariableNames = [.. policy.EnvironmentVariables.Concat(additional.EnvironmentVariableNames).Distinct(SandboxPaths.PathComparer)]
         };
     }
 
