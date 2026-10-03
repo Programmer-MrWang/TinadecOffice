@@ -106,7 +106,7 @@
     "linux": {
       "target": [
         {
-          "target": "AppImage",
+          "target": "deb",
           "arch": [
             "x64"
           ]
@@ -115,7 +115,9 @@
       "category": "Development",
       "executableName": "TinadecOffice",
       "icon": "build/icon.png",
-      "artifactName": "TinadecOffice-${version}-linux-x64.AppImage"
+      "maintainer": "Lincube <lincube3@hotmail.com>",
+      "synopsis": "TinadecOffice desktop workbench",
+      "artifactName": "TinadecOffice-${version}-linux-x64.${ext}"
     },
     "dmg": {
       "artifactName": "TinadecOffice-${version}-osx-arm64.${ext}",

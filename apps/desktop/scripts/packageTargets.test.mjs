@@ -32,9 +32,9 @@ test("Every shipping target has an electron-builder mapping and nothing else doe
 	assert.throws(() => builderArgs("osx-x64"), /No electron-builder mapping/);
 });
 
-test("macOS ships an unsigned dmg and Linux an AppImage, each named after its platform", () => {
+test("macOS ships an unsigned dmg and Linux a .deb, each named after its platform", () => {
 	assert.deepEqual(build.mac.target, [{ target: "dmg", arch: ["arm64"] }]);
-	assert.deepEqual(build.linux.target, [{ target: "AppImage", arch: ["x64"] }]);
+	assert.deepEqual(build.linux.target, [{ target: "deb", arch: ["x64"] }]);
 
 	// One release collects every asset in one directory: two platforms sharing an artifact name is
 	// how a Windows installer ended up labelled as the Linux one.
@@ -42,6 +42,14 @@ test("macOS ships an unsigned dmg and Linux an AppImage, each named after its pl
 	assert.match(build.linux.artifactName, /linux-x64/);
 	assert.match(build.nsis.artifactName, /win-x64/);
 	assert.equal(build.mac.identity, null, "unsigned by decision: no Apple Developer identity yet");
+});
+
+test("The deb has the metadata the packager refuses to build without", () => {
+	// app-builder-lib's FpmTarget.computeFpmMetaInfoOptions throws on a missing homepage or
+	// maintainer e-mail — and it only runs on the Linux leg, so without this the config error
+	// surfaces as a red packaging step rather than as a name and an address to fill in.
+	assert.ok(pkg.homepage, "package.json homepage is the deb's URL field");
+	assert.match(build.linux.maintainer, /^.+ <[^@ ]+@[^@ ]+>$/, "deb maintainer needs an e-mail");
 });
 
 test("The node-pty filter ships each host its own prebuild", () => {

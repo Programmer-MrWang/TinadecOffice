@@ -51,7 +51,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     strategy:
-      # A red macOS leg must not hide whether Linux produced a working AppImage: every leg reports
+      # A red macOS leg must not hide whether Linux produced a working .deb: every leg reports
       # for itself, so fail-fast is off.
       fail-fast: false
       matrix:
@@ -169,7 +169,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TinadecOffice-linux-x64
-          path: apps/desktop/release/*-linux-x64.AppImage
+          path: apps/desktop/release/*-linux-x64.deb
           if-no-files-found: error
           retention-days: 14
 
