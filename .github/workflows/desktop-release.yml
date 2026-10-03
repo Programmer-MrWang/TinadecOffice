@@ -17,6 +17,7 @@ on:
       - '.github/workflows/desktop-release.yml'
       - '.github/workflows/create-version.yml'
       - 'apps/desktop/scripts/package-office-channel.mjs'
+      - 'apps/desktop/scripts/verify-office-channel.mjs'
       - 'docs/tinadec-office-release-contract.zh-CN.md'
   pull_request:
     paths:
@@ -30,6 +31,7 @@ on:
       - '.github/workflows/desktop-release.yml'
       - '.github/workflows/create-version.yml'
       - 'apps/desktop/scripts/package-office-channel.mjs'
+      - 'apps/desktop/scripts/verify-office-channel.mjs'
       - 'docs/tinadec-office-release-contract.zh-CN.md'
   workflow_dispatch:
 
@@ -116,9 +118,10 @@ jobs:
         run: npm run smoke:installed -w @tinadec/desktop
 
       - name: Package Office channel artifacts
-        env:
-          OFFICE_RELEASE_VERSION: ${{ github.ref_name }}
         run: node apps/desktop/scripts/package-office-channel.mjs
+
+      - name: Verify Office channel artifacts
+        run: node apps/desktop/scripts/verify-office-channel.mjs
 
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
@@ -151,7 +154,11 @@ jobs:
 
       - name: Generate SHA256SUMS
         working-directory: release-artifacts
-        run: sha256sum $(find . -type f -printf '%p\n' | sort) > SHA256SUMS
+        # office-channel/SHA256SUMS is the build-job verification gate; the release
+        # ships one top-level sums file covering every published asset. Both files
+        # share the basename, and GitHub release asset names must be unique, so the
+        # inner copy must never reach `gh release create`.
+        run: find . -type f ! -name 'SHA256SUMS' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
 
       - name: Validate Office channel catalog
         working-directory: release-artifacts
@@ -167,7 +174,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh release create "$GITHUB_REF_NAME" $(find . -type f -not -path './SHA256SUMS' -print | sort)
+          gh release create "$GITHUB_REF_NAME" SHA256SUMS
+          $(find . -type f ! -name 'SHA256SUMS' -print | sort)
           --verify-tag
           --generate-notes
           --title "TinadecOffice $GITHUB_REF_NAME"

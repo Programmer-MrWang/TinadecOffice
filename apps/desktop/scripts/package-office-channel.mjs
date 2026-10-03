@@ -28,6 +28,15 @@ const agentPackManifestPath = join(
 );
 const defaultRepository = "Tinadec/TinadecOffice";
 
+// bsdtar (libarchive) reads and writes the channel ZIPs. Resolve it explicitly on
+// Windows: System32 always ships it, while GNU tar from Git Bash sits earlier on
+// PATH, cannot create zip archives, and treats drive-letter paths as host specs.
+const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
+const bsdTar =
+	process.platform === "win32" && existsSync(join(systemRoot, "System32", "tar.exe"))
+		? join(systemRoot, "System32", "tar.exe")
+		: "tar";
+
 function fail(message) {
 	throw new Error(message);
 }
@@ -79,9 +88,9 @@ function readJson(path, label) {
 
 function releaseVersion() {
 	const requested =
-		process.env.OFFICE_RELEASE_VERSION ??
+		process.env.OFFICE_RELEASE_VERSION?.trim() ||
 		(process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME : undefined);
-	const raw = (requested ?? readJson(join(desktopDir, "package.json"), "Desktop package.json").version)
+	const raw = (requested || readJson(join(desktopDir, "package.json"), "Desktop package.json").version)
 		.replace(/^v/u, "");
 	if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(raw)) {
 		fail(`Invalid Office release version: ${raw}`);
@@ -114,9 +123,11 @@ function writeJson(path, value) {
 function zipDirectory(source, output) {
 	removeTree(output);
 	mkdirSync(dirname(output), { recursive: true });
-	// Windows runners provide bsdtar, which keeps the ZIP implementation shared
-	// with the Manager's archive tests and supports the native x64 build.
-	execFileSync("tar", ["-a", "-cf", output, "-C", source, "."], {
+	// bsdtar creates the ZIP: the archive format is shared with the CI runner and
+	// the Manager's archive tests. It must be resolved explicitly because GNU tar
+	// (first on PATH inside Git Bash) parses "C:\..." as a remote host and does
+	// not support the zip suffix at all.
+	execFileSync(bsdTar, ["-a", "-cf", output, "-C", source, "."], {
 		cwd: rootDir,
 		stdio: "inherit",
 		windowsHide: true,
