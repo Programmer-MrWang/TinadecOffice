@@ -44,7 +44,11 @@ public sealed class StoragePaths
     {
         var path = Path.GetFullPath(Path.Combine(Root, directory, fileName));
         var prefix = Root.EndsWith(Path.DirectorySeparatorChar) ? Root : Root + Path.DirectorySeparatorChar;
-        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        // Case-insensitive only where the file system is. On Linux `/data` and `/DATA` are
+        // different directories, so ignoring case here would let a reference that resolves
+        // outside the root still pass the containment check.
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!path.StartsWith(prefix, comparison))
         {
             throw new InvalidOperationException("Core storage path escaped the configured data root.");
         }

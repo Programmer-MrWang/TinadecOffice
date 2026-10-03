@@ -263,29 +263,34 @@ public sealed class ControlPlaneService
 
     /// <summary>
     /// Probes that the discovered binary actually runs: <c>--version</c> must exit 0 within
-    /// 3 seconds. <c>.cmd</c>/<c>.bat</c> npm shims are launched through cmd.exe.
+    /// 3 seconds. npm's <c>.cmd</c>/<c>.bat</c> shims are Windows-only artifacts and are
+    /// launched through cmd.exe there; on POSIX the discovered file is the executable.
     /// </summary>
     private static bool VerifyCliExecutable(string path)
     {
         try
         {
-            var fileName = path;
-            var arguments = "--version";
-            if (path.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".bat", StringComparison.OrdinalIgnoreCase))
+            var psi = new ProcessStartInfo
             {
-                fileName = "cmd.exe";
-                arguments = $"/c \"{path}\" --version";
-            }
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo(fileName, arguments)
-                {
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
+            if (OperatingSystem.IsWindows()
+                && (path.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
+            {
+                psi.FileName = "cmd.exe";
+                psi.ArgumentList.Add("/c");
+                psi.ArgumentList.Add(path);
+                psi.ArgumentList.Add("--version");
+            }
+            else
+            {
+                psi.FileName = path;
+                psi.ArgumentList.Add("--version");
+            }
+            using var process = new Process { StartInfo = psi };
             if (!process.Start()) return false;
             if (!process.WaitForExit(3000))
             {
