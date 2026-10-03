@@ -151,4 +151,18 @@ public sealed class WorkspacePathBoundaryTests : IDisposable
         Assert.True(WorkspaceRootSet.IsWithin(_writable, inside, _ => "/somewhere/else"));
         Assert.True(WorkspaceRootSet.IsWithin(_writable, _writable, _ => "/somewhere/else"));
     }
+
+    [Fact]
+    public void OwningRoot_ReturnsRootAndRelativeInOneSpelling()
+    {
+        // The pair is what link walking is done with. A relative computed across two spellings climbs
+        // out of the workspace and back through the very symlink the policy refuses, which is how a
+        // passing containment check still answered "Paths through symbolic links are not allowed".
+        var (root, relative) = WorkspaceRootSet.OwningRootIn(
+            Sep("ALIAS", "ws", "mcp.json"), [Sep("REAL", "ws")], AliasForm);
+
+        Assert.Equal(Sep("REAL", "ws"), root);
+        Assert.Equal("mcp.json", relative);
+        Assert.DoesNotContain("..", relative.Split(Path.DirectorySeparatorChar));
+    }
 }

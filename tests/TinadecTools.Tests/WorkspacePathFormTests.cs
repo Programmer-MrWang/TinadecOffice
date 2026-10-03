@@ -10,11 +10,11 @@ namespace TinadecTools.Tests;
 /// </summary>
 public sealed class WorkspacePathFormTests
 {
-    /// <summary>The host's own volume or POSIX root, so the fixture below spells paths the way
-    /// <see cref="Path.GetFullPath(string)"/> will answer them on every platform.</summary>
+    /// <summary>The host's own volume or POSIX root. Not trimmed: <c>Path.Combine("", "var")</c> is a
+    /// <em>relative</em> path, which is how this helper once passed on Windows and failed on Linux.</summary>
     private static readonly string Root = Path.GetPathRoot(Path.GetFullPath("."))!;
 
-    private static string At(params string[] segments) => Path.Combine(new[] { Root.TrimEnd(Path.DirectorySeparatorChar) }.Concat(segments).ToArray());
+    private static string At(params string[] segments) => Path.Combine(Root, Path.Combine(segments));
 
     [Fact]
     public void TheExistingPrefixIsResolvedAndTheMissingTailPutBack()

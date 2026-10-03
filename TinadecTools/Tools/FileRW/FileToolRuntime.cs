@@ -78,15 +78,33 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
     }
 
     /// <summary>The allowed root that contains the path, so link walking starts at that root.</summary>
-    public (string Root, string Relative) OwningRoot(string path)
+    public (string Root, string Relative) OwningRoot(string path) =>
+        OwningRootIn(path, new[] { WritableRoot }.Concat(ReadOnlyRoots).ToList(),
+            static candidate => WorkspacePathForm.Canonical(candidate));
+
+    /// <summary>
+    /// The root and the path have to come back in <b>one</b> spelling: a relative computed by mixing
+    /// the declared path against the resolved root walks out of the workspace and straight back
+    /// through <c>/var</c>, which the link policy then refuses as a symbolic link — the failure this
+    /// replaced a green containment check with.
+    /// </summary>
+    internal static (string Root, string Relative) OwningRootIn(
+        string path,
+        IReadOnlyList<string> roots,
+        Func<string, string> canonical)
     {
-        if (IsWithin(WritableRoot, path)) return (WritableRoot, Path.GetRelativePath(WritableRoot, path));
-        foreach (var root in ReadOnlyRoots)
+        foreach (var root in roots)
         {
-            if (IsWithin(root, path)) return (root, Path.GetRelativePath(root, path));
+            if (TextuallyWithin(root, path)) return (root, Path.GetRelativePath(root, path));
+
+            var canonicalRoot = canonical(root);
+            var canonicalPath = canonical(path);
+            if (TextuallyWithin(canonicalRoot, canonicalPath))
+                return (canonicalRoot, Path.GetRelativePath(canonicalRoot, canonicalPath));
         }
 
-        return (WritableRoot, Path.GetRelativePath(WritableRoot, path));
+        var writable = roots[0];
+        return (writable, Path.GetRelativePath(writable, path));
     }
 
     /// <summary>
