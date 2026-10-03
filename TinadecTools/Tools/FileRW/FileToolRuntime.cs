@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AsyncLocks;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.FileRW;
 
@@ -88,7 +89,28 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
         return (WritableRoot, Path.GetRelativePath(WritableRoot, path));
     }
 
-    public static bool IsWithin(string root, string path)
+    /// <summary>
+    /// True when <paramref name="path"/> sits under <paramref name="root"/>.
+    ///
+    /// <para>
+    /// The prefix test is the rule, and it is kept: nothing it allowed becomes denied. The second
+    /// comparison exists because the two sides of this border do not always speak one spelling of one
+    /// directory — this process takes its root from <see cref="Environment.CurrentDirectory"/>, which
+    /// macOS hands back with <c>/var</c> already resolved to <c>/private/var</c>, while the host asks
+    /// for the path it declared. A CI runner showed the result: the tool refused to read a file the
+    /// human had just approved a write to, inside its own workspace root.
+    /// </para>
+    /// </summary>
+    public static bool IsWithin(string root, string path) =>
+        IsWithin(root, path, static candidate => WorkspacePathForm.Canonical(candidate));
+
+    internal static bool IsWithin(string root, string path, Func<string, string> canonical)
+    {
+        if (TextuallyWithin(root, path)) return true;
+        return TextuallyWithin(canonical(root), canonical(path));
+    }
+
+    private static bool TextuallyWithin(string root, string path)
     {
         if (string.Equals(path, root, PathComparison))
             return true;

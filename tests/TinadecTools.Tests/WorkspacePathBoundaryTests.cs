@@ -108,4 +108,47 @@ public sealed class WorkspacePathBoundaryTests : IDisposable
         // A sibling that merely shares the prefix text is not inside.
         Assert.False(WorkspaceRootSet.IsWithin(root, root + "-sibling"));
     }
+
+    /// <summary>The one rewrite macOS performs on a temp workspace, as a fixture so a Windows host
+    /// exercises it: this process reads its root from Environment.CurrentDirectory, which the kernel
+    /// hands back already resolved, while the host asks for the path it declared. Spelled without a
+    /// leading "/" so it does not depend on how the host resolves absolute paths.</summary>
+    private static string AliasForm(string path)
+    {
+        var separator = Path.DirectorySeparatorChar;
+        var alias = "ALIAS" + separator;
+        return path.StartsWith(alias, StringComparison.Ordinal)
+            ? string.Join(separator, new[] { "REAL" }.Concat(path.Split(separator).Skip(1)))
+            : path;
+    }
+
+    private static string Sep(params string[] parts) => string.Join(Path.DirectorySeparatorChar, parts);
+
+    [Fact]
+    public void IsWithin_AcceptsEitherSpellingOfOneDirectory()
+    {
+        var root = Sep("REAL", "ws");
+        Assert.True(WorkspaceRootSet.IsWithin(root, Sep("ALIAS", "ws", "mcp.json"), AliasForm));
+        Assert.True(WorkspaceRootSet.IsWithin(root, Sep("REAL", "ws", "mcp.json"), AliasForm));
+    }
+
+    [Fact]
+    public void IsWithin_StillRefusesAPathInNeitherSpelling()
+    {
+        // The added comparison must not turn into "everything is inside": these two differ from the
+        // root in both spellings, and the CI failure this guards against is a refusal, not a grant.
+        var root = Sep("REAL", "ws");
+        Assert.False(WorkspaceRootSet.IsWithin(root, Sep("etc", "passwd"), AliasForm));
+        Assert.False(WorkspaceRootSet.IsWithin(root, Sep("ALIAS", "elsewhere", "x.json"), AliasForm));
+    }
+
+    [Fact]
+    public void IsWithin_NeverNarrowsWhatThePrefixTestAlreadyAllowed()
+    {
+        // A resolver that answers something unrelated has to cost no acceptance: the canonical
+        // comparison only ever adds one, so fixing the macOS split cannot break a working workspace.
+        var inside = Path.Combine(_writable, "src", "app.ts");
+        Assert.True(WorkspaceRootSet.IsWithin(_writable, inside, _ => "/somewhere/else"));
+        Assert.True(WorkspaceRootSet.IsWithin(_writable, _writable, _ => "/somewhere/else"));
+    }
 }
