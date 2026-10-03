@@ -1051,8 +1051,8 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         var target = proposal.GetProperty("target_path").GetString()!;
         Assert.Equal(
-            Path.Combine(_root, "workspace", "skills", "pdf-forms", "SKILL.md"),
-            Path.GetFullPath(target));
+            SameSpelling(Path.Combine(_root, "workspace", "skills", "pdf-forms", "SKILL.md")),
+            SameSpelling(target));
         Assert.Equal("skill", proposal.GetProperty("kind").GetString());
         Assert.Contains("name: pdf-forms", proposal.GetProperty("content").GetString());
 
@@ -1223,7 +1223,10 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         // The path came out of the child process's own mcp_list, not out of a constant in here, so
         // "the same path" is the strongest thing a test can say about it before anything is written.
-        Assert.Equal(Path.GetFullPath(target), Path.GetFullPath(proposal.GetProperty("target_path").GetString()!));
+        // Spelling-normalized on purpose: macOS answers /private/var for the same directory the
+        // test declared as /var, and Core hands the provider the resolved form because that is the
+        // only one the child will accept.
+        Assert.Equal(SameSpelling(target), SameSpelling(proposal.GetProperty("target_path").GetString()!));
         Assert.False(File.Exists(target), "Nothing is written before a human decides.");
         Assert.True(!proposal.TryGetProperty("expected_file_hash", out var firstHash)
             || string.IsNullOrEmpty(firstHash.GetString()), "There was no file for the first write to be conditioned on.");
@@ -1284,7 +1287,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
             new { project_id = project });
-        Assert.Equal(Path.GetFullPath(target), Path.GetFullPath(proposal.GetProperty("target_path").GetString()!));
+        Assert.Equal(SameSpelling(target), SameSpelling(proposal.GetProperty("target_path").GetString()!));
 
         // The workspace has never held a skill, so `skills/` does not exist and the approved write
         // has to create it. This is the step a fake provider cannot vouch for: the tool used to
@@ -1329,6 +1332,13 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Assert.True(response.IsSuccess, $"The tool process could not read {path}: {response.Error}");
         return response.Result?.GetProperty("file_hash").GetString() ?? string.Empty;
     }
+
+    /// <summary>
+    /// Both spellings of one directory are one directory to the file system, so these assertions
+    /// compare paths after resolving symlinks — a raw string compare would fail on macOS for every
+    /// temp-dir workspace and pass on every other host, which is the worst kind of green.
+    /// </summary>
+    private static string SameSpelling(string path) => TinadecCore.Abstractions.Ports.WorkspacePathSpelling.Canonical(path);
 
     private static string SkillDocument(string name) =>
         $"---\nname: {name}\ndescription: Reads a PDF form and fills it.\n---\n\n"

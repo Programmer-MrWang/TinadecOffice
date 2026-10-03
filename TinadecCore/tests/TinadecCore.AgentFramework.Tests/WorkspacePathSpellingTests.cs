@@ -89,7 +89,10 @@ public sealed class WorkspacePathSpellingTests
         var twice = WorkspacePathSpelling.Canonical(once);
 
         Assert.Equal(once, twice);
-        Assert.Equal(Path.GetFullPath(file), WorkspacePathSpelling.Canonical(Path.GetFullPath(file)));
+        // The canonical form is a fixed point: resolving it again changes nothing. (Comparing it to
+        // GetFullPath instead would be wrong on macOS, where the two legitimately differ — that is
+        // the whole reason this helper exists.)
+        Assert.Equal(once, WorkspacePathSpelling.Canonical(once));
         Assert.NotEqual(Path.GetPathRoot(once), once);
     }
 }
