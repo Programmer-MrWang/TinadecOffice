@@ -35,6 +35,7 @@ internal sealed class CliProcessManager : ICliProcessManager, IAsyncDisposable
 {
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(5);
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, HostedCli> _processes = new(StringComparer.Ordinal);
@@ -88,7 +89,7 @@ internal sealed class CliProcessManager : ICliProcessManager, IAsyncDisposable
                 {
                     _logger.LogDebug(ex, "CLI process already exited.");
                 }
-                hosted.Drainer.Dispose();
+                await CliDrainShutdown.AwaitQuietlyAsync(hosted.Drainer, DrainTimeout, _logger).ConfigureAwait(false);
             }
             _processes.Clear();
         }
@@ -231,5 +232,31 @@ internal sealed class CliProcessManager : ICliProcessManager, IAsyncDisposable
     private sealed record HostedCli(Process Process, Task Drainer, CliRuntimeEndpoint Endpoint)
     {
         public bool IsAlive => !Process.HasExited;
+    }
+}
+
+/// <summary>
+/// Shuts down a stdout/stderr drainer without disposing its <see cref="Task"/>.
+/// <c>Task.Dispose()</c> throws while the task is still running ("A task may only be disposed if
+/// it is in a completion state"), which is exactly its state during process shutdown — the drain
+/// only ends once the killed child closes its pipes. Disposal exists to release a rare event
+/// allocation, so awaiting with a bound is the honest replacement; it also keeps the log tail.
+/// </summary>
+internal static class CliDrainShutdown
+{
+    public static async Task AwaitQuietlyAsync(Task drainer, TimeSpan timeout, ILogger logger)
+    {
+        try
+        {
+            await drainer.WaitAsync(timeout).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            logger.LogDebug("CLI output drain did not finish within {TimeoutSeconds}s; abandoning it.", timeout.TotalSeconds);
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or OperationCanceledException)
+        {
+            logger.LogDebug(ex, "CLI output drain ended with an expected stream error.");
+        }
     }
 }

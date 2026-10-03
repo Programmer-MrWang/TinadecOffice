@@ -137,6 +137,40 @@ public sealed class CliRuntimeTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task DrainShutdown_ToleratesADrainerThatIsStillRunning_InsteadOfDisposingItsTask()
+    {
+        // The bug this pins: DisposeAsync called Task.Dispose() on the drainer, which throws while
+        // the task is running. On Windows the killed child closed its pipes fast enough to hide it;
+        // on Linux and macOS the drain was still open and both CI legs went red. A drainer that
+        // never completes makes the timing irrelevant — disposing it throws on every platform.
+        var neverFinishes = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await CliDrainShutdown.AwaitQuietlyAsync(neverFinishes.Task, TimeSpan.FromMilliseconds(50), NullLogger.Instance);
+    }
+
+    [Fact]
+    public async Task DrainShutdown_AwaitsTheDrainerSoTheLogTailIsNotDropped()
+    {
+        var linesWritten = 0;
+        var drainer = Task.Run(async () =>
+        {
+            await Task.Delay(50);
+            Interlocked.Increment(ref linesWritten);
+        });
+
+        await CliDrainShutdown.AwaitQuietlyAsync(drainer, TimeSpan.FromSeconds(5), NullLogger.Instance);
+
+        Assert.Equal(1, linesWritten);
+    }
+
+    [Fact]
+    public async Task DrainShutdown_SwallowsTheStreamErrorsAKilledChildLeavesBehind()
+    {
+        await CliDrainShutdown.AwaitQuietlyAsync(Task.FromException(new IOException("Broken pipe")), TimeSpan.FromSeconds(1), NullLogger.Instance);
+        await CliDrainShutdown.AwaitQuietlyAsync(Task.FromCanceled(new CancellationToken(canceled: true)), TimeSpan.FromSeconds(1), NullLogger.Instance);
+    }
+
     private const string NodeStub = """
         const http = require('http');
         const port = Number(process.argv[process.argv.length - 1] || 0);
