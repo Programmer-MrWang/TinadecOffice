@@ -165,6 +165,13 @@ internal sealed class FakeAcpAgent
     /// <summary>When set, the agent reads frames and records them but answers nothing — how a test hangs a request.</summary>
     public bool SuspendReplies { get; set; }
 
+    /// <summary>
+    /// Answers the handshake and session setup, then never answers a prompt. This, not
+    /// <see cref="SuspendReplies"/>, is what models a wedged harness: the agent is alive and talking,
+    /// its model API is not producing.
+    /// </summary>
+    public bool SuspendPrompts { get; set; }
+
     /// <summary>Advertised <c>agentCapabilities.loadSession</c>.</summary>
     public bool LoadSession { get; set; } = true;
 
@@ -173,6 +180,15 @@ internal sealed class FakeAcpAgent
 
     /// <summary>Advertised <c>agentCapabilities.promptCapabilities.image</c>.</summary>
     public bool Image { get; set; } = true;
+
+    /// <summary><c>session/set_model</c> calls, in order.</summary>
+    public List<string> SetModelCalls { get; } = [];
+
+    /// <summary><c>session/set_mode</c> calls, in order.</summary>
+    public List<string> SetModeCalls { get; } = [];
+
+    /// <summary>Frames the agent sent <em>after</em> answering a prompt, i.e. the drain-window hazard.</summary>
+    public List<string> ScheduledUpdates { get; } = [];
 
     /// <summary>Reply to a request the agent initiated, correlated by its id.</summary>
     public Func<string, JsonElement, Task<JsonElement>>? OnClientReply { get; set; }
@@ -198,6 +214,29 @@ internal sealed class FakeAcpAgent
 
     public Task SendSessionUpdateAsync(object update)
         => SendNotificationAsync("session/update", new { sessionId = SessionId, update });
+
+    /// <summary>
+    /// Emits an update after a delay, on the agent's own schedule. This is how a test reproduces the
+    /// measured hazard: notifications ride a separate queue from the response, so a real harness can
+    /// answer <c>session/prompt</c> first and flush the final chunk afterwards.
+    /// </summary>
+    public void QueueSessionUpdateAfter(TimeSpan delay, object update)
+    {
+        ScheduledUpdates.Add(JsonSerializer.Serialize(update, Wire));
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(delay);
+            try
+            {
+                await SendSessionUpdateAsync(update).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // The peer may have been killed by the test by now; a dropped scheduled update is not
+                // a test failure in itself.
+            }
+        });
+    }
 
     /// <summary>Sends an agent→client request and awaits its answer.</summary>
     public async Task<JsonElement> SendRequestAsync(string method, object @params)
@@ -231,7 +270,11 @@ internal sealed class FakeAcpAgent
             await foreach (var line in NdjsonFraming.ReadFramesAsync(_transport.AgentInput, cancellationToken))
             {
                 ReceivedFrames.Add(line);
-                await HandleAsync(line, cancellationToken).ConfigureAwait(false);
+                // Handled off the read loop, not awaited by it. A handler that asks the client
+                // something (session/request_permission) would otherwise block the only loop able to
+                // read the answer it is waiting for. The real protocol has the same shape: responses
+                // are not serialized behind the frame that produced them.
+                _ = Task.Run(() => HandleSafeAsync(line, cancellationToken));
             }
         }
         catch (OperationCanceledException)
@@ -244,6 +287,21 @@ internal sealed class FakeAcpAgent
         {
         }
     }
+
+    private async Task HandleSafeAsync(string line, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await HandleAsync(line, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            HandlerFailures.Add($"{ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    /// <summary>Exceptions raised while handling a frame, recorded rather than swallowed silently.</summary>
+    public List<string> HandlerFailures { get; } = [];
 
     private async Task HandleAsync(string line, CancellationToken cancellationToken)
     {
@@ -328,7 +386,18 @@ internal sealed class FakeAcpAgent
                 await ReplyAsync(outboundId, new { }, cancellationToken);
                 return;
 
+            case "session/set_model":
+                SetModelCalls.Add(parameters.GetProperty("modelId").GetString() ?? "");
+                await ReplyAsync(outboundId, new { }, cancellationToken);
+                return;
+
+            case "session/set_mode":
+                SetModeCalls.Add(parameters.GetProperty("modeId").GetString() ?? "");
+                await ReplyAsync(outboundId, new { }, cancellationToken);
+                return;
+
             case "session/prompt":
+                if (SuspendPrompts) return;
                 Prompts++;
                 var promptText = parameters.GetProperty("prompt")[0].GetProperty("text").GetString() ?? "";
                 var script = OnPrompt;

@@ -36,6 +36,14 @@ public sealed class DmaEAModuleRegistrar : IModuleRegistrar
         builder.Services.AddSingleton<IApprovalGateJudge, ApprovalGateJudge>();
         builder.Services.AddSingleton<CliRuntime.CliProcessManager>();
         builder.Services.AddSingleton<CliRuntime.ICliProcessManager>(sp => sp.GetRequiredService<CliRuntime.CliProcessManager>());
+        // ACP sessions are hosted per provider instance and must die with the host, so the port is
+        // the concrete singleton: the same concrete-plus-port shape CliProcessManager uses. The
+        // interaction router is a factory because a router's pending approvals belong to one session,
+        // and Round 2 swaps what that factory returns without rewiring anything.
+        builder.Services.AddSingleton(sp => CliRuntime.Acp.AcpSessionOptions.From(sp.GetService<IConfiguration>()));
+        builder.Services.AddSingleton<CliRuntime.Acp.IAcpInteractionRouterFactory, CliRuntime.Acp.RefusingAcpInteractionRouterFactory>();
+        builder.Services.AddSingleton<CliRuntime.Acp.AcpSessionHost>();
+        builder.Services.AddSingleton<CliRuntime.Acp.IAcpSessionHost>(sp => sp.GetRequiredService<CliRuntime.Acp.AcpSessionHost>());
         builder.Services.AddSingleton<AgentInstanceService>();
         builder.Services.AddSingleton<IAgentInstanceService>(sp => sp.GetRequiredService<AgentInstanceService>());
         builder.Services.AddSingleton<IAgentToolAuthorization>(sp => sp.GetRequiredService<AgentInstanceService>());
