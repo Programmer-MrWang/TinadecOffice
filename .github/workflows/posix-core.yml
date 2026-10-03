@@ -1,0 +1,86 @@
+name: POSIX core build & test
+
+# Phase 1 of the Linux/macOS port: the .NET surface (TinadecCore + TinadecTools) must
+# build and its tests must run on both POSIX families. The developer machine is Windows,
+# so this workflow IS the POSIX build and test machine — assertions that only hold
+# locally do not count as POSIX verification here.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'TinadecCore/**'
+      - 'TinadecTools/**'
+      - 'TinadecTools.Generators/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/posix-core.yml'
+  pull_request:
+    paths:
+      - 'TinadecCore/**'
+      - 'TinadecTools/**'
+      - 'TinadecTools.Generators/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/posix-core.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: posix-core-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.300
+
+      # Stages the pinned ripgrep for THIS runner's platform (scripts/setup-ripgrep.mjs
+      # resolves the target itself). The real-platform download is also the first
+      # end-to-end check of the cross-platform staging code below.
+      - name: Stage pinned ripgrep
+        run: node scripts/setup-ripgrep.mjs
+
+      - name: Restore
+        run: dotnet restore TinadecOffice.slnx
+
+      - name: Build
+        run: dotnet build TinadecOffice.slnx --no-restore
+
+      - name: Test
+        run: |
+          dotnet test TinadecOffice.slnx --no-build \
+            --logger "console;verbosity=normal" 2>&1 | tee test-output.log
+          # The pipeline's own exit code belongs to tee, so read the dotnet exit code
+          # explicitly — otherwise failing tests still paint this step green.
+          TEST_RC=${PIPESTATUS[0]}
+          if [ "$TEST_RC" -ne 0 ]; then
+            echo "::error::dotnet test failed on ${{ matrix.os }} (rc=$TEST_RC)"
+            exit 1
+          fi
+          # A green step that ran zero cases is the cheapest false pass (xUnit prints no
+          # "Passed!" summary when nothing executed). Fail loudly on an implausible count.
+          PASSED=$(grep -oE "Passed:[[:space:]]+[0-9]+" test-output.log | awk '{s+=$2} END {print s+0}')
+          echo "total passed cases: $PASSED"
+          if [ "$PASSED" -lt 600 ]; then
+            echo "::error::only $PASSED test cases passed on ${{ matrix.os }} (expected >= 600); POSIX gate did not really run"
+            exit 1
+          fi
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: posix-core-test-log-${{ matrix.os }}
+          path: test-output.log
+          if-no-files-found: warn
