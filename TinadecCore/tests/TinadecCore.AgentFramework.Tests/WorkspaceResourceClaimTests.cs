@@ -10,7 +10,19 @@ namespace TinadecCore.AgentFramework.Tests;
 /// </summary>
 public sealed class WorkspaceResourceClaimTests
 {
-    private const string Root = @"C:\work\app";
+    /// <summary>
+    /// A workspace root the running OS parses as absolute. `C:\work\app` is a drive path on
+    /// Windows but a *relative* name on Linux, so the "absolute target inside the workspace"
+    /// case below silently stopped being absolute on the POSIX CI legs.
+    /// </summary>
+    private static readonly string Root = OperatingSystem.IsWindows() ? @"C:\work\app" : "/work/app";
+
+    /// <summary>A JSON `{"filepath": ...}` for a path under <see cref="Root"/>, escaped by the serializer.</summary>
+    private static string FilepathAt(params string[] parts)
+        => System.Text.Json.JsonSerializer.Serialize(new
+        {
+            filepath = Path.Combine(Root, Path.Combine(parts))
+        });
 
     private static string Params(string json) => json;
 
@@ -50,7 +62,7 @@ public sealed class WorkspaceResourceClaimTests
     {
         var claim = ToolResourcePathRegistry.TryBuildResourceClaim(
             "read_file",
-            Params("""{"filepath":"C:\\work\\app\\src\\app.ts"}"""),
+            Params(FilepathAt("src", "app.ts")),
             Root,
             mutating: false);
         Assert.Equal("path://src/app.ts", claim!.Resource);
@@ -59,7 +71,7 @@ public sealed class WorkspaceResourceClaimTests
         // refuses it independently — the fallback never widens access.
         Assert.Null(ToolResourcePathRegistry.TryBuildResourceClaim(
             "read_file",
-            Params("""{"filepath":"C:\\elsewhere\\app.ts"}"""),
+            Params("""{"filepath":"/elsewhere/app.ts"}"""),
             Root,
             mutating: false));
         Assert.Null(ToolResourcePathRegistry.TryBuildResourceClaim(

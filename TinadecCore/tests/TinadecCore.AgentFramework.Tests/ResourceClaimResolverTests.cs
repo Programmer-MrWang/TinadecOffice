@@ -12,14 +12,28 @@ public sealed class ResourceClaimResolverTests
     private static IReadOnlyDictionary<string, string?> Args(params (string Key, string? Value)[] entries) =>
         entries.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// A workspace root the running OS parses as an absolute path. A literal `C:\repo` is a
+    /// drive on Windows but a *relative* name on Linux, where `Path.GetFullPath` prefixes the
+    /// current directory — which is what made five of these cases claim unrooted paths on the
+    /// POSIX CI legs while the resolver itself was behaving correctly.
+    /// </summary>
+    private static readonly string Repo = OperatingSystem.IsWindows() ? @"C:\repo" : "/repo";
+
+    /// <summary>An absolute path under <see cref="Repo"/> in the OS's own spelling (test input).</summary>
+    private static string Native(params string[] parts) => Path.Combine(new[] { Repo }.Concat(parts).ToArray());
+
+    /// <summary>The same path in the key spelling the resolver normalises to (test expectation).</summary>
+    private static string At(params string[] parts) => Native(parts).Replace('\\', '/');
+
     [Fact]
     public void AWriteClaimsTheFileItNames()
     {
-        var claim = ResourceClaimResolver.Resolve("write_file", Args(("filepath", "C:\\repo\\a.ts")), "C:\\repo", mutatesWorkspace: true);
+        var claim = ResourceClaimResolver.Resolve("write_file", Args(("filepath", Native("a.ts"))), Repo, mutatesWorkspace: true);
 
         Assert.NotNull(claim);
         Assert.Equal(ResourceLeaseKinds.Path, claim!.Kind);
-        Assert.Equal("C:/repo/a.ts", claim.ResourceKey);
+        Assert.Equal(At("a.ts"), claim.ResourceKey);
         Assert.True(claim.Exclusive);
     }
 
@@ -55,9 +69,10 @@ public sealed class ResourceClaimResolverTests
     [Fact]
     public void AWriteScopeResolvesEachEntryAgainstTheWorkspaceAndDropsDuplicates()
     {
-        var claims = ResourceClaimResolver.ResolveWriteScope(["src", "C:\\repo\\src\\", " ", "docs/a.md"], "C:\\repo");
+        var claims = ResourceClaimResolver.ResolveWriteScope(
+            ["src", Native("src") + Path.DirectorySeparatorChar, " ", "docs/a.md"], Repo);
 
-        Assert.Equal(["C:/repo/src", "C:/repo/docs/a.md"], claims.Select(claim => claim.ResourceKey));
+        Assert.Equal([At("src"), At("docs", "a.md")], claims.Select(claim => claim.ResourceKey));
         Assert.All(claims, claim => Assert.True(claim.Exclusive));
         Assert.All(claims, claim => Assert.Equal(ResourceLeaseKinds.Path, claim.Kind));
     }
@@ -67,12 +82,12 @@ public sealed class ResourceClaimResolverTests
     {
         var claim = ResourceClaimResolver.Resolve(
             "git_worktree_create",
-            Args(("path", "C:\\repo\\wt-1"), ("branch", "feat")),
-            workspaceRoot: "C:\\repo",
+            Args(("path", Native("wt-1")), ("branch", "feat")),
+            workspaceRoot: Repo,
             mutatesWorkspace: true);
 
         Assert.Equal(ResourceLeaseKinds.Worktree, claim!.Kind);
-        Assert.Equal("C:/repo/wt-1", claim.ResourceKey);
+        Assert.Equal(At("wt-1"), claim.ResourceKey);
     }
 
     /// <summary>
@@ -85,22 +100,22 @@ public sealed class ResourceClaimResolverTests
     {
         var claim = ResourceClaimResolver.Resolve(
             "git_worktree_create",
-            Args(("repository_path", "C:\\repo"), ("branch", "feat/login page")),
-            workspaceRoot: "C:\\repo",
+            Args(("repository_path", Repo), ("branch", "feat/login page")),
+            workspaceRoot: Repo,
             mutatesWorkspace: true);
 
         Assert.Equal(ResourceLeaseKinds.Worktree, claim!.Kind);
-        Assert.Equal("C:/repo/.tinadec/worktrees/feat-login-page", claim.ResourceKey);
-        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_create", Args(("repository_path", "C:\\repo")), "C:\\repo", true));
+        Assert.Equal(At(".tinadec", "worktrees", "feat-login-page"), claim.ResourceKey);
+        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_create", Args(("repository_path", Repo)), Repo, true));
     }
 
     [Fact]
     public void RemovingClaimsTheWorktree_AndListingClaimsNothing()
     {
-        var remove = ResourceClaimResolver.Resolve("git_worktree_remove", Args(("path", ".tinadec/worktrees/feat"), ("repository_path", "C:\\repo")), "C:\\repo", true);
-        Assert.Equal("C:/repo/.tinadec/worktrees/feat", remove!.ResourceKey);
-        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_list", Args(("repository_path", "C:\\repo")), "C:\\repo", false));
-        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_remove", Args(("repository_path", "C:\\repo")), "C:\\repo", true));
+        var remove = ResourceClaimResolver.Resolve("git_worktree_remove", Args(("path", ".tinadec/worktrees/feat"), ("repository_path", Repo)), Repo, true);
+        Assert.Equal(At(".tinadec", "worktrees", "feat"), remove!.ResourceKey);
+        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_list", Args(("repository_path", Repo)), Repo, false));
+        Assert.Null(ResourceClaimResolver.Resolve("git_worktree_remove", Args(("repository_path", Repo)), Repo, true));
     }
 
     [Fact]
