@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -250,7 +250,11 @@ public sealed class MarketInstallService : IMarketInstallService
                 $"The document at {relative} is not an installable skill: {reason}.");
         }
 
-        var target = WorkspaceSkillPolicy.AbsolutePathFor(project.RootPath, subject.ExtensionId);
+        // Canonical, because this string is frozen into the proposal and handed to the provider as
+        // the write target: the child resolves its own root through symlinks, and a declared path it
+        // judges outside that root is silently never written.
+        var target = WorkspacePathSpelling.Canonical(
+            WorkspaceSkillPolicy.AbsolutePathFor(project.RootPath, subject.ExtensionId));
         if (!IsInsideWorkspace(target, project.RootPath))
         {
             // Unreachable for a name that passed the format rule, and kept because this is the
@@ -839,8 +843,13 @@ public sealed class MarketInstallService : IMarketInstallService
     {
         try
         {
-            var relative = Path.GetRelativePath(Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)),
-                Path.GetFullPath(path));
+            // Both sides go through Canonical(): the provider answers with the operating system's
+            // spelling (symlinks already followed) while the project root is what the user typed,
+            // and on macOS those two differ for every temp-dir workspace. Comparing them as text
+            // refuses a write the human just approved.
+            var relative = Path.GetRelativePath(
+                Path.TrimEndingDirectorySeparator(WorkspacePathSpelling.Canonical(root)),
+                WorkspacePathSpelling.Canonical(path));
 
             return relative.Length > 0
                 && !Path.IsPathRooted(relative)

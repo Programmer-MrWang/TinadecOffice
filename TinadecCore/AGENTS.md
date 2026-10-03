@@ -9,6 +9,18 @@
 
 > The metadata above is advisory and goes stale by design. Never treat an "implemented/current" claim in this file as fact without verifying it against source and tests.
 
+## 2026-10-04 同一个目录的两种拼写在 macOS 上被判成两个目录（市场安装两条红，已修）
+
+posix-core run 37139099608 的 macos 腿剩三条红，其中两条是 `MarketCatalogApiTests`：一条 409 `market_install_target_unresolved`，一条 `DirectoryNotFoundException`。同一条日志给了决定性证据——**同一个目录以两种拼写各出现一次**：Core 拿的是用户声明的 `/var/folders/nj/vtw8…`，工具子进程答的是内核解析后的 `/private/var/folders/nj/vtw8…`（macOS 的 `/var` 是指向 `/private/var` 的符号链接）。
+
+机理：Core 用**声明形态**的项目根起子进程（`TinadecToolsProcessManager.cs:233,251` 只 `Path.GetFullPath`），子进程的 `Environment.CurrentDirectory` 却是内核解析后的形态（`TinadecTools/Tools/FileRW/FileToolRuntime.cs:23` 由它算可写根）。于是 `MarketInstallService.IsInsideWorkspace`（纯文本 `GetRelativePath` + 判 `..`）把 provider 报回来的配置路径判成"逃 out of 工作区"→ 409；技能那条更隐蔽：Core 用声明形态拼出 `target_path` 并冻结进提案，子进程按自己的解析根复检后认为越界，**一个字都不写**，测试再按声明路径读回就 `DirectoryNotFoundException`。两条都不是测试想当然：期望值就是"同一路径的两种拼写"，被打破的是 Core 自己的比较。
+
+修法是一个所有者：`Abstractions/Ports/WorkspacePathSpelling.cs` 的 `Canonical(path)`——**逐级**解析已存在前缀的符号链接、把不存在的尾部原样接回去（`.NET` 自带的 `ResolveLinkTarget(true)` 在这条链上不可用：末段本身不是链接时它返回 null，这一点在沙箱那半边已经实测踩过）。`IsInsideWorkspace` 两侧都过它，技能目标在冻结进提案之前也过它，交给 provider 的那个字符串因此是子进程认得的拼写。**只改比较与交给执行面的那一串**，不动任何存储里的声明根，也没有迁移。
+
+验证（Windows 本机）：`WorkspacePathSpellingTests` **4/4**——两条用假文件系统把规则钉死（链接前缀被解析、缺失的叶子原样接回；声明根与 provider 答案收敛成同一字符串；已解析的路径再过一次不变），两条真文件系统例证幂等与"没有链接时什么都不改"。注入变异（`resolved = existing`，即永不解析）→ 恰 2 条红、另 2 条仍绿（它们在无链接的机器上本就该原样返回），还原后 4/4。`ResolveLinkTarget` 的参数名按本机 TFM 实际是位置参数（`returnFullTarget:` 编译不过 CS1739），已改位置调用。
+
+**未验证**：macOS 真机那两条是否转绿只能等下一条 posix-core 读数；同类形状在别处仍然存在且已登记——`Context/ContextModuleRegistrar.cs:410-411,588-589` 把 `ResolveLinkTarget(true)` 的结果与**声明**根比（`WorkspaceInstructionPolicy.IsInsideRoot`），所以工作区内一个真符号链接在 macOS 上会被判"逃出根"而拒读项目指令/技能；`Lifecycle/WorkspaceSnapshotService.cs:540-545`、`Tools/ToolResourcePathRegistry.cs:150` 同族。它们要同一个收口（一处解析、多处复用），不在本轮顺手改，因为每一处都会动到既有审批/快照的边界语义。
+
 ## 2026-10-03 CLI 进程宿主在关闭时对仍在运行的排空任务调用 Task.Dispose（ubuntu + macos CI 双红，已修）
 
 `CliRuntimeTests.CliProcessManager_SpawnsServer_ParsesPortAndToken_KillsOnDispose` 在 posix-core 两条腿上都红：`System.InvalidOperationException : A task may only be disposed if it is in a completion state (RanToCompletion, Faulted or Canceled)`，栈指向 `DmaEA/CliRuntime/CliProcessManager.cs:91`。
