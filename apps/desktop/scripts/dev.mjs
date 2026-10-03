@@ -2,11 +2,19 @@ import { spawn } from "child_process";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import http from "http";
+import { ensureFreshViteCache, installedVersionResolver } from "./viteCacheGuard.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
 
 const isWindows = process.platform === "win32";
+
+// Must run before Vite starts: a dep cache pre-bundled with an older Vue silently serves the old
+// runtime against newly compiled SFCs, and the failure shows up as a blank window, not an error.
+const cacheDecision = ensureFreshViteCache({ appRoot: rootDir, resolveVersion: installedVersionResolver(rootDir) });
+if (cacheDecision.action === "wiped") {
+  console.log(`[dev] Cleared node_modules/.vite (dependency stamp ${cacheDecision.reason}).`);
+}
 
 function createSpawnOpts(extraEnv = {}) {
   const env = { ...process.env, ...extraEnv };
