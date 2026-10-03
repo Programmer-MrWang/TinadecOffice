@@ -1330,7 +1330,17 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         });
 
         Assert.True(response.IsSuccess, $"The tool process could not read {path}: {response.Error}");
-        return response.Result?.GetProperty("file_hash").GetString() ?? string.Empty;
+
+        // A read that succeeds without a hash is its own failure mode; letting it fall through to an
+        // empty string turns it into "the strings differ" with no hint about which side is missing.
+        var raw = response.Result?.GetRawText() ?? "<null result>";
+        using var document = JsonDocument.Parse(raw);
+        Assert.True(
+            document.RootElement.TryGetProperty("file_hash", out var hashElement),
+            $"read_file for {path} answered without a file_hash: {raw}");
+        var hash = hashElement.GetString();
+        Assert.True(!string.IsNullOrEmpty(hash), $"read_file for {path} answered an empty file_hash: {raw}");
+        return hash!;
     }
 
     /// <summary>
