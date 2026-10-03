@@ -172,13 +172,22 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
             Environment = environment,
             WritePaths = writePaths
         };
-        psi.FileName = Environment.ProcessPath
+        psi.FileName = LauncherExecutable()
             ?? throw new InvalidOperationException("Cannot resolve this process's executable path for the sandbox launcher.");
         psi.ArgumentList.Add(LinuxSandboxLauncher.ModeArg);
         psi.ArgumentList.Add(Convert.ToBase64String(
             JsonSerializer.SerializeToUtf8Bytes(payload, SandboxJsonContext.Default.LinuxSandboxPayload)));
         return psi;
     }
+
+    /// <summary>
+    /// The executable that carries launcher mode. In production that is the tool host itself —
+    /// the payload is handed back to this same binary — which is why the default is
+    /// <see cref="Environment.ProcessPath"/>. Tests repoint it at the TinadecTools apphost beside
+    /// the test runner, because the test host's own entry point belongs to xunit and does not
+    /// recognise <see cref="LinuxSandboxLauncher.ModeArg"/>.
+    /// </summary>
+    internal static Func<string?> LauncherExecutable { get; set; } = static () => Environment.ProcessPath;
 
     /// <summary>
     /// Where the command may write: the declared grants plus the temporary directory and
