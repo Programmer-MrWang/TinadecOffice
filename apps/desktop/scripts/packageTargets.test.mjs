@@ -78,3 +78,41 @@ test("Linux and macOS staging is what the runtime table knows, not a Windows def
 	}
 	assert.ok(runtimeTargetKeys().every((key) => key in RUNTIME_TARGETS));
 });
+
+function pngSize(path) {
+	const bytes = readFileSync(path);
+	assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a", `${path} is not a PNG`);
+	return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function icoLargest(path) {
+	const bytes = readFileSync(path);
+	// A zero byte in the header means 256, which is exactly the size electron-builder requires.
+	return Math.max(
+		...Array.from({ length: bytes.readUInt16LE(4) }, (_, i) =>
+			Math.max(bytes[6 + i * 16] || 256, bytes[7 + i * 16] || 256)),
+	);
+}
+
+test("Every target names an icon asset large enough for its builder format", () => {
+	// The failure this pins is silent: when electron-builder resolves no icon it logs one warning
+	// ("application icon is not set") and ships the default Electron logo. Every leg still goes
+	// green, and the installers reach a user wearing somebody else's brand.
+	const icons = { "win-x64": build.win.icon, "linux-x64": build.linux.icon, "osx-arm64": build.mac.icon };
+
+	for (const [key, relative] of Object.entries(icons)) {
+		assert.ok(relative, `${key} has no icon configured — the build would ship the Electron logo`);
+		const path = join(desktopDir, relative);
+		assert.ok(existsSync(path), `${key} icon '${relative}' is not committed`);
+
+		if (relative.endsWith(".ico")) {
+			// app-builder-lib throws ERR_ICON_TOO_SMALL below 256, and public/tinadec.ico only holds
+			// a 128 frame — the two names differ by one word and only one of them builds.
+			assert.ok(icoLargest(path) >= 256, `${key} ico tops out under the 256 the builder requires`);
+		} else {
+			const { width, height } = pngSize(path);
+			assert.equal(width, height, `${key} icon must be square to fill an icon set`);
+			assert.ok(width >= 512, `${key} icon is ${width}px; macOS icns conversion needs ≥512`);
+		}
+	}
+});
