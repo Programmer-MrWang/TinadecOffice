@@ -239,14 +239,20 @@ test("The channel speaks the Manager's platform names and finds this target's un
 		TARGETS.map((key) => `${facts(key).platform}/${facts(key).architecture}`),
 		["windows/x64", "linux/x64", "macos/arm64"],
 	);
+	// The mac entry is the runner's reading, not a guess: the first macOS channel run looked for
+	// `mac-arm64/resources/runtime`, found nothing, and said so — the bundle keeps its resources under
+	// `Contents/Resources`, so a single "unpacked directory" field would have been wrong for one leg.
 	assert.deepEqual(
 		TARGETS.map((key) => facts(key).unpackedRuntimeDir("/r").replaceAll("\\", "/")),
 		[
 			"/r/win-unpacked/resources/runtime",
 			"/r/linux-unpacked/resources/runtime",
-			"/r/mac-arm64/resources/runtime",
+			"/r/mac-arm64/TinadecOffice.app/Contents/Resources/runtime",
 		],
 	);
+	// The bundle is named after the product, so the table's spelling has to follow the packager's.
+	const build = JSON.parse(readSource("..", "package.json")).build;
+	assert.equal(RUNTIME_TARGETS["osx-arm64"].unpackedResources[1], `${build.productName}.app`);
 });
 
 test("Only Windows declares two installer assets", () => {

@@ -17,7 +17,10 @@ export const RUNTIME_TARGETS = {
 		// service host checks for it through PATH (see electron/serviceManager.cjs).
 		portableGit: true,
 		managerPlatform: "windows",
-		unpackedDir: "win-unpacked",
+		// electron-builder lands the extraResources tree at `<target unpacked>/resources` on Windows
+		// and Linux, and inside the bundle at `Contents/Resources` on macOS. The mac leg proved it by
+		// looking for the Windows spelling and finding nothing.
+		unpackedResources: ["win-unpacked", "resources"],
 		// A zip is written by System32 bsdtar and read by the Manager's bsdtar on Windows.
 		channelArchive: { format: "zip", ext: ".zip" },
 		installerAssets: [
@@ -35,7 +38,7 @@ export const RUNTIME_TARGETS = {
 		format: "elf",
 		portableGit: false,
 		managerPlatform: "linux",
-		unpackedDir: "linux-unpacked",
+		unpackedResources: ["linux-unpacked", "resources"],
 		channelArchive: { format: "tar-gz", ext: ".tar.gz" },
 		installerAssets: [{ buildKey: "linux", idSuffix: "deb", suffix: "-linux-x64.deb" }],
 	},
@@ -49,7 +52,7 @@ export const RUNTIME_TARGETS = {
 		format: "macho",
 		portableGit: false,
 		managerPlatform: "macos",
-		unpackedDir: "mac-arm64",
+		unpackedResources: ["mac-arm64", "TinadecOffice.app", "Contents", "Resources"],
 		channelArchive: { format: "tar-gz", ext: ".tar.gz" },
 		installerAssets: [{ buildKey: "mac", idSuffix: "dmg", suffix: "-osx-arm64.dmg" }],
 	},

@@ -96,8 +96,7 @@ export function channelFacts(target) {
 				: [["native", "native"]];
 		},
 		installerAssets: target.installerAssets,
-		unpackedRuntimeDir: (releaseDir) =>
-			join(releaseDir, target.unpackedDir, "resources", "runtime"),
+		unpackedRuntimeDir: (releaseDir) => join(releaseDir, ...target.unpackedResources, "runtime"),
 	};
 }
 

@@ -116,7 +116,7 @@ Manager 只负责机器级运行时和 Pack 的获取、完整性校验、版本
 2. 每个模块归档的 `tinadec-package.json` 字段与 fragment 期望一致，且 `platform`/`architecture` 等于本平台本架构。
 3. 没有绝对路径或 `..` 越界条目；`expectedFiles` 既在条目里，也能真被解出来。
 4. 每个可执行条目（entrypoint、`rg`、`native/rg/…`、Windows 的 git/bash）解出后的头部是本平台的机器码（PE x64 / ELF 64-bit / Mach-O arm64）；POSIX 上还必须有属主执行位——解包后没有 `+x` 的模块会被 Manager 装上但无法 spawn。
-5. 模块包与完整版 `<target unpacked>/resources/runtime` 逐字节一致，双向：模块不缺文件，完整版也没有模块包不认识的内容。
+5. 模块包与完整版内置 runtime 逐字节一致（路径按平台取：Windows `win-unpacked/resources/runtime`、Linux `linux-unpacked/resources/runtime`、macOS `mac-arm64/TinadecOffice.app/Contents/Resources/runtime`——extraResources 在 bundle 里落在 `Contents/Resources`，这条是 mac 腿用"找不到 runtime"报出来的），双向：模块不缺文件，完整版也没有模块包不认识的内容。
 6. 安装包资产与 catalog 的字节数、SHA-256 对得上；catalog 里不得出现别的平台的 artifact（每条腿只准写自己）。
 7. 归档器必须显式解析：Windows 用 `System32/tar.exe`，POSIX 用系统 `tar`。读取单个条目时要用 `tar -tf` 列出的**原始**条目名（两个归档器都写成 `./x`）——GNU tar 对 `tar -xOf a.tar.gz x` 回的是 `Not found in archive`，实测 exit 2，Windows 腿上的 bsdtar 却两种写法都接受，所以这条差异只在 POSIX 腿上暴露。
 

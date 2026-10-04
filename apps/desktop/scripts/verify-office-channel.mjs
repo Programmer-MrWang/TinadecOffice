@@ -379,7 +379,13 @@ for (const artifact of desktop.release.artifacts) {
 
 const bundledRuntimeDir = FACTS.unpackedRuntimeDir(releaseDir);
 if (!existsSync(bundledRuntimeDir)) {
-	fail(`Full app bundled runtime is missing, so module archives cannot be cross-checked: ${bundledRuntimeDir}`);
+	// Name what the leg actually produced: a missing path is either a wrong table entry or a packager
+	// that wrote somewhere else, and the listing tells them apart without another run.
+	const listing = existsSync(releaseDir) ? readdirSync(releaseDir).slice(0, 12).join(", ") : "(release directory missing)";
+	fail(
+		`Full app bundled runtime is missing, so module archives cannot be cross-checked: ${bundledRuntimeDir} ` +
+			`— ${releaseDir} holds: ${listing}`,
+	);
 }
 const bundledFiles = walkFileHashes(bundledRuntimeDir);
 const covered = new Set();
