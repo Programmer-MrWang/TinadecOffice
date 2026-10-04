@@ -237,6 +237,16 @@ public sealed class ControlPlaneService
             return Results.BadRequest(new { code = "harness_channel_unsupported", message = $"'{driver}' has no '{channel}' channel; the catalog declares {declared}." });
         }
         var protocol = HarnessCatalog.ResolveProtocol(Get("protocol"), driver, channel);
+        if (spec is not null && Get("protocol") is null && string.IsNullOrWhiteSpace(channel))
+        {
+            // Neither axis named: silently taking the catalog's default protocol is how a connect for a
+            // harness with three ways to be reached picks one on the caller's behalf.
+            return Results.BadRequest(new { code = "harness_channel_required", message = $"'{driver}' can be reached multiple ways; send 'channel' ({string.Join(", ", spec.Channels.Select(declaredChannel => declaredChannel.Channel))}) or an explicit 'protocol'." });
+        }
+        if (spec is not null && !OffersProtocol(spec, protocol))
+        {
+            return Results.BadRequest(new { code = "harness_protocol_unsupported", message = $"'{driver}' does not speak '{protocol}'; this harness offers {string.Join(", ", OfferedProtocols(spec))}." });
+        }
         if (ChatProtocols.HarnessClientGap(protocol) is { } gap)
             return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' on protocol '{protocol}' cannot be connected by this build: {gap}." });
         if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}' and '{ChatProtocols.OpencodeServe}'." });
@@ -417,6 +427,21 @@ public sealed class ControlPlaneService
     }
 
     private sealed record ChannelFact(string? Channel, string Protocol, bool Drivable, string? Reason);
+
+    /// <summary>
+    /// The protocols one harness actually offers: its declared channels plus, for the harnesses that
+    /// also expose a long-lived local server, that server's protocol. Anything outside this set is a
+    /// dialect this product never implements for this binary, so it must be refused by name rather
+    /// than stored and discovered as a failing run.
+    /// </summary>
+    private static IEnumerable<string> OfferedProtocols(HarnessSpec spec) =>
+        spec.Channels.Select(channel => channel.Protocol)
+            .Concat(spec.HttpServer is { } server ? new[] { server.Protocol } : [])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static bool OffersProtocol(HarnessSpec spec, string protocol) =>
+        OfferedProtocols(spec).Contains(protocol, StringComparer.OrdinalIgnoreCase);
 
     private static void RemoveSecret(Dictionary<string, JsonElement> cfg)
     { cfg.Remove("api_key"); cfg.Remove("clear_api_key"); }

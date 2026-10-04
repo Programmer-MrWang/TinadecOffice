@@ -85,6 +85,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
         {
             driver = "opencode",
+            protocol = "opencode-serve",
             display_name = "OpenCode",
             binary_path = binary,
             server_url = _server!.Url
@@ -113,6 +114,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var again = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
         {
             driver = "opencode",
+            protocol = "opencode-serve",
             binary_path = binary,
             server_url = _server.Url
         }));
@@ -130,6 +132,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
         {
             driver = "opencode",
+            protocol = "opencode-serve",
             binary_path = binary,
             server_url = "http://127.0.0.1:59999"
         }));
@@ -146,6 +149,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var missing = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
         {
             driver = "opencode",
+            protocol = "opencode-serve",
             binary_path = Path.Combine(_bin, "does-not-exist.exe")
         }));
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, missing.StatusCode);
@@ -169,6 +173,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
         {
             driver = "opencode",
+            protocol = "opencode-serve",
             binary_path = binary,
             server_url = _server!.Url
         }));
@@ -185,6 +190,43 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
     /// implement, so this runs against a stub that actually resolves — a candidate Core never
     /// reaches is a candidate whose launch args would have been omitted and proved nothing.
     /// </summary>
+    [Fact]
+    public async Task Connect_CataloguedHarnessWithoutChannelOrProtocol_IsRefusedByName()
+    {
+        // A harness can be reached several ways. Defaulting one of them silently is how a connect for
+        // `opencode` could end up stored as an ACP session, or the reverse, without anyone choosing.
+        var binary = WriteRunnableStub("dsh");
+        var client = _factory!.CreateClient();
+        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        {
+            driver = "dsh",
+            binary_path = binary
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("harness_channel_required", body.GetProperty("code").GetString());
+        Assert.Contains("acp", body.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Connect_ProtocolTheHarnessDoesNotSpeak_IsRefusedByName()
+    {
+        // `claude --acp` was the original fabrication: a dialect this product never implemented for
+        // that binary, stored as if it worked. Refusing it here is what keeps it out of the row.
+        var binary = WriteRunnableStub("claude");
+        var client = _factory!.CreateClient();
+        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        {
+            driver = "claude-code",
+            binary_path = binary,
+            protocol = "acp"
+        }));
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("harness_protocol_unsupported", body.GetProperty("code").GetString());
+        Assert.Contains("headless-cli", body.GetProperty("message").GetString(), StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Discovery_ReportsNoFabricatedLaunchArgsForDetectedHarnesses()
     {
@@ -209,7 +251,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
 
     /// <summary>Writes a stub the <c>--version</c> probe actually passes: a .cmd shim on Windows, an
     /// executable shell script elsewhere.</summary>
-    private void WriteRunnableStub(string name)
+    private string WriteRunnableStub(string name)
     {
         var binary = Path.Combine(_bin, OperatingSystem.IsWindows() ? $"{name}.cmd" : name);
         if (OperatingSystem.IsWindows())
@@ -221,6 +263,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
             File.WriteAllText(binary, "#!/bin/sh\necho ok\n");
             File.SetUnixFileMode(binary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+        return binary;
     }
 
     private static async Task<JsonElement> ReadBodyAsync(IResult result, IServiceProvider services)

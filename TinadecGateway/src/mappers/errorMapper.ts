@@ -54,6 +54,8 @@ const ALLOWED_CODES = new Set([
   'CLI_CONNECT_FAILED',
   'CLI_CONNECT_INVALID',
   'harness_channel_unsupported',
+  'harness_channel_required',
+  'harness_protocol_unsupported',
   'not_found',
   'snapshot_not_found',
   'file_not_found',
