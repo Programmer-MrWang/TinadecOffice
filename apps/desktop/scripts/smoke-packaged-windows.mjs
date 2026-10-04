@@ -14,15 +14,24 @@ import { createServer } from "node:net";
 import { dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+	coreHealthUrl,
+	coreReadinessUrl,
+	gatewayHealthUrl,
+	toolsManifestUrl,
+	toolsReadinessUrl,
+	harnessManifestUrl,
+	smokePorts,
+	validateCoreHealth,
+	validateGatewayHealth,
+	validateCoreReadiness,
+	validateToolsManifest,
+	validateToolsReadiness,
+	validateHarnessManifest,
+} from "./smokeAssertions.mjs";
+
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptsDir, "..");
-const coreHealthUrl = "http://127.0.0.1:48731/api/v1/health";
-const coreReadinessUrl = "http://127.0.0.1:48731/api/v1/readiness";
-const gatewayHealthUrl = "http://127.0.0.1:48730/api/v1/health";
-const toolsManifestUrl = "http://127.0.0.1:48730/api/v1/tools";
-const toolsReadinessUrl = "http://127.0.0.1:48730/api/v1/tool-layer-readiness";
-const harnessManifestUrl = "http://127.0.0.1:48730/api/v1/harness/manifest";
-const smokePorts = [48730, 48731, 48732];
 const maxLogBytes = 32_000;
 
 function requireWindowsX64(label) {
@@ -214,48 +223,6 @@ async function stopProcessTree(child, label) {
 		`${label} left ports 48730/48731 listening after terminating the Electron process tree: ${
 			lastError instanceof Error ? lastError.message : String(lastError)
 		}`,
-	);
-}
-
-function validateCoreHealth(value) {
-	return (
-		value?.name === "tinadec-core" &&
-		value?.status === "ok" &&
-		value?.version === "0.1.0"
-	);
-}
-
-function validateGatewayHealth(value) {
-	return value?.gateway === "ok" && value?.core_status === "ready";
-}
-
-function validateCoreReadiness(value) {
-	return (
-		["ready", "degraded", "blocked"].includes(value?.status) &&
-		Array.isArray(value?.items)
-	);
-}
-
-function validateToolsManifest(value) {
-	return Array.isArray(value) && value.length > 0;
-}
-
-function validateToolsReadiness(value) {
-	return (
-		Array.isArray(value?.tools) &&
-		value.tools.length > 0 &&
-		Number(value?.tool_count) > 0 &&
-		value?.status === "ready"
-	);
-}
-
-function validateHarnessManifest(value) {
-	return (
-		typeof value?.runtime === "string" &&
-		value.runtime.length > 0 &&
-		value?.tool_registry &&
-		typeof value.tool_registry === "object" &&
-		Array.isArray(value?.modules)
 	);
 }
 

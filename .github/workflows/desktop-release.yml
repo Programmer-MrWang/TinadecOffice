@@ -129,6 +129,25 @@ jobs:
         if: matrix.label == 'win-x64'
         run: npm run verify:package -w @tinadec/desktop
 
+      # Electron needs an X server and its shared libraries on a headless runner; without the
+      # packages the app dies before it binds a port, and the smoke's own message would be a
+      # timeout rather than "libgtk-3 is missing".
+      - name: Install the libraries Electron needs on a headless runner
+        if: matrix.label == 'linux-x64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libnss3 libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libgbm1 libasound2t64 libgtk-3-0t64 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2
+
+      - name: Smoke test the packaged application (Linux)
+        if: matrix.label == 'linux-x64'
+        run: xvfb-run -a npm run smoke:packaged:posix -w @tinadec/desktop
+
+      # The macOS smoke mounts the .dmg and runs the binary inside it, so this step is the evidence
+      # that the shipped artifact — not just the directory that fed the packager — starts.
+      - name: Smoke test the packaged application (macOS)
+        if: matrix.label == 'osx-arm64'
+        run: npm run smoke:packaged:posix -w @tinadec/desktop
+
       - name: Smoke test unpacked application
         if: matrix.label == 'win-x64'
         run: npm run smoke:packaged -w @tinadec/desktop
