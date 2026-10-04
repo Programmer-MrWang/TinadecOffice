@@ -118,4 +118,18 @@ test("The POSIX smoke is wired for both legs and refuses Windows", () => {
 	assert.match(pkg.scripts["smoke:packaged:posix"] ?? "", /node scripts\/smoke-packaged-posix\.mjs/);
 	assert.match(posixScript, /The POSIX smoke does not run on Windows/);
 	assert.equal(existsSync(join(desktopDir, "scripts", "smokeAssertions.mjs")), true);
+
+	// The ubuntu runner died with "Authorization required, but no authorization protocol specified"
+	// then SIGSEGV: an X server alone is not enough when HOME has been redirected, because Xlib's
+	// cookie lookup follows $HOME/.Xauthority.
+	const workflow = readFileSync(resolve(desktopDir, "..", "..", ".github", "workflows", "desktop-release.yml"), "utf8");
+	assert.match(workflow, /xvfb-run[^\n]*-ac/, "the Linux smoke needs an X server that accepts the redirected profile");
+});
+
+test("A desktop session's X authority survives the redirected HOME", () => {
+	const env = sanitizedPosixEnvironment({ profile: "/p", temporary: "/t", xauthority: "/run/user/1000/mcookie" });
+
+	assert.equal(env.XAUTHORITY, "/run/user/1000/mcookie");
+	assert.equal(env.HOME, "/p", "the two are not in conflict: the app's data stays in the profile");
+	assert.equal(sanitizedPosixEnvironment({ profile: "/p", temporary: "/t" }).XAUTHORITY, undefined);
 });

@@ -58,7 +58,7 @@ export function electronSmokeArgs(userDataDir, target) {
 
 /// A profile with nothing in it but the app's own paths. `HOME` is redirected so the packaged app
 /// cannot read the developer's or the runner's real settings, caches, or model credentials.
-export function sanitizedPosixEnvironment({ profile, temporary, inheritedPath, display }) {
+export function sanitizedPosixEnvironment({ profile, temporary, inheritedPath, display, xauthority }) {
 	return {
 		HOME: profile,
 		USER: process.env.USER ?? "tinadec-smoke",
@@ -76,6 +76,9 @@ export function sanitizedPosixEnvironment({ profile, temporary, inheritedPath, d
 		// git" as if that were a product fact.
 		PATH: inheritedPath ?? "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/usr/local/bin:/bin",
 		...(display ? { DISPLAY: display } : {}),
+		// A real desktop session authorizes X through $HOME/.Xauthority or $XAUTHORITY; the
+		// redirected HOME breaks the first, so the second has to survive.
+		...(xauthority ? { XAUTHORITY: xauthority } : {}),
 	};
 }
 
@@ -309,7 +312,7 @@ export async function runPackagedPosixSmoke(options = {}) {
 	try {
 		child = spawn(executable, electronSmokeArgs(userData, target), {
 			cwd: dirname(executable),
-			env: sanitizedPosixEnvironment({ profile, temporary, inheritedPath: process.env.PATH, display: process.env.DISPLAY }),
+			env: sanitizedPosixEnvironment({ profile, temporary, inheritedPath: process.env.PATH, display: process.env.DISPLAY, xauthority: process.env.XAUTHORITY }),
 			stdio: ["ignore", "pipe", "pipe"],
 			detached: true,
 		});

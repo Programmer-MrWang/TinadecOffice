@@ -146,7 +146,13 @@ jobs:
 
       - name: Smoke test the packaged application (Linux)
         if: matrix.label == 'linux-x64'
-        run: xvfb-run -a npm run smoke:packaged:posix -w @tinadec/desktop
+        # -ac, not just an X server: the smoke redirects HOME to a throwaway profile, so the Xlib
+        # default cookie lookup ($HOME/.Xauthority) cannot find the authority xvfb-run wrote, and
+        # Electron dies with "Authorization required, but no authorization protocol specified"
+        # followed by SIGSEGV before it binds a port.
+        run: >-
+          xvfb-run -a --server-args="-screen 0 1280x1024x24 -ac"
+          npm run smoke:packaged:posix -w @tinadec/desktop
 
       # The macOS smoke mounts the .dmg and runs the binary inside it, so this step is the evidence
       # that the shipped artifact — not just the directory that fed the packager — starts.
