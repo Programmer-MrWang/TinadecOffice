@@ -7,14 +7,23 @@ import { homeController } from '@/controllers/HomeController'
 import { closePalette, useCommandPalette } from '@/composables/useCommandPalette'
 import {
   availableCommands,
-  filterCommands,
-  formatGroup,
-  haystackOf,
   implicitArgument,
   type AppCommand,
   type CommandHost,
-  type RankedCommand,
 } from '@/lib/appCommands'
+import {
+  requestConversation,
+  requestModelProvider,
+  requestSettingsSection,
+} from '@/lib/pageRequests'
+import {
+  refreshSpotlight,
+  searchSpotlight,
+  spotlightKindLabel,
+  type SpotlightGroup,
+  type SpotlightHost,
+  type SpotlightItem,
+} from '@/lib/spotlight'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -22,6 +31,8 @@ const { open, comboLabel } = useCommandPalette()
 
 const query = ref('')
 const activeIndex = ref(0)
+const groups = ref<SpotlightGroup[]>([])
+const searching = ref(false)
 const dialogRef = ref<HTMLDialogElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 const listId = 'command-palette-list'
@@ -31,7 +42,7 @@ const listId = 'command-palette-list'
  * it reads what the controller holds and does its own navigation - which is the whole
  * reason the command table takes a host instead of calling into a component.
  */
-const host: CommandHost = {
+const commandHost: CommandHost = {
   canStop: () => Boolean(homeController.stoppableRunId.value),
   draft: () => homeController.draft.value,
   setDraft: (value) => homeController.updateDraft(value),
@@ -56,27 +67,76 @@ const host: CommandHost = {
   routeName: () => String(router.currentRoute.value.name ?? ''),
 }
 
-/** Labels resolve here, because only the caller knows the language being read. */
-const ranked = computed<RankedCommand[]>(() =>
-  availableCommands(host).map((command) => ({
-    command,
-    haystack: haystackOf(
-      command,
-      t(command.labelKey),
-      (command.keywordKeys ?? []).map((key) => t(key)),
-    ),
+function runCommand(command: AppCommand) {
+  const argument = implicitArgument(command, commandHost)
+  closePalette()
+  // Closed before running: a navigation command replaces the page underneath, and a
+  // send clears the draft the row was about to read, so the list is stale either way.
+  command.run(commandHost, argument)
+}
+
+/** Commands as spotlight items, so one list and one keyboard path covers every kind. */
+const commandItems = computed<SpotlightItem[]>(() =>
+  availableCommands(commandHost).map((command) => ({
+    id: command.id,
+    kind: 'command' as const,
+    label: t(command.labelKey),
+    detail: command.slash ? `/${command.slash}` : undefined,
+    keywords: (command.keywordKeys ?? []).map((key) => t(key)).join(' '),
+    action: () => runCommand(command),
   })),
 )
 
-const visible = computed(() => filterCommands(query.value, ranked.value))
+const spotlightHost: SpotlightHost = {
+  navigate: (routeName) => void router.push({ name: routeName }),
+  navigateSettings: (section) => {
+    requestSettingsSection(section)
+    if (router.currentRoute.value.name !== 'settings') void router.push({ name: 'settings' })
+  },
+  openSession: (sessionId) => {
+    requestConversation(sessionId)
+    if (router.currentRoute.value.name !== 'home') void router.push({ name: 'home' })
+  },
+  selectProvider: (providerId) => {
+    requestModelProvider(providerId)
+    if (router.currentRoute.value.name !== 'settings') void router.push({ name: 'settings' })
+  },
+  openWorkspacePath: () => {
+    // The code workspace mounts when its page does; drop the user on it with the
+    // path selected by the page's own request channel.
+    if (router.currentRoute.value.name !== 'code-editor') void router.push({ name: 'code-editor' })
+  },
+  loadedSessions: () => homeController.sessions.value,
+  workspaceRoot: () => homeController.currentProject.value?.path ?? '',
+}
+
+/** Flat rows across every group, in render order: the keyboard cursor walks this list. */
+const rows = computed(() => groups.value.flatMap((group) => group.items))
 
 const activeId = computed(() =>
-  visible.value.length ? `command-palette-option-${activeIndex.value}` : undefined,
+  rows.value.length ? `command-palette-option-${activeIndex.value}` : undefined,
 )
 
-// A new result set can be shorter than the cursor, and a row that is no longer rendered
-// must not stay highlighted.
-watch(visible, (list) => {
+// A keystroke re-runs the search; the workspace leg is debounced inside the same
+// token so a cancelled query never lands after a newer one.
+let searchToken = 0
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+async function runSearch() {
+  const token = ++searchToken
+  searching.value = Boolean(query.value.trim())
+  const result = await searchSpotlight(query.value, spotlightHost, (key) => t(key), commandItems.value)
+  if (token !== searchToken) return
+  groups.value = result
+  searching.value = false
+}
+
+watch(query, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => void runSearch(), 180)
+})
+
+watch(rows, (list) => {
   if (activeIndex.value >= list.length) activeIndex.value = Math.max(0, list.length - 1)
 })
 
@@ -89,9 +149,11 @@ watch(open, async (isOpen) => {
   }
   query.value = ''
   activeIndex.value = 0
+  refreshSpotlight()
   element.showModal()
   await nextTick()
   inputRef.value?.focus()
+  void runSearch()
 })
 
 // The list scrolls, so the highlighted row has to stay inside it: a cursor that has
@@ -102,17 +164,23 @@ watch(activeIndex, () => {
 })
 
 function move(delta: number) {
-  const count = visible.value.length
+  const count = rows.value.length
   if (!count) return
   activeIndex.value = (activeIndex.value + delta + count) % count
 }
 
-function run(command: AppCommand) {
-  const argument = implicitArgument(command, host)
+/** Where a flat cursor index lands, for group-header rendering in the template. */
+function rowIndex(groupIndex: number, itemIndex: number): number {
+  let at = 0
+  for (let g = 0; g < groupIndex; g += 1) at += groups.value[g]!.items.length
+  return at + itemIndex
+}
+
+function run(item: SpotlightItem) {
   closePalette()
-  // Closed before running: a navigation command replaces the page underneath, and a
-  // send clears the draft the row was about to read, so the list is stale either way.
-  command.run(host, argument)
+  // Commands manage their own close (runCommand is their action); the dynamic
+  // kinds close here because their actions just place a request and navigate.
+  if (item.kind !== 'command') item.action()
 }
 
 function onBackdropClick(event: MouseEvent) {
@@ -129,10 +197,10 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     move(-1)
   } else if (event.key === 'Enter') {
-    const command = visible.value[activeIndex.value]
-    if (!command) return
+    const item = rows.value[activeIndex.value]
+    if (!item) return
     event.preventDefault()
-    run(command)
+    run(item)
   }
 }
 </script>
@@ -157,7 +225,7 @@ function onKeydown(event: KeyboardEvent) {
         class="command-palette-input"
         type="text"
         role="combobox"
-        :placeholder="t('palette.placeholder')"
+        :placeholder="t('palette.spotlightPlaceholder')"
         :aria-label="t('palette.title')"
         aria-expanded="true"
         aria-autocomplete="list"
@@ -171,32 +239,40 @@ function onKeydown(event: KeyboardEvent) {
       <kbd class="command-palette-accelerator">{{ comboLabel }}</kbd>
     </div>
 
-    <ul
-      v-if="visible.length"
+    <div
+      v-if="rows.length"
       :id="listId"
       class="command-palette-list"
       role="listbox"
       :aria-label="t('palette.title')"
       data-testid="palette-list"
     >
-      <li
-        v-for="(command, index) in visible"
-        :key="command.id"
-        :id="`command-palette-option-${index}`"
-        class="command-palette-row"
-        :class="{ 'is-active': index === activeIndex }"
-        role="option"
-        :aria-selected="index === activeIndex"
-        :data-testid="`palette-row-${command.id}`"
-        @mouseenter="activeIndex = index"
-        @click="run(command)"
-      >
-        <span class="command-palette-label">{{ t(command.labelKey) }}</span>
-        <code v-if="command.slash" class="command-palette-syntax">/{{ command.slash }}</code>
-        <span class="command-palette-group">{{ t(formatGroup(command.group)) }}</span>
-      </li>
-    </ul>
+      <template v-for="(group, groupIndex) in groups" :key="group.kind">
+        <p class="command-palette-kind" :data-testid="`palette-kind-${group.kind}`">
+          {{ t(spotlightKindLabel(group.kind)) }}
+        </p>
+        <div
+          v-for="(item, itemIndex) in group.items"
+          :key="item.id"
+          :id="`command-palette-option-${rowIndex(groupIndex, itemIndex)}`"
+          class="command-palette-row"
+          :class="{ 'is-active': rowIndex(groupIndex, itemIndex) === activeIndex }"
+          role="option"
+          :aria-selected="rowIndex(groupIndex, itemIndex) === activeIndex"
+          :data-testid="`palette-row-${item.id}`"
+          @mouseenter="activeIndex = rowIndex(groupIndex, itemIndex)"
+          @click="run(item)"
+        >
+          <span class="command-palette-label">{{ item.label }}</span>
+          <code v-if="item.kind === 'command' && item.detail" class="command-palette-syntax">{{ item.detail }}</code>
+          <span v-else-if="item.detail" class="command-palette-detail">{{ item.detail }}</span>
+        </div>
+      </template>
+    </div>
 
+    <p v-else-if="searching" class="command-palette-empty" role="status" data-testid="palette-searching">
+      {{ t('palette.searching') }}
+    </p>
     <p v-else class="command-palette-empty" role="status" data-testid="palette-empty">
       {{ t('palette.empty') }}
     </p>
@@ -211,7 +287,7 @@ function onKeydown(event: KeyboardEvent) {
 
 <style scoped>
 .command-palette {
-  width: min(calc(100vw - 32px), 520px);
+  width: min(calc(100vw - 32px), 560px);
   margin: auto;
   padding: 0;
   border: 1px solid var(--border-muted);
@@ -272,15 +348,24 @@ function onKeydown(event: KeyboardEvent) {
   gap: 1px;
   margin: 0;
   padding: 4px;
-  list-style: none;
-  max-height: 320px;
+  max-height: 340px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
+.command-palette-kind {
+  margin: 0;
+  padding: 8px 8px 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .command-palette-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 7px 8px;
@@ -295,6 +380,9 @@ function onKeydown(event: KeyboardEvent) {
 .command-palette-label {
   font-size: 12px;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .command-palette-syntax {
@@ -303,11 +391,13 @@ function onKeydown(event: KeyboardEvent) {
   color: var(--text-secondary);
 }
 
-.command-palette-group {
-  font-size: 10px;
+.command-palette-detail {
+  max-width: 240px;
+  font-size: 11px;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .command-palette-empty {

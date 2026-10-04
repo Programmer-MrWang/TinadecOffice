@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { UieShell } from '@tinadec/ui'
 import { homeController } from '@/controllers/HomeController'
+import { consumeRequest, pendingConversationId } from '@/lib/pageRequests'
 import { useUiePage } from '@/lib/uiEngine'
 
 // The UIE store is a module singleton shared by every UIE route; entering Home
@@ -43,6 +44,13 @@ onMounted(() => {
   window.setTimeout(() => {
     homeEntering.value = false
   }, ENTER_DURATION_MS)
+})
+
+// A spotlight conversation row hands its id over through the request channel:
+// the palette navigates here, and the selection lands on the one ref the
+// sidebar, the message pane and the loader all already read.
+consumeRequest(pendingConversationId, (sessionId) => {
+  homeController.setSelectedSession(sessionId)
 })
 
 // Spatial exit: toggle .home-exiting so the exit keyframes drive the staggered
