@@ -192,10 +192,11 @@ public sealed class ControlPlaneService
                 vendor = spec.Vendor,
                 docs_url = spec.DocsUrl,
                 binary_path = reachable ? located?.BinaryPath : null,
-                // Expanded by the resolver, and only reported when the directory exists: the catalog's
-                // ConfigHome is a vendor fact that may be unverified, and a path Core invented here
-                // would become the HOME a harness child is handed.
-                home_path = reachable ? _harnessBinaries.ConfigHomeOf(spec.Id) : null,
+                // Reported as a fact about the harness, not as the process HOME. The two are different
+                // directories: Kimi's config home is `~/.kimi-code`, and handing that to the child as
+                // HOME would make it look for `~/.kimi-code/.kimi-code`. Only the path the operator
+                // types in the form becomes HOME, and discovery never invents one.
+                config_home = reachable ? _harnessBinaries.ConfigHomeOf(spec.Id) : null,
                 server_url = reachable && spec.HttpServer is { } endpoint ? $"http://127.0.0.1:{endpoint.DefaultPort}" : null,
                 launch_args = reachable ? serveArgv : null,
                 status = existing ? "configured" : probe?.Runnable == true ? "found" : "missing",

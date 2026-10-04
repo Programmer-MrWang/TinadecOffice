@@ -40,6 +40,7 @@ import {
   Sun,
   Terminal,
   Trash2,
+  UserRound,
   Workflow,
   X
 } from '@lucide/vue'
@@ -53,6 +54,7 @@ import GeneralSection from '@/settings/sections/GeneralSection.vue'
 import LanguageSection from '@/settings/sections/LanguageSection.vue'
 import ApiDocsSection from '@/settings/sections/ApiDocsSection.vue'
 import AppearanceSection from '@/settings/sections/AppearanceSection.vue'
+import PersonalSection from '@/settings/sections/PersonalSection.vue'
 import PetsSection from '@/settings/sections/PetsSection.vue'
 import ToolCenterSection from '@/settings/sections/ToolCenterSection.vue'
 import TinaChatSection from '@/settings/sections/TinaChatSection.vue'
@@ -139,7 +141,7 @@ import { usePanelStyles } from '@/composables/usePanelStyles'
 import { useNotifications } from '@/composables/useNotifications'
 import { graphSeedPackManifest } from '@/agentPacks/GraphSeedPack'
 
-type SettingsSection = 'general' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
+type SettingsSection = 'personal' | 'general' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
 
 type AgentCenterTab = 'agents' | 'modes' | 'prompts' | 'evolution' | 'runtime'
 
@@ -232,7 +234,7 @@ function openExternal(url: string) {
   window.open(url, '_blank')
 }
 
-const activeSection = ref<SettingsSection>('general')
+const activeSection = ref<SettingsSection>('personal')
 const agentCenterTab = ref<AgentCenterTab>('agents')
 // Pets section moved to settings/sections/PetsSection.vue (D7.2)
 
@@ -243,7 +245,7 @@ const agentCenterTab = ref<AgentCenterTab>('agents')
  * that should use the full available width.
  */
 const CENTERED_SECTIONS: ReadonlySet<SettingsSection> = new Set([
-  'general', 'tools', 'archive', 'appearance', 'language', 'about',
+  'personal', 'general', 'tools', 'archive', 'appearance', 'language', 'about',
 ])
 const isCenteredSection = computed(() => CENTERED_SECTIONS.has(activeSection.value))
 
@@ -348,6 +350,7 @@ const providerForm = reactive<ProviderForm>({  id: '',
 })
 
 const navItems = computed(() => [
+  { key: 'personal' as const, icon: UserRound, label: t('settings.personal') },
   { key: 'general' as const, icon: Settings2, label: t('settings.general') },
   { key: 'model' as const, icon: KeyRound, label: t('settings.model') },
   { key: 'agentCenter' as const, icon: Workflow, label: t('settings.agentCenter') },
@@ -1085,11 +1088,10 @@ async function connectDiscoveredCli(candidate: CliDiscoveryCandidateDto, channel
       binary_path: candidate.binary_path,
       channel: channel.channel ?? null,
       protocol: channel.protocol,
-      display_name: candidate.display_name || undefined,
-      home_path: candidate.home_path ?? null
-      // No server_url and no launch_args: discovery reports those as "what this harness would be
-      // started with", and a quick connect that writes them would store an endpoint Core never
-      // measured. The process host picks the port it can actually bind and echoes the real argv back.
+      display_name: candidate.display_name || undefined
+      // No home_path, server_url or launch_args: discovery reports those as "what this harness would
+      // be started with", and a quick connect that writes them would store a HOME, an endpoint and an
+      // argv Core never measured. The process host picks the port it can actually bind.
     })
     await loadModelCenter()
     notify.success(created.display_name)
@@ -1896,6 +1898,10 @@ import '../settings/settings.css'
           :key="activeSection"
           :class="['settings-section-wrapper', { 'settings-section-wrapper--centered': isCenteredSection }]"
         >
+        <template v-if="activeSection === 'personal'">
+          <PersonalSection />
+        </template>
+
         <template v-if="activeSection === 'general'">
           <GeneralSection />
         </template>

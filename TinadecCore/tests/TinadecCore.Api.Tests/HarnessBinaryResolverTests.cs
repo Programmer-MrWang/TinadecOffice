@@ -57,6 +57,39 @@ public sealed class HarnessBinaryResolverTests : IDisposable
         Assert.Null(new HarnessBinaryResolver(Roots()).Resolve("not-a-harness"));
     }
 
+    /// <summary>
+    /// Measured on this host: npm writes <c>name</c> (a <c>#!/bin/sh</c> script), <c>name.cmd</c> and
+    /// <c>name.ps1</c> for every global package, and Windows cannot start the first. Handing back the
+    /// extensionless entry makes an installed harness read as "not detected", which is the exact failure
+    /// this batch exists to remove — so the preference order is a correctness rule, not cosmetics.
+    /// </summary>
+    [Fact]
+    public void Resolve_PrefersAFileThisOperatingSystemCanStart()
+    {
+        var directory = Path.Combine(_root, "shims");
+        Directory.CreateDirectory(directory);
+        var bare = Path.Combine(directory, "opencode");
+        File.WriteAllText(bare, "#!/bin/sh\necho shim\n");
+        var cmd = Path.Combine(directory, "opencode.cmd");
+        File.WriteAllText(cmd, "@echo ok\r\n");
+
+        var located = new HarnessBinaryResolver(Roots()).Resolve("opencode", new[] { directory });
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Equal(cmd, located!.BinaryPath);
+            File.Delete(cmd);
+            // With only the shell script left there is nothing startable, and saying so is better than
+            // returning a path that dies in CreateProcess.
+            Assert.Null(new HarnessBinaryResolver(Roots()).Resolve("opencode", new[] { directory }));
+        }
+        else
+        {
+            File.SetUnixFileMode(bare, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Assert.Equal(bare, located!.BinaryPath);
+        }
+    }
+
     [Fact]
     public void Resolve_EnvironmentOverrideBeatsEverySearchRoot()
     {

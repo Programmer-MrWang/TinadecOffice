@@ -52,8 +52,7 @@ internal static class HarnessPathTokens
 /// </summary>
 internal sealed class HarnessBinaryResolver : IHarnessBinaryResolver
 {
-    private static readonly string[] NoExtensions = [string.Empty];
-    private static readonly string[] WindowsExtensions = ["", ".exe", ".cmd", ".bat"];
+    private static readonly string[] WindowsExtensions = [".exe", ".cmd", ".bat"];
 
     private readonly IReadOnlyDictionary<string, string> _roots;
 
@@ -94,9 +93,8 @@ internal sealed class HarnessBinaryResolver : IHarnessBinaryResolver
             if (!Directory.Exists(root)) continue;
             foreach (var binaryName in spec.BinaryNames)
             {
-                foreach (var extension in Extensions())
+                foreach (var candidate in Candidates(root, binaryName))
                 {
-                    var candidate = Path.Combine(root, binaryName + extension);
                     if (!File.Exists(candidate)) continue;
                     return new HarnessBinaryLocation(candidate, binaryName, root);
                 }
@@ -114,7 +112,40 @@ internal sealed class HarnessBinaryResolver : IHarnessBinaryResolver
         return expanded is not null && Directory.Exists(expanded) ? expanded : null;
     }
 
-    private static IEnumerable<string> Extensions() => OperatingSystem.IsWindows() ? WindowsExtensions : NoExtensions;
+    /// <summary>
+    /// The files worth asking this OS to start, in the order it should prefer them. On Windows an
+    /// extensionless npm entry is a <c>#!/bin/sh</c> script, and <c>CreateProcess</c> refuses it — so
+    /// offering it makes an installed harness read as "not detected" (measured here: every npm harness
+    /// in <c>%APPDATA%\npm</c> ships <c>name</c>, <c>name.cmd</c> and <c>name.ps1</c>, and only the
+    /// second of those is startable). A bare name is offered only when its first bytes are <c>MZ</c>,
+    /// i.e. it really is a Windows image.
+    /// </summary>
+    private static IEnumerable<string> Candidates(string root, string binaryName)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            yield return Path.Combine(root, binaryName);
+            yield break;
+        }
+
+        foreach (var extension in WindowsExtensions) yield return Path.Combine(root, binaryName + extension);
+        var bare = Path.Combine(root, binaryName);
+        if (IsPortableExecutable(bare)) yield return bare;
+    }
+
+    private static bool IsPortableExecutable(string path)
+    {
+        try
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var header = new byte[2];
+            return stream.Read(header, 0, 2) == 2 && header[0] == 0x4D && header[1] == 0x5A;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     private static IEnumerable<string> SystemSearchRoots()
     {

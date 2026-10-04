@@ -991,7 +991,8 @@ export interface CliDiscoveryCandidateDto {
   driver: string;
   display_name: string;
   binary_path: string | null;
-  home_path?: string | null;
+  /** Where the harness keeps its own configuration, when this host has it. Deliberately not the process HOME. */
+  config_home?: string | null;
   server_url?: string | null;
   launch_args?: string | null;
   status: 'found' | 'missing' | 'configured';
