@@ -1,3 +1,4 @@
+import { closeSync, fstatSync, openSync, readSync } from "node:fs";
 import { open } from "node:fs/promises";
 
 /// The headers are read in bounded pieces, never by slurping the file: a self-contained
@@ -5,6 +6,18 @@ import { open } from "node:fs/promises";
 /// was still on the whole-file version of this check.
 
 const PROBE = 64;
+
+/// The same bounded window, synchronously, for callers that only need the leading bytes of a file
+/// they already have a path to — the archive format check does not need a PE header.
+export function readHead(path, length = PROBE) {
+	const fd = openSync(path, "r");
+	try {
+		const buffer = Buffer.alloc(Math.min(length, fstatSync(fd).size));
+		return buffer.subarray(0, readSync(fd, buffer, 0, buffer.length, 0));
+	} finally {
+		closeSync(fd);
+	}
+}
 
 async function peek(path, position, length) {
 	const handle = await open(path, "r");

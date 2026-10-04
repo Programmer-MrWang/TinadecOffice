@@ -16,6 +16,14 @@ export const RUNTIME_TARGETS = {
 		// PortableGit is a Windows packaging artifact: Linux and macOS ship system git, and the
 		// service host checks for it through PATH (see electron/serviceManager.cjs).
 		portableGit: true,
+		managerPlatform: "windows",
+		unpackedDir: "win-unpacked",
+		// A zip is written by System32 bsdtar and read by the Manager's bsdtar on Windows.
+		channelArchive: { format: "zip", ext: ".zip" },
+		installerAssets: [
+			{ buildKey: "nsis", idSuffix: "setup", suffix: "-win-x64-setup.exe" },
+			{ buildKey: "portable", idSuffix: "portable", suffix: "-win-x64-portable.exe" },
+		],
 	},
 	"linux-x64": {
 		key: "linux-x64",
@@ -26,6 +34,10 @@ export const RUNTIME_TARGETS = {
 		exe: "",
 		format: "elf",
 		portableGit: false,
+		managerPlatform: "linux",
+		unpackedDir: "linux-unpacked",
+		channelArchive: { format: "tar-gz", ext: ".tar.gz" },
+		installerAssets: [{ buildKey: "linux", idSuffix: "deb", suffix: "-linux-x64.deb" }],
 	},
 	"osx-arm64": {
 		key: "osx-arm64",
@@ -36,8 +48,21 @@ export const RUNTIME_TARGETS = {
 		exe: "",
 		format: "macho",
 		portableGit: false,
+		managerPlatform: "macos",
+		unpackedDir: "mac-arm64",
+		channelArchive: { format: "tar-gz", ext: ".tar.gz" },
+		installerAssets: [{ buildKey: "mac", idSuffix: "dmg", suffix: "-osx-arm64.dmg" }],
 	},
 };
+
+/// Channel archives are `zip` on Windows and `tar.gz` everywhere else, and the reason is a
+/// measured trap rather than taste: GNU tar (which is `/usr/bin/tar` on a Linux runner) accepts
+/// `-a -cf module.zip` and writes a **tar** archive under that name — first bytes `2e 2f 00 00`,
+/// not `50 4b 03 04` — and then refuses to read a real zip with "This does not look like a tar
+/// archive". A zip module built and verified on the same Linux host would therefore be green in CI
+/// and uninstallable by the Manager, whose `extractArchive` also calls plain `tar`. GNU tar writes
+/// the execute bit into tar.gz (`-rwxr-xr-x`, read back by bsdtar on macOS and by the Manager on
+/// either host), so tar.gz costs nothing the zip would have bought.
 
 const HOSTS = {
 	win32: { x64: "win-x64" },

@@ -18,6 +18,9 @@ on:
       - '.github/workflows/create-version.yml'
       - 'apps/desktop/scripts/package-office-channel.mjs'
       - 'apps/desktop/scripts/verify-office-channel.mjs'
+      - 'apps/desktop/scripts/merge-office-channel-catalog.mjs'
+      - 'apps/desktop/scripts/officeChannel.mjs'
+      - 'apps/desktop/scripts/runtimeTargets.mjs'
       - 'docs/tinadec-office-release-contract.zh-CN.md'
   pull_request:
     paths:
@@ -32,6 +35,9 @@ on:
       - '.github/workflows/create-version.yml'
       - 'apps/desktop/scripts/package-office-channel.mjs'
       - 'apps/desktop/scripts/verify-office-channel.mjs'
+      - 'apps/desktop/scripts/merge-office-channel-catalog.mjs'
+      - 'apps/desktop/scripts/officeChannel.mjs'
+      - 'apps/desktop/scripts/runtimeTargets.mjs'
       - 'docs/tinadec-office-release-contract.zh-CN.md'
   workflow_dispatch:
 
@@ -168,17 +174,17 @@ jobs:
         if: matrix.label == 'win-x64'
         run: npm run smoke:installed -w @tinadec/desktop
 
+      # Every leg packs its own channel: staging is native-only, so the Windows leg has never seen a
+      # Linux runtime and the Linux leg cannot read a zip. The merged catalog is the release job's job.
       - name: Package Office channel artifacts
-        if: matrix.label == 'win-x64'
         run: node apps/desktop/scripts/package-office-channel.mjs
 
       - name: Verify Office channel artifacts
-        if: matrix.label == 'win-x64'
         run: node apps/desktop/scripts/verify-office-channel.mjs
 
-      # Three literal steps rather than one: a multi-line path list cannot be handed through a
-      # matrix expression without guessing how the runner joins it, and the Windows artifact name is
-      # what the release job below downloads.
+      # The leg-local office-channel/SHA256SUMS is a build gate, not a release asset: three legs each
+      # writing that one name into one artifact set would silently keep only the last, and the
+      # published sums come from the release job instead.
       - name: Upload Windows package
         if: matrix.label == 'win-x64'
         uses: actions/upload-artifact@v4
@@ -190,8 +196,7 @@ jobs:
             apps/desktop/release/*-win-x64-portable.exe
             apps/desktop/release/latest.yml
             apps/desktop/release/office-channel/*.zip
-            apps/desktop/release/office-channel/catalog.json
-            apps/desktop/release/office-channel/SHA256SUMS
+            apps/desktop/release/office-channel/catalog-win-x64.json
           if-no-files-found: error
           retention-days: 14
 
@@ -200,7 +205,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TinadecOffice-linux-x64
-          path: apps/desktop/release/*-linux-x64.deb
+          path: |
+            apps/desktop/release/*-linux-x64.deb
+            apps/desktop/release/office-channel/*.tar.gz
+            apps/desktop/release/office-channel/catalog-linux-x64.json
           if-no-files-found: error
           retention-days: 14
 
@@ -209,7 +217,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TinadecOffice-osx-arm64
-          path: apps/desktop/release/*-osx-arm64.dmg
+          path: |
+            apps/desktop/release/*-osx-arm64.dmg
+            apps/desktop/release/office-channel/*.tar.gz
+            apps/desktop/release/office-channel/catalog-osx-arm64.json
           if-no-files-found: error
           retention-days: 14
 
@@ -221,11 +232,32 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download verified package
+      # The merge command is the only writer of catalog.json, and it has to run somewhere that can see
+      # all three legs — which is this job, after the downloads, and nowhere else.
+      - uses: actions/checkout@v4
+
+      - name: Download verified Windows package
         uses: actions/download-artifact@v4
         with:
           name: TinadecOffice-win-x64
           path: release-artifacts
+
+      - name: Download verified Linux package
+        uses: actions/download-artifact@v4
+        with:
+          name: TinadecOffice-linux-x64
+          path: release-artifacts
+
+      - name: Download verified macOS package
+        uses: actions/download-artifact@v4
+        with:
+          name: TinadecOffice-osx-arm64
+          path: release-artifacts
+
+      - name: Merge the Office channel catalogs
+        env:
+          OFFICE_RELEASE_VERSION: ${{ github.ref_name }}
+        run: node apps/desktop/scripts/merge-office-channel-catalog.mjs release-artifacts/office-channel
 
       - name: Generate SHA256SUMS
         working-directory: release-artifacts
@@ -240,11 +272,19 @@ jobs:
 
       - name: Validate Office channel catalog
         working-directory: release-artifacts
+        # 4 archives per platform (core, gateway, tools, agentpack): one zip on Windows, tar.gz on
+        # the two POSIX legs, because GNU tar writes a tar archive when told to make a zip. The jq
+        # expression stays in the single-argument, min/max form: this job is the release gate, and an
+        # expression that fails to parse here looks like a broken publisher rather than a bad catalog.
         run: |
           test -s office-channel/catalog.json
-          test -s office-channel/SHA256SUMS
           test "$(find office-channel -maxdepth 1 -name '*.zip' | wc -l)" -eq 4
-          jq -e '.schemaVersion == 1 and (.products | length >= 5)' office-channel/catalog.json >/dev/null
+          test "$(find office-channel -maxdepth 1 -name '*.tar.gz' | wc -l)" -eq 8
+          test "$(find office-channel -maxdepth 1 -name 'catalog-*.json' | wc -l)" -eq 3
+          jq -e '.schemaVersion == 1
+            and (.products | length >= 5)
+            and (([.products[].releases[0].artifacts | length] | min) >= 3)
+            and ((([.products[].releases[0].artifacts[].platform] | unique)) | contains(["linux", "macos", "windows"]))' office-channel/catalog.json >/dev/null
 
       - name: Create GitHub Release
         working-directory: release-artifacts

@@ -112,6 +112,31 @@ function icoLargest(path) {
 	);
 }
 
+test("The channel's installer names are the packager's own artifact names", () => {
+	// package-office-channel.mjs publishes the installer it finds by suffix. If that suffix and
+	// electron-builder's artifactName ever drift apart, the leg fails with "Expected one installer,
+	// found 0" — which is a red build rather than a release that is missing an asset.
+	const extension = { nsis: "exe", portable: "exe", linux: "deb", mac: "dmg" };
+	for (const key of runtimeTargetKeys()) {
+		const assets = RUNTIME_TARGETS[key].installerAssets;
+		assert.ok(assets.length > 0, `${key} ships no installer the channel knows about`);
+		const expected = assets.map((asset) => {
+			const template = build[asset.buildKey]?.artifactName;
+			assert.ok(template, `${key} names build.${asset.buildKey}, which the config does not have`);
+			return template.replace("TinadecOffice-${version}", "").replace("${ext}", extension[asset.buildKey]);
+		});
+		assert.deepEqual(
+			assets.map((asset) => asset.suffix),
+			expected,
+			`${key} installer suffixes must equal the packaged artifact names`,
+		);
+		// Two legs landing the same file name is how a Windows installer once got labelled as Linux.
+		for (const asset of assets) {
+			assert.ok(asset.suffix.includes(key), `${asset.suffix} must name the ${key} it belongs to`);
+		}
+	}
+});
+
 test("Every target names an icon asset large enough for its builder format", () => {
 	// The failure this pins is silent: when electron-builder resolves no icon it logs one warning
 	// ("application icon is not set") and ships the default Electron logo. Every leg still goes

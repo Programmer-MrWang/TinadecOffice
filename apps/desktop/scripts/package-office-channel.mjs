@@ -13,6 +13,9 @@ import {
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { AGENT_PACK_PRODUCT_ID, CHANNEL_COMPONENTS, channelFacts } from "./officeChannel.mjs";
+import { hostRuntimeTarget } from "./runtimeTargets.mjs";
+
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptsDir, "..");
 const rootDir = resolve(desktopDir, "..", "..");
@@ -28,11 +31,13 @@ const agentPackManifestPath = join(
 );
 const defaultRepository = "Tinadec/TinadecOffice";
 
-// bsdtar (libarchive) reads and writes the channel ZIPs. Resolve it explicitly on
-// Windows: System32 always ships it, while GNU tar from Git Bash sits earlier on
-// PATH, cannot create zip archives, and treats drive-letter paths as host specs.
+// The archiver is bsdtar wherever it is needed: on Windows System32 always ships it, while GNU tar
+// from Git Bash sits earlier on PATH, cannot create zip archives at all, and treats drive-letter
+// paths as remote host specs. On the POSIX legs the archive is tar.gz, which the system tar writes
+// natively — and there it *must* be the system tar, because that is the same binary the Manager
+// will use to read the artifact back.
 const systemRoot = process.env.SystemRoot ?? "C:\\Windows";
-const bsdTar =
+const archiveTool =
 	process.platform === "win32" && existsSync(join(systemRoot, "System32", "tar.exe"))
 		? join(systemRoot, "System32", "tar.exe")
 		: "tar";
@@ -120,14 +125,10 @@ function writeJson(path, value) {
 	writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function zipDirectory(source, output) {
+function createArchive(source, output) {
 	removeTree(output);
 	mkdirSync(dirname(output), { recursive: true });
-	// bsdtar creates the ZIP: the archive format is shared with the CI runner and
-	// the Manager's archive tests. It must be resolved explicitly because GNU tar
-	// (first on PATH inside Git Bash) parses "C:\..." as a remote host and does
-	// not support the zip suffix at all.
-	execFileSync(bsdTar, ["-a", "-cf", output, "-C", source, "."], {
+	execFileSync(archiveTool, [...FACTS.tarCreateArgs, output, "-C", source, "."], {
 		cwd: rootDir,
 		stdio: "inherit",
 		windowsHide: true,
@@ -144,20 +145,20 @@ function packageMetadata({ productId, component, packageVersion, entrypoint, exp
 		component,
 		releaseVersion: VERSION,
 		packageVersion,
-		platform: "windows",
-		architecture: "x64",
+		platform: FACTS.platform,
+		architecture: FACTS.architecture,
 		...(entrypoint ? { entrypoint } : {}),
 		...(expectedFiles ? { expectedFiles } : {}),
 		...(agentPack ? { agentPack } : {}),
 	};
 }
 
-function artifactMetadata({ id, file, format = "zip", sourceDir = channelDir }) {
+function artifactMetadata({ id, file, format = FACTS.archiveFormat, sourceDir = channelDir }) {
 	const sourcePath = join(sourceDir, file);
 	return {
 		id,
-		platform: "windows",
-		architecture: "x64",
+		platform: FACTS.platform,
+		architecture: FACTS.architecture,
 		format,
 		url: `${releaseBaseUrl}/${encodeURIComponent(file)}`,
 		sizeBytes: statSync(sourcePath).size,
@@ -165,23 +166,22 @@ function artifactMetadata({ id, file, format = "zip", sourceDir = channelDir }) 
 	};
 }
 
-function runtimePackage({ name, productId, component, packageVersion, source, extraSources, entrypoint, expectedFiles }) {
-	const root = packageRoot(name);
+function runtimePackage({ component, source, extraSources, entrypoint, expectedFiles }) {
+	const productId = CHANNEL_COMPONENTS[component].productId;
+	const root = packageRoot(productId);
 	copyTree(source, root);
 	for (const [directory, sourcePath] of extraSources ?? []) {
 		copyTree(sourcePath, join(root, directory));
 	}
-	writeJson(
-		join(root, "tinadec-package.json"),
-		packageMetadata({ productId, component, packageVersion, entrypoint, expectedFiles }),
-	);
-	const file = `${name}-${VERSION}-win-x64.zip`;
-	zipDirectory(root, join(channelDir, file));
-	return { file, metadata: readJson(join(root, "tinadec-package.json"), "package metadata") };
+	const metadata = packageMetadata({ productId, component, packageVersion: VERSION, entrypoint, expectedFiles });
+	writeJson(join(root, "tinadec-package.json"), metadata);
+	const file = FACTS.moduleFile(component, VERSION);
+	createArchive(root, join(channelDir, file));
+	return { file, metadata };
 }
 
 function agentPackPackage() {
-	const root = packageRoot("agentpack");
+	const root = packageRoot(AGENT_PACK_PRODUCT_ID);
 	const manifest = readJson(agentPackManifestPath, "GraphSeedPack manifest");
 	const digest = createHash("sha256").update(canonicalize(manifest)).digest("hex");
 	const packId = manifest?.metadata?.pack_id;
@@ -195,45 +195,38 @@ function agentPackPackage() {
 		manifest,
 		integrity: { algorithm: "sha256", digest },
 	});
-	writeJson(
-		join(root, "tinadec-package.json"),
-		packageMetadata({
-			productId: "tinadec-office-agentpack",
-			component: "agentpack",
-			packageVersion: packVersion,
-			agentPack: {
-				packId,
-				digest,
-				minimumCoreVersion,
-				manifestPath: "manifest.json",
-				envelopePath: "envelope.json",
-			},
-		}),
-	);
-	const file = `tinadec-office-agentpack-${VERSION}-win-x64.zip`;
-	zipDirectory(root, join(channelDir, file));
-	return {
-		file,
-		metadata: readJson(join(root, "tinadec-package.json"), "AgentPack metadata"),
-		packId,
-		packVersion,
-		digest,
-		minimumCoreVersion,
-	};
+	const metadata = packageMetadata({
+		productId: AGENT_PACK_PRODUCT_ID,
+		component: "agentpack",
+		packageVersion: packVersion,
+		agentPack: {
+			packId,
+			digest,
+			minimumCoreVersion,
+			manifestPath: "manifest.json",
+			envelopePath: "envelope.json",
+		},
+	});
+	writeJson(join(root, "tinadec-package.json"), metadata);
+	const file = FACTS.agentPackFile(VERSION);
+	createArchive(root, join(channelDir, file));
+	return { file, metadata, packId, packVersion, digest, minimumCoreVersion };
 }
 
 function findReleaseArtifact(suffix, label) {
 	const matches = readdirSync(releaseDir).filter(
 		(name) => name.endsWith(suffix) && statSync(join(releaseDir, name)).isFile(),
 	);
-	if (matches.length !== 1) fail(`Expected one ${label}, found ${matches.length}.`);
+	if (matches.length !== 1) fail(`Expected one ${label} ending in ${suffix}, found ${matches.length}.`);
 	return matches[0];
 }
 
 const VERSION = releaseVersion();
+const TARGET = hostRuntimeTarget();
+const FACTS = channelFacts(TARGET);
 const repository = process.env.GITHUB_REPOSITORY ?? defaultRepository;
 const releaseBaseUrl = `https://github.com/${repository}/releases/download/v${VERSION}`;
-requireDirectory(runtimeDir, "Staged desktop runtime");
+requireDirectory(runtimeDir, `Staged ${TARGET.key} desktop runtime`);
 requireDirectory(releaseDir, "Desktop release directory");
 removeTree(channelDir);
 mkdirSync(channelDir, { recursive: true });
@@ -243,46 +236,29 @@ if (desktopPackage.version !== VERSION) {
 	fail(`Desktop package version ${desktopPackage.version} does not match Office release ${VERSION}.`);
 }
 const corePackage = runtimePackage({
-	name: "tinadec-office-core",
-	productId: "tinadec-office-core",
 	component: "core",
-	packageVersion: VERSION,
 	source: join(runtimeDir, "core"),
-	entrypoint: "TinadecCore.Api.exe",
-	expectedFiles: ["TinadecCore.Api.exe", "appsettings.json", "Configuration/default-agent-runtime.toml"],
+	entrypoint: FACTS.entrypoint("core"),
+	expectedFiles: FACTS.expectedFiles("core"),
 });
 const gatewayPackage = runtimePackage({
-	name: "tinadec-office-gateway",
-	productId: "tinadec-office-gateway",
 	component: "gateway",
-	packageVersion: VERSION,
 	source: join(runtimeDir, "gateway"),
-	entrypoint: "TinadecGateway.exe",
-	expectedFiles: ["TinadecGateway.exe"],
+	entrypoint: FACTS.entrypoint("gateway"),
+	expectedFiles: FACTS.expectedFiles("gateway"),
 });
 const toolsPackage = runtimePackage({
-	name: "tinadec-office-tools",
-	productId: "tinadec-office-tools",
 	component: "tools",
-	packageVersion: VERSION,
 	source: join(runtimeDir, "tools"),
-	extraSources: [
-		["native", join(runtimeDir, "native")],
-		["git", join(runtimeDir, "git")],
-	],
-	entrypoint: "TinadecTools.exe",
-	expectedFiles: [
-		"TinadecTools.exe",
-		"Nlog.config",
-		"rg.exe",
-		"native/rg/rg.exe",
-		"git/cmd/git.exe",
-		"git/bin/bash.exe",
-	],
+	extraSources: FACTS.extraSources("tools").map(([directory, name]) => [directory, join(runtimeDir, name)]),
+	entrypoint: FACTS.entrypoint("tools"),
+	expectedFiles: FACTS.expectedFiles("tools"),
 });
 const agentPack = agentPackPackage();
-const setupFile = findReleaseArtifact("-win-x64-setup.exe", "NSIS setup");
-const portableFile = findReleaseArtifact("-win-x64-portable.exe", "portable package");
+const installerAssets = FACTS.installerAssets.map((asset) => ({
+	asset,
+	file: findReleaseArtifact(asset.suffix, `${asset.idSuffix} installer`),
+}));
 
 const products = [
 	{
@@ -295,7 +271,10 @@ const products = [
 		delivery: "portable-exe",
 		probe: "process-name",
 		probeTarget: "TinadecOffice",
-		expectedArtifact: `TinadecOffice-${VERSION}-win-x64-portable.exe`,
+		// No platform-neutral post-extract marker exists for a single-file installer: the Manager
+		// stages it as `staging/<artifact.id>`, so a release-asset name can never match. The asset
+		// names are in `artifacts[].url`, which is where they belong.
+		expectedArtifact: "",
 		allowMultipleInstances: true,
 		supportsStandaloneLaunch: true,
 		installable: true,
@@ -304,10 +283,9 @@ const products = [
 			version: VERSION,
 			channel: "stable",
 			publishedAt: new Date().toISOString(),
-			artifacts: [
-				artifactMetadata({ id: `tinadec-office-desktop-${VERSION}-setup`, file: setupFile, format: "executable", sourceDir: releaseDir }),
-				artifactMetadata({ id: `tinadec-office-desktop-${VERSION}-portable`, file: portableFile, format: "executable", sourceDir: releaseDir }),
-			],
+			artifacts: installerAssets.map(({ asset, file }) =>
+				artifactMetadata({ id: `tinadec-office-desktop-${VERSION}-${asset.idSuffix}`, file, format: "executable", sourceDir: releaseDir }),
+			),
 			dependencies: [],
 			packageMetadata: {
 				schemaVersion: 1,
@@ -317,6 +295,8 @@ const products = [
 				component: "desktop",
 				releaseVersion: VERSION,
 				packageVersion: desktopPackage.version,
+				platform: FACTS.platform,
+				architecture: FACTS.architecture,
 			},
 		}],
 	},
@@ -327,11 +307,11 @@ const products = [
 		productLine: "office",
 		packageKind: "runtime-module",
 		runtimeRole: "tools",
-		description: "Office 渠道的工具宿主、ripgrep 和 PortableGit 运行时。",
+		description: "Office 渠道的工具宿主、ripgrep 运行时；Windows 一份还携带 PortableGit。",
 		delivery: "native-exe",
 		probe: "process-name",
 		probeTarget: "TinadecTools",
-		expectedArtifact: "TinadecTools.exe",
+		expectedArtifact: FACTS.entrypoint("tools"),
 		allowMultipleInstances: false,
 		supportsStandaloneLaunch: false,
 		installable: true,
@@ -340,7 +320,7 @@ const products = [
 			version: VERSION,
 			channel: "stable",
 			publishedAt: new Date().toISOString(),
-			artifacts: [artifactMetadata({ id: `tinadec-office-tools-${VERSION}-win-x64`, file: toolsPackage.file })],
+			artifacts: [artifactMetadata({ id: `tinadec-office-tools-${VERSION}-${TARGET.key}`, file: toolsPackage.file })],
 			dependencies: [],
 			packageMetadata: toolsPackage.metadata,
 		}],
@@ -356,7 +336,7 @@ const products = [
 		delivery: "dotnet-publish-dir",
 		probe: "http-health",
 		probeTarget: "http://127.0.0.1:48731/api/v1/health",
-		expectedArtifact: "TinadecCore.Api.exe",
+		expectedArtifact: FACTS.entrypoint("core"),
 		allowMultipleInstances: false,
 		supportsStandaloneLaunch: true,
 		installable: true,
@@ -365,7 +345,7 @@ const products = [
 			version: VERSION,
 			channel: "stable",
 			publishedAt: new Date().toISOString(),
-			artifacts: [artifactMetadata({ id: `tinadec-office-core-${VERSION}-win-x64`, file: corePackage.file })],
+			artifacts: [artifactMetadata({ id: `tinadec-office-core-${VERSION}-${TARGET.key}`, file: corePackage.file })],
 			dependencies: [{ productId: "tinadec-office-tools", versionRange: `>=${VERSION}`, optional: false }],
 			packageMetadata: corePackage.metadata,
 		}],
@@ -381,7 +361,7 @@ const products = [
 		delivery: "native-exe",
 		probe: "http-health",
 		probeTarget: "http://127.0.0.1:48730/api/v1/health",
-		expectedArtifact: "TinadecGateway.exe",
+		expectedArtifact: FACTS.entrypoint("gateway"),
 		allowMultipleInstances: false,
 		supportsStandaloneLaunch: true,
 		installable: true,
@@ -390,13 +370,13 @@ const products = [
 			version: VERSION,
 			channel: "stable",
 			publishedAt: new Date().toISOString(),
-			artifacts: [artifactMetadata({ id: `tinadec-office-gateway-${VERSION}-win-x64`, file: gatewayPackage.file })],
+			artifacts: [artifactMetadata({ id: `tinadec-office-gateway-${VERSION}-${TARGET.key}`, file: gatewayPackage.file })],
 			dependencies: [{ productId: "tinadec-office-core", versionRange: `>=${VERSION}`, optional: false }],
 			packageMetadata: gatewayPackage.metadata,
 		}],
 	},
 	{
-		id: "tinadec-office-agentpack",
+		id: AGENT_PACK_PRODUCT_ID,
 		name: "TinadecOffice AgentPack",
 		family: "agent-pack",
 		productLine: "office",
@@ -414,29 +394,37 @@ const products = [
 			version: VERSION,
 			channel: "stable",
 			publishedAt: new Date().toISOString(),
-			artifacts: [artifactMetadata({ id: `tinadec-office-agentpack-${VERSION}-win-x64`, file: agentPack.file })],
+			artifacts: [artifactMetadata({ id: `tinadec-office-agentpack-${VERSION}-${TARGET.key}`, file: agentPack.file })],
 			dependencies: [{ productId: "tinadec-office-core", versionRange: `>=${agentPack.minimumCoreVersion}`, optional: false }],
 			packageMetadata: agentPack.metadata,
 		}],
 	},
 ];
 
-writeJson(join(channelDir, "catalog.json"), {
+// One fragment per leg: three runners build three platforms, and only the release job can see all
+// of them. Writing `catalog.json` here would have put three same-named files into one artifact set.
+writeJson(join(channelDir, `catalog-${TARGET.key}.json`), {
 	schemaVersion: 1,
+	kind: "office-channel-fragment",
+	target: TARGET.key,
+	officeReleaseVersion: VERSION,
 	generatedAt: new Date().toISOString(),
 	managerMinimumVersion: "0.1.0",
+	releaseBaseUrl,
 	products,
 });
 writeFileSync(
 	join(channelDir, "SHA256SUMS"),
 	readdirSync(channelDir)
-		.filter((name) => name.endsWith(".zip") || name === "catalog.json")
+		.filter((name) => name.endsWith(FACTS.archiveExt) || name === `catalog-${TARGET.key}.json`)
 		.sort()
 		.map((name) => `${sha256(join(channelDir, name))}  ${name}`)
 		.join("\n") + "\n",
 	"utf8",
 );
-console.log(`Created Office channel artifacts for ${VERSION} in ${channelDir}.`);
-for (const name of readdirSync(channelDir).filter((entry) => entry.endsWith(".zip") || entry === "catalog.json")) {
+console.log(`Created ${TARGET.key} Office channel fragments for ${VERSION} in ${channelDir}.`);
+for (const name of readdirSync(channelDir).filter(
+	(entry) => entry.endsWith(FACTS.archiveExt) || entry === `catalog-${TARGET.key}.json`,
+)) {
 	console.log(`  ${name}: ${statSync(join(channelDir, name)).size} bytes`);
 }
