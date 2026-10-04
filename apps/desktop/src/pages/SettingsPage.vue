@@ -2610,8 +2610,9 @@ import '../settings/settings.css'
                 <p>{{ t('settings.tuiRuntimeHint') }}</p>
               </div>
             </div>
-            <!-- An inventory and nothing more. The host PTY backend is a later batch, so a Start
-                 button here would be a control that cannot work — the row states the gap instead. -->
+            <!-- TUI is a one-shot model channel backed by Core's PTY host. This pane remains an
+                 inventory; connecting a row happens through discovery so the selected channel is
+                 explicit and can coexist with ACP/CLI for the same binary. -->
             <p class="acp-permission-notice" role="note">
               {{ t('settings.tuiBackendUnavailable') }}
             </p>

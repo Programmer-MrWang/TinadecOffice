@@ -10,6 +10,7 @@ using TinadecCore.Abstractions.Ports;
 using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Models.Harness.Headless;
+using TinadecCore.Models.Harness.Tui;
 using TinadecCore.Persistence;
 
 namespace TinadecCore.Models;
@@ -39,12 +40,14 @@ public sealed class ModelsModuleRegistrar : IModuleRegistrar
             sp.GetRequiredService<IAcpSessionHost>(),
             sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AgentChatClientFactory>>(),
             sp.GetRequiredService<IHarnessWorkspaceRoots>(),
-            sp.GetRequiredService<IHeadlessHarnessRunner>()));
+            sp.GetRequiredService<IHeadlessHarnessRunner>(),
+            sp.GetRequiredService<ITuiHarnessRunner>()));
         // One governed working directory per provider instance, shared by every channel that spawns it.
         // If each channel minted its own, the same harness would edit files in two different places
         // depending on which channel a run happened to pick, and the directory is the boundary.
         builder.Services.AddSingleton<IHarnessWorkspaceRoots, HarnessWorkspaceRoots>();
         builder.Services.AddSingleton<IHeadlessHarnessRunner, ProcessHeadlessHarnessRunner>();
+        builder.Services.AddSingleton<ITuiHarnessRunner, ProcessTuiHarnessRunner>();
         builder.Services.AddSingleton<OpencodeServeProcessManager>();
         builder.Services.AddSingleton<IOpencodeServeProcessManager>(sp => sp.GetRequiredService<OpencodeServeProcessManager>());
         // ACP sessions are hosted per provider instance and must die with the host, so the port is

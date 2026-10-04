@@ -8,6 +8,7 @@ using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Models.Harness.Headless;
+using TinadecCore.Models.Harness.Tui;
 
 namespace TinadecCore.Models.Harness;
 
@@ -24,6 +25,7 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
     private readonly IAcpSessionHost? _acp;
     private readonly IHarnessWorkspaceRoots? _roots;
     private readonly IHeadlessHarnessRunner? _headless;
+    private readonly ITuiHarnessRunner? _tui;
     private readonly ILogger<AgentChatClientFactory>? _logger;
 
     public AgentChatClientFactory(IChatResolver resolver)
@@ -37,7 +39,8 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
         IAcpSessionHost acp,
         ILogger<AgentChatClientFactory> logger,
         IHarnessWorkspaceRoots? roots = null,
-        IHeadlessHarnessRunner? headless = null)
+        IHeadlessHarnessRunner? headless = null,
+        ITuiHarnessRunner? tui = null)
     {
         _resolver = resolver;
         _processes = processes;
@@ -45,6 +48,7 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
         _logger = logger;
         _roots = roots;
         _headless = headless;
+        _tui = tui;
     }
 
     public Task<ChatResolution> ResolveChatAsync(string routePurpose, CancellationToken cancellationToken = default) =>
@@ -59,7 +63,7 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
             ChatProtocols.Acp => CreateAcpClientAsync(resolution, cancellationToken),
             ChatProtocols.OpencodeServe => CreateOpenCodeClientAsync(resolution, cancellationToken),
             ChatProtocols.HeadlessCli => CreateHeadlessClientAsync(resolution),
-            ChatProtocols.Tui => UnsupportedAsync(ChatProtocols.Tui),
+            ChatProtocols.Tui => CreateTuiClientAsync(resolution),
             _ => Task.FromResult(CreateOpenAiChatClient(resolution))
         }).ConfigureAwait(false);
         return ConfigureParameters(client, resolution);
@@ -196,6 +200,33 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
             resolution.BinaryPath ?? throw new InvalidOperationException(
                 $"Process protocol {ChatProtocols.HeadlessCli} requires a binary_path."),
             roots.ForProvider(provider),
+            EnvironmentOf(resolution),
+            runner));
+    }
+
+    private Task<IChatClient> CreateTuiClientAsync(ChatResolution resolution)
+    {
+        var driver = DriverOf(resolution);
+        var channel = HarnessCatalog.Find(driver)?.Channel(AgentChannels.Tui);
+        if (channel is null)
+        {
+            return Task.FromException<IChatClient>(new InvalidOperationException(
+                $"Harness '{driver}' has no '{AgentChannels.Tui}' channel in the catalog."));
+        }
+
+        var runner = _tui ?? throw new InvalidOperationException(
+            $"Protocol {ChatProtocols.Tui} requires {nameof(ITuiHarnessRunner)} to be registered.");
+        var roots = _roots ?? throw new InvalidOperationException(
+            $"Protocol {ChatProtocols.Tui} requires {nameof(IHarnessWorkspaceRoots)} to be registered.");
+        var provider = resolution.ProviderInstanceId
+            ?? throw new InvalidOperationException($"Chat protocol {ChatProtocols.Tui} needs a provider instance to own its working directory.");
+
+        return Task.FromResult<IChatClient>(new TuiChatClient(
+            driver,
+            resolution.BinaryPath ?? throw new InvalidOperationException(
+                $"Process protocol {ChatProtocols.Tui} requires a binary_path."),
+            roots.ForProvider(provider),
+            HarnessCatalog.ChannelArgv(driver, AgentChannels.Tui),
             EnvironmentOf(resolution),
             runner));
     }

@@ -132,16 +132,14 @@ public static class ChatProtocols
     public const string OpencodeServe = "opencode-serve";
 
     /// <summary>
-    /// Headless CLI protocol: the harness is invoked once with the prompt on argv, emits
-    /// line-delimited JSON on stdout, and exits. Declared by <see cref="HarnessCatalog"/> for
-    /// vendors that offer no ACP endpoint. No chat client implements it yet — the runner is batch 2.
+    /// Headless CLI protocol: the harness is invoked once with the prompt on argv or stdin, emits
+    /// its vendor JSON envelope on stdout, and exits.
     /// </summary>
     public const string HeadlessCli = "headless-cli";
 
     /// <summary>
-    /// TUI protocol: an interactive full-screen harness hosted in a real PTY, observed, injected
-    /// into, and audited — not programmatically driven. Declared by <see cref="HarnessCatalog"/>;
-    /// the backend is batch E (ConPTY on Windows, openpty plus posix_spawn elsewhere).
+    /// TUI protocol: a full-screen harness hosted in a real PTY. Core submits one prompt, projects
+    /// the settled visible transcript into an assistant answer, then tears down the one-shot terminal.
     /// </summary>
     public const string Tui = "tui";
 
@@ -210,22 +208,15 @@ public static class ChatProtocols
     /// refuses it, and the model center explains the refusal — three places that read as three
     /// different answers if each invents its own sentence.
     /// <para>
-    /// <see cref="HeadlessCli"/> has no entry here because a chat client now exists. It is still not
-    /// drivable for a harness whose answer frames this build has never captured — that verdict is
+    /// <see cref="HeadlessCli"/> and <see cref="Tui"/> have no entry here because chat clients now
+    /// exist. Headless CLI is still not drivable for a harness whose answer frame this build has
+    /// never captured — that verdict is
     /// per-harness and lives in <see cref="HarnessCatalog.HasVerifiedHeadlessEnvelope"/>, since the
     /// envelope vocabulary belongs to the vendor, not to the protocol.
     /// </para>
     /// </summary>
     public static string? HarnessClientGap(string? protocol) => Normalize(protocol) switch
     {
-        // Not "there is no terminal host": <c>IHarnessTerminalHost</c> is registered by the Models
-        // module. What is missing is the client that turns a terminal into an answer, and measuring the
-        // harnesses' own TUIs showed why that is not a thin wrapper: every one of them repaints with
-        // absolute cursor addressing (so an answer needs a screen model), claude-code and kimi-code
-        // stop at an interactive "trust this folder" gate on first run, codex inherits whatever
-        // approval policy the user's own config sets, and text that scrolls off the pane is gone from
-        // the byte stream for good. A scrape would answer only turns short enough to fit the screen.
-        Tui => $"no chat client drives a '{Tui}' terminal yet",
         _ => null
     };
 
@@ -238,6 +229,6 @@ public static class ChatProtocols
     {
         var normalized = Normalize(protocol);
         return HarnessClientGap(normalized) is null
-            && normalized switch { Acp or OpencodeServe or HeadlessCli => true, _ => false };
+            && normalized switch { Acp or OpencodeServe or HeadlessCli or Tui => true, _ => false };
     }
 }

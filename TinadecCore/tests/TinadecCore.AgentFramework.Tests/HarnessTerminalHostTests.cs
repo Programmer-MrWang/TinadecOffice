@@ -164,15 +164,11 @@ public sealed class HarnessTerminalHostTests
     [Fact]
     public void GapText_NamesTheMissingChatClientRatherThanTheTerminalHost()
     {
-        // The host backend exists now, so the sentence this row replaces was a lie told by a shipped
-        // string. What is missing is a client that turns a terminal into an answer: tui has to stay not
-        // drivable until then, while acp and opencode-serve stay drivable — the model center renders both
-        // halves of that from this one predicate.
+        // The host and the one-shot terminal client now exist. The gap stays null so discovery can make
+        // a TUI row actionable on platforms where the registered host is supported.
         var gap = ChatProtocols.HarnessClientGap(ChatProtocols.Tui);
-        Assert.NotNull(gap);
-        Assert.Contains("chat client", gap, StringComparison.Ordinal);
-        Assert.DoesNotContain("PTY", gap, StringComparison.Ordinal);
-        Assert.False(ChatProtocols.IsDrivable(ChatProtocols.Tui));
+        Assert.Null(gap);
+        Assert.True(ChatProtocols.IsDrivable(ChatProtocols.Tui));
         Assert.True(ChatProtocols.IsDrivable(ChatProtocols.Acp));
         Assert.True(ChatProtocols.IsDrivable(ChatProtocols.OpencodeServe));
     }

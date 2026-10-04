@@ -9,6 +9,7 @@ using TinadecCore.DmaEA;
 using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Models.Harness.Headless;
+using TinadecCore.Models.Harness.Tui;
 
 namespace TinadecCore.Api.Tests;
 
@@ -239,6 +240,28 @@ public sealed class CliRuntimeTests : IAsyncLifetime
         Assert.Contains(nameof(IHeadlessHarnessRunner), ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Factory_TuiChannel_UsesTheTerminalChatClient()
+    {
+        var resolution = new ChatResolution
+        {
+            Protocol = ChatProtocols.Tui,
+            ProviderInstanceId = Guid.NewGuid(),
+            ModelId = "codex/codex",
+            BinaryPath = "C:\\fake\\codex.exe"
+        };
+
+        using var client = await CreateFactory(
+            resolution,
+            new RecordingAcpSessionHost(),
+            roots: new FixedWorkspaceRoots("C:\\state\\harness-scratch"),
+            tui: new StubTuiRunner()).CreateAsync(resolution);
+
+        Assert.Equal("TinadecCore.Models.Harness.Tui.TuiChatClient", client.GetType().FullName);
+        var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "Reply with exactly: PONG")]);
+        Assert.Equal("PONG", response.Text);
+    }
+
     private sealed class FixedWorkspaceRoots(string root) : IHarnessWorkspaceRoots
     {
         public string ForProvider(Guid providerInstanceId) => root;
@@ -251,6 +274,19 @@ public sealed class CliRuntimeTests : IAsyncLifetime
             IHeadlessEnvelope envelope,
             Action<string>? textDelta,
             CancellationToken cancellationToken) => Task.FromResult(new HarnessTurnOutcome(0, ""));
+    }
+
+    private sealed class StubTuiRunner : ITuiHarnessRunner
+    {
+        public Task<TuiTurnOutcome> RunAsync(
+            TuiTurnRequest request,
+            string prompt,
+            Action<string>? textDelta,
+            CancellationToken cancellationToken)
+        {
+            textDelta?.Invoke("PONG");
+            return Task.FromResult(new TuiTurnOutcome("PONG"));
+        }
     }
 
     [Fact]
@@ -412,8 +448,9 @@ public sealed class CliRuntimeTests : IAsyncLifetime
         IAcpSessionHost acp,
         StubProcesses? processes = null,
         IHarnessWorkspaceRoots? roots = null,
-        IHeadlessHarnessRunner? headless = null) =>
-        new(new FixedResolver(resolution), processes ?? new StubProcesses(), acp, NullLogger<AgentChatClientFactory>.Instance, roots, headless);
+        IHeadlessHarnessRunner? headless = null,
+        ITuiHarnessRunner? tui = null) =>
+        new(new FixedResolver(resolution), processes ?? new StubProcesses(), acp, NullLogger<AgentChatClientFactory>.Instance, roots, headless, tui);
 
     private static int FreePort()
     {

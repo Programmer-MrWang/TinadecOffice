@@ -45,6 +45,7 @@ public sealed class ControlPlaneService
     private readonly IOpencodeServeProcessManager _opencode;
     private readonly IAcpHarnessProber _acp;
     private readonly IHarnessBinaryResolver _harnessBinaries;
+    private readonly IHarnessTerminalHost _terminalHost;
 
     public ControlPlaneService(IDbContextFactory<ModelControlDbContext> models, IDbContextFactory<PromptControlDbContext> prompts,
         IDbContextFactory<LifecycleDbContext> lifecycle,
@@ -52,8 +53,8 @@ public sealed class ControlPlaneService
         IAuthorizationService authorization, IToolExecutionCoordinator executions,
         ILifecycleManager runs, IFullDuplexRunEngine engine, IOpencodeServeProcessManager opencode,
         IAcpHarnessProber acp, IHarnessBinaryResolver harnessBinaries,
-        IUserToolActionService userActions)
-    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _opencode = opencode; _acp = acp; _harnessBinaries = harnessBinaries; }
+        IUserToolActionService userActions, IHarnessTerminalHost terminalHost)
+    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _opencode = opencode; _acp = acp; _harnessBinaries = harnessBinaries; _terminalHost = terminalHost; }
 
     private TenantContext Tenant => _tenant.Current;
     private static async Task<(string text, ContentReference reference)> PutJsonAsync(IContentStore store, Guid tenant, Guid? workspace, string kind, object value, CancellationToken ct)
@@ -272,12 +273,21 @@ public sealed class ControlPlaneService
             });
         }
 
-        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe or ChatProtocols.HeadlessCli))
+        if (protocol == ChatProtocols.Tui && !_terminalHost.IsSupported)
         {
             return Results.BadRequest(new
             {
                 code = "CLI_CONNECT_INVALID",
-                message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}', '{ChatProtocols.HeadlessCli}' and '{ChatProtocols.OpencodeServe}'."
+                message = $"'{driver}' on the TUI channel cannot be connected because this platform has no supported terminal host."
+            });
+        }
+
+        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe or ChatProtocols.HeadlessCli or ChatProtocols.Tui))
+        {
+            return Results.BadRequest(new
+            {
+                code = "CLI_CONNECT_INVALID",
+                message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}', '{ChatProtocols.HeadlessCli}', '{ChatProtocols.Tui}' and '{ChatProtocols.OpencodeServe}'."
             });
         }
 
@@ -452,7 +462,7 @@ public sealed class ControlPlaneService
     /// the local-server shape stated as a channel-less entry because <c>opencode serve</c> is reached
     /// over HTTP and not over a process channel.
     /// </summary>
-    private static List<object> HarnessChannelFacts(HarnessSpec spec)
+    private List<object> HarnessChannelFacts(HarnessSpec spec)
     {
         var channels = new List<object>();
         if (spec.HttpServer is { } server)
@@ -467,9 +477,10 @@ public sealed class ControlPlaneService
         /// <c>cli</c> for a harness whose stdout has only ever been seen failing would light a button
         /// whose run ends in "the harness never answered".
         /// </summary>
-        static ChannelFact ChannelFact(string? channel, string protocol, string harnessId)
+        ChannelFact ChannelFact(string? channel, string protocol, string harnessId)
         {
             var drivable = ChatProtocols.IsDrivable(protocol)
+                && (ChatProtocols.Normalize(protocol) != ChatProtocols.Tui || _terminalHost.IsSupported)
                 && (ChatProtocols.Normalize(protocol) != ChatProtocols.HeadlessCli
                     || HarnessCatalog.HasVerifiedHeadlessEnvelope(harnessId));
             return new ChannelFact(
