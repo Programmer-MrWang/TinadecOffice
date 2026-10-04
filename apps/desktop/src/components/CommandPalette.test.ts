@@ -5,6 +5,8 @@ import type { Ref } from 'vue'
 import CommandPalette from './CommandPalette.vue'
 import { closePalette, openPalette, paletteIsOpen } from '@/composables/useCommandPalette'
 import { PALETTE_COMBO, formatCombo } from '@/lib/keybindings'
+import { __resetSpotlightForTests } from '@/lib/spotlight'
+import type { SessionDto } from '@/api'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -30,6 +32,8 @@ const homeMock = vi.hoisted(() => ({
   stoppableRunId: null as unknown as Ref<string | null>,
   draft: null as unknown as Ref<string>,
   selectedProjectId: null as unknown as Ref<string | null>,
+  sessions: null as unknown as Ref<SessionDto[]>,
+  currentProject: null as unknown as Ref<{ path: string } | null>,
   updateDraft: vi.fn(),
   sendMessage: vi.fn(async () => {}),
   stopRun: vi.fn(async () => {}),
@@ -41,6 +45,8 @@ vi.mock('@/controllers/HomeController', async () => {
   homeMock.stoppableRunId = ref<string | null>(null)
   homeMock.draft = ref('')
   homeMock.selectedProjectId = ref<string | null>(null)
+  homeMock.sessions = ref([])
+  homeMock.currentProject = ref(null)
   return { homeController: homeMock }
 })
 
@@ -51,7 +57,13 @@ async function mountOpen() {
   const wrapper = mount(CommandPalette, { attachTo: document.body })
   openPalette()
   await flushPromises()
+  await settleSearch()
   return wrapper
+}
+
+async function settleSearch() {
+  await new Promise((resolve) => setTimeout(resolve, 220))
+  await flushPromises()
 }
 
 function dialogOf(wrapper: ReturnType<typeof mount>) {
@@ -67,6 +79,9 @@ beforeEach(() => {
   closePalette()
   homeMock.stoppableRunId.value = null
   homeMock.draft.value = ''
+  homeMock.sessions.value = []
+  homeMock.currentProject.value = null
+  __resetSpotlightForTests()
   routerMock.currentRoute.value = { name: 'home' }
   routerMock.push.mockClear()
   homeMock.sendMessage.mockClear()
@@ -92,7 +107,7 @@ describe('CommandPalette', () => {
 
     homeMock.stoppableRunId.value = 'run-1'
     homeMock.draft.value = 'text to send'
-    await flushPromises()
+    await settleSearch()
     expect(wrapper.find('[data-testid="palette-row-run.stop"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="palette-row-run.queue"]').exists()).toBe(true)
     wrapper.unmount()
@@ -119,10 +134,13 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const input = wrapper.find('[data-testid="palette-input"]')
     await input.setValue('settings')
+    await settleSearch()
     const ids = wrapper.findAll('[data-testid^="palette-row-"]').map((row) => row.attributes('data-testid'))
-    expect(ids).toEqual(['palette-row-view.goSettings'])
+    expect(ids.slice(0, 2)).toEqual(['palette-row-view.goSettings', 'palette-row-setting.personal'])
+    expect(ids).toHaveLength(13)
 
     await input.setValue('qqzzxx')
+    await settleSearch()
     expect(wrapper.findAll('[data-testid^="palette-row-"]')).toHaveLength(0)
     expect(wrapper.find('[data-testid="palette-empty"]').exists()).toBe(true)
     wrapper.unmount()
@@ -131,7 +149,7 @@ describe('CommandPalette', () => {
   it('moves the highlight with the arrows and wraps at both ends', async () => {
     const wrapper = await mountOpen()
     const list = wrapper.find('[data-testid="palette-list"]')
-    const rows = () => list.findAll('li[role="option"]')
+    const rows = () => list.findAll('[role="option"]')
     expect(rows()).toHaveLength(9)
     expect(rows()[0].classes()).toContain('is-active')
 
@@ -149,6 +167,7 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const input = wrapper.find('[data-testid="palette-input"]')
     await input.setValue('new conversation')
+    await settleSearch()
     const rows = wrapper.findAll('[data-testid^="palette-row-"]')
     expect(rows.map((row) => row.attributes('data-testid'))).toContain('palette-row-session.new')
     await input.trigger('keydown', { key: 'Enter' })
@@ -164,6 +183,7 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const input = wrapper.find('[data-testid="palette-input"]')
     await input.setValue('queue')
+    await settleSearch()
     const row = wrapper.find('[data-testid="palette-row-run.queue"]')
     expect(row.exists()).toBe(true)
     await row.trigger('click')
@@ -184,6 +204,7 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const input = wrapper.find('[data-testid="palette-input"]')
     await input.setValue('market')
+    await settleSearch()
     await wrapper.find('[data-testid="palette-row-view.goMarket"]').trigger('click')
     expect(routerMock.push).toHaveBeenCalledWith({ name: 'market' })
     wrapper.unmount()

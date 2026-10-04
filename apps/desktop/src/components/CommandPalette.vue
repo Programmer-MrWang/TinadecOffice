@@ -136,6 +136,12 @@ watch(query, () => {
   searchTimer = setTimeout(() => void runSearch(), 180)
 })
 
+// Availability depends on live composer/run state. Rebuild the open list when
+// that state changes so a newly stoppable run exposes Stop/Queue immediately.
+watch(commandItems, () => {
+  if (open.value) void runSearch()
+})
+
 watch(rows, (list) => {
   if (activeIndex.value >= list.length) activeIndex.value = Math.max(0, list.length - 1)
 })
@@ -178,9 +184,9 @@ function rowIndex(groupIndex: number, itemIndex: number): number {
 
 function run(item: SpotlightItem) {
   closePalette()
-  // Commands manage their own close (runCommand is their action); the dynamic
-  // kinds close here because their actions just place a request and navigate.
-  if (item.kind !== 'command') item.action()
+  // Every row owns one action. Commands use the same path as conversations,
+  // settings and resources so click and Enter cannot silently diverge.
+  item.action()
 }
 
 function onBackdropClick(event: MouseEvent) {
