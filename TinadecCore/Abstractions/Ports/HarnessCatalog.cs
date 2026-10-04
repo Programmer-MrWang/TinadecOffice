@@ -525,5 +525,5 @@ public static class HarnessCatalog
     /// model center must not offer <c>cli</c> for a harness whose frames this build has only seen fail.
     /// </summary>
     public static bool HasVerifiedHeadlessEnvelope(string? driver) =>
-        true;
+        Find(driver)?.Channel(AgentChannels.Cli)?.Envelope is not null and not HarnessHeadlessEnvelopes.None;
 }
