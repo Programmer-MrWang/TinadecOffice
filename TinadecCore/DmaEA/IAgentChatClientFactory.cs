@@ -7,6 +7,7 @@ using OpenAI;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA.CliRuntime;
+using TinadecCore.DmaEA.CliRuntime.Acp;
 
 namespace TinadecCore.DmaEA;
 
@@ -31,13 +32,14 @@ public interface IAgentChatClientFactory
 /// <summary>
 /// Protocol-aware chat client factory. Selects the wire protocol from
 /// <see cref="ChatResolution.Protocol"/>: OpenAI-compatible chat completions (default),
-/// the OpenAI Responses API, the Anthropic Messages API, the Agent Client Protocol (ACP),
-/// or the opencode serve protocol.
+/// the OpenAI Responses API, the Anthropic Messages API, a stdio ACP harness session, or the
+/// opencode serve HTTP surface.
 /// </summary>
-public sealed class AgentChatClientFactory : IAgentChatClientFactory
+internal sealed class AgentChatClientFactory : IAgentChatClientFactory
 {
     private readonly IChatResolver _resolver;
-    private readonly ICliProcessManager? _processes;
+    private readonly IOpencodeServeProcessManager? _processes;
+    private readonly IAcpSessionHost? _acp;
     private readonly ILogger<AgentChatClientFactory>? _logger;
 
     public AgentChatClientFactory(IChatResolver resolver)
@@ -45,10 +47,15 @@ public sealed class AgentChatClientFactory : IAgentChatClientFactory
         _resolver = resolver;
     }
 
-    public AgentChatClientFactory(IChatResolver resolver, ICliProcessManager processes, ILogger<AgentChatClientFactory> logger)
+    public AgentChatClientFactory(
+        IChatResolver resolver,
+        IOpencodeServeProcessManager processes,
+        IAcpSessionHost acp,
+        ILogger<AgentChatClientFactory> logger)
     {
         _resolver = resolver;
         _processes = processes;
+        _acp = acp;
         _logger = logger;
     }
 
@@ -62,8 +69,18 @@ public sealed class AgentChatClientFactory : IAgentChatClientFactory
             ChatProtocols.AnthropicMessages => Task.FromResult(CreateAnthropicClient(resolution)),
             ChatProtocols.Acp => CreateAcpClientAsync(resolution, cancellationToken),
             ChatProtocols.OpencodeServe => CreateOpenCodeClientAsync(resolution, cancellationToken),
+            ChatProtocols.HeadlessCli => UnsupportedAsync(ChatProtocols.HeadlessCli),
+            ChatProtocols.Tui => UnsupportedAsync(ChatProtocols.Tui),
             _ => Task.FromResult(CreateOpenAiChatClient(resolution))
         };
+
+    /// <summary>
+    /// A process-backed protocol with no client in this build fails here instead of falling through
+    /// to the OpenAI branch: a run against a <c>headless-cli</c> provider would otherwise send an
+    /// OpenAI-shaped request to a URL the provider never configured.
+    /// </summary>
+    private static Task<IChatClient> UnsupportedAsync(string protocol) => Task.FromException<IChatClient>(
+        new InvalidOperationException($"Chat protocol '{protocol}' is a harness channel this build can configure but not yet drive; the chat client is a later batch."));
 
     /// <summary>OpenAI-compatible <c>/chat/completions</c> client.</summary>
     public static IChatClient CreateOpenAiChatClient(ChatResolution resolution)
@@ -126,27 +143,41 @@ public sealed class AgentChatClientFactory : IAgentChatClientFactory
         return string.IsNullOrWhiteSpace(driver) ? "cli" : driver;
     }
 
-    private async Task<IChatClient> CreateAcpClientAsync(ChatResolution resolution, CancellationToken cancellationToken)
+    /// <summary>
+    /// Opens (or reuses) the provider's stdio ACP session. No process host is involved: an ACP harness
+    /// is spawned by the session transport and speaks NDJSON on its own streams, so there is no port
+    /// to allocate and no URL to poll.
+    /// </summary>
+    private Task<IChatClient> CreateAcpClientAsync(ChatResolution resolution, CancellationToken cancellationToken)
     {
-        var processes = RequiredProcesses();
-        var endpoint = await processes.EnsureRunningAsync(ConfigOf(resolution), cancellationToken).ConfigureAwait(false);
-        return new AcpChatClient(endpoint.ServerUrl, endpoint.Token ?? resolution.Token, NullLogger<AcpChatClient>.Instance);
+        var host = _acp ?? throw new InvalidOperationException($"Chat protocol {ChatProtocols.Acp} requires IAcpSessionHost to be registered.");
+        var provider = resolution.ProviderInstanceId
+            ?? throw new InvalidOperationException($"Chat protocol {ChatProtocols.Acp} needs a provider instance to own the session.");
+        var driver = DriverOf(resolution);
+        var request = new AcpSessionRequest(
+            provider,
+            driver,
+            resolution.BinaryPath ?? throw new InvalidOperationException($"Process protocol {ChatProtocols.Acp} requires a binary_path."),
+            HarnessCatalog.ChannelArgv(driver, AgentChannels.Acp),
+            host.ScratchDirectoryFor(provider),
+            EnvironmentOf(resolution));
+        return Task.FromResult<IChatClient>(new AcpStdioChatClient(host, request));
     }
+
+    private static IReadOnlyDictionary<string, string?>? EnvironmentOf(ChatResolution resolution) =>
+        string.IsNullOrWhiteSpace(resolution.HomePath)
+            ? null
+            : new Dictionary<string, string?> { ["HOME"] = resolution.HomePath };
 
     private async Task<IChatClient> CreateOpenCodeClientAsync(ChatResolution resolution, CancellationToken cancellationToken)
     {
-        var processes = RequiredProcesses();
-        var endpoint = await processes.EnsureRunningAsync(ConfigOf(resolution), cancellationToken).ConfigureAwait(false);
-        return new OpenCodeChatClient(endpoint.ServerUrl, endpoint.Token ?? resolution.Token, NullLogger<OpenCodeChatClient>.Instance);
+        var processes = _processes ?? throw new InvalidOperationException(
+            $"Chat protocol {ChatProtocols.OpencodeServe} requires IOpencodeServeProcessManager to be registered.");
+        var endpoint = await processes.EnsureRunningAsync(new OpencodeServeConfig(
+            resolution.BinaryPath ?? throw new InvalidOperationException($"Chat protocol {ChatProtocols.OpencodeServe} needs a binary_path to start its server."),
+            resolution.LaunchArgs,
+            resolution.ServerUrl,
+            resolution.HomePath), cancellationToken).ConfigureAwait(false);
+        return new OpenCodeChatClient(endpoint.ServerUrl, resolution.Token, NullLogger<OpenCodeChatClient>.Instance);
     }
-
-    private CliRuntimeConfig ConfigOf(ChatResolution resolution) => new(
-        DriverOf(resolution),
-        resolution.BinaryPath ?? throw new InvalidOperationException($"CLI protocol {resolution.Protocol} requires a binary_path."),
-        resolution.LaunchArgs,
-        resolution.ServerUrl,
-        resolution.HomePath);
-
-    private ICliProcessManager RequiredProcesses()
-        => _processes ?? throw new InvalidOperationException($"CLI protocol {ChatProtocols.Acp}/{ChatProtocols.OpencodeServe} requires ICliProcessManager to be registered.");
 }

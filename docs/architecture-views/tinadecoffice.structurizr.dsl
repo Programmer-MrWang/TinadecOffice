@@ -66,7 +66,7 @@ workspace "TinadecOffice 架构（当前态）" "证据来源：仓库源码、s
                 profileStore = component "AgentRuntimeConfigurationStore / FrozenRunConfiguration" "解析并校验 default-agent-runtime.toml，valid-only 热重载；按 run 冻结 profile。" "DmaEA/AgentRuntimeConfiguration.cs, FrozenRunConfiguration.cs"
                 mafAdapter = component "Maf18RuntimeAdapter" "MAF 类型边界：权限、审批、检查点、工具回执、恢复仍由 Core 持有。" "DmaEA/Maf18RuntimeAdapter.cs"
                 chatFactory = component "AgentChatClientFactory / ModelInvocationChatFactory" "按协议装配 IChatClient：openai-chat / openai-responses / anthropic-messages / fixed 策略。" "DmaEA/IAgentChatClientFactory.cs, ModelInvocationChatFactory.cs"
-                cliRuntime = component "CliRuntime（ACP / opencode serve）" "AcpChatClient（JSON-RPC 2.0 over SSE）、OpenCodeChatClient、CliProcessManager 拉起并复用本机 CLI 服务。" "DmaEA/CliRuntime"
+                cliRuntime = component "CliRuntime（stdio ACP 会话 / opencode serve）" "AcpStdioChatClient 经 AcpSessionHost 走 NDJSON JSON-RPC 会话（无端口、无 URL）；OpenCodeChatClient + OpencodeServeProcessManager 负责唯一那层 HTTP serve 进程（端口在 spawn 前定好，不读 stdout）。" "DmaEA/CliRuntime"
                 controlDb = component "AgentControlDbContext" "agent_instances、agent_candidates、runtime_profile_overrides、model_invocations 投影。" "DmaEA/AgentControlDbContext.cs"
             }
 

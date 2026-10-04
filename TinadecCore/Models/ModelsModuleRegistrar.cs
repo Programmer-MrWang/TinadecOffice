@@ -113,17 +113,26 @@ internal sealed class ModelProvider : IModelProvider, IChatResolver
         using var doc = JsonDocument.Parse(configJson);
         string? String(string key) => doc.RootElement.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
         var protocol = HarnessCatalog.ResolveProtocol(String("protocol"), provider.Driver, String("channel"));
-        var isCli = protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
+        var processBacked = ChatProtocols.IsProcessTransport(protocol);
+        var harnessOwned = processBacked || protocol == ChatProtocols.OpencodeServe;
 
         var model = string.IsNullOrWhiteSpace(candidate.Model) ? String("model") : candidate.Model;
-        if (string.IsNullOrWhiteSpace(model) && !isCli) return Unavailable("Chat model name is not configured.");
+        if (string.IsNullOrWhiteSpace(model) && !harnessOwned) return Unavailable("Chat model name is not configured.");
         model ??= provider.Driver; // CLI runtimes select their own model; the route just names the runtime.
 
         string? baseUrl = null;
-        if (isCli)
+        if (processBacked)
+        {
+            // A stdio harness is reached by spawning it, so it has no endpoint to require. Demanding
+            // server_url here is what silently killed every ACP provider: the route reported
+            // "server_url is not configured" for a channel that never has one.
+            if (string.IsNullOrWhiteSpace(String("binary_path")))
+                return Unavailable($"Protocol '{protocol}' runs as a local process and needs binary_path; connect the harness first.");
+        }
+        else if (protocol == ChatProtocols.OpencodeServe)
         {
             baseUrl = String("server_url");
-            if (string.IsNullOrWhiteSpace(baseUrl)) return Unavailable("CLI provider server_url is not configured; connect the runtime first.");
+            if (string.IsNullOrWhiteSpace(baseUrl)) return Unavailable("CLI runtime server_url is not configured; connect the runtime first.");
         }
         else
         {
@@ -132,7 +141,7 @@ internal sealed class ModelProvider : IModelProvider, IChatResolver
         }
 
         string? apiKey = null;
-        if (!isCli)
+        if (!harnessOwned)
         {
             if (string.IsNullOrWhiteSpace(provider.SecretReference)) return Unavailable("Provider has no API key reference.");
             apiKey = await _secrets.GetAsync(provider.SecretReference, cancellationToken).ConfigureAwait(false);

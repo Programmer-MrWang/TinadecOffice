@@ -42,15 +42,17 @@ public sealed class ControlPlaneService
     private readonly IAuthorizationService _authorization;
     private readonly ILifecycleManager _runs;
     private readonly IFullDuplexRunEngine _engine;
-    private readonly ICliProcessManager _cli;
+    private readonly IOpencodeServeProcessManager _opencode;
+    private readonly IAcpHarnessProber _acp;
 
     public ControlPlaneService(IDbContextFactory<ModelControlDbContext> models, IDbContextFactory<PromptControlDbContext> prompts,
         IDbContextFactory<LifecycleDbContext> lifecycle,
         IContentStore content, ISecretStore secrets, ITenantContextAccessor tenant, IToolApprovalCoordinator approvals,
         IAuthorizationService authorization, IToolExecutionCoordinator executions,
-        ILifecycleManager runs, IFullDuplexRunEngine engine, ICliProcessManager cli,
+        ILifecycleManager runs, IFullDuplexRunEngine engine, IOpencodeServeProcessManager opencode,
+        IAcpHarnessProber acp,
         IUserToolActionService userActions)
-    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _cli = cli; }
+    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _opencode = opencode; _acp = acp; }
 
     private TenantContext Tenant => _tenant.Current;
     private static async Task<(string text, ContentReference reference)> PutJsonAsync(IContentStore store, Guid tenant, Guid? workspace, string kind, object value, CancellationToken ct)
@@ -113,7 +115,7 @@ public sealed class ControlPlaneService
         JsonElement Value(string key) => cfg != null && cfg.TryGetValue(key, out var v) ? v : default;
         string? String(string key) => Value(key).ValueKind == JsonValueKind.String ? Value(key).GetString() : null;
         string[] Models() => Value("models").ValueKind == JsonValueKind.Array ? Value("models").EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray() : Array.Empty<string>();
-        return new { id = row.Id, driver = row.Driver, protocol = HarnessCatalog.ResolveProtocol(String("protocol"), row.Driver, String("channel")), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
+        return new { id = row.Id, driver = row.Driver, protocol = HarnessCatalog.ResolveProtocol(String("protocol"), row.Driver, String("channel")), channel = String("channel"), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
 
     public async Task<IResult> RefreshProviderModels(Guid id, CancellationToken ct)
     {
@@ -154,21 +156,14 @@ public sealed class ControlPlaneService
         { return Results.Json(new { code = "MODEL_DISCOVERY_NETWORK", message = ex.Message }, statusCode: 502); }
     }
 
-    private sealed record KnownCli(string Driver, string DisplayName, string Executable, string? HomePath, string? ServerUrl, string? LaunchArgs);
-
-    // Well-known model CLIs the workbench can host. Discovery probes default install locations so
-    // users can connect a local CLI runtime without manually typing a path.
-    // Transitional table: HarnessCatalog is now the source of harness facts and this row list loses
-    // its launch_args guesses while the discover/connect routes still name drivers by the old
-    // channel-in-the-name strings. It goes away with the catalog-driven rewrite of these routes.
-    private static readonly KnownCli[] KnownClis =
-    [
-        new("claude-cli", "Claude Code", "claude", "~/.claude", null, null),
-        new("codex-cli", "Codex CLI", "codex", "~/.codex", null, null),
-        new("cursor-acp", "Cursor ACP", "cursor-agent", null, null, null),
-        new("opencode", "OpenCode", "opencode", null, "http://127.0.0.1:4096", "serve --port 4096")
-    ];
-
+    /// <summary>
+    /// Reads the harness catalog instead of a hand-written driver list, so what the model center can
+    /// offer is exactly what Core has verified: one row per harness, each carrying the channels that
+    /// harness actually has and whether this build can drive them. The old four-row table named
+    /// drivers after channels (<c>claude-cli</c>, <c>cursor-acp</c>) and reported a version probe as
+    /// proof that an ACP session would work, which is how a harness that could never connect ended up
+    /// offered as connectable.
+    /// </summary>
     public async Task<IResult> DiscoverCliRuntimes(CancellationToken ct, IEnumerable<string>? searchPaths = null)
     {
         await using var db = await _models.CreateDbContextAsync(ct);
@@ -176,21 +171,37 @@ public sealed class ControlPlaneService
             .Where(x => x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null)
             .Select(x => x.Driver).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var resolved = searchPaths ?? (IEnumerable<string>?)null;
-        var candidates = KnownClis.Select(cli =>
+        var candidates = HarnessCatalog.All.Select(spec =>
         {
-            var existing = configured.Contains(cli.Driver);
-            var path = existing ? null : ResolveCliExecutable(cli.Executable, resolved);
-            var verified = path != null && VerifyCliExecutable(path);
+            var existing = configured.Contains(spec.Id);
+            var path = existing ? null : spec.BinaryNames
+                .Select(name => ResolveCliExecutable(name, searchPaths))
+                .FirstOrDefault(candidate => candidate is not null);
+            var verified = path is not null && VerifyCliExecutable(path, spec.VersionProbe);
+            var reachable = existing || verified;
+            // The serve argv is a template with a {port} placeholder; discovery reports the concrete
+            // form it would start with, and the connect path re-materializes it from the endpoint that
+            // actually answered, so a second server on the same machine does not collide.
+            var serveArgv = spec.HttpServer is { } server
+                ? string.Join(' ', server.Argv).Replace("{port}", server.DefaultPort.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                : null;
             return new
             {
-                driver = cli.Driver,
-                display_name = cli.DisplayName,
-                binary_path = verified ? path : null,
-                home_path = existing || verified ? cli.HomePath : null,
-                server_url = existing || verified ? cli.ServerUrl : null,
-                launch_args = existing || verified ? cli.LaunchArgs : null,
-                status = existing ? "configured" : verified ? "found" : "missing"
+                driver = spec.Id,
+                display_name = spec.DisplayName,
+                vendor = spec.Vendor,
+                docs_url = spec.DocsUrl,
+                binary_path = reachable ? path : null,
+                // ConfigHome is deliberately not echoed here: the catalog stores it with
+                // <c>{UserProfile}</c>-style tokens that expand at resolution time, and half-expanding
+                // them in a response is how a path stops being usable the moment it is copied. The
+                // harness binary resolver owns expansion; until then the row carries no home path.
+                home_path = (string?)null,
+                server_url = reachable && spec.HttpServer is { } endpoint ? $"http://127.0.0.1:{endpoint.DefaultPort}" : null,
+                launch_args = reachable ? serveArgv : null,
+                status = existing ? "configured" : verified ? "found" : "missing",
+                channels = HarnessChannelFacts(spec).ToArray(),
+                caveats = spec.KnownCaveats.ToArray()
             };
         }).ToList();
         return Results.Ok(new { cli_runtimes = candidates });
@@ -213,22 +224,52 @@ public sealed class ControlPlaneService
         if (string.IsNullOrWhiteSpace(binaryPath)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = "binary_path is required." });
         if (!File.Exists(binaryPath)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"binary_path does not exist: {binaryPath}" });
         var channel = Get("channel");
+        // A named channel is a routing decision, so it is validated against the harness rather than
+        // resolved away: `claude-code` + `acp` must be refused by name, not silently read as the
+        // driver's default protocol and then fail as an OpenAI provider with no base_url.
+        var spec = HarnessCatalog.Find(driver);
+        if (spec is not null && !string.IsNullOrWhiteSpace(channel) && spec.Channel(channel) is null)
+        {
+            var declared = string.Join(", ", spec.Channels.Select(declaredChannel => declaredChannel.Channel));
+            return Results.BadRequest(new { code = "harness_channel_unsupported", message = $"'{driver}' has no '{channel}' channel; the catalog declares {declared}." });
+        }
         var protocol = HarnessCatalog.ResolveProtocol(Get("protocol"), driver, channel);
+        if (ChatProtocols.HarnessClientGap(protocol) is { } gap)
+            return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' on protocol '{protocol}' cannot be connected by this build: {gap}." });
         if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}' and '{ChatProtocols.OpencodeServe}'." });
 
-        CliRuntimeEndpoint endpoint;
-        try
+        OpencodeServeEndpoint? endpoint = null;
+        var existing = await ExistingCliProviderAsync(driver, ct);
+        if (protocol == ChatProtocols.Acp)
         {
-            endpoint = await _cli.EnsureRunningAsync(new CliRuntimeConfig(driver, binaryPath, Get("launch_args"), Get("server_url"), Get("home_path")), ct);
+            // A stdio session has no port to poll, so readiness is a real handshake: spawn,
+            // initialize, open a session, then tear the harness down again. Storing a server_url the
+            // probe never proved is what let a provider look connected while it could not start.
+            try
+            {
+                await ProbeAcpHandshakeAsync(driver, binaryPath, Get("home_path"), existing?.Id, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // Everything a harness can fail with here is a fact about connecting to it: an
+                // unavailable binary, a timeout waiting for `initialize`, a session the agent
+                // refused. Only the caller's cancellation is a different kind of answer.
+                return Results.Json(new { code = "CLI_CONNECT_FAILED", message = ex.Message }, statusCode: 502);
+            }
         }
-        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException)
+        else
         {
-            return Results.Json(new { code = "CLI_CONNECT_FAILED", message = ex.Message }, statusCode: 502);
+            try
+            {
+                endpoint = await _opencode.EnsureRunningAsync(new OpencodeServeConfig(binaryPath, Get("launch_args"), Get("server_url"), Get("home_path")), ct);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException)
+            {
+                return Results.Json(new { code = "CLI_CONNECT_FAILED", message = ex.Message }, statusCode: 502);
+            }
         }
 
-        await using var db = await _models.CreateDbContextAsync(ct);
-        var existing = await db.Providers.SingleOrDefaultAsync(x => x.Driver == driver && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null, ct);
-        var port = new Uri(endpoint.ServerUrl).Port;
+        var port = endpoint is null ? 0 : new Uri(endpoint.ServerUrl).Port;
         var payload = JsonSerializer.SerializeToElement(new
         {
             driver,
@@ -238,13 +279,27 @@ public sealed class ControlPlaneService
             channel,
             binary_path = binaryPath,
             home_path = Get("home_path"),
-            server_url = endpoint.ServerUrl,
+            server_url = endpoint?.ServerUrl,
             launch_args = Get("launch_args") ?? (protocol == ChatProtocols.OpencodeServe ? $"serve --port {port}" : null),
             enabled = true
         });
         // Internal system path: the CLI process just spawned is the source of truth, so the
         // save carries the row's live revision to satisfy the mandatory If-Match gate.
         return await SaveProvider(payload, existing?.Id, existing?.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture), ct);
+    }
+
+    /// <summary>
+    /// Proves the harness can complete an ACP handshake. Everything about how it is spawned — the
+    /// catalog's argv, the governed scratch directory it is allowed to work in — stays behind the
+    /// prober port, because this file's job is the provider row, not the process shape.
+    /// </summary>
+    private async Task ProbeAcpHandshakeAsync(string driver, string binaryPath, string? homePath, Guid? providerInstanceId, CancellationToken ct) =>
+        await _acp.ProbeAsync(providerInstanceId, driver, binaryPath, homePath, ct);
+
+    private async Task<ModelProviderRecord?> ExistingCliProviderAsync(string driver, CancellationToken ct)
+    {
+        await using var db = await _models.CreateDbContextAsync(ct);
+        return await db.Providers.SingleOrDefaultAsync(x => x.Driver == driver && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null, ct);
     }
 
     private static string? ResolveCliExecutable(string name, IEnumerable<string>? searchPaths)
@@ -272,7 +327,15 @@ public sealed class ControlPlaneService
     /// 3 seconds. npm's <c>.cmd</c>/<c>.bat</c> shims are Windows-only artifacts and are
     /// launched through cmd.exe there; on POSIX the discovered file is the executable.
     /// </summary>
-    private static bool VerifyCliExecutable(string path)
+    /// <summary>
+    /// Asks a discovered binary for its version. The argv, the ceiling, and whether a non-zero exit
+    /// still counts as an answer all come from the harness's own probe record, because they are vendor
+    /// facts rather than local preferences: CodeBuddy prints a telemetry consent prompt and exits
+    /// non-zero when nothing answers it, so a strict <c>ExitCode == 0</c> rule reports an installed
+    /// binary as missing. <c>NeverUse</c> exists for the mirror-image hazard — a flag that looks
+    /// harmless but shells out to something with side effects.
+    /// </summary>
+    private static bool VerifyCliExecutable(string path, HarnessVersionProbe probe)
     {
         try
         {
@@ -289,27 +352,49 @@ public sealed class ControlPlaneService
                 psi.FileName = "cmd.exe";
                 psi.ArgumentList.Add("/c");
                 psi.ArgumentList.Add(path);
-                psi.ArgumentList.Add("--version");
             }
             else
             {
                 psi.FileName = path;
-                psi.ArgumentList.Add("--version");
             }
+            foreach (var argument in probe.Argv) psi.ArgumentList.Add(argument);
             using var process = new Process { StartInfo = psi };
             if (!process.Start()) return false;
-            if (!process.WaitForExit(3000))
+            if (!process.WaitForExit(probe.TimeoutMs))
             {
                 process.Kill(entireProcessTree: true);
                 return false;
             }
-            return process.ExitCode == 0;
+            return process.ExitCode == 0 || probe.TolerateNonZeroExit;
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException)
         {
             return false;
         }
     }
+
+    /// <summary>
+    /// Every channel of one harness that Core knows about, in the order the catalog declares them, with
+    /// the local-server shape stated as a channel-less entry because <c>opencode serve</c> is reached
+    /// over HTTP and not over a process channel.
+    /// </summary>
+    private static List<object> HarnessChannelFacts(HarnessSpec spec)
+    {
+        var channels = new List<object>();
+        if (spec.HttpServer is { } server)
+            channels.Add(ChannelFact(null, server.Protocol));
+        foreach (var channel in spec.Channels)
+            channels.Add(ChannelFact(channel.Channel, channel.Protocol));
+        return channels;
+
+        static ChannelFact ChannelFact(string? channel, string protocol) => new(
+            channel,
+            protocol,
+            ChatProtocols.IsDrivable(protocol),
+            ChatProtocols.HarnessClientGap(protocol));
+    }
+
+    private sealed record ChannelFact(string? Channel, string Protocol, bool Drivable, string? Reason);
 
     private static IEnumerable<string> DefaultSearchPaths()
     {
@@ -471,7 +556,8 @@ public sealed class ControlPlaneService
         if (version is null) return false;
         var config = JsonSerializer.Deserialize<JsonElement>(await ReadAsync(_content, version.ContentReference, ct));
         string? Text(string key) => config.TryGetProperty(key, out var property) && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
-        return HarnessCatalog.ResolveProtocol(Text("protocol"), provider.Driver, Text("channel")) is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
+        return ChatProtocols.IsModelChosenByHarness(
+            HarnessCatalog.ResolveProtocol(Text("protocol"), provider.Driver, Text("channel")));
     }
 
     public async Task<IResult> ListPrompts(CancellationToken ct)

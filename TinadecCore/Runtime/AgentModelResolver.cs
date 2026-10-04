@@ -281,8 +281,8 @@ internal sealed class AgentModelResolver : IAgentModelResolver
             var providerVersion = await db.ProviderVersions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == provider.CurrentVersionId, ct).ConfigureAwait(false)
                 ?? throw new InvalidDataException($"Provider '{providerId}' has no current version.");
             var protocol = await ReadProtocolAsync(provider, providerVersion, ct).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(strategy.Model) && protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe))
-                throw new InvalidDataException("fixed model strategy requires model for non-runtime providers.");
+            if (string.IsNullOrWhiteSpace(strategy.Model) && !ChatProtocols.IsModelChosenByHarness(protocol))
+                throw new InvalidDataException($"fixed model strategy requires model unless the harness chooses it (protocol '{protocol}').");
             return new FrozenModelPlan(ModelStrategyKinds.Fixed, source,
                 [new FrozenModelCandidate(0, provider.Id, providerVersion.Id, strategy.Model, protocol)]);
         }
@@ -330,14 +330,29 @@ internal sealed class AgentModelResolver : IAgentModelResolver
             var root = document.RootElement;
             string? Text(string key) => root.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
             var protocol = candidate.Protocol;
-            var runtimeOwned = protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
+            var processBacked = ChatProtocols.IsProcessTransport(protocol);
+            var harnessOwned = processBacked || protocol == ChatProtocols.OpencodeServe;
             var model = candidate.Model ?? Text("model");
-            if (string.IsNullOrWhiteSpace(model) && !runtimeOwned) return Unavailable(candidate, source, "model_missing", "Model id is missing.");
+            if (string.IsNullOrWhiteSpace(model) && !harnessOwned) return Unavailable(candidate, source, "model_missing", "Model id is missing.");
             model ??= provider.Driver;
-            var baseUrl = runtimeOwned ? Text("server_url") : Text("base_url");
-            if (string.IsNullOrWhiteSpace(baseUrl)) return Unavailable(candidate, source, "endpoint_missing", "Provider endpoint is missing.");
+            string? baseUrl;
+            if (processBacked)
+            {
+                // A process-backed harness is reached by spawning binary_path and talking to its
+                // stdio. Requiring an endpoint here is what silently killed every stdio ACP provider:
+                // the route failed with `endpoint_missing` and named nothing that was actually wrong.
+                if (string.IsNullOrWhiteSpace(Text("binary_path")))
+                    return Unavailable(candidate, source, "binary_missing", $"'{protocol}' runs as a local process and needs binary_path.");
+                baseUrl = null;
+            }
+            else
+            {
+                baseUrl = protocol == ChatProtocols.OpencodeServe ? Text("server_url") : Text("base_url");
+                if (string.IsNullOrWhiteSpace(baseUrl))
+                    return Unavailable(candidate, source, "endpoint_missing", protocol == ChatProtocols.OpencodeServe ? "CLI runtime server_url is missing." : "Provider endpoint is missing.");
+            }
             string? apiKey = null;
-            if (!runtimeOwned)
+            if (!harnessOwned)
             {
                 if (string.IsNullOrWhiteSpace(provider.SecretReference)) return Unavailable(candidate, source, "credential_missing", "Provider credential is not configured.");
                 apiKey = await _secrets.GetAsync(provider.SecretReference, ct).ConfigureAwait(false);

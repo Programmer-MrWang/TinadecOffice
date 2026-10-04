@@ -12,13 +12,20 @@ namespace TinadecCore.DmaEA.CliRuntime.Acp;
 internal interface IAcpSessionHost : IAsyncDisposable
 {
     /// <summary>
-    /// Creates an empty governed working directory for one session and returns its path. A harness
-    /// reads and writes its <c>cwd</c> with its own tools regardless of declared capabilities, so
-    /// this directory — not a capability flag — is the boundary.
+    /// The governed working directory for one provider instance, created on first use and stable
+    /// afterwards. A harness reads and writes its <c>cwd</c> with its own tools regardless of declared
+    /// capabilities, so this directory — not a capability flag — is the boundary.
     /// </summary>
-    string CreateScratchDirectory(Guid providerInstanceId);
+    string ScratchDirectoryFor(Guid providerInstanceId);
 
     Task<IAcpAgentSession> AcquireAsync(AcpSessionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Serializes turns for one provider instance. ACP gives a session exactly one turn in flight, so
+    /// two runs that share a harness provider must queue rather than watch the second one fail with
+    /// <c>already has a turn in flight</c>.
+    /// </summary>
+    Task<IDisposable> AcquireTurnLeaseAsync(Guid providerInstanceId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Discards the cached session so the next acquire opens a fresh one. Used when the stored
@@ -36,6 +43,8 @@ internal sealed class AcpSessionHost : IAcpSessionHost
     private readonly ILogger<AcpSessionHost> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, AcpSession> _sessions = new();
+    private readonly ConcurrentDictionary<Guid, string> _scratchDirectories = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _turnGates = new();
 
     public AcpSessionHost(
         AcpSessionOptions options,
@@ -51,11 +60,18 @@ internal sealed class AcpSessionHost : IAcpSessionHost
         _transportFactory = transportFactory ?? DefaultTransport;
     }
 
-    public string CreateScratchDirectory(Guid providerInstanceId)
+    public string ScratchDirectoryFor(Guid providerInstanceId) => _scratchDirectories.GetOrAdd(providerInstanceId, id =>
     {
-        var path = _paths.AcpSessionScratch(providerInstanceId, Guid.NewGuid());
+        var path = _paths.AcpSessionScratch(id, Guid.NewGuid());
         Directory.CreateDirectory(path);
         return path;
+    });
+
+    public async Task<IDisposable> AcquireTurnLeaseAsync(Guid providerInstanceId, CancellationToken cancellationToken = default)
+    {
+        var gate = _turnGates.GetOrAdd(providerInstanceId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new TurnLease(gate);
     }
 
     public async Task<IAcpAgentSession> AcquireAsync(AcpSessionRequest request, CancellationToken cancellationToken = default)
@@ -130,4 +146,16 @@ internal sealed class AcpSessionHost : IAcpSessionHost
         request.ScratchDirectory,
         request.Environment,
         logger: null);
+
+    /// <summary>
+    /// <see cref="SemaphoreSlim.Dispose"/> only releases the wait handle, and disposing while another
+    /// run is queued turns teardown into an <c>ObjectDisposedException</c> in an unrelated caller, so
+    /// the per-provider gates are left for the garbage collector.
+    /// </summary>
+    private sealed class TurnLease(SemaphoreSlim gate) : IDisposable
+    {
+        private SemaphoreSlim? _gate = gate;
+
+        public void Dispose() => Interlocked.Exchange(ref _gate, null)?.Release();
+    }
 }

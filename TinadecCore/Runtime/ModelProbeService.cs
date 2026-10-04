@@ -85,13 +85,13 @@ public sealed class ModelProbeService
         }
 
         var protocol = ChatProtocols.Normalize(resolution.Protocol);
-        if (protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe)
+        if (ChatProtocols.IsModelChosenByHarness(protocol))
         {
             return Store(BuildFingerprint(resolution, resolution.BaseUrl ?? string.Empty), now, new ReadinessItem
             {
                 Id = Id,
                 Status = "unavailable",
-                Reason = $"CLI 协议 {protocol} 通过本地 agent 进程通信，服务端 HTTP 探针不适用。",
+                Reason = $"本地 agent 协议 {protocol} 由 harness 自己选模型，服务端 HTTP 探针不适用。",
                 Action = "使用对应 CLI runtime 的会话验证连通性（发起一次真实会话）。",
                 CheckedAt = now,
                 Data = new { model_id = resolution.ModelId, protocol }

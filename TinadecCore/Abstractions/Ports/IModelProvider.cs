@@ -180,4 +180,51 @@ public static class ChatProtocols
         "openai-responses" => OpenAiResponses,
         _ => OpenAiChat
     };
+
+    /// <summary>
+    /// True when Core reaches the peer by spawning a process and talking to its stdio, so the
+    /// resolution needs a <c>binary_path</c> and has no endpoint URL. <see cref="OpencodeServe"/> is
+    /// excluded on purpose: that harness is reached over HTTP, which is why it kept working when the
+    /// invented stdio-over-HTTP dialect was removed.
+    /// </summary>
+    public static bool IsProcessTransport(string? protocol) => Normalize(protocol) switch
+    {
+        Acp or HeadlessCli or Tui => true,
+        _ => false
+    };
+
+    /// <summary>
+    /// True when the peer chooses which model answers, so Core must not require a model id in the
+    /// provider configuration. Covers every local-agent protocol, both transports.
+    /// </summary>
+    public static bool IsModelChosenByHarness(string? protocol) => Normalize(protocol) switch
+    {
+        Acp or HeadlessCli or Tui or OpencodeServe => true,
+        _ => false
+    };
+
+    /// <summary>
+    /// The gap that stops Core from driving a local channel today, or <c>null</c> when this build can
+    /// drive it. One owner for the wording, because discovery offers the channel, the chat factory
+    /// refuses it, and the model center explains the refusal — three places that read as three
+    /// different answers if each invents its own sentence.
+    /// </summary>
+    public static string? HarnessClientGap(string? protocol) => Normalize(protocol) switch
+    {
+        HeadlessCli => $"the '{HeadlessCli}' chat client is a later batch",
+        Tui => $"the host PTY backend for '{Tui}' is a later batch",
+        _ => null
+    };
+
+    /// <summary>
+    /// True when this build can start a provider and carry a turn over that protocol: a harness
+    /// protocol with a chat client, or an HTTP API. Discovery answers with it, so a channel that is
+    /// configured but not implemented cannot be presented as a button that works.
+    /// </summary>
+    public static bool IsDrivable(string? protocol)
+    {
+        var normalized = Normalize(protocol);
+        return HarnessClientGap(normalized) is null
+            && normalized switch { Acp or OpencodeServe => true, _ => false };
+    }
 }

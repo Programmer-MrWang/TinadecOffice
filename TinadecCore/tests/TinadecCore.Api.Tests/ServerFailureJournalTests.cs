@@ -21,7 +21,7 @@ namespace TinadecCore.Api.Tests;
 /// <para>
 /// Self-hosted rather than <c>WebApplicationFactory</c> because the fact under test lives in one
 /// middleware, and booting the whole Core host to reach it would tie the result to unrelated
-/// startup state. Same shape as <see cref="FakeAcpServer"/>.
+/// startup state. Same shape as <see cref="FakeOpenCodeServer"/>.
 /// </para>
 /// </summary>
 public sealed class ServerFailureJournalTests

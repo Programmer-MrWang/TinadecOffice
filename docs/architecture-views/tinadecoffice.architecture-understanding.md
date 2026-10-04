@@ -57,7 +57,7 @@ TinadecOffice 是**四个可独立版本化产品的仓库内集成体**：`Tina
 ## 6. 运行时与数据拓扑要点
 
 - 三个预留端口：Gateway `48730`、Core `48731`、Vite `5173`（Web 构建 `5174`）。Core 端口来自 `Api/Properties/launchSettings.json:8`，不是代码硬编码。
-- Core 是**父进程与生命周期 owner**：按 workspace 根拉起并复用 `TinadecTools` 子进程（首次调用才启动，`StartAsync` 是 no-op）、`command_run` 落到本地 `TinadecSandbox` 账户（临时 ACL、Job Object 超时上限 30 分钟）、MCP server 子进程由工具层直接 spawn、CLI 运行时服务（ACP / `opencode serve`）由 `CliProcessManager` 拉起并只监听回环随机端口。
+- Core 是**父进程与生命周期 owner**：按 workspace 根拉起并复用 `TinadecTools` 子进程（首次调用才启动，`StartAsync` 是 no-op）、`command_run` 落到本地 `TinadecSandbox` 账户（临时 ACL、Job Object 超时上限 30 分钟）、MCP server 子进程由工具层直接 spawn、`opencode serve` 的 HTTP 进程由 `OpencodeServeProcessManager` 拉起并只监听回环端口；ACP harness 不是 HTTP 服务，由 `AcpSessionHost` 以 stdio 子进程会话承载。
 - 默认 SQLite 单文件 `data/tinadec.db`；PostgreSQL 需显式 `TinadecPersistence:ApplyMigrationsOnStartup=true` 以避开多实例竞态。向量：SQLite 每 project 一个 `sqlite-vec` 库，PG 走 `pgvector`。
 - 桌面端另有 5 个进程（main + editor/preview/feature/search 独立渲染窗口）与 CDP `9222`；Monaco 走 `worker-proxy` 独立进程。
 

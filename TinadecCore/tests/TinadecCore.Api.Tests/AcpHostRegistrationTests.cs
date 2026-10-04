@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TinadecCore.Abstractions.Ports;
+using TinadecCore.DmaEA;
 using TinadecCore.DmaEA.CliRuntime.Acp;
 
 namespace TinadecCore.Api.Tests;
@@ -66,14 +68,42 @@ public sealed class AcpHostRegistrationTests : IAsyncLifetime
     public void ScratchDirectory_IsCreatedUnderTheHostsOwnDataRoot()
     {
         var host = (AcpSessionHost)_factory!.Services.GetRequiredService<IAcpSessionHost>();
+        var provider = Guid.NewGuid();
 
-        var scratch = host.CreateScratchDirectory(Guid.NewGuid());
+        var scratch = host.ScratchDirectoryFor(provider);
 
         Assert.StartsWith(
             Path.GetFullPath(Path.Combine(_root, "data", "acp-sessions")),
             Path.GetFullPath(scratch),
             StringComparison.Ordinal);
         Assert.True(Directory.Exists(scratch), "the host must create the governed directory, not only name it");
+        // Stable across calls: a chat client is built per model invocation, and a directory that moved
+        // between invocations would be read as a moved session root and refused.
+        Assert.Equal(scratch, host.ScratchDirectoryFor(provider));
+    }
+
+    /// <summary>
+    /// The registration is the risk, not the class: the chat client factory takes the ACP session host
+    /// through a factory lambda now, so a missing or mistyped line leaves the ACP branch throwing at
+    /// run time while every unit test still passes. This resolves the real container and asks it for an
+    /// ACP client, which also proves the harness catalog can supply argv for the driver before any
+    /// process is spawned.
+    /// </summary>
+    [Fact]
+    public async Task ChatClientFactory_ResolvesAnAcpClientThroughTheRealContainer()
+    {
+        var factory = _factory!.Services.GetRequiredService<IAgentChatClientFactory>();
+        var resolution = new ChatResolution
+        {
+            Protocol = ChatProtocols.Acp,
+            ProviderInstanceId = Guid.NewGuid(),
+            BinaryPath = "fake-opencode-binary",
+            ModelId = "opencode/deepseek-v3"
+        };
+
+        using var client = await factory.CreateAsync(resolution);
+
+        Assert.Equal("AcpStdioChatClient", client.GetType().Name);
     }
 
     private sealed class Factory : WebApplicationFactory<Program>

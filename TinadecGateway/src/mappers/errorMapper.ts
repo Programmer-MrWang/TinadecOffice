@@ -48,6 +48,12 @@ const ALLOWED_CODES = new Set([
   'request_failed',
   'context_conflict',
   'model_not_configured',
+  // A local harness that is installed but will not start, or was asked for on a channel it does not
+  // speak. All three were rewriting to `conflict`, which tells the client to retry later when the
+  // real answer is that this binary cannot be connected here.
+  'CLI_CONNECT_FAILED',
+  'CLI_CONNECT_INVALID',
+  'harness_channel_unsupported',
   'not_found',
   'snapshot_not_found',
   'file_not_found',

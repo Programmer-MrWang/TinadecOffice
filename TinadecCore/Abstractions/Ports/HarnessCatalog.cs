@@ -334,4 +334,15 @@ public static class HarnessCatalog
     /// </summary>
     public static string ResolveProtocol(string? configuredProtocol, string? driver, string? channel) =>
         ChatProtocols.Normalize(configuredProtocol ?? ProtocolFor(driver, channel) ?? ChatProtocols.InferFromDriver(driver));
+
+    /// <summary>
+    /// The argv that opens one channel of one harness. Callers must not fall back to stored
+    /// <c>launch_args</c>: passing a free-text argument string to a process safely needs a shell
+    /// parser, and a driver the catalog does not know has no verified invocation for this channel —
+    /// guessing one turns a typo into spawning an unrelated command with the user's prompt appended.
+    /// </summary>
+    public static IReadOnlyList<string> ChannelArgv(string? driver, string channel) =>
+        Find(driver)?.Channel(channel)?.Argv
+        ?? throw new InvalidOperationException(
+            $"Harness '{driver}' has no '{channel}' channel in the catalog, so Core will not guess the argv that starts one.");
 }

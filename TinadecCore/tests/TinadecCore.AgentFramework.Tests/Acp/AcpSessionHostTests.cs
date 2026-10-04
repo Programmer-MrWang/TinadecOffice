@@ -42,7 +42,7 @@ public sealed class AcpSessionHostTests : IDisposable
     public async Task Acquire_ReusesOneSessionPerProviderInstance()
     {
         var (host, pool) = CreateHost(_contentRoot);
-        var scratch = host.CreateScratchDirectory(Guid.NewGuid());
+        var scratch = host.ScratchDirectoryFor(Guid.NewGuid());
         var request = AcpSessionTestSupport.Request(scratch);
 
         var first = await host.AcquireAsync(request);
@@ -62,12 +62,12 @@ public sealed class AcpSessionHostTests : IDisposable
         var (host, pool) = CreateHost(_contentRoot);
         var provider = Guid.NewGuid();
 
-        await host.AcquireAsync(AcpSessionTestSupport.Request(host.CreateScratchDirectory(provider), provider));
+        await host.AcquireAsync(AcpSessionTestSupport.Request(host.ScratchDirectoryFor(provider), provider));
 
         // The directory was decided when the session opened and the agent has already written inside
         // it. Running the next turn somewhere else would silently change what the harness can reach.
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            host.AcquireAsync(AcpSessionTestSupport.Request(host.CreateScratchDirectory(provider), provider)));
+            host.AcquireAsync(AcpSessionTestSupport.Request(AcpSessionTestSupport.ScratchRoot("moved-after-open"), provider)));
 
         Assert.Contains("already has a session rooted at", error.Message, StringComparison.Ordinal);
 
@@ -79,7 +79,7 @@ public sealed class AcpSessionHostTests : IDisposable
     {
         var (host, pool) = CreateHost(_contentRoot);
         pool.Configure = agent => agent.SuspendPrompts = true;
-        var scratch = host.CreateScratchDirectory(Guid.NewGuid());
+        var scratch = host.ScratchDirectoryFor(Guid.NewGuid());
         var request = AcpSessionTestSupport.Request(scratch);
 
         var faulted = await host.AcquireAsync(request);
@@ -99,8 +99,8 @@ public sealed class AcpSessionHostTests : IDisposable
     public async Task Dispose_KillsEveryHostedHarness_SoNoneOutlivesTheHost()
     {
         var (host, pool) = CreateHost(_contentRoot);
-        var first = await host.AcquireAsync(AcpSessionTestSupport.Request(host.CreateScratchDirectory(Guid.NewGuid())));
-        var second = await host.AcquireAsync(AcpSessionTestSupport.Request(host.CreateScratchDirectory(Guid.NewGuid())));
+        var first = await host.AcquireAsync(AcpSessionTestSupport.Request(host.ScratchDirectoryFor(Guid.NewGuid())));
+        var second = await host.AcquireAsync(AcpSessionTestSupport.Request(host.ScratchDirectoryFor(Guid.NewGuid())));
 
         Assert.NotSame(first, second);
         Assert.Equal(2, pool.Count);
@@ -115,7 +115,7 @@ public sealed class AcpSessionHostTests : IDisposable
     public async Task Drop_ClosesTheCachedSessionSoTheNextAcquireReconnects()
     {
         var (host, pool) = CreateHost(_contentRoot);
-        var request = AcpSessionTestSupport.Request(host.CreateScratchDirectory(Guid.NewGuid()));
+        var request = AcpSessionTestSupport.Request(host.ScratchDirectoryFor(Guid.NewGuid()));
 
         var session = await host.AcquireAsync(request);
         await host.DropAsync(request.ProviderInstanceId);
@@ -128,19 +128,22 @@ public sealed class AcpSessionHostTests : IDisposable
     }
 
     [Fact]
-    public void ScratchDirectories_LandUnderTheConfiguredDataRoot_AndAreDistinct()
+    public void ScratchDirectoryFor_IsStablePerProvider_AndDistinctAcrossProviders()
     {
-        var paths = new StoragePaths(_contentRoot, Options.Create(new TinadecPersistenceOptions { DataRoot = "data" }));
-        var provider = Guid.NewGuid();
+        // Stability is what makes a session reusable: a chat client is built per model invocation, so
+        // a directory minted per call would be read as a moved scratch root and refused. Distinctness
+        // across providers is what keeps two harnesses from writing into each other's tree.
+        var (host, _) = CreateHost(_contentRoot);
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
 
-        var first = paths.AcpSessionScratch(provider, Guid.NewGuid());
-        var second = paths.AcpSessionScratch(provider, Guid.NewGuid());
-
-        Assert.StartsWith(Path.GetFullPath(Path.Combine(_contentRoot, "data", "acp-sessions")), Path.GetFullPath(first), StringComparison.Ordinal);
-        Assert.NotEqual(first, second);
-        // Both segments are Core-minted GUIDs, so nothing an agent names can steer a path out of the
-        // data root.
-        Assert.DoesNotContain("..", first, StringComparison.Ordinal);
+        var root = Path.GetFullPath(Path.Combine(_contentRoot, "data", "acp-sessions"));
+        Assert.StartsWith(root, Path.GetFullPath(host.ScratchDirectoryFor(first)), StringComparison.Ordinal);
+        Assert.Equal(host.ScratchDirectoryFor(first), host.ScratchDirectoryFor(first));
+        Assert.True(Directory.Exists(host.ScratchDirectoryFor(first)));
+        Assert.NotEqual(host.ScratchDirectoryFor(first), host.ScratchDirectoryFor(second));
+        // The path is Core-minted from GUIDs, so nothing an agent names can steer it out of the root.
+        Assert.DoesNotContain("..", host.ScratchDirectoryFor(first), StringComparison.Ordinal);
     }
 
     [Fact]

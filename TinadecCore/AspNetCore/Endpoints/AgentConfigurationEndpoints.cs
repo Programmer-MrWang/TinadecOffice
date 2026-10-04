@@ -364,8 +364,7 @@ public static class AgentConfigurationEndpoints
             // 模型身份由 harness 进程自身决定，这是合法契约（ModelStrategyJson.Parse 的 OptionalString、
             // runtimeCenterView.test.ts）。其余协议仍要求显式 model，避免绑定保存成功、下一次 run 才炸。
             var protocol = HarnessCatalog.ResolveProtocol(null, provider.Driver, null);
-            var isCliRuntime = protocol is ChatProtocols.Acp or ChatProtocols.OpencodeServe;
-            if (!isCliRuntime && string.IsNullOrWhiteSpace(model))
+            if (!ChatProtocols.IsModelChosenByHarness(protocol) && string.IsNullOrWhiteSpace(model))
                 return Results.BadRequest(new { code = "invalid_request", message = "model is required for fixed binding" });
         }
         if (mode == "route")

@@ -3,7 +3,7 @@
 // 证据：package.json:11-15、apps/desktop/{vite.config.ts,scripts/dev.mjs,electron/preload.cjs}、
 //       TinadecGateway/src/config.ts:66-105、TinadecCore/Api/Properties/launchSettings.json、
 //       TinadecCore/Persistence/StoragePaths.cs:14-32、TinadecCore/Tools/TinadecToolsProcessManager.cs:25-83、
-//       TinadecCore/DmaEA/CliRuntime/CliProcessManager.cs:34。
+//       TinadecCore/DmaEA/CliRuntime/OpencodeServeProcessManager.cs。
 // 注：本文件是 system-modeler 的辅助视图；完整的发布/环境/扩缩容拓扑属 deployment-topology-analyzer 范围。
 digraph TinadecRuntimeTopology {
   rankdir=TB;
@@ -47,7 +47,7 @@ digraph TinadecRuntimeTopology {
       label="由 Core 拉起的子进程（Core 是父进程与生命周期 owner）"; fontsize=12; style="rounded,dashed"; color="#2f6f4f";
       tools [label="TinadecTools 子进程 ×（每个 workspace 根 1 个）\n行分隔 JSON over stdio（BOM-free UTF-8）\nmanifest v2 / 46 个 [ToolFunction] 工具（43 字面量 id + 3 个 TOOL_ID 常量）", fillcolor="#eaf4ea"];
       sandbox [label="TinadecSandbox 本地账户进程\ncommand_run 专用：临时 ACL 授予→执行→撤销\nJob Object 超时终止（上限 30 分钟）", fillcolor="#eaf4ea"];
-      cli [label="CLI 运行时服务（本机）\nopencode serve --port → HTTP/SSE（本轮唯一可达）\nACP harness → stdio NDJSON JSON-RPC（渠道底座施工中）\nclaude/codex/zcode 无 ACP：HarnessCatalog 按事实归入 headless-cli", fillcolor="#fff3cd"];
+      cli [label="CLI 运行时服务（本机）\nopencode serve --port → HTTP/SSE（OpencodeServeProcessManager）\nACP harness → stdio NDJSON JSON-RPC 会话（AcpSessionHost，已可作为 chat 后端；scratch cwd）\nheadless-cli / tui 渠道已声明但无客户端：factory 直接失败并点名协议", fillcolor="#fff3cd"];
       mcp [label="MCP server 子进程\nmcp_servers.json 或 TINADEC_TOOLS_MCP_CONFIG", fillcolor="#eaf4ea"];
     }
 

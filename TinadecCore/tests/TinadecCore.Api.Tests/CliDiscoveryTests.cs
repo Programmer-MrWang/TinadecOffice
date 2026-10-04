@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TinadecCore.Abstractions.Ports;
 using TinadecCore.Runtime;
 
 namespace TinadecCore.Api.Tests;
@@ -33,20 +34,59 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_ReturnsAllKnownClisWithAStatus()
+    public async Task DiscoverCliRuntimes_ReturnsEveryCatalogHarnessWithAStatus()
     {
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
         var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var clis = payload.GetProperty("cli_runtimes").EnumerateArray().ToList();
-        Assert.Equal(4, clis.Count);
+        // Counted against the catalog rather than a number copied into the test: the row set is a
+        // fact about HarnessCatalog, and a literal here goes stale the moment a harness is added.
+        Assert.Equal(HarnessCatalog.All.Count, clis.Count);
+        Assert.Equal(HarnessCatalog.All.Select(spec => spec.Id).OrderBy(id => id, StringComparer.Ordinal).ToArray(),
+            clis.Select(cli => cli.GetProperty("driver").GetString()!).OrderBy(id => id, StringComparer.Ordinal).ToArray());
         foreach (var cli in clis)
         {
             var status = cli.GetProperty("status").GetString();
             Assert.NotNull(cli.GetProperty("driver").GetString());
             Assert.Contains(status, new[] { "found", "missing", "configured" });
         }
+    }
+
+    /// <summary>
+    /// The channel list is what the model center renders as buttons, so two things have to be true in
+    /// the payload: a harness is never offered on a channel it does not speak, and a channel this
+    /// build cannot drive is stated as undrivable with a reason instead of being silently present.
+    /// </summary>
+    [Fact]
+    public async Task DiscoverCliRuntimes_StatesEachChannelAndWhatThisBuildCanDrive()
+    {
+        var binary = WriteRunnableStub("dsh");
+        using var scope = _factory!.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+
+        var dsh = payload.GetProperty("cli_runtimes").EnumerateArray()
+            .First(item => item.GetProperty("driver").GetString() == "dsh");
+        Assert.Equal("found", dsh.GetProperty("status").GetString());
+        Assert.Equal(Path.GetFullPath(binary), Path.GetFullPath(dsh.GetProperty("binary_path").GetString()!));
+
+        var channels = dsh.GetProperty("channels").EnumerateArray().ToList();
+        Assert.Equal(new[] { "acp", "cli", "tui" }, channels.Select(c => c.GetProperty("channel").GetString()).ToArray());
+        Assert.True(channels.Single(c => c.GetProperty("channel").GetString() == "acp").GetProperty("drivable").GetBoolean());
+        foreach (var undrivable in channels.Where(c => !c.GetProperty("drivable").GetBoolean()))
+        {
+            Assert.False(string.IsNullOrWhiteSpace(undrivable.GetProperty("reason").GetString()),
+                $"{undrivable.GetProperty("channel").GetString()} is offered as unavailable without saying why");
+        }
+
+        // claude-code is the case the old table got wrong: it has no ACP endpoint, so the channel must
+        // not appear at all rather than appear and fail to connect.
+        var claude = payload.GetProperty("cli_runtimes").EnumerateArray()
+            .First(item => item.GetProperty("driver").GetString() == "claude-code");
+        Assert.DoesNotContain("acp", claude.GetProperty("channels").EnumerateArray()
+            .Select(c => c.GetProperty("channel").GetString()));
     }
 
     [Fact]
@@ -57,7 +97,7 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
         var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
-        var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-cli");
+        var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
         Assert.Equal("found", claude.GetProperty("status").GetString());
         Assert.Equal(Path.GetFullPath(binary), Path.GetFullPath(claude.GetProperty("binary_path").GetString()!));
     }
@@ -72,7 +112,7 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
         var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
-        var codex = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "codex-cli");
+        var codex = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "codex");
         Assert.Equal("missing", codex.GetProperty("status").GetString());
     }
 
@@ -96,13 +136,15 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     [Fact]
     public async Task DiscoverCliRuntimes_MarksConfiguredDriverAsConfigured()
     {
+        var binary = WriteRunnableStub("codex");
         var client = _factory!.CreateClient();
         var create = await client.PostAsync("/api/v1/model-providers", JsonContent(new
         {
-            driver = "codex-cli",
-            display_name = "Codex CLI",
+            driver = "codex",
+            display_name = "Codex",
             connection_kind = "cli",
-            binary_path = _searchBin,
+            protocol = "acp",
+            binary_path = binary,
             enabled = true
         }));
         Assert.True(create.IsSuccessStatusCode, await create.Content.ReadAsStringAsync());
@@ -111,7 +153,9 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
         var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
-        var codex = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "codex-cli");
+        // Matched by the catalog id: the row is configured because a provider with *that harness id*
+        // exists, which is also why the pre-catalog driver names ("codex-cli") no longer appear here.
+        var codex = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "codex");
         Assert.Equal("configured", codex.GetProperty("status").GetString());
     }
 

@@ -267,18 +267,15 @@ public sealed class HarnessCatalogTests
         var root = FindRepositoryRoot();
         var problems = new List<string>();
 
-        // CliProcessManager.SpawnAsync injects the flag into every non-opencode driver's argv and
-        // ExtractPort reads it back; CliRuntimeTests exercises exactly that injection. Both files
-        // die when the stdio ACP client replaces the HTTP one.
-        AssertCodeFiles(root, "TinadecCore", problems,
-            [
-                "TinadecCore/DmaEA/CliRuntime/CliProcessManager.cs",
-                "TinadecCore/tests/TinadecCore.Api.Tests/CliRuntimeTests.cs"
-            ]);
+        // Core is empty of it: the fabricated flag lived in the CLI process host, which is now the
+        // opencode serve host and decides its port before spawning. Any new occurrence here is a
+        // regression, not a scheduled deletion.
+        AssertCodeFiles(root, "TinadecCore", problems, []);
 
-        // The desktop template still offers the flag as a placeholder for cursor.
-        AssertCodeFiles(root, Path.Combine("apps", "desktop", "src"), problems,
-            ["apps/desktop/src/providerTemplates.ts"]);
+        // Both trees are empty of it now: Core's process host stopped injecting a port flag, and the
+        // desktop template table that offered it as cursor's placeholder is the catalog-driven harness
+        // table in this same commit. A new occurrence anywhere is a regression, not a scheduled deletion.
+        AssertCodeFiles(root, Path.Combine("apps", "desktop", "src"), problems, []);
 
         AssertCodeFiles(root, "TinadecGateway", problems, []);
         AssertCodeFiles(root, "docs", problems, []);
