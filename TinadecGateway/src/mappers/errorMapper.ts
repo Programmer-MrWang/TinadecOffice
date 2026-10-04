@@ -68,6 +68,7 @@ const ALLOWED_CODES = new Set([
   'tool_execution_not_found',
   'tool_provider_unavailable',
   'mode_unavailable',
+  'invalid_model_parameters',
   'tool_runtime_not_configured',
   'tool_provider_not_configured',
   'mcp_server_not_found',

@@ -9,6 +9,22 @@ function mockFetch(handler: (input: RequestInfo | URL, init?: RequestInit) => Re
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => handler(input, init)) as typeof fetch;
 }
 
+test('model parameters and their provider revision survive the gateway in both directions', async () => {
+  const parameters = { 'model-one': { reasoning_effort: 'high', max_output_tokens: 8192, temperature: 0 } };
+  mockFetch((input, init) => {
+    assert.equal(String(input), 'http://127.0.0.1:48731/api/v1/model-providers/p1');
+    assert.equal(init?.method, 'PUT');
+    assert.equal(new Headers(init?.headers).get('if-match'), '"7"');
+    assert.deepEqual(JSON.parse(String(init?.body)).model_parameters, parameters);
+    return Response.json({ id: 'p1', revision: 8, model_parameters: parameters });
+  });
+  const response = await app.handle(new Request('http://gateway.local/api/v1/model-providers/p1', {
+    method: 'PUT', headers: { 'content-type': 'application/json', 'if-match': '"7"' }, body: JSON.stringify({ model_parameters: parameters }),
+  }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json() as Record<string, unknown>).model_parameters, parameters);
+});
+
 test('removed BFF routes return 404 (no dual-track)', async () => {
   const res1 = await app.handle(new Request('http://gateway.local/api/v1/model-center/overview'));
   assert.equal(res1.status, 404);
@@ -18,11 +34,11 @@ test('removed BFF routes return 404 (no dual-track)', async () => {
   const res2 = await app.handle(new Request('http://gateway.local/api/v1/agent-center/overview'));
   assert.equal(res2.status, 404);
 
-  // PUT /agents/:id/runtime-binding was a ghost 404 route; it is now a real
-  // thin proxy (plan 配置体验改造 A). With Core unreachable in unit tests the
-  // proxy fails with 502/bad-gateway, not 404 — proving the route exists.
+  // A running developer Core can legitimately return 404 for this fake agent;
+  // isolate the upstream so route existence never depends on local services.
+  mockFetch(() => Response.json({ mode: 'inherit' }));
   const res3 = await app.handle(new Request('http://gateway.local/api/v1/agents/agent-1/runtime-binding', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selection_kind: 'inherit' }) }));
-  assert.notEqual(res3.status, 404);
+  assert.equal(res3.status, 200);
 
   // Deleted model-center refresh alias; canonical path is POST /model-providers/{id}/models/refresh.
   const res4 = await app.handle(new Request('http://gateway.local/api/v1/model-center/provider-instances/p1/models/refresh', { method: 'POST' }));
