@@ -29,10 +29,10 @@ public static class ControlPlaneEndpoints
         app.MapDelete("/api/v1/model-providers/{id:guid}", (Guid id, HttpRequest request, ControlPlaneService service, CancellationToken ct) =>
             service.DeleteProvider(id, request.Headers.IfMatch.FirstOrDefault(), ct, ParseForce(request)));
         app.MapPost("/api/v1/model-providers/{id:guid}/models/refresh", (Guid id, ControlPlaneService service, CancellationToken ct) => service.RefreshProviderModels(id, ct));
-        app.MapGet("/api/v1/model-providers/cli/discover", (ControlPlaneService service, CancellationToken ct) => service.DiscoverCliRuntimes(ct));
-        app.MapPost("/api/v1/model-providers/cli/connect", async (HttpRequest request, HttpResponse response, ControlPlaneService service, CancellationToken ct) =>
+        app.MapGet("/api/v1/model-providers/harnesses/discover", (ControlPlaneService service, CancellationToken ct) => service.DiscoverHarnesses(ct));
+        app.MapPost("/api/v1/model-providers/harnesses/connect", async (HttpRequest request, HttpResponse response, ControlPlaneService service, CancellationToken ct) =>
         {
-            var result = await service.ConnectCliRuntime(await JsonSerializer.DeserializeAsync<JsonElement>(request.Body, cancellationToken: ct), ct);
+            var result = await service.ConnectHarness(await JsonSerializer.DeserializeAsync<JsonElement>(request.Body, cancellationToken: ct), ct);
             await WithEtagAsync(response, result, ct);
             return result;
         });

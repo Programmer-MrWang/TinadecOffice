@@ -165,7 +165,7 @@ public sealed class ControlPlaneService
     /// proof that an ACP session would work, which is how a harness that could never connect ended up
     /// offered as connectable.
     /// </summary>
-    public async Task<IResult> DiscoverCliRuntimes(CancellationToken ct, IEnumerable<string>? searchPaths = null)
+    public async Task<IResult> DiscoverHarnesses(CancellationToken ct, IEnumerable<string>? searchPaths = null)
     {
         await using var db = await _models.CreateDbContextAsync(ct);
         var configured = (await db.Providers
@@ -218,7 +218,7 @@ public sealed class ControlPlaneService
     /// readiness by handshake, not by polling a URL. Routes are not touched — binding the provider
     /// to the chat route stays a manual model-center action.
     /// </summary>
-    public async Task<IResult> ConnectCliRuntime(JsonElement input, CancellationToken ct)
+    public async Task<IResult> ConnectHarness(JsonElement input, CancellationToken ct)
     {
         string? Get(string key) => input.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
         var driver = Get("driver");

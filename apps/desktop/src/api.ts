@@ -1005,7 +1005,7 @@ export interface CliDiscoveryCandidateDto {
   caveats?: string[];
 }
 
-export interface ConnectCliRuntimeInput {
+export interface ConnectHarnessInput {
   driver: string
   binary_path: string
   /** Required for a harness: the channel decides the protocol and the argv Core starts it with. */
@@ -2964,8 +2964,8 @@ export const api = {
   }),
   listModelProviderTemplates: () => request<ModelProviderTemplateDto[]>('/api/v1/model-provider-templates'),
   listModelProviders: () => request<ModelProviderInstanceDto[]>('/api/v1/model-providers'),
-  discoverCliRuntimes: () => request<CliDiscoveryResultDto>('/api/v1/model-providers/cli/discover'),
-  connectCliRuntime: (input: ConnectCliRuntimeInput) => request<ModelProviderInstanceDto>('/api/v1/model-providers/cli/connect', {
+  discoverHarnesses: () => request<CliDiscoveryResultDto>('/api/v1/model-providers/harnesses/discover'),
+  connectHarness: (input: ConnectHarnessInput) => request<ModelProviderInstanceDto>('/api/v1/model-providers/harnesses/connect', {
     method: 'POST',
     body: JSON.stringify(input)
   }),

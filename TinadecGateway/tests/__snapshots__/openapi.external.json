@@ -7420,9 +7420,9 @@
         ]
       }
     },
-    "/api/v1/model-providers/cli/connect": {
+    "/api/v1/model-providers/harnesses/connect": {
       "post": {
-        "operationId": "postApiV1Model-providersCliConnect",
+        "operationId": "postApiV1Model-providersHarnessesConnect",
         "responses": {
           "200": {}
         },
@@ -7432,9 +7432,9 @@
         ]
       }
     },
-    "/api/v1/model-providers/cli/discover": {
+    "/api/v1/model-providers/harnesses/discover": {
       "get": {
-        "operationId": "getApiV1Model-providersCliDiscover",
+        "operationId": "getApiV1Model-providersHarnessesDiscover",
         "responses": {
           "200": {}
         },

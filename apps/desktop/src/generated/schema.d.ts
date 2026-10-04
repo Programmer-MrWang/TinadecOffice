@@ -438,13 +438,13 @@ export interface paths {
     /** Create model provider */
     post: operations["postApiV1Model-providers"];
   };
-  "/api/v1/model-providers/cli/connect": {
+  "/api/v1/model-providers/harnesses/connect": {
     /** Connect a discovered CLI runtime as a provider */
-    post: operations["postApiV1Model-providersCliConnect"];
+    post: operations["postApiV1Model-providersHarnessesConnect"];
   };
-  "/api/v1/model-providers/cli/discover": {
+  "/api/v1/model-providers/harnesses/discover": {
     /** Discover CLI runtimes */
-    get: operations["getApiV1Model-providersCliDiscover"];
+    get: operations["getApiV1Model-providersHarnessesDiscover"];
   };
   "/api/v1/model-providers/{providerInstanceId}": {
     /** Update model provider */
@@ -3653,7 +3653,7 @@ export interface operations {
     };
   };
   /** Connect a discovered CLI runtime as a provider */
-  "postApiV1Model-providersCliConnect": {
+  "postApiV1Model-providersHarnessesConnect": {
     responses: {
       200: {
         content: never;
@@ -3661,7 +3661,7 @@ export interface operations {
     };
   };
   /** Discover CLI runtimes */
-  "getApiV1Model-providersCliDiscover": {
+  "getApiV1Model-providersHarnessesDiscover": {
     responses: {
       200: {
         content: never;

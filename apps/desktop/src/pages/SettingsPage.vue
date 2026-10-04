@@ -1058,10 +1058,10 @@ const cliDiscoveryCandidates = ref<CliDiscoveryCandidateDto[]>([])
 const cliDiscoveryLoading = ref(false)
 const cliDiscoveryLoaded = ref(false)
 
-async function discoverCliRuntimes() {
+async function discoverHarnesses() {
   cliDiscoveryLoading.value = true
   try {
-    const res = await api.discoverCliRuntimes()
+    const res = await api.discoverHarnesses()
     cliDiscoveryCandidates.value = res.cli_runtimes ?? []
     cliDiscoveryLoaded.value = true
   } catch (error) {
@@ -1080,7 +1080,7 @@ async function connectDiscoveredCli(candidate: CliDiscoveryCandidateDto, channel
   if (!candidate.binary_path || !channel) return
   cliDiscoveryLoading.value = true
   try {
-    const created = await api.connectCliRuntime({
+    const created = await api.connectHarness({
       driver: candidate.driver,
       binary_path: candidate.binary_path,
       channel: channel.channel ?? null,
@@ -2356,7 +2356,7 @@ import '../settings/settings.css'
                 variant="outline"
                 size="sm"
                 :disabled="cliDiscoveryLoading"
-                @click="discoverCliRuntimes"
+                @click="discoverHarnesses"
               >
                 <RefreshCw :size="14" :class="{ 'animate-spin': cliDiscoveryLoading }" />
                 {{ cliDiscoveryLoading ? t('settings.discoveringCli') : t('settings.discoverCli') }}

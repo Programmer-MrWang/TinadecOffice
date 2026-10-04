@@ -8769,7 +8769,7 @@
         ]
       }
     },
-    "/api/v1/model-providers/cli/connect": {
+    "/api/v1/model-providers/harnesses/connect": {
       "post": {
         "responses": {
           "200": {
@@ -8781,7 +8781,7 @@
         ]
       }
     },
-    "/api/v1/model-providers/cli/discover": {
+    "/api/v1/model-providers/harnesses/discover": {
       "get": {
         "responses": {
           "200": {

@@ -10,7 +10,7 @@ using TinadecCore.Runtime;
 namespace TinadecCore.Api.Tests;
 
 /// <summary>
-/// HTTP tests for POST /api/v1/model-providers/cli/connect.
+/// HTTP tests for POST /api/v1/model-providers/harnesses/connect.
 /// <para>
 /// These replaced a set that asserted the opposite claim: that a <c>claude-cli</c> provider was
 /// connected because an HTTP URL answered, with <c>protocol: "acp"</c> inferred from the driver
@@ -59,7 +59,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         File.WriteAllText(binary, "not a program\n");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver,
             binary_path = binary,
@@ -82,7 +82,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         File.WriteAllText(binary, "");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "opencode",
             protocol = "opencode-serve",
@@ -111,7 +111,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         var row = list.EnumerateArray().Single(x => x.GetProperty("driver").GetString() == "opencode");
         Assert.Equal(_server.Url, row.GetProperty("server_url").GetString());
 
-        var again = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var again = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "opencode",
             protocol = "opencode-serve",
@@ -129,7 +129,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         File.WriteAllText(binary, "@exit 1\r\n");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "opencode",
             protocol = "opencode-serve",
@@ -141,12 +141,27 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         Assert.Equal("CLI_CONNECT_FAILED", body.GetProperty("code").GetString());
     }
 
+    /// <summary>
+    /// The routes used to be named `…/cli/discover` and `…/cli/connect` while serving all three harness
+    /// channels. They are renamed, not aliased: this product has no compatibility routes, so the old
+    /// paths must answer 404 rather than quietly keep working and let two spellings drift apart.
+    /// </summary>
+    [Theory]
+    [InlineData("/api/v1/model-providers/cli/discover")]
+    [InlineData("/api/v1/model-providers/cli/connect")]
+    public async Task RetiredCliNamedRoutes_Return404(string path)
+    {
+        var client = _factory!.CreateClient();
+        var response = await client.PostAsync(path, JsonContent(new { driver = "opencode" }));
+        Assert.Equal(System.Net.HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task Connect_InvalidInput_Returns400()
     {
         var client = _factory!.CreateClient();
 
-        var missing = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var missing = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "opencode",
             protocol = "opencode-serve",
@@ -155,7 +170,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         Assert.Equal(System.Net.HttpStatusCode.BadRequest, missing.StatusCode);
         Assert.Equal("CLI_CONNECT_INVALID", JsonDocument.Parse(await missing.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
 
-        var notCli = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var notCli = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "openai",
             binary_path = Path.Combine(_bin, "openai.exe")
@@ -170,7 +185,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         File.WriteAllText(binary, "@echo ok\r\n");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "opencode",
             protocol = "opencode-serve",
@@ -179,7 +194,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         }));
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
 
-        var discovery = JsonDocument.Parse(await client.GetStringAsync("/api/v1/model-providers/cli/discover")).RootElement;
+        var discovery = JsonDocument.Parse(await client.GetStringAsync("/api/v1/model-providers/harnesses/discover")).RootElement;
         var opencode = discovery.GetProperty("cli_runtimes").EnumerateArray().Single(x => x.GetProperty("driver").GetString() == "opencode");
         Assert.Equal("configured", opencode.GetProperty("status").GetString());
     }
@@ -197,7 +212,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         // `opencode` could end up stored as an ACP session, or the reverse, without anyone choosing.
         var binary = WriteRunnableStub("dsh");
         var client = _factory!.CreateClient();
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "dsh",
             binary_path = binary
@@ -215,7 +230,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         // that binary, stored as if it worked. Refusing it here is what keeps it out of the row.
         var binary = WriteRunnableStub("claude");
         var client = _factory!.CreateClient();
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "claude-code",
             binary_path = binary,
@@ -233,7 +248,7 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         WriteRunnableStub("opencode");
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, [_bin]), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, [_bin]), scope.ServiceProvider);
 
         var detected = payload
             .GetProperty("cli_runtimes")

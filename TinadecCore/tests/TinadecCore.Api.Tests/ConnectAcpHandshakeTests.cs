@@ -10,7 +10,7 @@ using TinadecCore.DmaEA.CliRuntime;
 namespace TinadecCore.Api.Tests;
 
 /// <summary>
-/// POST /api/v1/model-providers/cli/connect for the stdio ACP channel.
+/// POST /api/v1/model-providers/harnesses/connect for the stdio ACP channel.
 /// <para>
 /// This is the seam where the fabrication lived: connect used to hand an ACP harness to the HTTP
 /// process host, which appended a port flag the binary never implemented and then polled a URL that
@@ -49,7 +49,7 @@ public sealed class ConnectAcpHandshakeTests : IAsyncLifetime
         var binary = WriteStub("codebuddy.cmd");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "codebuddy",
             channel = "acp",
@@ -85,7 +85,7 @@ public sealed class ConnectAcpHandshakeTests : IAsyncLifetime
         // A second connect of the same driver probes as the stored provider, so its session root and
         // any warm session line up with the row that is being re-verified.
         _prober.Calls.Clear();
-        var again = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var again = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "codebuddy",
             channel = "acp",
@@ -102,7 +102,7 @@ public sealed class ConnectAcpHandshakeTests : IAsyncLifetime
         _prober.FailWith = new InvalidOperationException("ACP harness 'kimi-code' exited during startup.");
         var client = _factory!.CreateClient();
 
-        var response = await client.PostAsync("/api/v1/model-providers/cli/connect", JsonContent(new
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
         {
             driver = "kimi-code",
             channel = "acp",

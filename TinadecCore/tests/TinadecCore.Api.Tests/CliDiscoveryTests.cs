@@ -34,11 +34,11 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_ReturnsEveryCatalogHarnessWithAStatus()
+    public async Task DiscoverHarnesses_ReturnsEveryCatalogHarnessWithAStatus()
     {
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var clis = payload.GetProperty("cli_runtimes").EnumerateArray().ToList();
         // Counted against the catalog rather than a number copied into the test: the row set is a
@@ -60,12 +60,12 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     /// build cannot drive is stated as undrivable with a reason instead of being silently present.
     /// </summary>
     [Fact]
-    public async Task DiscoverCliRuntimes_StatesEachChannelAndWhatThisBuildCanDrive()
+    public async Task DiscoverHarnesses_StatesEachChannelAndWhatThisBuildCanDrive()
     {
         var binary = WriteRunnableStub("dsh");
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var dsh = payload.GetProperty("cli_runtimes").EnumerateArray()
             .First(item => item.GetProperty("driver").GetString() == "dsh");
@@ -90,12 +90,12 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_MarksDetectedExecutableAsFoundWithResolvedPath()
+    public async Task DiscoverHarnesses_MarksDetectedExecutableAsFoundWithResolvedPath()
     {
         var binary = WriteRunnableStub("claude");
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
         Assert.Equal("found", claude.GetProperty("status").GetString());
@@ -103,14 +103,14 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_MarksNonRunnableExecutableAsMissing()
+    public async Task DiscoverHarnesses_MarksNonRunnableExecutableAsMissing()
     {
         WriteRunnableStub("claude");
         var dead = Path.Combine(_searchBin, OperatingSystem.IsWindows() ? "codex.exe" : "codex");
         File.WriteAllText(dead, "");
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var codex = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "codex");
         Assert.Equal("missing", codex.GetProperty("status").GetString());
@@ -123,12 +123,12 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     /// is deliberately chatty rather than one that echoes a single line.
     /// </summary>
     [Fact]
-    public async Task DiscoverCliRuntimes_ChattyBinaryIsStillFound()
+    public async Task DiscoverHarnesses_ChattyBinaryIsStillFound()
     {
         WriteChattyStub("claude");
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
         Assert.Equal("found", claude.GetProperty("status").GetString());
@@ -138,12 +138,12 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_FailingProbeSaysWhichCommandItRan()
+    public async Task DiscoverHarnesses_FailingProbeSaysWhichCommandItRan()
     {
         WriteFailingStub("claude", 3);
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
         Assert.Equal("missing", claude.GetProperty("status").GetString());
@@ -189,7 +189,7 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DiscoverCliRuntimes_MarksConfiguredDriverAsConfigured()
+    public async Task DiscoverHarnesses_MarksConfiguredDriverAsConfigured()
     {
         var binary = WriteRunnableStub("codex");
         var client = _factory!.CreateClient();
@@ -206,7 +206,7 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
 
         using var scope = _factory!.Services.CreateScope();
         var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
-        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverHarnesses(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
 
         // Matched by the catalog id: the row is configured because a provider with *that harness id*
         // exists, which is also why the pre-catalog driver names ("codex-cli") no longer appear here.

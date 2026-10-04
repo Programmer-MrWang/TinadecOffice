@@ -55,7 +55,7 @@
 | N:core.sqlite / postgres / fileStore / vectorStore | 数据面 | data, runtime | high | `Api/appsettings.json:10-23`、`Persistence/LocalFileContentStore.cs`、`Persistence/PersistencePaths.cs`、`VectorStore/*` |
 | N:tool.toolHost / generator / sandbox / mcpConfig | 工具层 | L2, L3, runtime | high | `TinadecTools/Program.cs:28-31,54-80,105-129,131-201,203-293`、`TinadecTools.Generators/ToolFunctionGenerator.cs`、`TinadecTools/Runtime/Sandbox/*.cs`、`TinadecTools/Tools/Mcp/*` |
 | N:llmApi | 远端模型 API | L1, flows | high | `Models/ModelsModuleRegistrar.cs:47`（`ModelProvider : IModelProvider, IChatResolver`）、协议族见 `DmaEA/IAgentChatClientFactory.cs` |
-| N:cliRuntimes | 本机 CLI（ACP / opencode serve） | L1, runtime | high | `DmaEA/CliRuntime`、`GET /api/v1/model-providers/cli/discover`、`POST …/cli/connect` |
+| N:cliRuntimes | 本机 CLI（ACP / opencode serve） | L1, runtime | high | `DmaEA/CliRuntime`、`GET /api/v1/model-providers/harnesses/discover`、`POST …/cli/connect` |
 | N:workspaceFs / gitRemote / mcpServers | 工作对象与外部系统 | L1, runtime | high | `TinadecTools/Tools/FileSystem/*`、`Tools/Git/*`、`Tools/Mcp/*` |
 | N:toolRuntime | Tool Runtime 服务 :48732 | L1, runtime [Target] | **unknown** | Gateway 有完整转发（`toolRuntimeClient.ts:1-51`、`config.ts:74`），但全仓库无 `:48732` 监听实现（`grep "48732"` 命中 `apps/TinadecUI/package.json:10` 的 `--port 48732` 是 Vite 端口复用，不是该服务）；`docs/web-client.md` 阶段 2 列为缺口 |
 

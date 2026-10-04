@@ -1281,19 +1281,19 @@ const app = new Elysia()
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return result.data;
   }, { detail: { summary: 'List model providers', tags: ['ModelCenter'] } })
-  .get('/api/v1/model-providers/cli/discover', async ({ set, request }) => {
+  .get('/api/v1/model-providers/harnesses/discover', async ({ set, request }) => {
     const headers = forwardHeaders(request);
-    const result = await proxyJson('/api/v1/model-providers/cli/discover', { headers });
+    const result = await proxyJson('/api/v1/model-providers/harnesses/discover', { headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/model-providers/cli/discover'); }
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/model-providers/harnesses/discover'); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return result.data;
   }, { detail: { summary: 'Discover CLI runtimes', tags: ['ModelCenter'] } })
-  .post('/api/v1/model-providers/cli/connect', async ({ body, set, request }) => {
+  .post('/api/v1/model-providers/harnesses/connect', async ({ body, set, request }) => {
     const headers = forwardHeaders(request);
-    const result = await proxyJson('/api/v1/model-providers/cli/connect', { method: 'POST', body: body as Record<string, unknown>, headers });
+    const result = await proxyJson('/api/v1/model-providers/harnesses/connect', { method: 'POST', body: body as Record<string, unknown>, headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/model-providers/cli/connect'); }
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/model-providers/harnesses/connect'); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return result.data;
   }, { detail: { summary: 'Connect a discovered CLI runtime as a provider', tags: ['ModelCenter'] } })

@@ -357,7 +357,7 @@ POST /api/v1/agent-evolution/proposals/{id}/promote
 - provider CRUD：`GET/POST/PUT/DELETE /api/v1/model-providers...`
 - provider model refresh：`POST /api/v1/model-providers/{id}/models/refresh`
 - route：`GET /api/v1/model-routes`、`PUT /api/v1/model-routes/{purpose}`
-- CLI：`GET /api/v1/model-providers/cli/discover`、`POST /api/v1/model-providers/cli/connect`
+- CLI：`GET /api/v1/model-providers/harnesses/discover`、`POST /api/v1/model-providers/harnesses/connect`
 - readiness：`GET /api/v1/model-readiness`、`GET /api/v1/model-catalog-readiness`（**均为已废弃兼容壳**，硬编码 0/warning；真实就绪请用 `GET /api/v1/readiness` 与 provider/route API）
 
 连接、保存和启用是不同状态。CLI discover 的 `found` 不等于 provider 已配置，provider enabled 不等于 route 已绑定，route ready 才能让 run 取得模型。API key 只提交到 Core/SecretStore，不显示明文。
