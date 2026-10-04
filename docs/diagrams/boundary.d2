@@ -1,0 +1,13 @@
+direction: right
+
+ui: "Desktop / Web UI\nTinadecApp"
+gw: "Gateway\n无状态门面 · stateless facade"
+core: "Tinadec Core\n双层智能体 · dual-layer agents (DmaEA)"
+tools: "工具层 · Tool layer\nTinadecTool"
+world: "外部世界 · outside world\nfiles · shell · git · MCP"
+
+ui <-> gw: "HTTP / SSE / WebSocket"
+gw <-> core: "纯代理 · pure proxy"
+gw <-> tools: "显式工具入口 · direct tool entry"
+core <-> tools: "工具提供者契约 · tool provider contract"
+tools <-> world: "执行 · 回执状态"

@@ -1,0 +1,27 @@
+direction: right
+
+shipped: "已发布 · Shipped" {
+  r1: "DmaEA 双层运行时 · 持久化 run\n2026-03 → 08"
+  r2: "权限 · 审批 · 检查点闭环\n2026-08 → 09"
+  r3: "图编排 · 三档 tier\n2026-09"
+  r4: "桌面工作台\n2026-05 → 09"
+  r5: "v0.2.0 三平台安装器\n2026-10-04"
+}
+
+now: "正在构建 · Building now" {
+  n1: "TUI 渠道 · 宿主 PTY 后端\n→ 2026-11"
+  n2: "跨平台打磨 · Linux / macOS\n→ 2026-12"
+}
+
+next: "接下来 · Next up" {
+  f1: "应用内更新器 · in-app updater"
+  f2: "Git 治理 · 自动演化"
+  f3: "稳定 SDK · CLI · 容器发布"
+}
+
+shipped -> now: "持续推进" {
+  style.stroke-dash: 3
+}
+now -> next {
+  style.stroke-dash: 3
+}

@@ -1,0 +1,33 @@
+direction: down
+
+you: "你 · You" {
+  shape: person
+}
+
+op: "治理层 · Operation layer — 零工具 · zero tools" {
+  mtg: "会议 · Meeting\n对话 · 上下文 · 最终答复"
+  pln: "规划 · Planner\n目标 → 任务图"
+  sup: "监督 · Supervisor\n评审 · 升级"
+}
+
+ex: "执行层 · Execution layer — 按需生成 · permission-scoped" {
+  cw: "代码 worker"
+  sw: "检索 worker"
+  dw: "数据 worker"
+}
+
+gate: "审批门 · Approval gate\n每一次写调用 · every write call" {
+  shape: hexagon
+}
+
+you <-> op.mtg: "对话 · instruction / answer"
+op.mtg -> op.pln
+op.pln -> ex: "任务派发 · dispatch"
+ex -> op.sup: "证据 · evidence"
+op.sup -> op.mtg: "裁决 · verdict"
+ex -> gate: "write_file · shell · git_*" {
+  style.stroke-dash: 3
+}
+gate -> ex: "人工 / 委托审查 · human / delegated review" {
+  style.stroke-dash: 3
+}
