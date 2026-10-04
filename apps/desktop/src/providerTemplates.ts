@@ -26,7 +26,26 @@ export type ConnectionKind = 'api-key' | 'cli' | 'local-server' | 'public-api'
 
 export type ProviderCategory = 'cloud-api' | 'local-server' | 'agent-cli' | 'custom'
 
-export type ChatProtocol = 'openai-chat' | 'openai-responses' | 'anthropic-messages'
+/**
+ * Wire protocols in the table. The first three are HTTP APIs; the rest name a local harness and only
+ * mean something together with a channel, because the same binary speaks a different dialect on each
+ * of them — which is exactly the coupling Core removed when `InferFromDriver` stopped mapping harness
+ * driver names onto protocols.
+ */
+export type ChatProtocol =
+  | 'openai-chat'
+  | 'openai-responses'
+  | 'anthropic-messages'
+  | 'acp'
+  | 'opencode-serve'
+  | 'headless-cli'
+  | 'tui'
+
+/** How Core reaches a harness on one channel. `acp` is a stdio session, `tui` a PTY, `cli` a one-shot. */
+export interface ProviderChannelTemplate {
+  channel: 'cli' | 'tui' | 'acp'
+  protocol: ChatProtocol
+}
 
 export interface ProviderTemplate {
   driver: string
@@ -41,6 +60,12 @@ export interface ProviderTemplate {
   protocol?: ChatProtocol
   /** Protocols the user may choose from; omitted means only the default protocol. */
   protocols?: ChatProtocol[]
+  /**
+   * Harness channels this binary offers, in the order Core should prefer them. Mirrors
+   * `TinadecCore/Abstractions/Ports/HarnessCatalog.cs` — a test parses that file and fails when the
+   * two disagree, because a channel the catalog does not declare can be saved but never driven.
+   */
+  channels?: ProviderChannelTemplate[]
   brand_color: string
   brand_bg: string
   icon: string
@@ -70,6 +95,13 @@ function hexToRgba(hex: string, alpha: number): string {
   const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r},${g},${b},${alpha})`
 }
+
+/**
+ * Shared mark for harnesses with no brand SVG in `@lobehub/icons-static-svg`. A generic icon states
+ * "a local agent"; inventing a look for a vendor we have not been given artwork for would ship a
+ * wrong logo, which is worse than a plain one.
+ */
+const harnessIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13Zm2.2.5V18c0 .28.22.5.5.5h12.6a.5.5 0 0 0 .5-.5V6a.5.5 0 0 0-.5-.5H5.7a.5.5 0 0 0-.5.5ZM7 9l2.5 2L7 13l1 1 4-4-4-4-1 1Zm6.5 3H17v1h-3.5v-1Z"/></svg>'
 
 export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   {
@@ -389,51 +421,11 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     fields: { base_url: true, model: true, api_key: false, binary_path: false, home_path: false, server_url: false, launch_args: false },
     placeholders: { base_url: 'http://localhost:8080/v1', model: 'default' }
   },
-  {
-    driver: 'codex-cli',
-    display_name_key: 'providers.codexCli',
-    summary_key: 'providers.codexCliSummary',
-    connection_kind: 'cli',
-    category: 'agent-cli',
-    default_base_url: null,
-    default_model: 'gpt-5.4',
-    capabilities: ['agent', 'cli', 'workspace'],
-    brand_color: '#10a37f',
-    brand_bg: hexToRgba('#10a37f', 0.12),
-    icon: codexIcon,
-    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: true, server_url: false, launch_args: false },
-    placeholders: { binary_path: 'codex', home_path: '~/.codex-work' }
-  },
-  {
-    driver: 'claude-cli',
-    display_name_key: 'providers.claudeCli',
-    summary_key: 'providers.claudeCliSummary',
-    connection_kind: 'cli',
-    category: 'agent-cli',
-    default_base_url: null,
-    default_model: 'claude-sonnet-4-6',
-    capabilities: ['agent', 'cli', 'workspace'],
-    brand_color: '#d97706',
-    brand_bg: hexToRgba('#d97706', 0.12),
-    icon: claudeIcon,
-    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: true, server_url: false, launch_args: false },
-    placeholders: { binary_path: 'claude', home_path: '~/.claude-work' }
-  },
-  {
-    driver: 'cursor-acp',
-    display_name_key: 'providers.cursorAcp',
-    summary_key: 'providers.cursorAcpSummary',
-    connection_kind: 'cli',
-    category: 'agent-cli',
-    default_base_url: null,
-    default_model: 'auto',
-    capabilities: ['agent', 'cli', 'acp'],
-    brand_color: '#6366f1',
-    brand_bg: hexToRgba('#6366f1', 0.12),
-    icon: cursorIcon,
-    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: true },
-    placeholders: { binary_path: 'cursor-agent', launch_args: '--acp-port 0' }
-  },
+  // ── Local harnesses ──────────────────────────────────────────────────────
+  // The channel list mirrors HarnessCatalog; providerTemplates.test.ts parses Core's table and
+  // compares them. The old rows here were named after a channel (`-cli`, `-acp` suffixes) and offered
+  // a port flag that no harness implements — the fabrication's root, since none of those binaries
+  // served HTTP at all. A driver's channel is now stated per row instead of encoded in its name.
   {
     driver: 'opencode',
     display_name_key: 'providers.opencode',
@@ -441,13 +433,166 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     connection_kind: 'cli',
     category: 'agent-cli',
     default_base_url: 'http://127.0.0.1:4096',
-    default_model: 'openai/gpt-5',
-    capabilities: ['agent', 'cli', 'server'],
+    default_model: null,
+    capabilities: ['agent', 'harness', 'server'],
+    // opencode is the one harness Core can also reach over its own local HTTP server, so its default
+    // protocol is not one of the three channels.
+    protocol: 'opencode-serve',
+    channels: [
+      { channel: 'acp', protocol: 'acp' },
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
     brand_color: '#22d3ee',
     brand_bg: hexToRgba('#22d3ee', 0.12),
     icon: opencodeIcon,
     fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: true, launch_args: true },
-    placeholders: { binary_path: 'opencode', server_url: 'http://127.0.0.1:4096', launch_args: 'serve --port 4096' }
+    placeholders: {
+      binary_path: 'C:\\Users\\me\\AppData\\Roaming\\npm\\opencode.cmd',
+      server_url: 'http://127.0.0.1:4096',
+      launch_args: 'serve --port 4096'
+    }
+  },
+  {
+    driver: 'cursor',
+    display_name_key: 'providers.cursor',
+    summary_key: 'providers.cursorSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'acp',
+    channels: [{ channel: 'acp', protocol: 'acp' }],
+    brand_color: '#6366f1',
+    brand_bg: hexToRgba('#6366f1', 0.12),
+    icon: cursorIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: 'C:\\Users\\me\\AppData\\Local\\cursor-agent\\bin\\cursor-agent.exe' }
+  },
+  {
+    driver: 'codebuddy',
+    display_name_key: 'providers.codebuddy',
+    summary_key: 'providers.codebuddySummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'acp',
+    channels: [
+      { channel: 'acp', protocol: 'acp' },
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#2563eb',
+    brand_bg: hexToRgba('#2563eb', 0.12),
+    icon: harnessIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: 'C:\\Program Files\\WorkBuddy\\resources\\app.asar.unpacked\\cli\\bin\\codebuddy.exe' }
+  },
+  {
+    driver: 'dsh',
+    display_name_key: 'providers.deepseekHarness',
+    summary_key: 'providers.deepseekHarnessSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'acp',
+    channels: [
+      { channel: 'acp', protocol: 'acp' },
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#4f46e5',
+    brand_bg: hexToRgba('#4f46e5', 0.12),
+    icon: harnessIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: '/usr/local/bin/dsh' }
+  },
+  {
+    driver: 'kimi-code',
+    display_name_key: 'providers.kimiCode',
+    summary_key: 'providers.kimiCodeSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'acp',
+    channels: [
+      { channel: 'acp', protocol: 'acp' },
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#0ea5e9',
+    brand_bg: hexToRgba('#0ea5e9', 0.12),
+    icon: harnessIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: 'C:\\Users\\me\\.kimi-code\\bin\\kimi.exe' }
+  },
+  {
+    driver: 'claude-code',
+    display_name_key: 'providers.claudeCode',
+    summary_key: 'providers.claudeCodeSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    // No `acp` channel, measured: `claude --help` on this host mentions ACP zero times.
+    protocol: 'headless-cli',
+    channels: [
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#d97706',
+    brand_bg: hexToRgba('#d97706', 0.12),
+    icon: claudeIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: 'C:\\Users\\me\\AppData\\Roaming\\npm\\claude.cmd' }
+  },
+  {
+    driver: 'codex',
+    display_name_key: 'providers.codex',
+    summary_key: 'providers.codexSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'headless-cli',
+    channels: [
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#10a37f',
+    brand_bg: hexToRgba('#10a37f', 0.12),
+    icon: codexIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: 'C:\\Users\\me\\AppData\\Roaming\\npm\\codex.cmd' }
+  },
+  {
+    driver: 'zcode',
+    display_name_key: 'providers.zcode',
+    summary_key: 'providers.zcodeSummary',
+    connection_kind: 'cli',
+    category: 'agent-cli',
+    default_base_url: null,
+    default_model: null,
+    capabilities: ['agent', 'harness'],
+    protocol: 'headless-cli',
+    channels: [
+      { channel: 'cli', protocol: 'headless-cli' },
+      { channel: 'tui', protocol: 'tui' }
+    ],
+    brand_color: '#9333ea',
+    brand_bg: hexToRgba('#9333ea', 0.12),
+    icon: harnessIcon,
+    fields: { base_url: false, model: false, api_key: false, binary_path: true, home_path: false, server_url: false, launch_args: false },
+    placeholders: { binary_path: '/usr/local/bin/zcode' }
   },
   {
     driver: 'custom',

@@ -337,6 +337,12 @@ export interface ModelProviderInstanceDto {
   id: string;
   driver: string;
   protocol?: string | null;
+  /**
+   * Which harness channel the row is configured on: `cli`, `tui`, or `acp`. Core stores it in the
+   * provider configuration and resolves `protocol` from the (driver, channel) pair, so a row without
+   * a channel is an HTTP API provider or a provider stored before the channel vocabulary existed.
+   */
+  channel?: string | null;
   display_name: string;
   connection_kind: 'api-key' | 'cli' | 'local-server' | string;
   base_url?: string | null;
@@ -945,8 +951,10 @@ export interface ModelCenterCliRuntimeDto {
   runtime_id: string;
   provider_instance_id: string;
   source: 'provider_instance' | string;
+  channel?: string | null;
   driver: string;
   display_name: string;
+  protocol?: string | null;
   binary_path?: string | null;
   home_path?: string | null;
   server_url?: string | null;
@@ -962,6 +970,23 @@ export interface ModelCenterCliRuntimeDto {
   readiness?: Record<string, unknown> | null;
 }
 
+/**
+ * One channel a discovered harness offers, as Core reports it. `drivable` is this build's answer, not
+ * the vendor's: a channel can be genuinely supported by the binary and still have no client in Core
+ * yet, and the model center must say so instead of offering a button that cannot work.
+ */
+export interface HarnessChannelDto {
+  /**
+   * The channel this affordance is reached on. `null` is the harness's own long-lived local HTTP
+   * server (opencode's `serve`), which is not a channel: it is reached over HTTP, so it has no argv
+   * channel to name and is labelled by its protocol instead.
+   */
+  channel: 'cli' | 'tui' | 'acp' | string | null;
+  protocol: string;
+  drivable: boolean;
+  reason?: string | null;
+}
+
 export interface CliDiscoveryCandidateDto {
   driver: string;
   display_name: string;
@@ -970,11 +995,18 @@ export interface CliDiscoveryCandidateDto {
   server_url?: string | null;
   launch_args?: string | null;
   status: 'found' | 'missing' | 'configured';
+  vendor?: string | null;
+  channels?: HarnessChannelDto[];
+  caveats?: string[];
 }
 
 export interface ConnectCliRuntimeInput {
   driver: string
   binary_path: string
+  /** Required for a harness: the channel decides the protocol and the argv Core starts it with. */
+  channel?: string | null
+  /** The wire protocol discovered for this affordance; required when there is no channel to derive it from. */
+  protocol?: string | null
   display_name?: string
   home_path?: string | null
   server_url?: string | null
@@ -988,13 +1020,14 @@ export interface CliDiscoveryResultDto {
 export interface ModelCenterAcpRuntimeDto {
   id: string;
   runtime_id: string;
-  source: 'adapter' | 'legacy_provider' | string;
+  source: 'adapter' | 'provider_instance' | string;
   adapter_id?: string | null;
   provider_instance_id?: string | null;
   extension_id?: string | null;
   driver?: string | null;
   display_name: string;
   command?: string | null;
+  protocol?: string | null;
   binary_path?: string | null;
   home_path?: string | null;
   status: string;
@@ -1008,12 +1041,41 @@ export interface ModelCenterAcpRuntimeDto {
   readiness?: Record<string, unknown> | null;
 }
 
+/**
+ * A harness configured on the interactive `tui` channel. This is an inventory row: a PTY session is
+ * observed, injected into and audited — never driven as a chat model — and this build has no host PTY
+ * backend, so nothing here is actionable until the TinadecTools backend lands.
+ */
+export interface ModelCenterTuiRuntimeDto {
+  id: string;
+  runtime_id: string;
+  provider_instance_id: string;
+  source: 'provider_instance' | string;
+  channel: 'tui' | string;
+  driver: string;
+  display_name: string;
+  protocol?: string | null;
+  binary_path?: string | null;
+  home_path?: string | null;
+  launch_args?: string | null;
+  capabilities: string[];
+  enabled: boolean;
+  status: string;
+  status_message: string;
+  route_purposes: string[];
+  /** Provider row revision; required as the If-Match token for writes. */
+  revision?: number | null;
+  updated_at?: string | null;
+  readiness?: Record<string, unknown> | null;
+}
+
 export interface ModelCenterOverviewDto {
   capabilities: ModelCenterCapabilitiesDto;
   suppliers: ModelCenterSupplierDto[];
   api_connections: ModelCenterApiConnectionDto[];
   models: ModelCenterModelDto[];
   cli_runtimes: ModelCenterCliRuntimeDto[];
+  tui_runtimes: ModelCenterTuiRuntimeDto[];
   acp_runtimes: ModelCenterAcpRuntimeDto[];
   readiness: {
     model?: ModelReadinessReceiptDto | null;

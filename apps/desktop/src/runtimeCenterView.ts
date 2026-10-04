@@ -10,6 +10,7 @@ import type {
   ModelCenterCliRuntimeDto,
   ModelCenterOverviewDto,
   ModelCenterSupplierDto,
+  ModelCenterTuiRuntimeDto,
   ModelProviderInstanceDto,
   ModelProviderTemplateDto,
   ModelReadinessReceiptDto,
@@ -18,7 +19,65 @@ import type {
 } from './api'
 import { findTemplate, type ProviderCategory, type ProviderTemplate } from './providerTemplates'
 
-export type ModelCenterSection = 'suppliers' | 'api' | 'models' | 'routes' | 'cli' | 'acp'
+export type ModelCenterSection = 'suppliers' | 'api' | 'models' | 'routes' | 'cli' | 'tui' | 'acp'
+
+/**
+ * The three channels Core can drive an external harness over. This is a different question from
+ * `connection_kind` (a local process or an HTTP API) and from `protocol` (which dialect is spoken):
+ * a channel says how the process is reached, so it is what the model center groups by.
+ */
+export type HarnessChannel = 'cli' | 'tui' | 'acp'
+
+const CHANNEL_BY_PROTOCOL: Record<string, HarnessChannel> = {
+  'headless-cli': 'cli',
+  tui: 'tui',
+  acp: 'acp'
+}
+
+/**
+ * Channel for a wire protocol, or `null` when the row is not a harness channel at all — every HTTP
+ * API protocol and `opencode-serve` (reached over its own local server, not over a channel) answer
+ * null and keep grouping by `connection_kind`.
+ */
+export function channelForProtocol(protocol?: string | null): HarnessChannel | null {
+  return CHANNEL_BY_PROTOCOL[(protocol ?? '').trim().toLowerCase()] ?? null
+}
+
+/** Validate a stored channel value. Anything else is not a channel, rather than a guess. */
+export function asChannel(value?: string | null): HarnessChannel | null {
+  const normalized = value?.trim().toLowerCase()
+  return normalized === 'cli' || normalized === 'tui' || normalized === 'acp' ? normalized : null
+}
+
+const CHANNEL_LABEL_KEYS: Record<HarnessChannel, string> = {
+  cli: 'settings.channelCli',
+  tui: 'settings.channelTui',
+  acp: 'settings.channelAcp'
+}
+
+const PROTOCOL_LABEL_KEYS: Record<string, string> = {
+  'openai-chat': 'settings.protocolOpenaiChat',
+  'openai-responses': 'settings.protocolOpenaiResponses',
+  'anthropic-messages': 'settings.protocolAnthropicMessages',
+  acp: 'settings.protocolAcp',
+  'opencode-serve': 'settings.protocolOpencodeServe',
+  'headless-cli': 'settings.protocolHeadlessCli',
+  tui: 'settings.protocolTui'
+}
+
+export function protocolLabelKey(protocol?: string | null): string {
+  return PROTOCOL_LABEL_KEYS[(protocol ?? '').trim().toLowerCase()] ?? 'settings.protocolUnknown'
+}
+
+/**
+ * How to name one connection affordance Core reported for a harness. A row without a channel is the
+ * harness's own local HTTP server, so it is named by protocol — labelling it "CLI" would offer the
+ * same shape twice under two different words, which is the confusion the channel axis ends.
+ */
+export function discoveryAffordanceLabelKey(fact: { channel?: string | null, protocol?: string | null }): string {
+  const channel = asChannel(fact.channel)
+  return channel ? CHANNEL_LABEL_KEYS[channel] : protocolLabelKey(fact.protocol)
+}
 
 export const supplierPresentationAliases = new Map<string, string>([
   ['openai', 'openai-compatible'],
@@ -61,6 +120,11 @@ function cliRuntimeProvider(runtime: ModelCenterCliRuntimeDto): ModelProviderIns
   return {
     id: runtime.provider_instance_id,
     driver: runtime.driver,
+    // Protocol and channel ride back out so a row classified into the harness section stays there
+    // after the round trip; without them it degrades to the connection_kind fallback, which is the
+    // same label for every harness and cannot tell `acp` from `opencode serve`.
+    protocol: runtime.protocol ?? null,
+    channel: runtime.channel ?? null,
     display_name: runtime.display_name,
     connection_kind: 'cli',
     model: runtime.model ?? null,
@@ -79,12 +143,66 @@ function cliRuntimeProvider(runtime: ModelCenterCliRuntimeDto): ModelProviderIns
   }
 }
 
+function tuiRuntimeProvider(runtime: ModelCenterTuiRuntimeDto): ModelProviderInstanceDto {
+  return {
+    id: runtime.provider_instance_id,
+    driver: runtime.driver,
+    protocol: runtime.protocol ?? 'tui',
+    channel: 'tui',
+    display_name: runtime.display_name,
+    connection_kind: 'cli',
+    base_url: null,
+    model: null,
+    models: [],
+    has_api_key: false,
+    binary_path: runtime.binary_path ?? null,
+    home_path: runtime.home_path ?? null,
+    launch_args: runtime.launch_args ?? null,
+    capabilities: runtime.capabilities,
+    enabled: runtime.enabled,
+    status: runtime.status,
+    status_message: runtime.status_message,
+    revision: runtime.revision ?? undefined,
+    created_at: '',
+    updated_at: runtime.updated_at ?? ''
+  }
+}
+
+function acpRuntimeProvider(runtime: ModelCenterAcpRuntimeDto): ModelProviderInstanceDto | null {
+  // Adapter rows are not provider instances at all (no provider_instance_id), so projecting them
+  // would invent a provider id out of an adapter id and hand back a `revision` that no row has.
+  if (!runtime.provider_instance_id) return null
+  return {
+    id: runtime.provider_instance_id,
+    driver: runtime.driver ?? '',
+    protocol: runtime.protocol ?? 'acp',
+    channel: 'acp',
+    display_name: runtime.display_name,
+    connection_kind: 'cli',
+    base_url: null,
+    model: null,
+    models: [],
+    has_api_key: false,
+    binary_path: runtime.binary_path ?? null,
+    home_path: runtime.home_path ?? null,
+    capabilities: runtime.capabilities,
+    enabled: runtime.enabled,
+    status: runtime.status,
+    status_message: runtime.status_message,
+    revision: runtime.revision ?? undefined,
+    created_at: '',
+    updated_at: runtime.updated_at ?? ''
+  }
+}
+
 export function providersFromOverview(overview: ModelCenterOverviewDto | null) {
   if (!overview) return []
 
   return uniqueProviders([
     ...overview.api_connections.map(apiConnectionProvider),
-    ...overview.cli_runtimes.map(cliRuntimeProvider)
+    ...overview.cli_runtimes.map(cliRuntimeProvider),
+    ...overview.tui_runtimes.map(tuiRuntimeProvider),
+    ...overview.acp_runtimes.map(acpRuntimeProvider).filter((provider): provider is ModelProviderInstanceDto => provider !== null)
   ])
 }
 
@@ -131,8 +249,11 @@ export function providerTemplateFromSupplier(supplier: ModelCenterSupplierDto): 
       api_key: apiKey,
       binary_path: cliLike,
       home_path: cliLike && requiresWorkspace,
+      // A harness channel takes its argv from Core's catalog, so an editable launch_args box would
+      // collect a string Core then ignores. The one local shape that does read stored arguments is
+      // the serve runtime, and it is the one that advertises a default endpoint.
       server_url: cliLike && Boolean(supplier.default_base_url),
-      launch_args: cliLike
+      launch_args: cliLike && Boolean(supplier.default_base_url)
     },
     placeholders: presentation?.placeholders ?? {}
   }
@@ -315,16 +436,25 @@ function routeCandidates(route: ModelRouteDto): Array<{ provider_instance_id: st
   return []
 }
 
-type RuntimeKind = 'model' | 'cli' | 'acp';
+type RuntimeKind = 'model' | 'cli' | 'acp' | 'tui';
 
 function classifyProvider(provider: ModelProviderInstanceDto): RuntimeKind {
-  const capabilities = new Set(provider.capabilities.map((capability) => capability.toLowerCase()));
+  // Core resolves `protocol` itself (explicit value, else the harness catalog's (harness, channel)
+  // pair), so it is the only field that states which channel a row is on. Reading `capabilities`
+  // first was what made an ACP provider render as a plain CLI row: nothing writes an 'acp'
+  // capability any more, and connection_kind 'cli' matched every harness alike.
+  const channel = channelForProtocol(provider.protocol) ?? asChannel(provider.channel)
+  if (channel) return channel
+
+  const capabilities = new Set(provider.capabilities.map((capability) => capability.toLowerCase()))
   if (capabilities.has('acp')) return 'acp';
   if (provider.connection_kind.toLowerCase() === 'cli' || capabilities.has('cli')) return 'cli';
   return 'model';
 }
 
-function normalizeTransportKind(connectionKind: string): string {
+function normalizeTransportKind(connectionKind: string, protocol?: string | null): string {
+  const channel = channelForProtocol(protocol)
+  if (channel) return channel
   switch (connectionKind.trim().toLowerCase()) {
     case 'http':
     case 'api-key':
@@ -348,7 +478,8 @@ function normalizeTemplateTransportKind(template: ModelProviderTemplateDto): str
   if (providerFamily === 'local-http' || driver === 'local-http' || driver.startsWith('local-http-')) {
     return 'local_http';
   }
-  return normalizeTransportKind(template.connection_kind);
+  return normalizeTransportKind(template.connection_kind, template.protocol)
+    ;
 }
 
 function normalizeCredentialKind(credentialKind: string): string {
@@ -442,6 +573,7 @@ export function aggregateModelCenterOverview(input: ModelCenterAggregateInput): 
 
   const apiConnections: ModelCenterApiConnectionDto[] = [];
   const cliRuntimes: ModelCenterCliRuntimeDto[] = [];
+  const tuiRuntimes: ModelCenterTuiRuntimeDto[] = [];
   const legacyAcpRuntimes: ModelCenterAcpRuntimeDto[] = [];
 
   for (const provider of providers) {
@@ -450,19 +582,47 @@ export function aggregateModelCenterOverview(input: ModelCenterAggregateInput): 
     const kind = classifyProvider(provider);
 
     if (kind === 'acp') {
-      const runtimeId = `legacy_provider:${provider.id}`;
       legacyAcpRuntimes.push({
-        id: runtimeId,
-        runtime_id: runtimeId,
-        source: 'legacy_provider',
+        id: provider.id,
+        runtime_id: provider.id,
+        source: 'provider_instance',
         adapter_id: null,
         provider_instance_id: provider.id,
         extension_id: null,
         driver: provider.driver,
         display_name: provider.display_name,
         command: null,
+        protocol: provider.protocol ?? null,
         binary_path: provider.binary_path ?? null,
         home_path: provider.home_path ?? null,
+        capabilities: provider.capabilities,
+        enabled: provider.enabled,
+        status: provider.status,
+        status_message: provider.status_message,
+        route_purposes: routePurposes,
+        revision: provider.revision ?? null,
+        updated_at: provider.updated_at,
+        readiness: null
+      });
+      continue;
+    }
+
+    if (kind === 'tui') {
+      // An inventory row, not a control: nothing in this build can host a PTY, so the section says
+      // what is configured and nothing more. Rendering a Start button here would promise a host that
+      // does not exist.
+      tuiRuntimes.push({
+        id: provider.id,
+        runtime_id: provider.id,
+        provider_instance_id: provider.id,
+        source: 'provider_instance',
+        channel: 'tui',
+        driver: provider.driver,
+        display_name: provider.display_name,
+        protocol: provider.protocol ?? null,
+        binary_path: provider.binary_path ?? null,
+        home_path: provider.home_path ?? null,
+        launch_args: provider.launch_args ?? null,
         capabilities: provider.capabilities,
         enabled: provider.enabled,
         status: provider.status,
@@ -481,8 +641,10 @@ export function aggregateModelCenterOverview(input: ModelCenterAggregateInput): 
         runtime_id: provider.id,
         provider_instance_id: provider.id,
         source: 'provider_instance',
+        channel: 'cli',
         driver: provider.driver,
         display_name: provider.display_name,
+        protocol: provider.protocol ?? null,
         binary_path: provider.binary_path ?? null,
         home_path: provider.home_path ?? null,
         server_url: provider.server_url ?? null,
@@ -567,6 +729,7 @@ export function aggregateModelCenterOverview(input: ModelCenterAggregateInput): 
     api_connections: apiConnections,
     models: buildConfiguredModels(providers, routes),
     cli_runtimes: cliRuntimes,
+    tui_runtimes: tuiRuntimes,
     acp_runtimes: [...adapterRuntimes, ...legacyAcpRuntimes],
     readiness: {
       model: input.model_readiness ?? null,

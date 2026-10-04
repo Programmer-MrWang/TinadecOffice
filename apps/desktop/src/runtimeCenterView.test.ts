@@ -6,9 +6,14 @@ import type {
   ModelProviderInstanceDto
 } from './api'
 import {
+  aggregateModelCenterOverview,
+  asChannel,
   bindingFromModelStrategy,
+  channelForProtocol,
+  discoveryAffordanceLabelKey,
   legacyRouteWarning,
   modelOptionKey,
+  protocolLabelKey,
   providerTemplateFromSupplier,
   providersFromOverview,
   runtimeSourceSummary
@@ -96,6 +101,7 @@ function overview(): ModelCenterOverviewDto {
       status_message: '',
       route_purposes: []
     }],
+    tui_runtimes: [],
     acp_runtimes: [{
       id: 'provider-acp',
       runtime_id: 'provider-acp',
@@ -114,22 +120,141 @@ function overview(): ModelCenterOverviewDto {
   }
 }
 
+function harness(id: string, driver: string, protocol: string, channel: string): ModelProviderInstanceDto {
+  return {
+    id,
+    driver,
+    protocol,
+    channel,
+    display_name: driver,
+    connection_kind: 'cli',
+    binary_path: `/usr/local/bin/${driver}`,
+    has_api_key: false,
+    capabilities: [],
+    enabled: true,
+    status: 'configured',
+    status_message: '',
+    revision: 11,
+    created_at: '2026-10-04T00:00:00Z',
+    updated_at: '2026-10-04T00:00:00Z'
+  }
+}
+
 describe('runtime center view', () => {
-  it('collects API and CLI provider instances without ACP legacy runtimes or duplicates', () => {
-    const providers = providersFromOverview(overview())
-    expect(providers.map((item) => item.id)).toEqual(['provider-http', 'provider-cli'])
+  it('collects every provider-backed runtime, but never an adapter row', () => {
+    // An ACP harness is a provider instance like any other: leaving it out of the provider list is
+    // what made the channel unselectable in a route. An adapter row has no provider instance behind
+    // it, so projecting it would invent an id and a revision that no Core row has.
+    const source = overview()
+    source.acp_runtimes.push({
+      id: 'adapter:one',
+      runtime_id: 'adapter:one',
+      source: 'adapter',
+      adapter_id: 'one',
+      provider_instance_id: null,
+      display_name: 'Adapter',
+      status: 'unknown',
+      status_message: '',
+      capabilities: [],
+      enabled: true,
+      route_purposes: []
+    })
+
+    expect(providersFromOverview(source).map((item) => item.id))
+      .toEqual(['provider-http', 'provider-cli', 'provider-acp'])
   })
 
-  it('carries the provider revision through so writes can send If-Match', () => {
-    // Regression: dropping revision made every provider write fail with
-    // Core 428 precondition_required ("If-Match header ... is required").
+  it('carries the revision of every runtime section so writes can send If-Match', () => {
     const source = overview()
+    source.tui_runtimes = [{
+      id: 'provider-tui',
+      runtime_id: 'provider-tui',
+      provider_instance_id: 'provider-tui',
+      source: 'provider_instance',
+      channel: 'tui',
+      driver: 'claude-code',
+      display_name: 'Claude Code',
+      protocol: 'tui',
+      capabilities: [],
+      enabled: true,
+      status: 'configured',
+      status_message: '',
+      route_purposes: [],
+      revision: 5
+    }]
     source.api_connections[0]!.revision = 7
     source.cli_runtimes[0]!.revision = 3
+    source.acp_runtimes[0]!.revision = 9
 
     const providers = providersFromOverview(source)
     expect(providers.find((item) => item.id === 'provider-http')?.revision).toBe(7)
     expect(providers.find((item) => item.id === 'provider-cli')?.revision).toBe(3)
+    expect(providers.find((item) => item.id === 'provider-acp')?.revision).toBe(9)
+    expect(providers.find((item) => item.id === 'provider-tui')?.revision).toBe(5)
+  })
+
+  it('groups harness rows by the channel their protocol names', () => {
+    const aggregate = aggregateModelCenterOverview({
+      providers: [
+        harness('p-acp', 'codebuddy', 'acp', 'acp'),
+        harness('p-tui', 'claude-code', 'tui', 'tui'),
+        harness('p-cli', 'codex', 'headless-cli', 'cli'),
+        harness('p-serve', 'opencode', 'opencode-serve', '')
+      ],
+      templates: [],
+      routes: []
+    })
+
+    expect(aggregate.acp_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-acp'])
+    expect(aggregate.tui_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-tui'])
+    // `opencode serve` is reached over its own local HTTP server, so it is not a channel row: it
+    // groups with the CLI section by connection_kind, and the row keeps saying which protocol.
+    expect(aggregate.cli_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-cli', 'p-serve'])
+    expect(aggregate.cli_runtimes.find((row) => row.provider_instance_id === 'p-serve')?.protocol)
+      .toBe('opencode-serve')
+    expect(aggregate.api_connections).toEqual([])
+  })
+
+  it('round-trips a harness row through the sections without losing its channel', () => {
+    // Aggregate → providers → aggregate must land in the same bucket, or editing a provider would
+    // silently move it between sections. The projection has to carry protocol and channel back out.
+    const first = aggregateModelCenterOverview({ providers: [harness('p-acp', 'cursor', 'acp', 'acp')], templates: [], routes: [] })
+    const providers = providersFromOverview(first)
+    const second = aggregateModelCenterOverview({ providers, templates: [], routes: [] })
+
+    expect(second.acp_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-acp'])
+    expect(second.tui_runtimes).toEqual([])
+    expect(second.cli_runtimes).toEqual([])
+  })
+
+  it('reads the channel from protocol first and only then from a stored channel', () => {
+    expect(channelForProtocol('acp')).toBe('acp')
+    expect(channelForProtocol('TUI')).toBe('tui')
+    expect(channelForProtocol('headless-cli')).toBe('cli')
+    expect(channelForProtocol('opencode-serve')).toBeNull()
+    expect(channelForProtocol('openai-chat')).toBeNull()
+    expect(asChannel('acp')).toBe('acp')
+    expect(asChannel('anything-else')).toBeNull()
+
+    // A row whose protocol is absent still lands in the right section by its stored channel.
+    const legacy = { ...harness('p-legacy', 'dsh', '', 'acp') }
+    const aggregate = aggregateModelCenterOverview({ providers: [legacy], templates: [], routes: [] })
+    expect(aggregate.acp_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-legacy'])
+  })
+
+  it('names a channel-less discovery affordance by protocol instead of calling it a CLI', () => {
+    // Core reports opencode's `serve` as a fact with no channel. Labelling it 'one-shot CLI' would
+    // offer the user two words for one shape and hide that this one is reached over HTTP.
+    expect(discoveryAffordanceLabelKey({ channel: 'acp', protocol: 'acp' })).toBe('settings.channelAcp')
+    expect(discoveryAffordanceLabelKey({ channel: 'tui', protocol: 'tui' })).toBe('settings.channelTui')
+    expect(discoveryAffordanceLabelKey({ channel: 'cli', protocol: 'headless-cli' })).toBe('settings.channelCli')
+    expect(discoveryAffordanceLabelKey({ channel: null, protocol: 'opencode-serve' })).toBe('settings.protocolOpencodeServe')
+    expect(discoveryAffordanceLabelKey({ channel: 'bogus', protocol: 'acp' })).toBe('settings.protocolAcp')
+
+    // An unrecorded protocol must not fall back to a channel word; the locale key exists so the row
+    // says "no protocol recorded" rather than claiming a shape Core never resolved.
+    expect(protocolLabelKey('no-such-protocol')).toBe('settings.protocolUnknown')
+    expect(protocolLabelKey('anthropic-messages')).toBe('settings.protocolAnthropicMessages')
   })
 
   it('derives form fields from the Core supplier contract for unknown drivers', () => {
@@ -189,8 +314,13 @@ describe('runtime center view', () => {
     }
 
     const template = providerTemplateFromSupplier(supplier)
-    expect(template.fields).toMatchObject({ binary_path: true, home_path: true, launch_args: true })
+    expect(template.fields).toMatchObject({ binary_path: true, home_path: true, launch_args: false })
     expect(template.capabilities).toContain('workspace')
+
+    // The same driver with a default endpoint is the serve runtime, and that is the one local shape
+    // whose stored arguments Core actually uses.
+    const served = providerTemplateFromSupplier({ ...supplier, default_base_url: 'http://127.0.0.1:4096' })
+    expect(served.fields).toMatchObject({ server_url: true, launch_args: true })
   })
 
   it.each([

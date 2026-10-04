@@ -3531,6 +3531,21 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
 .center-resource-paths { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .center-resource-paths code { overflow: hidden; color: var(--text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .center-empty-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 100px; color: var(--text-muted); font-size: 12px; }
+/* Standing notice for a channel whose safety properties are invisible from the row itself. Not
+   dismissible and not a badge: it describes what a connected harness can do, so it stays next to the
+   list it qualifies. Semantic accent only — no raw hex, and color never carries the meaning alone. */
+.acp-permission-notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--accent-warning) 60%, transparent);
+  background: var(--surface-section);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .acp-permission-notice { transition: border-color 0.15s ease; }
+}
 .center-empty-state-prominent {
   flex-direction: column;
   gap: 6px;

@@ -69,6 +69,7 @@ import {
   type PermissionRequestDto,
   type CenterDiagnosticDto,
   type CliDiscoveryCandidateDto,
+  type HarnessChannelDto,
   type AcpAdapterDto,
   type ModelCatalogReadinessReceiptDto,
   type ModelCenterAcpRuntimeDto,
@@ -105,8 +106,10 @@ import {
 import {
   aggregateModelCenterOverview,
   bindingFromModelStrategy,
+  discoveryAffordanceLabelKey,
   legacyRouteWarning,
   modelOptionKey,
+  protocolLabelKey,
   providersFromOverview,
   runtimeSourceSummary,
   type ModelCenterSection
@@ -359,12 +362,16 @@ const navItems = computed(() => [
 ])
 
 // Gateway/dispatch config moved to settings/sections/GeneralSection.vue (D7.2)
+// One section per channel Core can drive a harness over, plus the HTTP serve shape which lives in
+// the CLI section because that is how it is reached. Labels are locale keys: 'CLI'/'ACP' as literals
+// shipped untranslated, and a channel name is exactly the thing a reader must understand.
 const modelCenterSections = computed(() => [
   { key: 'api' as const, label: t('settings.centerSuppliers'), count: modelCenterOverview.value?.api_connections.length ?? 0 },
   { key: 'models' as const, label: t('settings.centerModels'), count: modelCenterOverview.value?.models.length ?? 0 },
   { key: 'routes' as const, label: t('settings.centerRoutes'), count: routes.value.length },
-  { key: 'cli' as const, label: 'CLI', count: modelCenterOverview.value?.cli_runtimes.length ?? 0 },
-  { key: 'acp' as const, label: 'ACP', count: modelCenterOverview.value?.acp_runtimes.length ?? 0 }
+  { key: 'cli' as const, label: t('settings.centerCli'), count: modelCenterOverview.value?.cli_runtimes.length ?? 0 },
+  { key: 'tui' as const, label: t('settings.centerTui'), count: modelCenterOverview.value?.tui_runtimes.length ?? 0 },
+  { key: 'acp' as const, label: t('settings.centerAcp'), count: modelCenterOverview.value?.acp_runtimes.length ?? 0 }
 ])
 const currentTemplate = computed(() => findTemplate(providerForm.driver))
 
@@ -412,11 +419,7 @@ const formPlaceholders = computed(() => currentTemplate.value?.placeholders ?? {
 const formProtocolOptions = computed<ChatProtocol[]>(() =>
   currentTemplate.value ? templateProtocols(currentTemplate.value) : []
 )
-const protocolLabelKeys: Record<ChatProtocol, string> = {
-  'openai-chat': 'settings.protocolOpenaiChat',
-  'openai-responses': 'settings.protocolOpenaiResponses',
-  'anthropic-messages': 'settings.protocolAnthropicMessages'
-}
+const protocolOptionLabel = (protocol: ChatProtocol) => t(protocolLabelKey(protocol))
 
 const modelCenterRows = computed(() => buildModelCenterRows(
   providersFromOverview(modelCenterOverview.value).filter((provider) => provider.connection_kind !== 'cli'),
@@ -632,7 +635,9 @@ function configuredModelSourceLabel(source: string) {
 }
 
 function acpRuntimeSourceLabel(source: string) {
-  return source === 'legacy_provider' ? t('settings.legacyProvider') : t('settings.acpAdapter')
+  if (source === 'provider_instance') return t('settings.harnessProviderInstance')
+  if (source === 'legacy_provider') return t('settings.legacyProvider')
+  return t('settings.acpAdapter')
 }
 
 function modelCatalogModeLabel(mode?: string) {
@@ -1080,25 +1085,46 @@ async function discoverCliRuntimes() {
   }
 }
 
-async function connectDiscoveredCli(candidate: CliDiscoveryCandidateDto) {
-  if (!candidate.binary_path) return
+/**
+ * Connects one channel of a discovered harness. The channel is not a cosmetic choice: it decides the
+ * protocol Core stores and the argv it starts the process with, so the same binary connected over
+ * `acp` and over `tui` are two different providers, not two labels for one thing.
+ */
+async function connectDiscoveredCli(candidate: CliDiscoveryCandidateDto, channel?: HarnessChannelDto) {
+  if (!candidate.binary_path || !channel) return
   cliDiscoveryLoading.value = true
   try {
     const created = await api.connectCliRuntime({
       driver: candidate.driver,
       binary_path: candidate.binary_path,
+      channel: channel.channel ?? null,
+      protocol: channel.protocol,
       display_name: candidate.display_name || undefined,
-      home_path: candidate.home_path ?? null,
-      server_url: candidate.server_url ?? null,
-      launch_args: candidate.launch_args ?? null,
+      home_path: candidate.home_path ?? null
+      // No server_url and no launch_args: discovery reports those as "what this harness would be
+      // started with", and a quick connect that writes them would store an endpoint Core never
+      // measured. The process host picks the port it can actually bind and echoes the real argv back.
     })
     await loadModelCenter()
     notify.success(created.display_name)
   } catch (error) {
-    notify.error(error, { title: candidate.display_name })
+    notify.error(error, { title: `${candidate.display_name} · ${channel.channel}` })
   } finally {
     cliDiscoveryLoading.value = false
   }
+}
+
+/** Channels Core can start this binary on, split by whether this build can actually drive them. */
+function drivableChannels(candidate: CliDiscoveryCandidateDto): HarnessChannelDto[] {
+  return (candidate.channels ?? []).filter((channel) => channel.drivable)
+}
+
+function blockedChannels(candidate: CliDiscoveryCandidateDto): HarnessChannelDto[] {
+  return (candidate.channels ?? []).filter((channel) => !channel.drivable)
+}
+
+function channelLabel(fact: HarnessChannelDto): string {
+  return t(discoveryAffordanceLabelKey(fact))
 }
 
 async function loadAgentCenter() {
@@ -2337,7 +2363,7 @@ import '../settings/settings.css'
           <section v-if="modelCenterSection === 'cli'" class="center-resource-section">
             <div class="center-resource-heading">
               <div>
-                <h3>CLI</h3>
+                <h3>{{ t('settings.centerCli') }}</h3>
                 <p>{{ t('settings.cliRuntimeHint') }}</p>
               </div>
               <UiButton
@@ -2384,15 +2410,41 @@ import '../settings/settings.css'
                     <UiBadge v-if="candidate.status === 'configured'" variant="secondary">
                       {{ t('settings.alreadyConnected') }}
                     </UiBadge>
-                    <UiButton
-                      v-else-if="candidate.status === 'found'"
-                      variant="default"
-                      size="sm"
-                      @click="connectDiscoveredCli(candidate)"
-                    >
-                      <Plus :size="13" />
-                      {{ t('settings.quickConnect') }}
-                    </UiButton>
+                    <template v-else-if="candidate.status === 'found'">
+                      <!-- One button per channel this build can drive, and a named reason for the ones
+                           it cannot. A single "Quick connect" would pick a channel silently, which is
+                           the confusion the channel axis exists to end. -->
+                      <UiButton
+                        v-for="channel in drivableChannels(candidate)"
+                        :key="channel.channel ?? channel.protocol"
+                        variant="default"
+                        size="sm"
+                        :disabled="cliDiscoveryLoading"
+                        @click="connectDiscoveredCli(candidate, channel)"
+                      >
+                        <Plus :size="13" />
+                        {{ t('settings.quickConnectChannel', { channel: channelLabel(channel) }) }}
+                      </UiButton>
+                      <UiBadge
+                        v-for="channel in blockedChannels(candidate)"
+                        :key="`blocked-${channel.channel ?? channel.protocol}`"
+                        variant="outline"
+                        class="muted-badge"
+                        :title="channel.reason ?? t('settings.channelNotDrivableDefault')"
+                      >
+                        {{ t('settings.channelNotDrivable', { channel: channelLabel(channel) }) }}
+                      </UiBadge>
+                      <UiButton
+                        v-if="drivableChannels(candidate).length === 0 && blockedChannels(candidate).length === 0"
+                        variant="default"
+                        size="sm"
+                        :disabled="cliDiscoveryLoading"
+                        @click="connectDiscoveredCli(candidate)"
+                      >
+                        <Plus :size="13" />
+                        {{ t('settings.quickConnect') }}
+                      </UiButton>
+                    </template>
                     <UiBadge v-else variant="outline" class="muted-badge">
                       {{ t('settings.notDetected') }}
                     </UiBadge>
@@ -2448,7 +2500,7 @@ import '../settings/settings.css'
           <section v-if="modelCenterSection === 'acp'" class="center-resource-section">
             <div class="center-resource-heading">
               <div>
-                <h3>ACP</h3>
+                <h3>{{ t('settings.centerAcp') }}</h3>
                 <p>{{ t('settings.acpRuntimeHint') }}</p>
               </div>
               <UiButton variant="outline" size="sm" @click="router.push('/market')">
@@ -2456,6 +2508,13 @@ import '../settings/settings.css'
                 {{ t('settings.manageInMarketplace') }}
               </UiButton>
             </div>
+            <!-- Permanent, not dismissible: declaring fs/terminal capabilities as false does not stop
+                 the harness writing inside its own working directory, and Round 1 refuses every
+                 permission request on the agent's behalf. Both are facts about what a connected
+                 harness can do, and neither is discoverable from the row itself. -->
+            <p class="acp-permission-notice" role="note">
+              {{ t('settings.acpPermissionWarning') }}
+            </p>
             <div class="center-resource-list">
               <article v-for="runtime in modelCenterOverview?.acp_runtimes ?? []" :key="runtime.runtime_id" class="center-resource-list-row">
                 <div class="center-resource-primary">
@@ -2465,25 +2524,104 @@ import '../settings/settings.css'
                     <span>{{ acpRuntimeSourceLabel(runtime.source) }} · {{ runtime.runtime_id }}</span>
                   </div>
                 </div>
+                <div class="center-resource-paths">
+                  <code>{{ runtime.binary_path || t('settings.pathNotConfigured') }}</code>
+                </div>
                 <div class="center-resource-meta">
                   <span v-for="capability in runtime.capabilities.slice(0, 4)" :key="capability">{{ capability }}</span>
                 </div>
                 <UiBadge :variant="statusVariant(runtime.status)">{{ statusLabel(runtime.status) }}</UiBadge>
-                <UiButton
-                  v-if="runtime.adapter_id"
-                  variant="outline"
-                  size="sm"
-                  :disabled="modelCenterBusy || !modelCenterOverview?.capabilities.acp_probe"
-                  @click="probeAcpRuntime(runtime)"
-                >
-                  <Server :size="14" />
-                  {{ t('settings.probe') }}
-                </UiButton>
+                <div class="center-resource-actions">
+                  <UiButton
+                    v-if="providers.find(provider => provider.id === runtime.provider_instance_id)"
+                    variant="outline"
+                    size="sm"
+                    @click="openEditModal(providers.find(provider => provider.id === runtime.provider_instance_id)!)"
+                  >
+                    <Settings2 :size="14" />
+                    {{ t('settings.editConfig') }}
+                  </UiButton>
+                  <UiButton
+                    v-if="runtime.provider_instance_id"
+                    variant="ghost"
+                    size="icon"
+                    class="provider-delete-btn"
+                    :disabled="modelCenterBusy"
+                    :title="t('settings.delete')"
+                    @click="deleteProvider(runtime.provider_instance_id)"
+                  >
+                    <Trash2 :size="14" />
+                  </UiButton>
+                  <UiButton
+                    v-if="runtime.adapter_id"
+                    variant="outline"
+                    size="sm"
+                    :disabled="modelCenterBusy || !modelCenterOverview?.capabilities.acp_probe"
+                    @click="probeAcpRuntime(runtime)"
+                  >
+                    <Server :size="14" />
+                    {{ t('settings.probe') }}
+                  </UiButton>
+                </div>
               </article>
             </div>
             <div v-if="(modelCenterOverview?.acp_runtimes.length ?? 0) === 0" class="center-empty-state">
               <Workflow :size="20" />
               <span>{{ t('settings.noAcpRuntimes') }}</span>
+            </div>
+          </section>
+
+          <section v-if="modelCenterSection === 'tui'" class="center-resource-section">
+            <div class="center-resource-heading">
+              <div>
+                <h3>{{ t('settings.centerTui') }}</h3>
+                <p>{{ t('settings.tuiRuntimeHint') }}</p>
+              </div>
+            </div>
+            <!-- An inventory and nothing more. The host PTY backend is a later batch, so a Start
+                 button here would be a control that cannot work — the row states the gap instead. -->
+            <p class="acp-permission-notice" role="note">
+              {{ t('settings.tuiBackendUnavailable') }}
+            </p>
+            <div class="center-resource-list">
+              <article v-for="runtime in modelCenterOverview?.tui_runtimes ?? []" :key="runtime.runtime_id" class="center-resource-list-row">
+                <div class="center-resource-primary">
+                  <Terminal :size="17" />
+                  <div>
+                    <strong>{{ runtime.display_name }}</strong>
+                    <span>{{ runtime.driver }} · {{ runtime.protocol || t('settings.protocolUnknown') }}</span>
+                  </div>
+                </div>
+                <div class="center-resource-paths">
+                  <code>{{ runtime.binary_path || t('settings.pathNotConfigured') }}</code>
+                </div>
+                <UiBadge :variant="statusVariant(runtime.status)">{{ statusLabel(runtime.status) }}</UiBadge>
+                <div class="center-resource-actions">
+                  <UiButton
+                    v-if="providers.find(provider => provider.id === runtime.provider_instance_id)"
+                    variant="outline"
+                    size="sm"
+                    @click="openEditModal(providers.find(provider => provider.id === runtime.provider_instance_id)!)"
+                  >
+                    <Settings2 :size="14" />
+                    {{ t('settings.editConfig') }}
+                  </UiButton>
+                  <UiButton
+                    variant="ghost"
+                    size="icon"
+                    class="provider-delete-btn"
+                    :disabled="modelCenterBusy"
+                    :title="t('settings.delete')"
+                    @click="deleteProvider(runtime.provider_instance_id)"
+                  >
+                    <Trash2 :size="14" />
+                  </UiButton>
+                </div>
+              </article>
+            </div>
+            <div v-if="(modelCenterOverview?.tui_runtimes.length ?? 0) === 0" class="center-empty-state">
+              <Terminal :size="20" />
+              <span>{{ t('settings.noTuiRuntimes') }}</span>
             </div>
           </section>
 
@@ -3414,7 +3552,7 @@ import '../settings/settings.css'
                 <UiLabel>{{ t('settings.protocol') }}</UiLabel>
                 <select v-model="providerForm.protocol" class="settings-select">
                   <option v-for="option in formProtocolOptions" :key="option" :value="option">
-                    {{ t(protocolLabelKeys[option]) }}
+                    {{ protocolOptionLabel(option) }}
                   </option>
                 </select>
               </div>
