@@ -212,7 +212,10 @@ public static class ChatProtocols
     public static string? HarnessClientGap(string? protocol) => Normalize(protocol) switch
     {
         HeadlessCli => $"the '{HeadlessCli}' chat client is a later batch",
-        Tui => $"the host PTY backend for '{Tui}' is a later batch",
+        // Not "there is no terminal host": <c>IHarnessTerminalHost</c> is registered by the Models
+        // module. What is missing is the client that turns a terminal into an answer — keystrokes in,
+        // screen out, and a rule for what counts as done — so the sentence names that instead.
+        Tui => $"no chat client drives a '{Tui}' terminal yet",
         _ => null
     };
 

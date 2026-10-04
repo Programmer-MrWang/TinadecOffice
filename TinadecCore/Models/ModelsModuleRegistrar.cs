@@ -6,6 +6,7 @@ using OpenAI;
 using System.ClientModel;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
+using TinadecCore.Models.Harness;
 using TinadecCore.Persistence;
 
 namespace TinadecCore.Models;
@@ -25,12 +26,16 @@ public sealed class ModelsModuleRegistrar : IModuleRegistrar
         builder.Services.AddSingleton<IModelProvider>(sp => sp.GetRequiredService<ModelProvider>());
         builder.Services.AddSingleton<IChatResolver>(sp => sp.GetRequiredService<ModelProvider>());
         builder.Services.AddSingleton<IEmbeddingProvider, EmbeddingProvider>();
+        // The terminal host lives here rather than in DmaEA: choosing and reaching a model backend is
+        // this module's job, and DmaEA may only consume a port. It also cannot be shared with the copy
+        // inside TinadecTools, which is a separate executable with no project reference.
+        builder.Services.AddSingleton<IHarnessTerminalHost, ConPtyTerminalHost>();
         builder.RegisterModule(new ModuleDescriptor
         {
             ModuleId = ModuleId,
             Version = "0.1.0",
             Dependencies = ["abstractions", "persistence"],
-            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation"],
+            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation", "terminal_hosting"],
             Language = "C#",
             MafPrimitives = ["agent", "chat_client"],
             RegistrationStatus = ModuleRegistrationStatus.NotConfigured

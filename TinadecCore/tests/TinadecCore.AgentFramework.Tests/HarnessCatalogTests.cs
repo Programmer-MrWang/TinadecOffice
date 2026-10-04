@@ -296,6 +296,7 @@ public sealed class HarnessCatalogTests
         var found = Directory
             .EnumerateFiles(baseDirectory, "*", SearchOption.AllDirectories)
             .Where(path => !IsGeneratedOrProse(path))
+            .Where(HasScannedExtension)
             .Where(path => patterns.Any(pattern => File.ReadAllText(path).Contains(pattern, StringComparison.Ordinal)))
             .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
             .OrderBy(path => path, StringComparer.Ordinal)
@@ -314,10 +315,25 @@ public sealed class HarnessCatalogTests
         if (string.Equals(name, "AGENTS.md", StringComparison.OrdinalIgnoreCase)) return true;
         foreach (var segment in path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
         {
-            if (segment is "bin" or "obj" or "node_modules" or ".git" or ".runtime-cache" or "TestResults") return true;
+            // "data" is the live state root: SQLite headers, WAL files, event JSONL and secret
+            // references. None of it is source, and a running instance holds an exclusive lock on it, so
+            // scanning it made this guard fail with an IOException whenever a developer had the app open.
+            if (segment is "bin" or "obj" or "node_modules" or ".git" or ".runtime-cache" or "TestResults" or "data") return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The guard's promise is about production source, so only source is read. Without this the scan
+    /// slurped every byte of every asset in the tree — a <c>.png</c> in <c>docs/</c>, a <c>.lockb</c> in
+    /// the Gateway — and one locked or enormous file turned a naming check into an I/O failure.
+    /// </summary>
+    private static bool HasScannedExtension(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return extension is ".cs" or ".fs" or ".fsproj" or ".csproj" or ".ts" or ".tsx" or ".js" or ".mjs" or ".cjs"
+            or ".json" or ".toml" or ".dot" or ".md" or ".ps1" or ".sh" or ".yml" or ".yaml" or ".slnx";
     }
 
     private static string FindRepositoryRoot()
