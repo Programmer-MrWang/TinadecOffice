@@ -106,6 +106,31 @@ describe('settings.css contract', () => {
     expect(css).toContain('.settings-field')
   })
 
+  it('contains the personal section styles, with the identity pencil hidden until reveal', () => {
+    expect(css).toContain('.personal-hero')
+    expect(css).toContain('.personal-identity')
+    expect(css).toContain('.personal-hero-bio')
+    expect(css).toContain('.personal-role-chip-icon')
+    expect(css).toContain('.personal-role-preview')
+    expect(css).toContain('.personal-role-custom')
+    expect(css).toContain('.personal-field-label')
+    expect(css).toContain('.personal-share-canvas')
+    expect(css).toContain('.personal-share-action')
+    // The share canvas keeps its intrinsic ratio; the painter only sizes the
+    // backing store, so CSS must not fix a height.
+    expectSelectorDeclarations(css, '.personal-share-canvas', /height\s*:\s*auto\s*;/)
+
+    // The identity row must read as a name, not as a button row: the chip keeps
+    // a transparent border by default and its pencil only shows on hover/focus.
+    expectSelectorDeclarations(css, '.personal-identity', /border\s*:\s*1px solid transparent/)
+    expectSelectorDeclarations(css, '.personal-identity-edit', /opacity\s*:\s*0\s*;/)
+    const revealed = [
+      ...declarationsForSelector(css, '.personal-identity:hover .personal-identity-edit'),
+      ...declarationsForSelector(css, '.personal-identity:focus-visible .personal-identity-edit'),
+    ]
+    expect(revealed.join('\n')).toMatch(/opacity\s*:\s*1\s*;/)
+  })
+
   it('contains the section-fade transition', () => {
     expect(css).toContain('.section-fade-enter-active')
     expect(css).toContain('.section-fade-leave-active')
@@ -115,7 +140,7 @@ describe('settings.css contract', () => {
   })
 
   it('clamps and centres the fixed-width section wrapper', () => {
-    // Six sections (general/tools/archive/appearance/language/about) render a
+    // Seven sections (personal/general/tools/archive/appearance/language/about) render a
     // fixed-measure column centred in the content panel; the width lives on the
     // wrapper so multi-root sections like ToolCenterSection are covered too.
     expectSelectorDeclarations(

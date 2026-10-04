@@ -35,6 +35,13 @@ const provider: ModelProviderInstanceDto = {
   updated_at: '2026-07-13T00:00:00Z'
 }
 
+it('carries inference parameters and the protocol through both model-center projections', () => {
+  const configured = { ...provider, protocol: 'openai-responses', revision: 4, model_parameters: { 'gpt-test': { reasoning_effort: 'high' as const } } }
+  const overview = aggregateModelCenterOverview({ providers: [configured], routes: [], templates: [] })
+  expect(overview.api_connections[0]).toMatchObject({ protocol: configured.protocol, model_parameters: configured.model_parameters })
+  expect(providersFromOverview(overview)[0]).toMatchObject({ protocol: configured.protocol, model_parameters: configured.model_parameters, revision: 4 })
+})
+
 const localHttpSupplier: ModelCenterSupplierDto = {
   supplier_id: 'local-http',
   provider_family: 'local-http',

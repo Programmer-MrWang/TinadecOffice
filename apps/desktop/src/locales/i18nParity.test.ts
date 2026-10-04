@@ -36,9 +36,13 @@ function resolveKey(bundle: Bundle, key: string): unknown {
 const panelSources = import.meta.glob(
   [
     './../settings/sections/AgentModesPanel.vue',
+    './../settings/sections/PersonalSection.vue',
+    './../settings/sections/PersonalShareCard.vue',
     './../settings/sections/PromptEngineeringMerged.vue',
     './../settings/sections/RuntimeInstancesPanel.vue',
     './../settings/sections/AgentPacksPanel.vue',
+    './../settings/sections/ModelParametersEditor.vue',
+    './../components/PermissionSelector.vue',
     './../components/agentCenter/GovernanceRolesPanel.vue',
     './../components/AgentEvolutionPanel.vue',
     './../components/AgentActivityPanel.vue',

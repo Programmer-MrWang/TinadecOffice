@@ -45,6 +45,11 @@ vi.mock('@/components/ui', () => ({
   UiButton: { inheritAttrs: false, template: '<button v-bind="$attrs"><slot /></button>' },
   UiCard: { template: '<div><slot /></div>' },
   UiInput: { inheritAttrs: false, template: '<input v-bind="$attrs" />' },
+  // SettingsPage lands on the personal section, whose hero renders a UiAvatar and
+  // whose profile dialog renders a UiTextarea; a partial mock that omits either
+  // makes the mount throw "No export is defined on the mock".
+  UiAvatar: { template: '<div><slot /></div>' },
+  UiTextarea: { inheritAttrs: false, template: '<textarea v-bind="$attrs" />' },
   UiBadge: { template: '<span><slot /></span>' },
   UiLabel: { template: '<label><slot /></label>' },
   UiSkeleton: { template: '<span />' },

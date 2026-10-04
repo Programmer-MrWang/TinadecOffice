@@ -92,12 +92,18 @@ describe('SettingsPage smoke (D7 safety net)', () => {
     wrapper.unmount()
   })
 
-  it('renders general section by default with gateway connection group', async () => {
+  it('opens on the personal section, with general still one click away in the nav', async () => {
     const wrapper = mount(SettingsPage)
     await flushPromises()
     await flushPromises()
 
-    expect(wrapper.find('.settings-page').text()).toContain('settings.general')
+    const text = wrapper.find('.settings-page').text()
+    expect(text).toContain('settings.personal')
+    expect(text).toContain('settings.general')
+    // Personal is the first nav entry and the active one on a fresh mount.
+    const navItems = wrapper.findAll('.settings-nav-item')
+    expect(navItems[0].text()).toContain('settings.personal')
+    expect(navItems[0].classes()).toContain('active')
     wrapper.unmount()
   })
 
@@ -105,6 +111,7 @@ describe('SettingsPage smoke (D7 safety net)', () => {
     // vue-tsc cannot catch unresolved components in templates — they silently
     // render nothing at runtime. Pin the import/usage pairing at source level.
     const sections = [
+      'PersonalSection',
       'GeneralSection',
       'LanguageSection',
       'ApiDocsSection',
@@ -212,7 +219,7 @@ describe('SettingsPage smoke (D7 safety net)', () => {
   })
 
   it('centers exactly the fixed-width sections and leaves workspaces fluid', () => {
-    // Policy: general / tools / archive / appearance / language / about are a
+    // Policy: personal / general / tools / archive / appearance / language / about are a
     // fixed 780px column centred in the content panel; model / agentCenter /
     // pets / apiDocs stay fluid because they are workspaces (tables, canvases,
     // an embedded docs frame) that should use the full available width.
@@ -223,7 +230,7 @@ describe('SettingsPage smoke (D7 safety net)', () => {
 
     const listed = Array.from(centered!.matchAll(/'([a-zA-Z]+)'/g), (m) => m[1])
     expect(new Set(listed)).toEqual(
-      new Set(['general', 'tools', 'archive', 'appearance', 'language', 'about']),
+      new Set(['personal', 'general', 'tools', 'archive', 'appearance', 'language', 'about']),
     )
 
     // The modifier must be bound to the keyed wrapper so it swaps per section.

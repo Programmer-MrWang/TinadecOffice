@@ -380,7 +380,7 @@ describe('HomeController.sendMessage attachment hand-off', () => {
  * takes it out of that queue first — sending it again without that would post the words twice.
  */
 describe('HomeController queued messages Core holds', () => {
-  async function queuedBehind(): Promise<void> {
+  async function queuedBehind(modeVersionId?: string, modelOverride?: { provider_instance_id: string; model: string }): Promise<void> {
     homeController.projects.value = []
     homeController.setSelectedProject(null)
     await flushPromises()
@@ -388,7 +388,7 @@ describe('HomeController queued messages Core holds', () => {
     homeController.updateDraft('完成后再跑一遍测试')
     await flushPromises()
     h.createInteraction.mockResolvedValueOnce({ interaction_id: 'directive-1', run_id: 'run-busy', status: 'queued', reason: 'busy' } as never)
-    await homeController.sendMessage({ dispatch_mode: 'queued' })
+    await homeController.sendMessage({ dispatch_mode: 'queued', mode_version_id: modeVersionId, meeting_model_override: modelOverride })
     await flushPromises()
   }
 
@@ -423,6 +423,34 @@ describe('HomeController queued messages Core holds', () => {
     expect(body.dispatch_mode).toBe('parallel')
     expect(body.client_message_id).toBe(card.id)
     expect(homeController.queuedMessages.value).toEqual([])
+  })
+
+  it('keeps the queued policy and model choice even after the composer changes', async () => {
+    homeController.updatePermission('full-access')
+    await queuedBehind('mode-team', { provider_instance_id: 'provider-one', model: 'm' })
+    const card = homeController.queuedMessages.value[0]!
+    homeController.updatePermission('default')
+    h.createInteraction.mockClear()
+    await homeController.promoteQueued(card.id)
+    expect(h.createInteraction.mock.calls[0]?.[1]).toMatchObject({
+      permission_mode: 'full-access', mode_version_id: 'mode-team', meeting_model_override: { provider_instance_id: 'provider-one', model: 'm' },
+    })
+  })
+
+  it('freezes the full-access choice before asynchronous session creation', async () => {
+    homeController.projects.value = []
+    homeController.setSelectedProject(null)
+    await flushPromises()
+    homeController.selectedSessionId.value = null
+    homeController.updatePermission('full-access')
+    homeController.updateDraft('运行命令')
+    let finishSession!: (session: never) => void
+    h.createSession.mockImplementationOnce(() => new Promise(resolve => { finishSession = resolve }))
+    const sending = homeController.sendMessage({ dispatch_mode: 'parallel' })
+    homeController.updatePermission('default')
+    finishSession({ id: 'created-policy-session', project_id: null, title: 'test' } as never)
+    await sending
+    expect(h.createInteraction.mock.calls.at(-1)?.[1]).toMatchObject({ permission_mode: 'full-access' })
   })
 
   it('asks Core to interrupt only when the user chose to interrupt (hard insert)', async () => {

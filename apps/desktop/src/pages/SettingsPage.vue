@@ -136,6 +136,9 @@ import AgentModesPanel from '@/settings/sections/AgentModesPanel.vue'
 import PromptEngineeringMerged from '@/settings/sections/PromptEngineeringMerged.vue'
 import RuntimeInstancesPanel from '@/settings/sections/RuntimeInstancesPanel.vue'
 import AgentPacksPanel from '@/settings/sections/AgentPacksPanel.vue'
+import ModelParametersEditor from '@/settings/sections/ModelParametersEditor.vue'
+import { consumeRequest, pendingModelProviderId, pendingSettingsSection } from '@/lib/pageRequests'
+import { routesAfterModelRemoval } from '@/lib/modelRouteEdits'
 import PanelStyleControl from '@/components/ui/panel-style-control.vue'
 import { usePanelStyles } from '@/composables/usePanelStyles'
 import { useNotifications } from '@/composables/useNotifications'
@@ -845,9 +848,9 @@ async function loadModelCenter() {
   try {
     // model-center/overview BFF was deleted; derive the same projection from versioned APIs.
     const [providerRows, providerTemplates, routeRows, acpAdapters, modelReadinessReceipt, catalogReadinessReceipt] = await Promise.all([
-      api.listModelProviders().catch(() => [] as ModelProviderInstanceDto[]),
+      api.listModelProviders(),
       api.listModelProviderTemplates().catch(() => [] as ModelProviderTemplateDto[]),
-      api.listModelRoutes().catch(() => [] as ModelRouteDto[]),
+      api.listModelRoutes(),
       api.listAcpAdapters().catch(() => [] as AcpAdapterDto[]),
       api.getModelReadiness().catch(() => null),
       api.getModelCatalogReadiness().catch(() => null)
@@ -882,6 +885,13 @@ async function loadModelCenter() {
 }
 
 const showModelModal = ref(false)
+const editingModelParameters = ref<{ providerId: string; model: string } | null>(null)
+
+async function modelParametersSaved() {
+  editingModelParameters.value = null
+  await loadModelCenter()
+  notify.success(t('settings.modelParametersSaved'))
+}
 const modelModalProviderId = ref('')
 const modelModalManual = ref('')
 const modelModalPending = ref<string[]>([])
@@ -959,8 +969,10 @@ async function saveModelModal() {
   const provider = modelApiProvider(modelModalProviderId.value)
   if (!provider) return
   const merged = [...new Set([...(provider.models ?? []), ...modelModalPending.value])]
-  await putProviderModels(provider, merged, merged[0] ?? null)
-  showModelModal.value = false
+  modelModalBusy.value = true
+  try {
+    if (await putProviderModels(provider, merged, provider.model ?? merged[0] ?? null)) showModelModal.value = false
+  } finally { modelModalBusy.value = false }
 }
 
 async function removeModel(providerId: string, modelId: string) {
@@ -976,19 +988,18 @@ async function removeModel(providerId: string, modelId: string) {
   modelCenterBusy.value = true
   try {
     // Clear every source that contributes the model so it stays gone after reload.
-    const routes = await api.listModelRoutes()
-    for (const route of routes) {
-      if (route.candidates?.some((candidate) => candidate.model === modelId)) {
-        const kept = route.candidates.filter((candidate) => candidate.model !== modelId)
-        await api.saveModelRoute(route.purpose, { candidates: kept.map((candidate, index) => ({ provider_instance_id: candidate.provider_instance_id, model: candidate.model ?? null })) })
-      }
+    const updates = routesAfterModelRemoval(await api.listModelRoutes(), providerId, modelId)
+    for (const route of updates) {
+      await api.saveModelRoute(route.purpose, { candidates: route.candidates }, undefined, { expected_revision: route.revision })
     }
     const merged = (provider.models ?? []).filter((id) => id !== modelId)
     const nextDefault = provider.model === modelId ? merged[0] ?? null : (provider.model ?? null)
     await putProviderModels(provider, merged, nextDefault)
     await loadAgentCenter()
   } catch (error) {
-    notify.error(error, { title: modelId })
+    notify.error(error instanceof Error && error.message === 'model_route_requires_replacement'
+      ? new Error(t('settings.modelRouteRequiresReplacement')) : error, { title: modelId })
+    await loadModelCenter()
   } finally {
     modelCenterBusy.value = false
   }
@@ -1018,6 +1029,7 @@ async function putProviderModels(
     })
     await loadModelCenter()
     notify.success(t('settings.refreshModels'))
+    return true
   } catch (error) {
     if (isWriteConflict(error)) {
       notify.warning({ message: t('settings.configStaleReloading') })
@@ -1025,6 +1037,7 @@ async function putProviderModels(
     } else {
       notify.error(error, { title: provider.display_name })
     }
+    return false
   } finally {
     modelCenterBusy.value = false
   }
@@ -1843,6 +1856,27 @@ function readinessStatusLabel(status: string) {
   return status
 }
 
+// The spotlight hands deep-links over through the request channel: a section
+// row lands straight, a provider row opens the model section and expands the
+// provider once the catalog has actually loaded (consumeRequest fires before
+// the first load finishes, so this one waits for the row to exist).
+consumeRequest(pendingSettingsSection, (section) => {
+  selectSettingsSection(section as SettingsSection)
+})
+consumeRequest(pendingModelProviderId, (providerId) => {
+  selectSettingsSection('model')
+  modelCenterSection.value = 'api'
+  const expand = () => { selectedProviderDetailId.value = providerId }
+  if (providers.value.some((provider) => provider.id === providerId)) expand()
+  else {
+    const stop = watch(providers, (list) => {
+      if (!list.some((provider) => provider.id === providerId)) return
+      stop()
+      expand()
+    })
+  }
+})
+
 loadModelCenter()
 loadAgentCenter()
 
@@ -2210,7 +2244,8 @@ import '../settings/settings.css'
                 </UiButton>
               </div>
               <div class="model-group-models">
-                <div v-for="model in modelsForProvider(provider.id)" :key="model.id" class="center-resource-list-row model-group-model">
+                <template v-for="model in modelsForProvider(provider.id)" :key="model.id">
+                <div class="center-resource-list-row model-group-model">
                   <div class="center-resource-primary">
                     <Cpu :size="15" />
                     <div>
@@ -2228,6 +2263,7 @@ import '../settings/settings.css'
                     </div>
                   </div>
                   <UiBadge :variant="statusVariant(model.status)">{{ statusLabel(model.status) }}</UiBadge>
+                  <div class="center-resource-actions">
                   <UiButton
                     variant="outline"
                     size="sm"
@@ -2236,6 +2272,11 @@ import '../settings/settings.css'
                     @click="setDefaultChatModel(provider.id, model.model_id)"
                   >
                     {{ t('settings.setDefaultModel') }}
+                  </UiButton>
+                  <UiButton variant="outline" size="sm" :disabled="modelCenterBusy" :aria-expanded="editingModelParameters?.providerId === provider.id && editingModelParameters?.model === model.model_id"
+                    @click="editingModelParameters = editingModelParameters?.providerId === provider.id && editingModelParameters?.model === model.model_id ? null : { providerId: provider.id, model: model.model_id }">
+                    <Settings2 data-icon="inline-start" />
+                    {{ t('settings.modelParameters') }}
                   </UiButton>
                   <UiButton
                     variant="ghost"
@@ -2255,7 +2296,12 @@ import '../settings/settings.css'
                   >
                     <Trash2 :size="14" />
                   </UiButton>
+                  </div>
                 </div>
+                <ModelParametersEditor v-if="editingModelParameters?.providerId === provider.id && editingModelParameters?.model === model.model_id && providers.find(item => item.id === provider.id)"
+                  :provider="providers.find(item => item.id === provider.id)!" :model="model.model_id"
+                  @saved="modelParametersSaved" @cancel="editingModelParameters = null" @reload="loadModelCenter" />
+                </template>
                 <div v-if="modelsForProvider(provider.id).length === 0" class="center-empty-state">
                   <Cpu :size="20" />
                   <span>{{ t('settings.noProviderModels') }}</span>
@@ -2402,10 +2448,11 @@ import '../settings/settings.css'
                     <UiBadge v-if="candidate.status === 'configured'" variant="secondary">
                       {{ t('settings.alreadyConnected') }}
                     </UiBadge>
-                    <template v-else-if="candidate.status === 'found'">
+                    <template v-if="candidate.status === 'found' || candidate.status === 'configured'">
                       <!-- One button per channel this build can drive, and a named reason for the ones
                            it cannot. A single "Quick connect" would pick a channel silently, which is
-                           the confusion the channel axis exists to end. -->
+                           the confusion the channel axis exists to end. A configured harness still shows
+                           the other channel buttons so ACP and CLI can coexist for one vendor binary. -->
                       <UiButton
                         v-for="channel in drivableChannels(candidate)"
                         :key="channel.channel ?? channel.protocol"

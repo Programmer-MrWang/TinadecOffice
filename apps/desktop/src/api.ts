@@ -333,6 +333,13 @@ export interface ProviderCapabilityDto {
   health_status: 'healthy' | 'unhealthy' | 'unknown' | 'disabled' | 'cooldown' | string;
 }
 
+export interface ModelParametersDto {
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high' | 'xhigh' | null;
+  temperature?: number | null;
+  top_p?: number | null;
+  max_output_tokens?: number | null;
+}
+
 export interface ModelProviderInstanceDto {
   id: string;
   driver: string;
@@ -348,6 +355,7 @@ export interface ModelProviderInstanceDto {
   base_url?: string | null;
   model?: string | null;
   models?: string[];
+  model_parameters?: Record<string, ModelParametersDto>;
   has_api_key: boolean;
   binary_path?: string | null;
   home_path?: string | null;
@@ -552,6 +560,7 @@ export interface SaveModelProviderInstanceInput {
   base_url?: string | null;
   model?: string | null;
   models?: string[];
+  model_parameters?: Record<string, ModelParametersDto> | null;
   api_key?: string | null;
   clear_api_key?: boolean;
   binary_path?: string | null;
@@ -911,6 +920,7 @@ export interface ModelCenterApiConnectionDto {
   provider_instance_id: string;
   provider_family?: string | null;
   driver: string;
+  protocol?: string | null;
   display_name: string;
   connection_kind: string;
   transport_kind: string;
@@ -918,6 +928,7 @@ export interface ModelCenterApiConnectionDto {
   base_url?: string | null;
   model?: string | null;
   models?: string[];
+  model_parameters?: Record<string, ModelParametersDto>;
   has_api_key: boolean;
   server_url?: string | null;
   capabilities: string[];
@@ -996,6 +1007,8 @@ export interface CliDiscoveryCandidateDto {
   server_url?: string | null;
   launch_args?: string | null;
   status: 'found' | 'missing' | 'configured';
+  /** Channels already persisted for this harness, so another channel can be added without hiding it. */
+  configured_channels?: string[];
   /**
    * Why a probe did not confirm this binary — it exited non-zero, or it never answered within the
    * harness's own ceiling. `missing` on its own reads as "not installed", which is a different claim.

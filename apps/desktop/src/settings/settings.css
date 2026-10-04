@@ -4592,8 +4592,20 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
 }
 
 .model-group-model {
+  display: flex;
+  flex-wrap: wrap;
   border-radius: 0;
   padding-left: 28px;
+}
+
+.model-group-model > .center-resource-primary {
+  flex: 1 1 180px;
+}
+
+.model-group-model > .center-resource-actions {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  margin-top: 0;
 }
 
 .model-group-model + .model-group-model {
@@ -5203,4 +5215,359 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
 
 .runtime-source-grid {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* Personal section: identity hero + usage card + dialogs. */
+.personal-hero {
+  margin-top: 24px;
+  padding: 24px 18px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  backdrop-filter: var(--material-filter-raised, none);
+  -webkit-backdrop-filter: var(--material-filter-raised, none);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.personal-hero-avatar {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.personal-hero-avatar-frame {
+  height: 64px;
+  width: 64px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.personal-hero-avatar-frame img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.personal-hero-avatar-edit {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  height: 20px;
+  width: 20px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-button);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-muted);
+}
+
+.personal-avatar-initial {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.personal-avatar-placeholder {
+  color: var(--text-muted);
+}
+
+.personal-hero-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.personal-hero-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.personal-hero-name-row h3 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Work identity: one grouped chip beside the nickname. The chrome stays quiet
+   by default so the row reads as a name, not as a button row; the pencil is
+   revealed only on hover or keyboard focus. */
+.personal-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.personal-identity:hover,
+.personal-identity:focus-visible {
+  background: var(--surface-hover);
+  border-color: var(--border-muted);
+  color: var(--text-primary);
+}
+
+.personal-identity-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.personal-identity-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-identity-edit {
+  flex: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.personal-identity:hover .personal-identity-edit,
+.personal-identity:focus-visible .personal-identity-edit {
+  opacity: 1;
+}
+
+/* Unset is a placeholder the user can act on, not a role: dashed, muted, always visible. */
+.personal-identity.is-empty {
+  border-style: dashed;
+  border-color: var(--border-muted);
+  color: var(--text-muted);
+}
+
+.personal-hero-bio {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.personal-hero-bio.is-empty {
+  color: var(--text-muted);
+}
+
+.personal-hero-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.personal-usage-card {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--surface-section);
+  backdrop-filter: var(--material-filter-section, none);
+  -webkit-backdrop-filter: var(--material-filter-section, none);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.personal-usage-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.personal-usage-item strong {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.personal-usage-item span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.personal-dialog {
+  width: 480px;
+}
+
+/* Field labels inside the personal dialogs. Deliberately a plain element rather
+   than the ui `UiLabel`: that primitive is a Vapor SFC, and a Vapor component
+   inside a classic <Transition> is the one interop path this Vue RC is known to
+   break on (see the HomePage / NotificationIslandHost notes) — the dialogs stay
+   classic-only so their open/close can be exercised in tests. */
+.personal-field-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.personal-dialog-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.personal-dialog-avatar-row .gateway-config-meta {
+  margin: 0;
+}
+
+.personal-role-field {
+  display: grid;
+  gap: 8px;
+}
+
+.personal-role-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.personal-role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-muted);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.personal-role-chip:hover {
+  background: var(--surface-hover);
+}
+
+.personal-role-chip.selected {
+  background: var(--surface-selected);
+  color: var(--text-primary);
+  border-color: var(--border-input-focus);
+}
+
+.personal-role-chip-icon,
+.personal-role-chip-check {
+  flex: none;
+}
+
+.personal-role-chip.selected .personal-role-chip-icon,
+.personal-role-chip.selected .personal-role-chip-check {
+  color: var(--text-primary);
+}
+
+/* The custom-role field only exists while `other` is picked; the field itself
+   reuses the dialog's shared field/meta classes. */
+.personal-role-custom {
+  margin-top: 16px;
+}
+
+/* Preview of the stored chip: the draft roles joined into one reading. */
+.personal-role-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-section);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.personal-role-preview-label {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.personal-role-preview-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-role-preview.is-empty .personal-role-preview-text {
+  color: var(--text-muted);
+}
+
+/* Share card: the generated picture on the overlay, actions underneath. */
+.personal-share-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 620px;
+  max-width: 100%;
+  padding: 16px;
+}
+
+.personal-share-close-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -6px;
+}
+
+.personal-share-canvas {
+  display: block;
+  width: 100%;
+  /* Intrinsic ratio of SHARE_CARD_WIDTH : SHARE_CARD_HEIGHT (620 : 420). */
+  height: auto;
+  border-radius: 18px;
+}
+
+.personal-share-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.personal-share-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  width: 40px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: var(--surface-button);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.personal-share-action:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.personal-share-action[aria-pressed='true'] {
+  background: var(--surface-selected);
+  border-color: var(--border-input-focus);
+  color: var(--text-primary);
+}
+
+.personal-share-fallback {
+  margin: 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.personal-avatar-input {
+  display: none;
 }

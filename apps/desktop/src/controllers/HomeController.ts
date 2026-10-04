@@ -71,7 +71,7 @@ const runs = ref<Array<{ id: string; status: string }>>([])
  * (queued delivery never runs beside an unfinished run); the card then leaves when Core admits,
  * rejects or dequeues it, and acting on it takes it out of Core's queue first.
  */
-const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string }>>([])
+const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string; permission_mode?: PermissionLevel; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; attachment_ids?: string[] }>>([])
 const runStreams = new Map<string, RunStreamHandle>()
 const runText = new Map<string, string>()
 const provisionalReplies = new Set<string>()
@@ -446,6 +446,8 @@ const streamingReply = computed(() =>
 
 
 async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; permission_mode?: PermissionLevel }) {
+  // Freeze the selected policy before session creation yields to UI changes.
+  const requestedPermission = opts?.permission_mode ?? currentPermission.value
   await run('send message', async () => {
     let sessionId = selectedSessionId.value
     if (!sessionId) {
@@ -467,7 +469,6 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     const modeVersionId = opts?.mode_version_id ?? null
     const targetRunId = opts?.target_run_id ?? null
     const meetingModelOverride = opts?.meeting_model_override ?? null
-    const requestedPermission = opts?.permission_mode ?? currentPermission.value
     if (dispatchMode === 'insert' && !targetRunId) throw new Error('插入模式需选择目标 run')
     // Taken before the request, not after it: a send that fails must leave the chips
     // alone so the same selection can be retried. Core binds these rows to the message
@@ -498,7 +499,9 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
         runs.value = [{ id: resp.run_id, status: resp.status || 'planning' }, ...runs.value.filter((run) => run.id !== resp.run_id)]
       }
       if (waitingBehind || (!resp.run_id && resp.status === 'queued')) {
-        queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent, interactionId: waitingBehind ? resp.interaction_id : undefined }]
+        queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent, interactionId: waitingBehind ? resp.interaction_id : undefined,
+          permission_mode: requestedPermission, mode_version_id: modeVersionId, meeting_model_override: meetingModelOverride,
+          ...(outgoing.attachmentIds.length > 0 ? { attachment_ids: outgoing.attachmentIds } : {}) }]
       }
       // optionally still stream via invoke for backwards compat if needed; interaction SSE will arrive via events
     } catch (err) {
@@ -637,9 +640,12 @@ async function promoteQueued(id: string) {
       // A message Core already holds keeps its id, so running it now reuses the words the user
       // already sent instead of posting them a second time.
       client_message_id: item.interactionId ? item.id : newId(),
-      mode_version_id: null,
+      mode_version_id: item.mode_version_id ?? null,
       dispatch_mode: 'parallel',
       target_run_id: null,
+      permission_mode: item.permission_mode ?? currentPermission.value,
+      meeting_model_override: item.meeting_model_override ?? null,
+      ...(item.attachment_ids?.length ? { attachment_ids: item.attachment_ids } : {}),
     })
     sent = true
   })
