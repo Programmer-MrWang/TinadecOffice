@@ -334,6 +334,13 @@ internal sealed class AcpSession : IAcpAgentSession
             {
                 var connection = CurrentConnection();
                 var result = await connection.RequestAsync("session/prompt", @params, _options.PromptHardCeiling, cancellationToken).ConfigureAwait(false);
+                // The prompt response is the harness's completion receipt. Notifications can be
+                // queued behind it on the transport, so the idle watchdog must not expire while the
+                // drain window is giving those already-produced tool updates a chance to arrive.
+                // Without this touch, an unchanged/oversized diff (which intentionally has no visible
+                // file-change body) can lose a scheduling race under a loaded test host and fault as
+                // "no progress" even though the turn has completed.
+                TouchProgress();
                 stopReason = JsonSerializer.Deserialize<AcpPromptResult>(result, AcpWire.Options)?.StopReason;
             }
             catch (Exception ex)
