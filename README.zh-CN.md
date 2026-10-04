@@ -50,95 +50,68 @@ TinadecOffice 是面向**多智能体协作**的产品族：桌面客户端、�
 
 **v0.2.0 已发布** —— Windows / Linux / macOS 三平台安装器。所有 HTTP / OpenAPI / SSE / WebSocket 公共契约**永久固定**在 `/api/v1`：没有 v2，没有 legacy 别名，永远不会有。
 
-```mermaid
-mindmap
-  root((TinadecOffice))
-    双层智能体 · DmaEA
-      治理层 operation
-        协调 · 规划 · 监督
-        零工具权限
-      执行层 execution
-        按任务动态生成 worker
-        交付证据而不是感觉
-    受治理的工具
-      写操作必须过审批
-      每个 run 冻结工具清单
-      MCP 透传
-    人在回路
-      批准 / 拒绝 / 委托门
-      暂停 · 恢复 · 取消 run
-      重启可恢复的检查点
-    桌面工作台
-      Electron + Vue 3.6
-      可分离面板窗口
-      智能体终端与对话
-    模型与智能体中心
-      路由 · provider · 版本
-      不可变的模式发布
-```
+**它能做什么**
+
+- **编排一支智能体团队，而不是一个聊天机器人**——治理层负责规划、派发、评审；执行层的 worker 按需生成、权限收窄，交付证据。你随时可以批准、拒绝、委托、暂停、恢复、取消。
+- **每一次写操作都关在门后**——文件、shell、git 的写入都要过审批门；每个 run 的工具清单与配置在启动时哈希冻结、不可变。
+- **接入工具与外部世界**——受治理的文件 / shell / git 工具，外加 MCP 透传，全部走同一条工具提供者契约。
+- **按你的方式调度模型**——模型与智能体中心：路由、provider、逐智能体策略、不可变的版本发布。
+- **在一个真正的工作台里干活**——可分离面板窗口、智能体终端、run 时间线，以及智能体之间的交流频道。
 
 ## 架构
 
-### 永不移动的那条边界
+### 前后端，严格分离
 
-桌面 App **绝不**直连 Core。Gateway 是**永久且唯一的无状态门面**——只做身份、协议适配和流转发。业务状态在 Core 之外不存在第二份。
+UI 只看得到 Gateway。业务状态只活在 Core 里。工具层是唯一触碰外界的东西——而且它会沿同一条线路把外界状态报回来。
 
 ```mermaid
 flowchart LR
-    subgraph FE["前端 —— TinadecApp"]
-        D[Desktop<br/>Electron · Vue 3.6]
-        W[Web]
-    end
+    DT["Desktop / Web<br/>TinadecApp UI"]
+    GW["Gateway<br/>无状态门面"]
+    CORE["Tinadec Core<br/>双层智能体"]
+    TL["工具层<br/>TinadecTool"]
+    OUT["外部世界<br/>文件 · shell · git · MCP"]
 
-    subgraph EDGE["边界"]
-        G[TinadecGateway · :48730<br/>无状态门面<br/>身份 · 协议 · SSE 转发]
-    end
-
-    subgraph BE["后端 —— TinadecCore · :48731"]
-        C[唯一状态权威<br/>DmaEA · 权限 · 审批<br/>检查点 · 审计 · 演化]
-        T[TinadecTool<br/>受治理的工具宿主<br/>文件 · shell · git · MCP]
-    end
-
-    D -- "HTTP / SSE / WebSocket" --> G
-    W -- "HTTP / SSE" --> G
-    G -- "纯代理" --> C
-    C -- "工具提供者契约" --> T
-    C -- "同一契约" --> O[其它工具提供者]
-    C --- DB[(默认 SQLite<br/>可选 PostgreSQL)]
+    DT <--> GW
+    GW <--> CORE
+    GW <--> TL
+    CORE <--> TL
+    TL <--> OUT
 ```
 
 ### 一个运行时，两层智能体
 
-DmaEA（双层模块化智能体架构）把**做治理的智能体**和**干活的智能体**分开：
+DmaEA（双层模块化智能体架构）把**治理团队的智能体**和**干活的智能体**分开——团队编排能力就来自这个分层：
 
 ```mermaid
 flowchart TB
+    U(["你"])
     subgraph OP["治理层 operation —— 零工具权限"]
-        MTG[会议<br/>入口 · 上下文 · 最终答复]
-        PLN[规划<br/>任务图]
-        SUP[监督<br/>裁决 · 升级]
+        MTG["会议<br/>和你对话，掌管上下文"]
+        PLN["规划<br/>把目标拆成任务图"]
+        SUP["监督<br/>评审证据，必要时升级"]
     end
 
     subgraph EX["执行层 execution —— 按需生成 · 权限收窄"]
-        WK1[Worker · 代码]
-        WK2[Worker · 检索]
-        WK3[Worker · 数据 …]
+        CW["代码 worker"]
+        SW["检索 worker"]
+        DW["数据 worker"]
     end
 
-    MTG --> PLN --> WK1 & WK2 & WK3
-    WK1 & WK2 & WK3 -->|证据| SUP
-    SUP -->|裁决| MTG
+    GATE{{"审批门<br/>每一次写调用"}}
 
-    GATE{{审批门<br/>每一次写工具调用}}
-    WK1 -. write_file · shell · git_* .-> GATE
-    GATE -. 人工或委托审查门 .-> WK1
-
-    MTG & PLN & SUP & WK1 --- CP[(持久化检查点<br/>暂停 · 恢复 · 重启恢复)]
+    U <--> MTG
+    MTG --> PLN
+    PLN --> CW & SW & DW
+    CW & SW & DW -->|"证据"| SUP
+    SUP -->|"裁决"| MTG
+    EX -. "write_file · shell · git_*" .-> GATE
+    GATE -. "人工 / 委托审查" .-> EX
 ```
 
 - 治理层**无法调用任何工具**——这是权限数据层的强制，不是约定。
 - 每个 worker 的工具面 = 实例授权 ∩ **run 冻结工具清单**（哈希钉死、不可变）。
-- 所有有副作用的工具调用都要过**审批门**：人工点击、委托审查门、或预授权租约——永远可审计。
+- run 是持久化的：可暂停、可恢复、可取消，重启后仍能接着跑。
 
 ## 我们进行到哪一步
 

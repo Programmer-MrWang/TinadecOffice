@@ -50,95 +50,68 @@ TinadecOffice is a **product family for multi-agent collaboration**: every piece
 
 **v0.2.0 is live** — signed installers for Windows, Linux and macOS. All public HTTP / OpenAPI / SSE / WebSocket contracts are permanently fixed at `/api/v1`: no v2, no legacy aliases, ever.
 
-```mermaid
-mindmap
-  root((TinadecOffice))
-    Dual-layer agents · DmaEA
-      Operation layer
-        coordinate · plan · supervise
-        zero tool access
-      Execution layer
-        workers spawned per task
-        deliver evidence, not vibes
-    Governed tools
-      approval-gated writes
-      per-run frozen manifest
-      MCP passthrough
-    Human in the loop
-      approve · reject · delegate
-      pause / resume / cancel runs
-      restart-safe checkpoints
-    Desktop workbench
-      Electron + Vue 3.6
-      detachable panel windows
-      agent terminal & chat
-    Model & Agent center
-      routes · providers · versions
-      immutable mode publishing
-```
+**What it can do**
+
+- **Orchestrate agent teams, not one chatbot** — a governance layer plans, dispatches and reviews; an execution layer of scoped workers delivers evidence. You approve, reject, delegate, pause, resume or cancel at any point.
+- **Keep every mutation behind a gate** — every write (file, shell, git) waits at an approval gate; each run freezes its tool manifest and configuration, hash-pinned and immutable.
+- **Plug in tools and outside worlds** — governed file / shell / git tools plus MCP passthrough, all behind one tool-provider contract.
+- **Drive models your way** — a model & agent center with routes, providers, per-agent policies and immutable version publishing.
+- **Work in a real workbench** — detachable panel windows, an agent terminal, run timelines, and an agent-to-agent chat channel.
 
 ## Architecture
 
-### The boundary that never moves
+### Frontend and backend, strictly separated
 
-The desktop app **never** talks to Core directly. The gateway is a **permanent, stateless facade** — identity, protocol adaptation, and stream forwarding only. No second copy of business state exists anywhere but Core.
+The UI only ever sees the gateway. Business state lives in Core alone. The tool layer is the only thing that touches the outside world — and it reports state back up the same wires.
 
 ```mermaid
 flowchart LR
-    subgraph FE["Frontend — TinadecApp"]
-        D[Desktop<br/>Electron · Vue 3.6]
-        W[Web]
-    end
+    DT["Desktop / Web<br/>TinadecApp UI"]
+    GW["Gateway<br/>stateless facade"]
+    CORE["Tinadec Core<br/>dual-layer agents"]
+    TL["Tool layer<br/>TinadecTool"]
+    OUT["outside world<br/>files · shell · git · MCP"]
 
-    subgraph EDGE["Boundary"]
-        G[TinadecGateway · :48730<br/>stateless facade<br/>identity · protocol · SSE relay]
-    end
-
-    subgraph BE["Backend — TinadecCore · :48731"]
-        C[Single authority<br/>DmaEA · permissions · approvals<br/>checkpoints · audit · evolution]
-        T[TinadecTool<br/>governed tool host<br/>files · shell · git · MCP]
-    end
-
-    D -- "HTTP / SSE / WebSocket" --> G
-    W -- "HTTP / SSE" --> G
-    G -- "pure proxy" --> C
-    C -- "tool provider contract" --> T
-    C -- "same contract" --> O[other tool providers]
-    C --- DB[(SQLite default<br/>PostgreSQL optional)]
+    DT <--> GW
+    GW <--> CORE
+    GW <--> TL
+    CORE <--> TL
+    TL <--> OUT
 ```
 
 ### One runtime, two layers of agents
 
-DmaEA (Dual-layer Modular Agent Architecture) separates **the agents that govern** from **the agents that do**:
+DmaEA (Dual-layer Modular Agent Architecture) separates **the agents that govern the team** from **the agents that do the work** — that separation is the team-orchestration capability:
 
 ```mermaid
 flowchart TB
-    subgraph OP["Operation layer — governance · zero tool access"]
-        MTG[Meeting<br/>entry · context · final answer]
-        PLN[Planner<br/>task graph]
-        SUP[Supervisor<br/>verdicts · escalation]
+    U(["You"])
+    subgraph OP["Operation layer — governs the team · zero tools"]
+        MTG["Meeting<br/>talks with you, owns the context"]
+        PLN["Planner<br/>turns the goal into a task graph"]
+        SUP["Supervisor<br/>reviews evidence, escalates"]
     end
 
-    subgraph EX["Execution layer — workers · scoped & spawned on demand"]
-        WK1[Worker · code]
-        WK2[Worker · search]
-        WK3[Worker · data …]
+    subgraph EX["Execution layer — does the work · scoped per task"]
+        CW["code worker"]
+        SW["search worker"]
+        DW["data worker"]
     end
 
-    MTG --> PLN --> WK1 & WK2 & WK3
-    WK1 & WK2 & WK3 -->|evidence| SUP
-    SUP -->|verdict| MTG
+    GATE{{"approval gate<br/>every write call"}}
 
-    GATE{{Approval gate<br/>every write tool call}}
-    WK1 -. write_file · shell · git_* .-> GATE
-    GATE -. human or delegated reviewer .-> WK1
-
-    MTG & PLN & SUP & WK1 --- CP[(durable checkpoints<br/>pause · resume · restart recovery)]
+    U <--> MTG
+    MTG --> PLN
+    PLN --> CW & SW & DW
+    CW & SW & DW -->|"evidence"| SUP
+    SUP -->|"verdict"| MTG
+    EX -. "write_file · shell · git_*" .-> GATE
+    GATE -. "human / delegated review" .-> EX
 ```
 
 - The operation layer **cannot invoke any tool** — enforced as permission data, not as a convention.
 - Every worker's tool surface = its instance grant ∩ the **run-frozen tool manifest** (hash-pinned, immutable).
-- Tool calls that mutate anything wait at an **approval gate**: a human click, a delegated reviewer gate, or a pre-authorized lease — always auditable.
+- Runs are durable: pause, resume, cancel — and recover across restarts.
 
 ## Where we are
 
