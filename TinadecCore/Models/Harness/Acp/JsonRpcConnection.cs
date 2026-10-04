@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// JSON-RPC 2.0 correlation over an ACP transport: outgoing requests get sequential integer ids,

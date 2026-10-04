@@ -1,10 +1,30 @@
 <script setup lang="ts">
-import { Minus, Square, X } from '@lucide/vue'
+import { Copy, Minus, Square, X } from '@lucide/vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UiButton } from '@/components/ui'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 
 const { t } = useI18n()
+
+// There is no main-process maximize event today, so the icon follows the window's
+// outer size: at the screen's working area the window is effectively maximized.
+const maximized = ref(false)
+
+function syncMaximized() {
+  maximized.value =
+    window.outerWidth >= window.screen.availWidth - 4 &&
+    window.outerHeight >= window.screen.availHeight - 4
+}
+
+onMounted(() => {
+  syncMaximized()
+  window.addEventListener('resize', syncMaximized)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncMaximized)
+})
 
 function minimizeWindow() {
   window.tinadec?.minimizeWindow?.()
@@ -32,8 +52,15 @@ function closeWindow() {
       <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" @click="minimizeWindow">
         <Minus :size="14" />
       </UiButton>
-      <UiButton variant="ghost" size="icon" class="window-btn maximize" :title="t('app.maximize')" @click="maximizeWindow">
-        <Square :size="12" />
+      <UiButton
+        variant="ghost"
+        size="icon"
+        class="window-btn maximize"
+        :title="maximized ? t('app.restore') : t('app.maximize')"
+        @click="maximizeWindow"
+      >
+        <Copy v-if="maximized" :size="11" />
+        <Square v-else :size="12" />
       </UiButton>
       <UiButton variant="ghost" size="icon" class="window-btn close" :title="t('app.close')" @click="closeWindow">
         <X :size="14" />

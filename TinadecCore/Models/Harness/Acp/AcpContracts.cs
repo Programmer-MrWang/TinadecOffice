@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>Session-update types that count as user-visible progress. Heartbeats and usage do not.</summary>
 internal static class AcpProgress

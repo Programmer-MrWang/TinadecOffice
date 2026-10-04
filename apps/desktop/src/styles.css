@@ -1434,28 +1434,39 @@ button.agent-topology-node:hover,
 .window-controls {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
 }
 
-.window-btn {
+/* The window-chrome buttons read as one family instead of four loose squares:
+   a quiet pill the traffic-light cluster and the search entry share. The
+   `.window-controls` prefix beats the UiButton `h-9 w-9` icon default. */
+.window-controls .window-btn {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 32px;
+  width: 32px;
+  height: 26px;
+  padding: 0;
   color: var(--text-secondary);
-  background: transparent;
-  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-input) 55%, transparent);
+  border: 1px solid transparent;
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
 }
 
-.window-btn:hover {
+.window-controls .window-btn:hover {
   background: var(--bg-hover);
+  border-color: var(--border-muted);
   color: var(--text-primary);
 }
 
-.window-btn.close:hover {
+.window-controls .window-btn:active {
+  transform: scale(0.92);
+}
+
+.window-controls .window-btn.close:hover {
   background: var(--accent-danger);
+  border-color: transparent;
   color: #ffffff;
 }
 

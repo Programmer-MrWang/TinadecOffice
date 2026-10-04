@@ -6,8 +6,8 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA;
-using TinadecCore.DmaEA.CliRuntime;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness;
+using TinadecCore.Models.Harness.Acp;
 
 namespace TinadecCore.Api.Tests;
 

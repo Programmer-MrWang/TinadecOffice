@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// What the caller knows about an <c>opencode serve</c> runtime: the binary, the argv that starts the

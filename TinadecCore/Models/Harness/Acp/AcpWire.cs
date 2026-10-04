@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// The ACP wire contract, and the only place in Core where ACP's field casing exists.

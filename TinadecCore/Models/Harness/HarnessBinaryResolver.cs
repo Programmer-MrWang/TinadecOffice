@@ -1,6 +1,6 @@
 using TinadecCore.Abstractions.Ports;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// The catalog's token vocabulary expanded against this machine. Keys are the literal tokens the

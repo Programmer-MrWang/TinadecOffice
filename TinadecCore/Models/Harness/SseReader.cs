@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// Minimal client-side SSE parser: reads lines, accumulates multi-line <c>data:</c> fields,

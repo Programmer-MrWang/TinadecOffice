@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Persistence;
 
 namespace TinadecCore.AgentFramework.Tests.Acp;

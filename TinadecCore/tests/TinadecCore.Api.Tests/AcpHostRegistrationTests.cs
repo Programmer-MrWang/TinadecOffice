@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness.Acp;
 
 namespace TinadecCore.Api.Tests;
 

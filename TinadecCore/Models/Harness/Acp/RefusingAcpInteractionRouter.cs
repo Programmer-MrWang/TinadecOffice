@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// Answers the requests an agent sends to the client. Lifetime is per session, not per process: a

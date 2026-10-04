@@ -163,10 +163,6 @@ public sealed class PlanningAgent
             : "可派发执行者（assignee 取值；id: 职责 | 工具，本次运行冻结、权威）：\n" + string.Join("\n", lines);
     }
 
-    /// <summary>Default real chat client factory: OpenAI-compatible endpoint from the resolution.</summary>
-    internal static IChatClient DefaultChatClient(ChatResolution resolved)
-        => AgentChatClientFactory.CreateOpenAiChatClient(resolved);
-
     /// <summary>
     /// Finds the first balanced top-level JSON array that deserializes into tasks.
     /// <paramref name="parsed"/> reports whether such an array was FOUND, which is what

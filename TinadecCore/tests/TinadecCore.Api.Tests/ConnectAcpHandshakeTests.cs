@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TinadecCore.DmaEA.CliRuntime;
+using TinadecCore.Models.Harness;
 
 namespace TinadecCore.Api.Tests;
 

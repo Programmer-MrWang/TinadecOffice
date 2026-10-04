@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using TinadecCore.Persistence;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// Opens, caches, and tears down hosted ACP sessions. One live session per provider instance: an ACP

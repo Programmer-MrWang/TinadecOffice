@@ -1,5 +1,5 @@
-using TinadecCore.DmaEA.CliRuntime;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness;
+using TinadecCore.Models.Harness.Acp;
 
 namespace TinadecCore.Api.Tests;
 

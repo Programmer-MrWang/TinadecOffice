@@ -3,7 +3,7 @@ using System.Text;
 using System.Threading.Channels;
 using Microsoft.Extensions.AI;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// Uses one ACP harness as the model behind an ordinary agent run: the conversation text goes to

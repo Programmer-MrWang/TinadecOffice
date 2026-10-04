@@ -1,7 +1,7 @@
 using TinadecCore.Abstractions.Ports;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness.Acp;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// Proves a harness can actually speak ACP, the way an ACP session can be proved: spawn it, complete

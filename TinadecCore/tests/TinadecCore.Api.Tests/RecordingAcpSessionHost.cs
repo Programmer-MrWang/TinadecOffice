@@ -1,5 +1,5 @@
 using System.Text.Json;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness.Acp;
 
 namespace TinadecCore.Api.Tests;
 

@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// Receives the parts of an ACP turn that a text-in/text-out view cannot carry.

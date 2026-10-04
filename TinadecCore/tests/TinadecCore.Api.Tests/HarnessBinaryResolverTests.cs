@@ -1,5 +1,5 @@
 using TinadecCore.Abstractions.Ports;
-using TinadecCore.DmaEA.CliRuntime;
+using TinadecCore.Models.Harness;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 

@@ -9,7 +9,7 @@ using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
 using TinadecCore.DmaEA;
-using TinadecCore.DmaEA.CliRuntime;
+using TinadecCore.Models.Harness;
 using TinadecCore.Lifecycle;
 using TinadecCore.Models;
 using TinadecCore.Persistence;

@@ -5,7 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// Chat-only client for the opencode <c>serve</c> HTTP/SSE surface. Creates a session, streams a

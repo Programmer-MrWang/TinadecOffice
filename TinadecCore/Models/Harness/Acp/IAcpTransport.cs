@@ -1,4 +1,4 @@
-namespace TinadecCore.DmaEA.CliRuntime.Acp;
+namespace TinadecCore.Models.Harness.Acp;
 
 /// <summary>
 /// The process boundary an ACP session speaks through. Deliberately three streams and an exit

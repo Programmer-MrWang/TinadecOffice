@@ -1,12 +1,14 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenAI;
 using System.ClientModel;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Models.Harness;
+using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Persistence;
 
 namespace TinadecCore.Models;
@@ -26,16 +28,42 @@ public sealed class ModelsModuleRegistrar : IModuleRegistrar
         builder.Services.AddSingleton<IModelProvider>(sp => sp.GetRequiredService<ModelProvider>());
         builder.Services.AddSingleton<IChatResolver>(sp => sp.GetRequiredService<ModelProvider>());
         builder.Services.AddSingleton<IEmbeddingProvider, EmbeddingProvider>();
-        // The terminal host lives here rather than in DmaEA: choosing and reaching a model backend is
-        // this module's job, and DmaEA may only consume a port. It also cannot be shared with the copy
-        // inside TinadecTools, which is a separate executable with no project reference.
+        // Everything a chat route can turn into a live client: the protocol-aware factory, the two local
+        // harness transports, the binary resolver, and the terminal host. This lives here rather than in
+        // DmaEA because reaching a model is the model interface's job, and DmaEA references only
+        // Abstractions and Persistence — so it consumes these through ports and cannot construct them.
+        builder.Services.AddSingleton<IAgentChatClientFactory>(sp => new AgentChatClientFactory(
+            sp.GetRequiredService<IChatResolver>(),
+            sp.GetRequiredService<IOpencodeServeProcessManager>(),
+            sp.GetRequiredService<IAcpSessionHost>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AgentChatClientFactory>>()));
+        builder.Services.AddSingleton<OpencodeServeProcessManager>();
+        builder.Services.AddSingleton<IOpencodeServeProcessManager>(sp => sp.GetRequiredService<OpencodeServeProcessManager>());
+        // ACP sessions are hosted per provider instance and must die with the host, so the port is
+        // the concrete singleton: the same concrete-plus-port shape the opencode serve host uses. The
+        // interaction router is a factory because a router's pending approvals belong to one session,
+        // and Round 2 swaps what that factory returns without rewiring anything.
+        builder.Services.AddSingleton(sp => AcpSessionOptions.From(sp.GetService<IConfiguration>()));
+        builder.Services.AddSingleton<IAcpInteractionRouterFactory, RefusingAcpInteractionRouterFactory>();
+        builder.Services.AddSingleton<AcpSessionHost>();
+        builder.Services.AddSingleton<IAcpSessionHost>(sp => sp.GetRequiredService<AcpSessionHost>());
+        // The control plane proves a harness with a handshake. It goes through this port rather than
+        // the session host because the host's request type carries the spawn shape — argv and working
+        // directory — and those belong to the ACP layer, not to whichever caller wants a probe.
+        builder.Services.AddSingleton<IAcpHarnessProber, AcpHarnessProber>();
+        // The catalog is a compiled table of vendor facts and carries no machine state, so the tokens
+        // it stores ({UserProfile}, {LocalAppData}) are expanded here and nowhere else.
+        builder.Services.AddSingleton<IHarnessBinaryResolver, HarnessBinaryResolver>();
+        // The terminal host belongs here too: choosing and reaching a model backend is this module's
+        // job, and DmaEA may only consume a port. It cannot be shared with the copy inside
+        // TinadecTools, which is a separate executable with zero project references.
         builder.Services.AddSingleton<IHarnessTerminalHost, ConPtyTerminalHost>();
         builder.RegisterModule(new ModuleDescriptor
         {
             ModuleId = ModuleId,
             Version = "0.1.0",
             Dependencies = ["abstractions", "persistence"],
-            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation", "terminal_hosting"],
+            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation", "terminal_hosting", "harness_transports"],
             Language = "C#",
             MafPrimitives = ["agent", "chat_client"],
             RegistrationStatus = ModuleRegistrationStatus.NotConfigured

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace TinadecCore.DmaEA.CliRuntime;
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// Shuts down a stdout/stderr drainer without disposing its <see cref="Task"/>.

@@ -6,28 +6,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using OpenAI;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
-using TinadecCore.DmaEA.CliRuntime;
-using TinadecCore.DmaEA.CliRuntime.Acp;
+using TinadecCore.Models.Harness.Acp;
 
-namespace TinadecCore.DmaEA;
-
-/// <summary>
-/// Single seam for obtaining chat clients inside the DmaEA runtime. Production resolves
-/// the configured route from <see cref="IChatResolver"/> and builds a protocol-appropriate
-/// client; tests substitute a deterministic fake so the full duplex pipeline can be
-/// exercised end-to-end.
-/// </summary>
-public interface IAgentChatClientFactory
-{
-    Task<ChatResolution> ResolveChatAsync(string routePurpose, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Builds the protocol-appropriate client. Asynchronous because CLI protocols
-    /// (<see cref="ChatProtocols.Acp"/>, <see cref="ChatProtocols.OpencodeServe"/>) may spawn
-    /// or probe a local agent server process.
-    /// </summary>
-    Task<IChatClient> CreateAsync(ChatResolution resolution, CancellationToken cancellationToken = default);
-}
+namespace TinadecCore.Models.Harness;
 
 /// <summary>
 /// Protocol-aware chat client factory. Selects the wire protocol from

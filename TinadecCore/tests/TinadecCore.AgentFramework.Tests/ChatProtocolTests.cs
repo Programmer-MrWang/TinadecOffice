@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA;
+using TinadecCore.Models.Harness;
 
 namespace TinadecCore.AgentFramework.Tests;
 
