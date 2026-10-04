@@ -27,7 +27,7 @@ import {
 
 const { t } = useI18n()
 const router = useRouter()
-const { open, comboLabel } = useCommandPalette()
+const { open, comboLabel, seededQuery } = useCommandPalette()
 
 const query = ref('')
 const activeIndex = ref(0)
@@ -147,7 +147,7 @@ watch(open, async (isOpen) => {
     if (element.open) element.close()
     return
   }
-  query.value = ''
+  query.value = seededQuery.value
   activeIndex.value = 0
   refreshSpotlight()
   element.showModal()

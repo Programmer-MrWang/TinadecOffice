@@ -29,16 +29,42 @@ describe('CommandPaletteButton', () => {
     expect(button.attributes('title')).toBe(`palette.openWithShortcut:${formatCombo(PALETTE_COMBO)}`)
   })
 
-  it('opens the window palette without owning a second one', async () => {
+  it('clicking the button expands the strip instead of opening the dialog', async () => {
     const wrapper = mount(CommandPaletteButton)
     expect(paletteIsOpen()).toBe(false)
 
     await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
 
+    // The dialog stays closed until there is a query; the strip is the
+    // preview of the surface, not a second surface of its own.
+    expect(paletteIsOpen()).toBe(false)
+    expect(wrapper.find('[data-testid="command-palette-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(true)
+  })
+
+  it('typing into the strip and pressing Enter hands the query over to the dialog', async () => {
+    const wrapper = mount(CommandPaletteButton)
+    await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
+
+    const input = wrapper.get('[data-testid="palette-entry-input"]')
+    await input.setValue('launcher')
+    await input.trigger('keydown', { key: 'Enter' })
+
     expect(paletteIsOpen()).toBe(true)
-    expect(wrapper.get('[data-testid="command-palette-button"]').attributes('aria-expanded')).toBe('true')
-    // The palette element and its keybinding installation stay single-owners of their
-    // surface (a structure test across src/** enforces it); the button must only ask.
-    expect(wrapper.findAll('dialog')).toHaveLength(0)
+    // The strip collapses once the palette takes over; two inputs would
+    // fight for the same keystroke behind the dialog.
+    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(false)
+  })
+
+  it('the strip closes itself on Escape without touching the palette', async () => {
+    const wrapper = mount(CommandPaletteButton)
+    await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
+    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="palette-entry-input"]').trigger('keydown', { key: 'Escape' })
+
+    expect(paletteIsOpen()).toBe(false)
+    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="command-palette-button"]').exists()).toBe(true)
   })
 })

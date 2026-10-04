@@ -11,12 +11,15 @@ import { computed, ref } from 'vue'
 import { PALETTE_COMBO, formatCombo, installGlobalKeybindings, registerKeybinding } from '@/lib/keybindings'
 
 const open = ref(false)
+/** One-shot text the dialog seeds its own input with when it opens. */
+const seededQuery = ref('')
 
 export function paletteIsOpen(): boolean {
   return open.value
 }
 
-export function openPalette(): void {
+export function openPalette(initialQuery = ''): void {
+  seededQuery.value = initialQuery
   open.value = true
 }
 
@@ -49,6 +52,8 @@ export function useCommandPalette() {
     open,
     /** The same string the binding was registered with, spelled for this platform. */
     comboLabel: computed(() => formatCombo(PALETTE_COMBO)),
+    /** Typed text carried from an entry surface (the expanding strip) into the dialog. */
+    seededQuery: computed(() => seededQuery.value),
     toggle: togglePalette,
     openPalette,
     closePalette,
