@@ -995,6 +995,11 @@ export interface CliDiscoveryCandidateDto {
   server_url?: string | null;
   launch_args?: string | null;
   status: 'found' | 'missing' | 'configured';
+  /**
+   * Why a probe did not confirm this binary — it exited non-zero, or it never answered within the
+   * harness's own ceiling. `missing` on its own reads as "not installed", which is a different claim.
+   */
+  probe_note?: string | null;
   vendor?: string | null;
   channels?: HarnessChannelDto[];
   caveats?: string[];

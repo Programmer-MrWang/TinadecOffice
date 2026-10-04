@@ -116,18 +116,73 @@ public sealed class CliDiscoveryTests : IAsyncLifetime
         Assert.Equal("missing", codex.GetProperty("status").GetString());
     }
 
+    /// <summary>
+    /// The probe used to wait on the child while its own stdout stayed unread. A harness printing more
+    /// than the pipe buffer blocks on its write, the wait expires, and discovery reports an installed
+    /// binary as "not detected" — the failure class this round exists to end, so it needs a stub that
+    /// is deliberately chatty rather than one that echoes a single line.
+    /// </summary>
+    [Fact]
+    public async Task DiscoverCliRuntimes_ChattyBinaryIsStillFound()
+    {
+        WriteChattyStub("claude");
+        using var scope = _factory!.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+
+        var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
+        Assert.Equal("found", claude.GetProperty("status").GetString());
+        // The API boundary omits nulls, so "no note" is either an absent key or a JSON null.
+        Assert.True(!claude.TryGetProperty("probe_note", out var note) || note.ValueKind == JsonValueKind.Null,
+            "a passing probe should not leave a note");
+    }
+
+    [Fact]
+    public async Task DiscoverCliRuntimes_FailingProbeSaysWhichCommandItRan()
+    {
+        WriteFailingStub("claude", 3);
+        using var scope = _factory!.Services.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<ControlPlaneService>();
+        var payload = await ReadBodyAsync((IResult)await service.DiscoverCliRuntimes(CancellationToken.None, new[] { _searchBin }), scope.ServiceProvider);
+
+        var claude = payload.GetProperty("cli_runtimes").EnumerateArray().First(item => item.GetProperty("driver").GetString() == "claude-code");
+        Assert.Equal("missing", claude.GetProperty("status").GetString());
+        // "missing" alone reads as "not installed", which is a different claim from "it answered with
+        // an error", so the row has to carry the difference for the user to act on it.
+        var note = claude.GetProperty("probe_note").GetString();
+        Assert.NotNull(note);
+        Assert.Contains("3", note);
+    }
+
     /// <summary>Writes a stub the --version probe actually passes: a .cmd shim on Windows, an
     /// executable shell script elsewhere.</summary>
     private string WriteRunnableStub(string name)
     {
+        return WriteStub(name, OperatingSystem.IsWindows() ? "@echo ok\r\n" : "#!/bin/sh\necho ok\n");
+    }
+
+    /// <summary>A stub printing roughly 200 KB before exiting, which is what overruns the pipe buffer.</summary>
+    private string WriteChattyStub(string name)
+    {
+        var line = new string('x', 50);
+        return WriteStub(name, OperatingSystem.IsWindows()
+            ? $"@echo off\r\nfor /l %%i in (1,1,4000) do @echo {line}\r\n"
+            : $"#!/bin/sh\nfor i in $(seq 1 4000); do echo {line}; done\n");
+    }
+
+    private string WriteFailingStub(string name, int exitCode)
+    {
+        return WriteStub(name, OperatingSystem.IsWindows()
+            ? $"@exit /b {exitCode}\r\n"
+            : $"#!/bin/sh\nexit {exitCode}\n");
+    }
+
+    private string WriteStub(string name, string content)
+    {
         var binary = Path.Combine(_searchBin, OperatingSystem.IsWindows() ? $"{name}.cmd" : name);
-        if (OperatingSystem.IsWindows())
+        File.WriteAllText(binary, content);
+        if (!OperatingSystem.IsWindows())
         {
-            File.WriteAllText(binary, "@echo ok\r\n");
-        }
-        else
-        {
-            File.WriteAllText(binary, "#!/bin/sh\necho ok\n");
             File.SetUnixFileMode(binary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
         return binary;

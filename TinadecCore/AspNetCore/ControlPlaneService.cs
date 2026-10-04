@@ -171,27 +171,39 @@ public sealed class ControlPlaneService
             .Where(x => x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null)
             .Select(x => x.Driver).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var candidates = HarnessCatalog.All.Select(spec =>
+        var candidates = new List<object>();
+        foreach (var spec in HarnessCatalog.All)
         {
             var existing = configured.Contains(spec.Id);
-            var path = existing ? null : spec.BinaryNames
-                .Select(name => ResolveCliExecutable(name, searchPaths))
-                .FirstOrDefault(candidate => candidate is not null);
-            var verified = path is not null && VerifyCliExecutable(path, spec.VersionProbe);
-            var reachable = existing || verified;
+            string? locatedName = null;
+            string? locatedPath = null;
+            if (!existing)
+            {
+                foreach (var name in spec.BinaryNames)
+                {
+                    locatedPath = ResolveCliExecutable(name, searchPaths);
+                    if (locatedPath is null) continue;
+                    locatedName = name;
+                    break;
+                }
+            }
+            var probe = locatedPath is null
+                ? null
+                : await VerifyCliExecutable(locatedName!, locatedPath, spec.VersionProbe, ct);
+            var reachable = existing || probe?.Runnable == true;
             // The serve argv is a template with a {port} placeholder; discovery reports the concrete
             // form it would start with, and the connect path re-materializes it from the endpoint that
             // actually answered, so a second server on the same machine does not collide.
             var serveArgv = spec.HttpServer is { } server
                 ? string.Join(' ', server.Argv).Replace("{port}", server.DefaultPort.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 : null;
-            return new
+            candidates.Add(new
             {
                 driver = spec.Id,
                 display_name = spec.DisplayName,
                 vendor = spec.Vendor,
                 docs_url = spec.DocsUrl,
-                binary_path = reachable ? path : null,
+                binary_path = reachable ? locatedPath : null,
                 // ConfigHome is deliberately not echoed here: the catalog stores it with
                 // <c>{UserProfile}</c>-style tokens that expand at resolution time, and half-expanding
                 // them in a response is how a path stops being usable the moment it is copied. The
@@ -199,11 +211,15 @@ public sealed class ControlPlaneService
                 home_path = (string?)null,
                 server_url = reachable && spec.HttpServer is { } endpoint ? $"http://127.0.0.1:{endpoint.DefaultPort}" : null,
                 launch_args = reachable ? serveArgv : null,
-                status = existing ? "configured" : verified ? "found" : "missing",
+                status = existing ? "configured" : probe?.Runnable == true ? "found" : "missing",
+                // A probe that did not answer is not evidence that the harness is absent, and the old
+                // code turned that difference invisible: an unread stdout pipe or a loaded machine made
+                // an installed binary read as "not detected". The note says which is which.
+                probe_note = existing ? null : probe is { Runnable: false } failed ? failed.Note : null,
                 channels = HarnessChannelFacts(spec).ToArray(),
                 caveats = spec.KnownCaveats.ToArray()
-            };
-        }).ToList();
+            });
+        }
         return Results.Ok(new { cli_runtimes = candidates });
     }
 
@@ -323,11 +339,6 @@ public sealed class ControlPlaneService
     }
 
     /// <summary>
-    /// Probes that the discovered binary actually runs: <c>--version</c> must exit 0 within
-    /// 3 seconds. npm's <c>.cmd</c>/<c>.bat</c> shims are Windows-only artifacts and are
-    /// launched through cmd.exe there; on POSIX the discovered file is the executable.
-    /// </summary>
-    /// <summary>
     /// Asks a discovered binary for its version. The argv, the ceiling, and whether a non-zero exit
     /// still counts as an answer all come from the harness's own probe record, because they are vendor
     /// facts rather than local preferences: CodeBuddy prints a telemetry consent prompt and exits
@@ -335,43 +346,87 @@ public sealed class ControlPlaneService
     /// binary as missing. <c>NeverUse</c> exists for the mirror-image hazard — a flag that looks
     /// harmless but shells out to something with side effects.
     /// </summary>
-    private static bool VerifyCliExecutable(string path, HarnessVersionProbe probe)
+    /// <remarks>
+    /// Both pipes are drained while the child runs. A binary printing more than the pipe buffer blocks
+    /// on its own write, and a parent waiting on a blocked child looks exactly like a binary that is
+    /// not installed — which is how a working harness silently disappeared from the model center.
+    /// </remarks>
+    private static async Task<CliProbe> VerifyCliExecutable(string name, string path, HarnessVersionProbe probe, CancellationToken ct)
     {
+        var process = new Process { StartInfo = BuildVersionProbeStart(path, probe) };
         try
         {
-            var psi = new ProcessStartInfo
+            if (!process.Start()) return new(false, $"starting '{path}' {string.Join(' ', probe.Argv)} returned false.");
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            using var deadline = new CancellationTokenSource();
+            deadline.CancelAfter(probe.TimeoutMs);
+            try
             {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            if (OperatingSystem.IsWindows()
-                && (path.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
-            {
-                psi.FileName = "cmd.exe";
-                psi.ArgumentList.Add("/c");
-                psi.ArgumentList.Add(path);
+                await process.WaitForExitAsync(deadline.Token).ConfigureAwait(false);
+                await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
             }
-            else
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                psi.FileName = path;
+                // The caller stopped looking; that is not a fact about the harness.
+                throw;
             }
-            foreach (var argument in probe.Argv) psi.ArgumentList.Add(argument);
-            using var process = new Process { StartInfo = psi };
-            if (!process.Start()) return false;
-            if (!process.WaitForExit(probe.TimeoutMs))
+            catch (OperationCanceledException)
             {
-                process.Kill(entireProcessTree: true);
-                return false;
+                TryKillProbeTree(process);
+                return new(false, $"'{name}' did not answer '{string.Join(' ', probe.Argv)}' within {probe.TimeoutMs} ms, so this build does not know whether it is installed.");
             }
-            return process.ExitCode == 0 || probe.TolerateNonZeroExit;
+            return process.ExitCode == 0 || probe.TolerateNonZeroExit
+                ? new(true, null)
+                : new(false, $"'{name}' exited {process.ExitCode} for '{string.Join(' ', probe.Argv)}'.");
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or IOException)
         {
-            return false;
+            return new(false, $"'{name}' could not be probed: {ex.Message}");
+        }
+        finally
+        {
+            process.Dispose();
         }
     }
+
+    private static void TryKillProbeTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            // The probe is already leaving; a process that cannot be reported on is not worth a fault.
+        }
+    }
+
+    private static ProcessStartInfo BuildVersionProbeStart(string path, HarnessVersionProbe probe)
+    {
+        var psi = new ProcessStartInfo
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        if (OperatingSystem.IsWindows()
+            && (path.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) || path.EndsWith(".bat", StringComparison.OrdinalIgnoreCase)))
+        {
+            psi.FileName = "cmd.exe";
+            psi.ArgumentList.Add("/c");
+            psi.ArgumentList.Add(path);
+        }
+        else
+        {
+            psi.FileName = path;
+        }
+        foreach (var argument in probe.Argv) psi.ArgumentList.Add(argument);
+        return psi;
+    }
+
+    private sealed record CliProbe(bool Runnable, string? Note);
 
     /// <summary>
     /// Every channel of one harness that Core knows about, in the order the catalog declares them, with

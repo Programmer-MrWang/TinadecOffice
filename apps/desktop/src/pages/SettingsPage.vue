@@ -2403,7 +2403,7 @@ import '../settings/settings.css'
                       {{ candidate.binary_path }}
                     </code>
                     <span v-else-if="candidate.status === 'missing'" class="cli-discovery-status-text muted">
-                      {{ t('settings.notDetected') }}
+                      {{ candidate.probe_note || t('settings.notDetected') }}
                     </span>
                   </div>
                   <div class="cli-discovery-action">
