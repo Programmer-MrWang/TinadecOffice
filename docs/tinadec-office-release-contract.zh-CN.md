@@ -126,6 +126,8 @@ Manager 只负责机器级运行时和 Pack 的获取、完整性校验、版本
 
 ## 已知边界（2026-10-04 读数）
 
-- 渠道三平台的**构建侧**已闭合；**消费侧**还差 Manager 一步：`TinadecManger/src/shared/manifest.ts:24,25-31` 的 `VALID_FAMILIES`/`VALID_DELIVERY` 不含 `agent-pack`，实测用 Manager 自己的 `validateManifest()` 跑本仓库生成的 fragment，得到 2 条拒绝（`$.products[4].family`、`$.products[4].delivery`），即 `assertManifestOrThrow()` 会拒绝任何含 AgentPack 的 Office catalog。这与三平台无关，Windows 一份同样被拒；Manager 的 `domain.ts` 已声明 `ProductFamily.AgentPack`/`DeliveryKind.AgentPack`（未提交），补的是校验集合两处。
-- 合并后的 `expectedArtifact` 是通配形式（`TinadecCore.Api*`），因为产品级字段只能有一个值。要让校验精确到本平台的 entrypoint，需要 Manager 侧读 `artifact.packageMetadata.entrypoint`（`install-flow.ts:266-276` 一处回退即可）；本契约已经把该值放进每个 artifact。
+- **消费侧的 `agent-pack` 拒绝已修**：`TinadecManger/src/shared/manifest.ts` 的 `VALID_FAMILIES`/`VALID_DELIVERY` 此前不含 `agent-pack`，实测用 Manager 自己的 `validateManifest()` 跑真实产物得到的 2 条拒绝（`$.products[4].family`、`.delivery`）会让 `assertManifestOrThrow()` 拒绝整份 Office catalog；补上两个合法值后同一份真 catalog 读数为 **0 条**（Manager 仓库 commit `eda169c`）。
+- 合并后的 `expectedArtifact` 是通配形式（实测三例：`TinadecTools*`、`TinadecCore.Api*`、`TinadecGateway*`；AgentPack 保持精确的 `manifest.json`，完整安装包为 `""`），因为产品级字段只能有一个值。要让校验精确到本平台的 entrypoint，需要 Manager 侧读 `artifact.packageMetadata.entrypoint`（`install-flow.ts:266-276` 一处回退即可）；本契约已经把该值放进每个 artifact，**Manager 的类型还缺 `Artifact.packageMetadata` 字段**（该仓库 `src/shared/domain.ts` 有另一个会话未提交的 Office 类型工作，等它落地再补这一处）。
+- Manager 的 `extractArchive()` 直接调 PATH 上的 `tar`：在 Windows 开发机上它可能是 Git Bash 的 GNU tar，读不了 zip（`tests/install-flow.test.ts` 4 例在本机因此为红，且与本次改动无关，在 HEAD 上同样红）。渠道按平台分裂归档格式之后，Linux/macOS 拿到的都是 tar.gz，正好落在两种 `tar` 都能读的那一格；生产路径（Explorer 启动，PATH 里 System32 在前）用 bsdtar 读 zip。
 - macOS 是 ad-hoc 签名，`.dmg` 不带公证；`format: "executable"` 对 `.deb`/`.dmg` 的含义只有"单文件交付"，不代表 Manager 能解包安装。
+- `release` job 的合并与门禁已在真实 CI 工件上本地演练过（三份真 fragment + 十二个真归档 → 16 个 artifact 全部核对通过，数字门禁 4 zip / 8 tar.gz / 3 fragment 与 `SHA256SUMS` 22 行覆盖 22 个资产全中）；**未演练的只剩 `gh release create` 本身**，那需要一次真 tag。
