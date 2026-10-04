@@ -21,6 +21,14 @@ const scriptsDir = resolve(dirname(fileURLToPath(import.meta.url)));
 const VERSION = "9.9.9";
 const TARGETS = runtimeTargetKeys();
 
+/// Source text with line endings decided by the repository, not by whichever checkout asked for it:
+/// `core.autocrlf` gives a Windows runner CRLF files, so a multi-line pattern written against LF
+/// matches nothing there — it looked like "this leg uploads no packages" on the win-x64 runner while
+/// passing on Linux, macOS and this machine.
+function readSource(...parts) {
+	return readFileSync(join(scriptsDir, ...parts), "utf8").replace(/\r\n/gu, "\n");
+}
+
 function facts(key) {
 	return channelFacts(resolveRuntimeTarget(key));
 }
@@ -390,7 +398,7 @@ test("The merged release is published once, at the newest fragment's timestamp",
 test("The merge rule covers every field the Manager compares across platforms", () => {
 	// If a product field is added to the packager and not to the neutral list, the merge would let one
 	// leg's Windows-only value into a catalog that macOS installs from.
-	const packager = readFileSync(join(scriptsDir, "package-office-channel.mjs"), "utf8");
+	const packager = readSource("package-office-channel.mjs");
 	const productKeys = [...packager.matchAll(/^\t\t([a-zA-Z]+): /gmu)].map((match) => match[1]);
 	for (const field of ["name", "family", "description", "delivery", "probe", "probeTarget", "installable"]) {
 		assert.ok(productKeys.includes(field), `package-office-channel.mjs is expected to set ${field}`);
@@ -404,7 +412,7 @@ test("The merge rule covers every field the Manager compares across platforms", 
 
 test("Channel scripts take their platform facts from the table instead of hardcoding one leg", () => {
 	for (const name of ["package-office-channel.mjs", "verify-office-channel.mjs", "merge-office-channel-catalog.mjs"]) {
-		const source = readFileSync(join(scriptsDir, name), "utf8");
+		const source = readSource(name);
 		assert.match(source, /from "\.\/officeChannel\.mjs"/, `${name} must use the shared channel model`);
 		assert.doesNotMatch(source, /["']win-x64["']/u, `${name} must not name a target: it takes the host's from the table`);
 		assert.doesNotMatch(source, /platform:\s*"windows"/u, `${name} must not hardcode a platform`);
@@ -419,8 +427,8 @@ test("Channel scripts take their platform facts from the table instead of hardco
 	// 0755, an archive records whatever mode the file has when the archiver runs, and whether a plain
 	// file copy keeps that bit over is host-dependent. Windows cannot show either half of this, so the
 	// packager copies the mode explicitly and the verifier demands the bit from the extracted bytes.
-	const packager = readFileSync(join(scriptsDir, "package-office-channel.mjs"), "utf8");
-	const verifier = readFileSync(join(scriptsDir, "verify-office-channel.mjs"), "utf8");
+	const packager = readSource("package-office-channel.mjs");
+	const verifier = readSource("verify-office-channel.mjs");
 	assert.match(packager, /chmodSync\(destinationPath, statSync\(sourcePath\)\.mode\)/, "the channel copy must carry the staged mode");
 	assert.match(verifier, /mode & 0o100/, "the verifier must check the execute bit it is asking for");
 });
@@ -428,7 +436,7 @@ test("Channel scripts take their platform facts from the table instead of hardco
 test("The release job's channel gates match what the legs actually upload", () => {
 	// The release job runs only on a tag, so a typo in its counts would surface as a failed publish
 	// rather than as a red build. Derive every number from the target table instead, and compare.
-	const workflow = readFileSync(resolve(scriptsDir, "..", "..", "..", ".github", "workflows", "desktop-release.yml"), "utf8");
+	const workflow = readSource("..", "..", "..", ".github", "workflows", "desktop-release.yml");
 	const archivesPerLeg = 4; // core, gateway, tools, agentpack
 	const zipTargets = TARGETS.filter((key) => facts(key).archiveFormat === "zip").length;
 	const tarTargets = TARGETS.length - zipTargets;
