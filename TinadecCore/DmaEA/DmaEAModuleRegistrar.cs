@@ -52,6 +52,9 @@ public sealed class DmaEAModuleRegistrar : IModuleRegistrar
         // the session host because the host's request type carries the spawn shape — argv and working
         // directory — and those belong to the ACP layer, not to whichever caller wants a probe.
         builder.Services.AddSingleton<CliRuntime.IAcpHarnessProber, CliRuntime.AcpHarnessProber>();
+        // The catalog is a compiled table of vendor facts and carries no machine state, so the tokens
+        // it stores ({UserProfile}, {LocalAppData}) are expanded here and nowhere else.
+        builder.Services.AddSingleton<IHarnessBinaryResolver, CliRuntime.HarnessBinaryResolver>();
         builder.Services.AddSingleton<AgentInstanceService>();
         builder.Services.AddSingleton<IAgentInstanceService>(sp => sp.GetRequiredService<AgentInstanceService>());
         builder.Services.AddSingleton<IAgentToolAuthorization>(sp => sp.GetRequiredService<AgentInstanceService>());

@@ -44,15 +44,16 @@ public sealed class ControlPlaneService
     private readonly IFullDuplexRunEngine _engine;
     private readonly IOpencodeServeProcessManager _opencode;
     private readonly IAcpHarnessProber _acp;
+    private readonly IHarnessBinaryResolver _harnessBinaries;
 
     public ControlPlaneService(IDbContextFactory<ModelControlDbContext> models, IDbContextFactory<PromptControlDbContext> prompts,
         IDbContextFactory<LifecycleDbContext> lifecycle,
         IContentStore content, ISecretStore secrets, ITenantContextAccessor tenant, IToolApprovalCoordinator approvals,
         IAuthorizationService authorization, IToolExecutionCoordinator executions,
         ILifecycleManager runs, IFullDuplexRunEngine engine, IOpencodeServeProcessManager opencode,
-        IAcpHarnessProber acp,
+        IAcpHarnessProber acp, IHarnessBinaryResolver harnessBinaries,
         IUserToolActionService userActions)
-    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _opencode = opencode; _acp = acp; }
+    { _models = models; _prompts = prompts; _lifecycle = lifecycle; _content = content; _secrets = secrets; _tenant = tenant; _approvals = approvals; _authorization = authorization; _executions = executions; _userActions = userActions; _runs = runs; _engine = engine; _opencode = opencode; _acp = acp; _harnessBinaries = harnessBinaries; }
 
     private TenantContext Tenant => _tenant.Current;
     private static async Task<(string text, ContentReference reference)> PutJsonAsync(IContentStore store, Guid tenant, Guid? workspace, string kind, object value, CancellationToken ct)
@@ -175,21 +176,8 @@ public sealed class ControlPlaneService
         foreach (var spec in HarnessCatalog.All)
         {
             var existing = configured.Contains(spec.Id);
-            string? locatedName = null;
-            string? locatedPath = null;
-            if (!existing)
-            {
-                foreach (var name in spec.BinaryNames)
-                {
-                    locatedPath = ResolveCliExecutable(name, searchPaths);
-                    if (locatedPath is null) continue;
-                    locatedName = name;
-                    break;
-                }
-            }
-            var probe = locatedPath is null
-                ? null
-                : await VerifyCliExecutable(locatedName!, locatedPath, spec.VersionProbe, ct);
+            var located = _harnessBinaries.Resolve(spec.Id, searchPaths);
+            var probe = located is null ? null : await VerifyCliExecutable(located.BinaryName, located.BinaryPath, spec.VersionProbe, ct);
             var reachable = existing || probe?.Runnable == true;
             // The serve argv is a template with a {port} placeholder; discovery reports the concrete
             // form it would start with, and the connect path re-materializes it from the endpoint that
@@ -203,12 +191,11 @@ public sealed class ControlPlaneService
                 display_name = spec.DisplayName,
                 vendor = spec.Vendor,
                 docs_url = spec.DocsUrl,
-                binary_path = reachable ? locatedPath : null,
-                // ConfigHome is deliberately not echoed here: the catalog stores it with
-                // <c>{UserProfile}</c>-style tokens that expand at resolution time, and half-expanding
-                // them in a response is how a path stops being usable the moment it is copied. The
-                // harness binary resolver owns expansion; until then the row carries no home path.
-                home_path = (string?)null,
+                binary_path = reachable ? located?.BinaryPath : null,
+                // Expanded by the resolver, and only reported when the directory exists: the catalog's
+                // ConfigHome is a vendor fact that may be unverified, and a path Core invented here
+                // would become the HOME a harness child is handed.
+                home_path = reachable ? _harnessBinaries.ConfigHomeOf(spec.Id) : null,
                 server_url = reachable && spec.HttpServer is { } endpoint ? $"http://127.0.0.1:{endpoint.DefaultPort}" : null,
                 launch_args = reachable ? serveArgv : null,
                 status = existing ? "configured" : probe?.Runnable == true ? "found" : "missing",
@@ -316,26 +303,6 @@ public sealed class ControlPlaneService
     {
         await using var db = await _models.CreateDbContextAsync(ct);
         return await db.Providers.SingleOrDefaultAsync(x => x.Driver == driver && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null, ct);
-    }
-
-    private static string? ResolveCliExecutable(string name, IEnumerable<string>? searchPaths)
-    {
-        var paths = searchPaths ?? DefaultSearchPaths();
-        foreach (var directory in paths)
-        {
-            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) continue;
-            var candidate = Path.Combine(directory, name);
-            if (File.Exists(candidate)) return candidate;
-            if (OperatingSystem.IsWindows())
-            {
-                foreach (var extension in new[] { ".exe", ".cmd", ".bat" })
-                {
-                    var withExtension = candidate + extension;
-                    if (File.Exists(withExtension)) return withExtension;
-                }
-            }
-        }
-        return null;
     }
 
     /// <summary>
@@ -450,29 +417,6 @@ public sealed class ControlPlaneService
     }
 
     private sealed record ChannelFact(string? Channel, string Protocol, bool Drivable, string? Reason);
-
-    private static IEnumerable<string> DefaultSearchPaths()
-    {
-        var paths = new List<string>();
-        var path = Environment.GetEnvironmentVariable("PATH");
-        if (!string.IsNullOrWhiteSpace(path)) paths.AddRange(path.Split(Path.PathSeparator));
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrWhiteSpace(home))
-        {
-            paths.Add(Path.Combine(home, ".local", "bin"));
-            paths.Add(Path.Combine(home, ".npm-global", "bin"));
-        }
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if (!string.IsNullOrWhiteSpace(appData)) paths.Add(Path.Combine(appData, "npm"));
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        if (!string.IsNullOrWhiteSpace(localAppData))
-        {
-            paths.Add(localAppData);
-            paths.Add(Path.Combine(localAppData, "Programs"));
-            paths.Add(Path.Combine(localAppData, "Microsoft", "WinGet", "Links"));
-        }
-        return paths.Distinct().ToList();
-    }
 
     private static void RemoveSecret(Dictionary<string, JsonElement> cfg)
     { cfg.Remove("api_key"); cfg.Remove("clear_api_key"); }
