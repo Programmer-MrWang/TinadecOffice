@@ -67,6 +67,16 @@ test("The node-pty filter ships each host its own prebuild", () => {
 	// The one exclusion is the arch nobody targets; asserting it stays keeps the list from silently
 	// growing back to the Windows-only shape it had before.
 	assert.deepEqual(exclusions, ["!prebuilds/win32-arm64/**"]);
+
+	// On Linux the npm package ships no prebuilds/linux-x64 at all: `rebuild:native` writes
+	// build/Release/pty.node. A filter that copies only package.json, lib and prebuilds therefore
+	// ships a terminal that cannot spawn — the ubuntu runner proved it with
+	// "Failed to load native module: pty.node, checked: build/Release, build/Debug, prebuilds/linux-x64".
+	assert.ok(mapping.filter.includes("build/**/*"), "the rebuilt node-pty binary has to be packaged");
+	assert.ok(
+		build.asarUnpack.some((pattern) => pattern.includes("node-pty")),
+		"a .node inside the asar is not loadable",
+	);
 });
 
 test("Packaging scripts go through the one parameterized entry", () => {

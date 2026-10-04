@@ -52,6 +52,7 @@
           "package.json",
           "lib/**/*",
           "prebuilds/**/*",
+          "build/**/*",
           "!prebuilds/win32-arm64/**"
         ]
       }
