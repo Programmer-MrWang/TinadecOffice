@@ -124,10 +124,13 @@ Manager 只负责机器级运行时和 Pack 的获取、完整性校验、版本
 
 非 tag 构建可以生成临时归档和 fragment 作为 CI 工件，但只有 tag 构建发布 GitHub Release。Release 只发布一份顶层 `SHA256SUMS`，其内容覆盖全部已发布资产（含三个平台的安装包、模块包与 catalog）；`office-channel/SHA256SUMS` 是 build 任务的验证门禁产物，既不进入 Release，也不再上传——三条腿各写一份同名文件会在 artifact 下载时互相覆盖。实测过旧写法会把这份只列四个模块包与 catalog 的内层清单当作发布校验和上传，安装包因此没有校验和。
 
-## 已知边界（2026-10-04 读数）
+## 发布记录与残余边界（2026-10-04）
 
+- **v0.2.0 是本契约三平台形状的第一次真实发布**：Release 资产 23 个（三平台安装器 + 12 个模块归档 + 3 份 fragment + 合并 catalog + `SHA256SUMS` + `latest.yml` + blockmap），release job 的 8 个步骤全绿（三份下载 → 合并 → sums → `jq` 门禁 → `gh release create`）。合并读数：`5 products, 16 artifacts verified on disk across linux/x64, macos/arm64, windows/x64`。发布后用只读命令复核过：**catalog 里 16 个 artifact URL 全部 200**，抽下的两份 AgentPack 归档大小与 SHA-256 与 catalog 一致，Manager 自己的 `validateManifest()` 对**线上那份 catalog** 得 0 条。
+- **tag 不会自己触发发布**：`desktop-release.yml` 的 push 触发带 `paths:`，而指向当前 tip 的 tag 没有变更文件列表可匹配，事件被静默丢弃（v0.2.0 当场遇到：tag 推上去，`gh run list` 里什么都没有）。现在由 `create-version.yml` 在推 tag 之后显式 `gh workflow run desktop-release.yml --ref v<版本>` 发起（该 job 因此需要 `actions: write`）。
+- `SHA256SUMS` 的键按发布布局写相对路径（安装器 `./<文件>`、渠道包 `./office-channel/<文件>`），所以 `sha256sum -c` 需要在同样的目录结构下跑；把资产全下成扁平一份目录再校验会对不上路径，这是格式约定，不是校验和错误。
+
+- `expectedArtifact` 在线上的 catalog 里是通配形式（实测：`TinadecTools*`、`TinadecCore.Api*`、`TinadecGateway*`；AgentPack 保持精确的 `manifest.json`，完整安装包为 `""`）。要收紧到本平台的 entrypoint，需要 Manager 改读 `artifact.packageMetadata.entrypoint`（`install-flow.ts:266-276` 一处回退即可），而它的 `Artifact` 类型还没有这个字段——值本身已经在 catalog 里。
 - **消费侧的 `agent-pack` 拒绝已修**：`TinadecManger/src/shared/manifest.ts` 的 `VALID_FAMILIES`/`VALID_DELIVERY` 此前不含 `agent-pack`，实测用 Manager 自己的 `validateManifest()` 跑真实产物得到的 2 条拒绝（`$.products[4].family`、`.delivery`）会让 `assertManifestOrThrow()` 拒绝整份 Office catalog；补上两个合法值后同一份真 catalog 读数为 **0 条**（Manager 仓库 commit `eda169c`）。
-- 合并后的 `expectedArtifact` 是通配形式（实测三例：`TinadecTools*`、`TinadecCore.Api*`、`TinadecGateway*`；AgentPack 保持精确的 `manifest.json`，完整安装包为 `""`），因为产品级字段只能有一个值。要让校验精确到本平台的 entrypoint，需要 Manager 侧读 `artifact.packageMetadata.entrypoint`（`install-flow.ts:266-276` 一处回退即可）；本契约已经把该值放进每个 artifact，**Manager 的类型还缺 `Artifact.packageMetadata` 字段**（该仓库 `src/shared/domain.ts` 有另一个会话未提交的 Office 类型工作，等它落地再补这一处）。
 - Manager 的 `extractArchive()` 直接调 PATH 上的 `tar`：在 Windows 开发机上它可能是 Git Bash 的 GNU tar，读不了 zip（`tests/install-flow.test.ts` 4 例在本机因此为红，且与本次改动无关，在 HEAD 上同样红）。渠道按平台分裂归档格式之后，Linux/macOS 拿到的都是 tar.gz，正好落在两种 `tar` 都能读的那一格；生产路径（Explorer 启动，PATH 里 System32 在前）用 bsdtar 读 zip。
 - macOS 是 ad-hoc 签名，`.dmg` 不带公证；`format: "executable"` 对 `.deb`/`.dmg` 的含义只有"单文件交付"，不代表 Manager 能解包安装。
-- `release` job 的合并与门禁已在真实 CI 工件上本地演练过（三份真 fragment + 十二个真归档 → 16 个 artifact 全部核对通过，数字门禁 4 zip / 8 tar.gz / 3 fragment 与 `SHA256SUMS` 22 行覆盖 22 个资产全中）；**未演练的只剩 `gh release create` 本身**，那需要一次真 tag。
