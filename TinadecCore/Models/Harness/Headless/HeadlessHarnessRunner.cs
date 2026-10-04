@@ -93,20 +93,36 @@ internal sealed class ProcessHeadlessHarnessRunner : IHeadlessHarnessRunner
         ObserveQuietly(stderrTask);
         ObserveQuietly(stdoutTask);
 
-        if (request.StdinPayload is { } payload)
+        try
         {
-            await using (var stdin = process.StandardInput)
+            if (request.StdinPayload is { } payload)
             {
-                await stdin.WriteAsync(payload.AsMemory(), cancellationToken).ConfigureAwait(false);
-                await stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await using (var stdin = process.StandardInput)
+                {
+                    await stdin.WriteAsync(payload.AsMemory(), cancellationToken).ConfigureAwait(false);
+                    await stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
+
+            await stdoutTask.ConfigureAwait(false);
+            await stderrTask.ConfigureAwait(false);
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+            return new HarnessTurnOutcome(process.HasExited ? process.ExitCode : null, Truncate(stderr.ToString(), StderrLimit));
         }
-
-        await stdoutTask.ConfigureAwait(false);
-        await stderrTask.ConfigureAwait(false);
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-
-        return new HarnessTurnOutcome(process.HasExited ? process.ExitCode : null, Truncate(stderr.ToString(), StderrLimit));
+        finally
+        {
+            // Cancellation makes WaitForExitAsync(token) stop observing the process immediately. The
+            // process tree and both pipe readers still own handles to the governed directory, though;
+            // leaving them to ObserveQuietly is the leak that made the cancellation test fail during
+            // DeleteTree. Terminate first, then await every reader and the parent before disposing the
+            // Process wrapper.
+            if (!process.HasExited) KillQuietly(process);
+            await AwaitQuietlyAsync(stdoutTask).ConfigureAwait(false);
+            await AwaitQuietlyAsync(stderrTask).ConfigureAwait(false);
+            DisposeRedirectedStreams(process);
+            await WaitForExitQuietlyAsync(process).ConfigureAwait(false);
+        }
     }
 
     private static async Task ReadStdoutAsync(
@@ -164,7 +180,35 @@ internal sealed class ProcessHeadlessHarnessRunner : IHeadlessHarnessRunner
     {
         try
         {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            if (process.HasExited) return;
+
+            if (OperatingSystem.IsWindows())
+            {
+                // Process.Kill(entireProcessTree:true) returns after the root handle is signalled, but
+                // Windows may still have a shim/grandchild holding the redirected pipe or cwd. taskkill
+                // /T is the synchronous OS tree operation; waiting for its completion closes the race
+                // between cancellation and the caller deleting the governed working directory.
+                using var taskkill = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "taskkill.exe",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    }
+                };
+                taskkill.StartInfo.ArgumentList.Add("/PID");
+                taskkill.StartInfo.ArgumentList.Add(process.Id.ToString());
+                taskkill.StartInfo.ArgumentList.Add("/T");
+                taskkill.StartInfo.ArgumentList.Add("/F");
+                if (taskkill.Start()) taskkill.WaitForExit(10_000);
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                return;
+            }
+
+            process.Kill(entireProcessTree: true);
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException)
         {
@@ -178,6 +222,30 @@ internal sealed class ProcessHeadlessHarnessRunner : IHeadlessHarnessRunner
         CancellationToken.None,
         TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
         TaskScheduler.Default);
+
+    private static async Task AwaitQuietlyAsync(Task task)
+    {
+        try { await task.ConfigureAwait(false); }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException) { }
+    }
+
+    private static async Task WaitForExitQuietlyAsync(Process process)
+    {
+        try
+        {
+            await process.WaitForExitAsync(CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TimeoutException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
+    }
+
+    private static void DisposeRedirectedStreams(Process process)
+    {
+        try { process.StandardInput.Dispose(); } catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException) { }
+        try { process.StandardOutput.Dispose(); } catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException) { }
+        try { process.StandardError.Dispose(); } catch (Exception ex) when (ex is InvalidOperationException or ObjectDisposedException) { }
+    }
 
     private static string Truncate(string value, int limit) => value.Length <= limit ? value : value[..limit] + "…";
 }
