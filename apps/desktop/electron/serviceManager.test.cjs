@@ -296,16 +296,29 @@ test('stop uses tree kill for owned processes and never targets a reused Core', 
   }
 });
 
-test('non-Windows shutdown falls back to owned-process signals', async () => {
+test('non-Windows shutdown signals the process group and never escalates', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'tinadec-service-signals-'));
   const runtime = createRuntime(root, 'linux');
   const ready = new Set();
   const children = [];
+  const groupSignals = [];
   const manager = createServiceManager({
     platform: 'linux',
     environment: { PATH: '/usr/bin' },
     startupTimeoutMs: 100,
     pollIntervalMs: 1,
+    // The default seam is `process.kill(-pid, signal)`, and these pids are invented. Whether
+    // process group 600 exists is a property of the machine running the test — on the macOS runner
+    // it did, so the group signal "succeeded" against somebody else's processes, the fake child
+    // recorded nothing, and the assertion below failed for reasons unrelated to this code.
+    signalGroupImpl: (pid, signal) => {
+      groupSignals.push({ pid, signal });
+      const target = children.find((child) => child.pid === pid);
+      if (target) {
+        target.exitCode = 0;
+        queueMicrotask(() => target.emit('close'));
+      }
+    },
     fetchImpl: async (url) => {
       if (!ready.has(url)) throw new Error('not listening');
       return healthResponse(url.startsWith(CORE_URL) ? coreHealth : gatewayHealth);
@@ -336,7 +349,13 @@ test('non-Windows shutdown falls back to owned-process signals', async () => {
       localAppDataPath: runtime.localAppDataPath,
     });
     await manager.stopLocalServices();
-    assert.deepEqual(children.map((child) => child.killCalls), [['SIGTERM'], ['SIGTERM']]);
+    // One group signal per service, in teardown order, and no escalation: SIGKILL here would mean
+    // the tree signal never landed.
+    assert.deepEqual(groupSignals, [
+      { pid: 601, signal: 'SIGTERM' },
+      { pid: 600, signal: 'SIGTERM' },
+    ]);
+    assert.deepEqual(children.map((child) => child.killCalls), [[], []], 'the single-process fallback is for a failed group signal only');
     assert.deepEqual(manager.ownedServiceLabels(), []);
   } finally {
     await manager.stopLocalServices();
