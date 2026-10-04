@@ -129,6 +129,12 @@ jobs:
         if: matrix.label == 'win-x64'
         run: npm run verify:package -w @tinadec/desktop
 
+      # The installer is the deliverable, and nothing here can install it: read the archive the way
+      # a package manager would and check that the launcher, the binary and the icon name each other.
+      - name: Check the Linux package contents
+        if: matrix.label == 'linux-x64'
+        run: npm run check:deb -w @tinadec/desktop
+
       # Electron needs an X server and its shared libraries on a headless runner; without the
       # packages the app dies before it binds a port, and the smoke's own message would be a
       # timeout rather than "libgtk-3 is missing".
