@@ -87,6 +87,7 @@ public sealed class ChatResolution
     public Guid? RouteVersionId { get; init; }
     public int CandidatePosition { get; init; }
     public string? StrategySource { get; init; }
+    public ModelParameters? Parameters { get; init; }
 }
 
 /// <summary>
@@ -208,13 +209,22 @@ public static class ChatProtocols
     /// drive it. One owner for the wording, because discovery offers the channel, the chat factory
     /// refuses it, and the model center explains the refusal — three places that read as three
     /// different answers if each invents its own sentence.
+    /// <para>
+    /// <see cref="HeadlessCli"/> has no entry here because a chat client now exists. It is still not
+    /// drivable for a harness whose answer frames this build has never captured — that verdict is
+    /// per-harness and lives in <see cref="HarnessCatalog.HasVerifiedHeadlessEnvelope"/>, since the
+    /// envelope vocabulary belongs to the vendor, not to the protocol.
+    /// </para>
     /// </summary>
     public static string? HarnessClientGap(string? protocol) => Normalize(protocol) switch
     {
-        HeadlessCli => $"the '{HeadlessCli}' chat client is a later batch",
         // Not "there is no terminal host": <c>IHarnessTerminalHost</c> is registered by the Models
-        // module. What is missing is the client that turns a terminal into an answer — keystrokes in,
-        // screen out, and a rule for what counts as done — so the sentence names that instead.
+        // module. What is missing is the client that turns a terminal into an answer, and measuring the
+        // harnesses' own TUIs showed why that is not a thin wrapper: every one of them repaints with
+        // absolute cursor addressing (so an answer needs a screen model), claude-code and kimi-code
+        // stop at an interactive "trust this folder" gate on first run, codex inherits whatever
+        // approval policy the user's own config sets, and text that scrolls off the pane is gone from
+        // the byte stream for good. A scrape would answer only turns short enough to fit the screen.
         Tui => $"no chat client drives a '{Tui}' terminal yet",
         _ => null
     };
@@ -228,6 +238,6 @@ public static class ChatProtocols
     {
         var normalized = Normalize(protocol);
         return HarnessClientGap(normalized) is null
-            && normalized switch { Acp or OpencodeServe => true, _ => false };
+            && normalized switch { Acp or OpencodeServe or HeadlessCli => true, _ => false };
     }
 }

@@ -8,6 +8,7 @@ using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA;
 using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
+using TinadecCore.Models.Harness.Headless;
 
 namespace TinadecCore.Api.Tests;
 
@@ -147,9 +148,12 @@ public sealed class CliRuntimeTests : IAsyncLifetime
     /// A channel the catalog declares but this build cannot drive yet must fail with its own name.
     /// Falling through to the default branch would build an OpenAI client and send a chat-completions
     /// request to a provider that has no endpoint, which reads as a model outage, not a missing driver.
+    /// <para>
+    /// <c>headless-cli</c> left this list when its chat client landed: the protocol is drivable now, and
+    /// what stays refused is decided per harness, below.
+    /// </para>
     /// </summary>
     [Theory]
-    [InlineData(ChatProtocols.HeadlessCli)]
     [InlineData(ChatProtocols.Tui)]
     public async Task Factory_CreateAsync_ChannelWithoutClientYet_FailsClosedNamingTheProtocol(string protocol)
     {
@@ -165,6 +169,88 @@ public sealed class CliRuntimeTests : IAsyncLifetime
             CreateFactory(resolution, new RecordingAcpSessionHost()).CreateAsync(resolution));
 
         Assert.Contains(protocol, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Factory_HeadlessChannel_ResolvesTheOneShotClientForAHarnessThatCanAnswer()
+    {
+        var resolution = new ChatResolution
+        {
+            Protocol = ChatProtocols.HeadlessCli,
+            ProviderInstanceId = Guid.NewGuid(),
+            ModelId = "claude-code/claude",
+            BinaryPath = "C:\\fake\\claude.exe"
+        };
+
+        using var client = await CreateFactory(
+            resolution,
+            new RecordingAcpSessionHost(),
+            roots: new FixedWorkspaceRoots("C:\\state\\harness-scratch"),
+            headless: new StubHeadlessRunner()).CreateAsync(resolution);
+
+        Assert.Equal("TinadecCore.Models.Harness.Headless.HeadlessCliChatClient", client.GetType().FullName);
+    }
+
+    /// <summary>
+    /// Kimi Code's headless stdout has only ever been seen failing on a reachable host — it is signed
+    /// out here — so its answer frame is undeclared. Refusing by name is the honest answer: a client
+    /// that parsed it with another vendor's dialect would return either nothing or the error text.
+    /// </summary>
+    [Fact]
+    public async Task Factory_HeadlessChannel_RefusesAHarnessWhoseAnswerFrameWasNeverCaptured()
+    {
+        var resolution = new ChatResolution
+        {
+            Protocol = ChatProtocols.HeadlessCli,
+            ProviderInstanceId = Guid.NewGuid(),
+            ModelId = "kimi-code/kimi",
+            BinaryPath = "C:\\fake\\kimi.exe"
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateFactory(
+                resolution,
+                new RecordingAcpSessionHost(),
+                roots: new FixedWorkspaceRoots("C:\\state\\harness-scratch"),
+                headless: new StubHeadlessRunner()).CreateAsync(resolution));
+
+        Assert.Contains("kimi-code", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("no headless answer frame", ex.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A process-backed protocol whose host is not registered must say so rather than build an HTTP
+    /// client for a provider that has no endpoint.
+    /// </summary>
+    [Fact]
+    public async Task Factory_HeadlessChannel_RequiresTheProcessRunnerToBeRegistered()
+    {
+        var resolution = new ChatResolution
+        {
+            Protocol = ChatProtocols.HeadlessCli,
+            ProviderInstanceId = Guid.NewGuid(),
+            ModelId = "claude-code/claude",
+            BinaryPath = "C:\\fake\\claude.exe"
+        };
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            CreateFactory(resolution, new RecordingAcpSessionHost()).CreateAsync(resolution));
+
+        Assert.Contains(nameof(IHeadlessHarnessRunner), ex.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class FixedWorkspaceRoots(string root) : IHarnessWorkspaceRoots
+    {
+        public string ForProvider(Guid providerInstanceId) => root;
+    }
+
+    private sealed class StubHeadlessRunner : IHeadlessHarnessRunner
+    {
+        public Task<HarnessTurnOutcome> RunAsync(
+            HarnessTurnRequest request,
+            IHeadlessEnvelope envelope,
+            Action<string>? textDelta,
+            CancellationToken cancellationToken) => Task.FromResult(new HarnessTurnOutcome(0, ""));
     }
 
     [Fact]
@@ -321,8 +407,13 @@ public sealed class CliRuntimeTests : IAsyncLifetime
         s.listen(port, '127.0.0.1', () => { console.log('server is listening on port: 1'); });
         """;
 
-    private static AgentChatClientFactory CreateFactory(ChatResolution resolution, IAcpSessionHost acp, StubProcesses? processes = null) =>
-        new(new FixedResolver(resolution), processes ?? new StubProcesses(), acp, NullLogger<AgentChatClientFactory>.Instance);
+    private static AgentChatClientFactory CreateFactory(
+        ChatResolution resolution,
+        IAcpSessionHost acp,
+        StubProcesses? processes = null,
+        IHarnessWorkspaceRoots? roots = null,
+        IHeadlessHarnessRunner? headless = null) =>
+        new(new FixedResolver(resolution), processes ?? new StubProcesses(), acp, NullLogger<AgentChatClientFactory>.Instance, roots, headless);
 
     private static int FreePort()
     {

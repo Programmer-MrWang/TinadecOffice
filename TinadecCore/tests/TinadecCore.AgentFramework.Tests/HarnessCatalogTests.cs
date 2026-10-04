@@ -102,7 +102,11 @@ public sealed class HarnessCatalogTests
         Assert.Equal(["--acp"], spec.Channel(AgentChannels.Acp)!.Argv);
         Assert.Empty(spec.Channel(AgentChannels.Acp)!.MandatoryArgs);
         Assert.Equal(["-y"], spec.Channel(AgentChannels.Cli)!.MandatoryArgs);
-        Assert.Contains(HarnessCatalog.PromptPlaceholder, spec.Channel(AgentChannels.Cli)!.Argv);
+        // The flag has to reach the process, and MandatoryArgs had no consumer until the headless
+        // client materialized argv — this is where that promise is pinned.
+        Assert.Contains("-y", HarnessCatalog.MaterializeChannelArgv("codebuddy", AgentChannels.Cli, "hello"));
+        Assert.Equal(HarnessPromptDeliveries.StdinMessage, spec.Channel(AgentChannels.Cli)!.PromptDelivery);
+        Assert.DoesNotContain(HarnessCatalog.PromptPlaceholder, spec.Channel(AgentChannels.Cli)!.Argv);
     }
 
     /// <summary>
@@ -248,6 +252,122 @@ public sealed class HarnessCatalogTests
     [InlineData("zcode")]
     public void HarnessesWithMeasuredVendorQuirks_CarryThemAsCaveats(string id)
         => Assert.NotEmpty(HarnessCatalog.Find(id)!.KnownCaveats);
+
+    /// <summary>
+    /// Measured on this host: <c>claude -p P --output-format stream-json</c> exits 1 saying
+    /// "When using --print, --output-format=stream-json requires --verbose", and adding
+    /// <c>--input-format stream-json</c> makes an argv prompt vanish with a zero exit and zero output.
+    /// Both halves of that row are pinned here, because each one is a way to lose a turn silently.
+    /// </summary>
+    [Fact]
+    public void ClaudeCode_HeadlessRowCarriesVerboseAndTakesThePromptOnStdin()
+    {
+        var channel = HarnessCatalog.Find("claude-code")!.Channel(AgentChannels.Cli)!;
+        Assert.Contains("--verbose", channel.Argv);
+        Assert.Contains("--input-format", channel.Argv);
+        Assert.Equal(HarnessPromptDeliveries.StdinMessage, channel.PromptDelivery);
+        Assert.DoesNotContain(HarnessCatalog.PromptPlaceholder, channel.Argv);
+        Assert.Equal(HarnessHeadlessEnvelopes.ClaudeResult, channel.Envelope);
+
+        var argv = HarnessCatalog.MaterializeChannelArgv("claude-code", AgentChannels.Cli, "hello");
+        Assert.DoesNotContain("hello", argv);
+    }
+
+    /// <summary>
+    /// Core spawns harnesses in a minted scratch directory, which is never a git repository, and codex
+    /// refuses there without <c>--skip-git-repo-check</c> (measured: exit 1 with that exact sentence).
+    /// The <c>-</c> positional is what makes the prompt arrive over stdin instead of the command line.
+    /// </summary>
+    [Fact]
+    public void Codex_HeadlessRowRunsOutsideGitAndReadsThePromptFromStdin()
+    {
+        var channel = HarnessCatalog.Find("codex")!.Channel(AgentChannels.Cli)!;
+        Assert.Contains("--skip-git-repo-check", channel.Argv);
+        Assert.Contains("-", channel.Argv);
+        Assert.Equal(HarnessPromptDeliveries.Stdin, channel.PromptDelivery);
+        Assert.Equal(HarnessHeadlessEnvelopes.CodexJsonl, channel.Envelope);
+    }
+
+    /// <summary>
+    /// Measured: <c>dsh tui</c> is not a subcommand. dsh reads <c>tui</c> as a profile name and dies
+    /// with <c>profile "tui" does not exist</c> — the terminal UI is the <c>dsh-tui</c> plugin profile,
+    /// which the vendor ships separately (<c>dsh plugin --profile dsh-tui add …</c>).
+    /// </summary>
+    [Fact]
+    public void Dsh_TuiRowNamesThePluginProfileRatherThanAnInventedSubcommand()
+    {
+        var channel = HarnessCatalog.Find("dsh")!.Channel(AgentChannels.Tui)!;
+        Assert.Equal(["--profile", "dsh-tui"], channel.Argv);
+        Assert.DoesNotContain("tui", channel.Argv);
+    }
+
+    /// <summary>
+    /// Drivability on the one-shot channel is claimed only for harnesses this build has watched answer.
+    /// The other two rows are deliberately <see cref="HarnessHeadlessEnvelopes.None"/>: kimi-code is
+    /// signed out here and opencode's provider was unreachable, so their stdout has only ever been seen
+    /// failing, and a parser invented for them would be a guess wearing a fixture.
+    /// </summary>
+    [Theory]
+    [InlineData("claude-code", true)]
+    [InlineData("codebuddy", true)]
+    [InlineData("codex", true)]
+    [InlineData("dsh", true)]
+    [InlineData("zcode", true)]
+    [InlineData("kimi-code", false)]
+    [InlineData("opencode", false)]
+    [InlineData("cursor", false)]
+    [InlineData("not-a-harness", false)]
+    public void HeadlessEnvelopes_AreDeclaredOnlyWhereAnAnswerWasCaptured(string id, bool expected)
+        => Assert.Equal(expected, HarnessCatalog.HasVerifiedHeadlessEnvelope(id));
+
+    /// <summary>
+    /// The invariant that makes a silent empty answer impossible by construction, on the rows that
+    /// carry a prompt: a headless row either has the placeholder and declares argv delivery, or
+    /// declares stdin delivery and must not carry it. A row that does both would drop the prompt on the
+    /// floor with exit code 0. Non-headless rows take no prompt, so they are out of scope.
+    /// </summary>
+    [Fact]
+    public void PromptDeliveryAndPlaceholder_NeverDisagreeOnAnyHeadlessRow()
+    {
+        var rows = HarnessCatalog.All
+            .SelectMany(spec => spec.Channels.Select(channel => (spec.Id, channel)))
+            .Where(row => row.channel.Protocol == ChatProtocols.HeadlessCli)
+            .ToList();
+
+        Assert.Equal(7, rows.Count);
+        foreach (var (id, channel) in rows)
+        {
+            var carries = channel.Argv.Contains(HarnessCatalog.PromptPlaceholder, StringComparer.Ordinal);
+            Assert.Equal(channel.PromptDelivery == HarnessPromptDeliveries.Argv, carries);
+        }
+    }
+
+    [Fact]
+    public void MaterializeArgv_SubstitutesThePromptOnceAndKeepsEveryOtherEntry()
+    {
+        var argv = HarnessCatalog.MaterializeChannelArgv("zcode", AgentChannels.Cli, "PONG please");
+        Assert.Equal(["-p", "PONG please", "--json", "--mode", "build"], argv);
+    }
+
+    /// <summary>
+    /// A stdin-delivered row still materializes to a usable command line — without the prompt anywhere
+    /// in it. This is the shape that makes the measured claude silent-drop impossible to re-introduce.
+    /// </summary>
+    [Fact]
+    public void MaterializeArgv_ForAStdinRowLeavesThePromptOutOfTheCommandEntirely()
+    {
+        var argv = HarnessCatalog.MaterializeChannelArgv("claude-code", AgentChannels.Cli, "hello");
+        Assert.DoesNotContain("hello", argv);
+        Assert.Contains("-p", argv);
+        Assert.Contains("--verbose", argv);
+    }
+
+    [Fact]
+    public void MaterializeArgv_RequiresPromptTextWhenTheRowTakesItOnArgv()
+    {
+        Assert.Throws<InvalidOperationException>(
+            () => HarnessCatalog.MaterializeChannelArgv("zcode", AgentChannels.Cli, " "));
+    }
 
     /// <summary>
     /// The fabricated port-flag injection was the lie's engine: it appended a port flag to binaries

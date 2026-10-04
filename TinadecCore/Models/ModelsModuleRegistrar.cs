@@ -9,6 +9,7 @@ using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
+using TinadecCore.Models.Harness.Headless;
 using TinadecCore.Persistence;
 
 namespace TinadecCore.Models;
@@ -36,7 +37,14 @@ public sealed class ModelsModuleRegistrar : IModuleRegistrar
             sp.GetRequiredService<IChatResolver>(),
             sp.GetRequiredService<IOpencodeServeProcessManager>(),
             sp.GetRequiredService<IAcpSessionHost>(),
-            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AgentChatClientFactory>>()));
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AgentChatClientFactory>>(),
+            sp.GetRequiredService<IHarnessWorkspaceRoots>(),
+            sp.GetRequiredService<IHeadlessHarnessRunner>()));
+        // One governed working directory per provider instance, shared by every channel that spawns it.
+        // If each channel minted its own, the same harness would edit files in two different places
+        // depending on which channel a run happened to pick, and the directory is the boundary.
+        builder.Services.AddSingleton<IHarnessWorkspaceRoots, HarnessWorkspaceRoots>();
+        builder.Services.AddSingleton<IHeadlessHarnessRunner, ProcessHeadlessHarnessRunner>();
         builder.Services.AddSingleton<OpencodeServeProcessManager>();
         builder.Services.AddSingleton<IOpencodeServeProcessManager>(sp => sp.GetRequiredService<OpencodeServeProcessManager>());
         // ACP sessions are hosted per provider instance and must die with the host, so the port is
@@ -63,7 +71,7 @@ public sealed class ModelsModuleRegistrar : IModuleRegistrar
             ModuleId = ModuleId,
             Version = "0.1.0",
             Dependencies = ["abstractions", "persistence"],
-            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation", "terminal_hosting", "harness_transports"],
+            Capabilities = ["provider_management", "model_routing", "credential_references", "error_normalization", "readiness", "embedding_generation", "terminal_hosting", "harness_transports", "headless_harness_turns"],
             Language = "C#",
             MafPrimitives = ["agent", "chat_client"],
             RegistrationStatus = ModuleRegistrationStatus.NotConfigured
@@ -186,6 +194,7 @@ internal sealed class ModelProvider : IModelProvider, IChatResolver
             IsAvailable = true,
             BaseUrl = baseUrl,
             Model = model,
+            Parameters = ModelParameters.ForModel(doc.RootElement, model),
             ApiKey = apiKey,
             ModelId = $"{provider.Driver}/{model}",
             Protocol = protocol,

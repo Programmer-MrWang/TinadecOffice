@@ -24,14 +24,16 @@ public sealed class StoragePaths
     public string Artifacts(Guid runId) => Under("artifacts", runId.ToString());
 
     /// <summary>
-    /// Working directory for one hosted ACP agent session. A harness reads and writes its own
-    /// <c>cwd</c> with its own tools regardless of which client capabilities were declared, so this
-    /// directory — not a capability flag — is what bounds what a connected harness can touch. Both
-    /// segments are Core-minted GUIDs: the agent's own session id is never used to build a path,
-    /// because it arrives from an external process and would need sanitizing to be safe here.
+    /// The governed working directory for one harness provider, on every channel that spawns it. Both
+    /// segments are Core-minted GUIDs: the identity a harness reports for its own session arrives from
+    /// an external process and would need sanitizing to be used as a path, so it never is.
+    /// <para>
+    /// This was <c>acp-sessions</c> while only the ACP channel needed it. Directories left under that
+    /// name hold a previous build's harness scratch files and are not reused.
+    /// </para>
     /// </summary>
-    public string AcpSessionScratch(Guid providerInstanceId, Guid scratchId) =>
-        Under("acp-sessions", Path.Combine(providerInstanceId.ToString("N"), scratchId.ToString("N")));
+    public string HarnessWorkspace(Guid providerInstanceId, Guid workspaceId) =>
+        Under("harness-workspaces", Path.Combine(providerInstanceId.ToString("N"), workspaceId.ToString("N")));
     public string ProjectVectorDatabase(Guid tenantId, Guid? workspaceId, Guid projectId) =>
         Under("vectors", Path.Combine("tenants", tenantId.ToString("N"), workspaceId?.ToString("N") ?? "tenant", projectId + ".db"));
 

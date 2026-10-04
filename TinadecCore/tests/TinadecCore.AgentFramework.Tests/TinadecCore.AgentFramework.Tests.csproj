@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <None Include="..\..\DmaEA\Configuration\default-agent-runtime.toml" Link="DmaEA\Configuration\default-agent-runtime.toml" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

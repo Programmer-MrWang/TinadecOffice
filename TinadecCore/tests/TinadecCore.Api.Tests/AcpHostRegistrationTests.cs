@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.DmaEA;
+using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
 
 namespace TinadecCore.Api.Tests;
@@ -73,13 +74,18 @@ public sealed class AcpHostRegistrationTests : IAsyncLifetime
         var scratch = host.ScratchDirectoryFor(provider);
 
         Assert.StartsWith(
-            Path.GetFullPath(Path.Combine(_root, "data", "acp-sessions")),
+            Path.GetFullPath(Path.Combine(_root, "data", "harness-workspaces")),
             Path.GetFullPath(scratch),
             StringComparison.Ordinal);
         Assert.True(Directory.Exists(scratch), "the host must create the governed directory, not only name it");
         // Stable across calls: a chat client is built per model invocation, and a directory that moved
         // between invocations would be read as a moved session root and refused.
         Assert.Equal(scratch, host.ScratchDirectoryFor(provider));
+
+        // One boundary per provider across channels: the headless client asks the roots port, the ACP
+        // session asks the host, and both must land in the same directory — otherwise the same harness
+        // would edit files in two places depending on which channel a run happened to choose.
+        Assert.Equal(scratch, _factory!.Services.GetRequiredService<IHarnessWorkspaceRoots>().ForProvider(provider));
     }
 
     /// <summary>

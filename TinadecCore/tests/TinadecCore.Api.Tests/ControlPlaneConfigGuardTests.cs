@@ -23,6 +23,81 @@ namespace TinadecCore.Api.Tests;
 /// </summary>
 public sealed class ControlPlaneConfigGuardTests
 {
+    [Fact]
+    public async Task ModelParameters_SaveReadResolveAndFreeze_KeepTheirProviderVersion()
+    {
+        using var factory = new GuardFactory();
+        using var client = factory.CreateClient();
+        var (id, revision) = await CreateProviderAsync(client, apiKey: "test-only", withProtocol: true);
+        var saved = await PutProviderAsync(client, id, new { model_parameters = new Dictionary<string, object>
+        {
+            ["guard-model"] = new { reasoning_effort = "high", temperature = 0.3, top_p = 0.8, max_output_tokens = 8192 },
+            ["other-model"] = new { reasoning_effort = "low" }
+        } }, revision);
+        saved.EnsureSuccessStatusCode();
+        var provider = await GetProviderAsync(client, id);
+        Assert.Equal("high", provider.GetProperty("model_parameters").GetProperty("guard-model").GetProperty("reasoning_effort").GetString());
+        Assert.False(provider.TryGetProperty("api_key", out _));
+        (await BindChatRouteAsync(client, id, "guard-model")).EnsureSuccessStatusCode();
+        using var scope = factory.Services.CreateScope();
+        var ordinary = await scope.ServiceProvider.GetRequiredService<IChatResolver>().ResolveChatAsync();
+        Assert.Equal("high", ordinary.Parameters?.ReasoningEffort);
+        Assert.Equal(8192, ordinary.Parameters?.MaxOutputTokens);
+        var resolver = scope.ServiceProvider.GetRequiredService<IAgentModelResolver>();
+        var request = new AgentModelFreezeRequest(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "worker",
+            $"{{\"kind\":\"fixed\",\"provider_instance_id\":\"{id}\",\"model\":\"guard-model\"}}", "test", false);
+        var frozen = await resolver.FreezeAsync(request);
+        var updated = await PutProviderAsync(client, id, new { model_parameters = new Dictionary<string, object> { ["guard-model"] = new { reasoning_effort = "low" } } }, provider.GetProperty("revision").GetInt64());
+        updated.EnsureSuccessStatusCode();
+        var existing = Assert.Single(await resolver.ResolveInvocationCandidatesAsync(frozen, null));
+        Assert.Equal("high", existing.Parameters?.ReasoningEffort);
+        Assert.Equal(8192, existing.Parameters?.MaxOutputTokens);
+        var next = Assert.Single(await resolver.ResolveInvocationCandidatesAsync(await resolver.FreezeAsync(request), null));
+        Assert.Equal("low", next.Parameters?.ReasoningEffort);
+        var cleared = await PutProviderAsync(client, id, new { model_parameters = new { } }, (await GetProviderAsync(client, id)).GetProperty("revision").GetInt64());
+        cleared.EnsureSuccessStatusCode();
+        Assert.Null((await scope.ServiceProvider.GetRequiredService<IChatResolver>().ResolveChatAsync()).Parameters);
+    }
+
+    [Theory]
+    [InlineData("{\"guard-model\":{\"temperature\":3}}")]
+    [InlineData("{\"guard-model\":{\"top_p\":-1}}")]
+    [InlineData("{\"guard-model\":{\"max_output_tokens\":0}}")]
+    [InlineData("{\"guard-model\":{\"reasoning_effort\":\"typo\"}}")]
+    [InlineData("{\"guard-model\":{\"api_key\":\"must-not-be-stored\"}}")]
+    public async Task InvalidModelParameters_Return400WithoutSavingOrChangingCredentials(string parameters)
+    {
+        using var factory = new GuardFactory();
+        using var client = factory.CreateClient();
+        var (id, revision) = await CreateProviderAsync(client, apiKey: "test-only");
+        var before = await factory.ReadProviderConfigBlobAsync(id);
+        using var input = JsonDocument.Parse("{\"api_key\":\"must-not-replace\",\"model_parameters\":" + parameters + "}");
+        var response = await PutProviderAsync(client, id, input.RootElement, revision);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("invalid_model_parameters", (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        Assert.Equal(revision, (await GetProviderAsync(client, id)).GetProperty("revision").GetInt64());
+        Assert.Equal(before, await factory.ReadProviderConfigBlobAsync(id));
+        using var scope = factory.Services.CreateScope();
+        var db = await scope.ServiceProvider.GetRequiredService<IDbContextFactory<ModelControlDbContext>>().CreateDbContextAsync();
+        await using (db)
+        {
+            var row = await db.Providers.SingleAsync(x => x.Id == id);
+            Assert.Equal("test-only", await factory.SecretStore.GetAsync(row.SecretReference!));
+        }
+    }
+
+    [Fact]
+    public async Task AnthropicParameters_DoNotPretendToSupportOpenAiReasoning()
+    {
+        using var factory = new GuardFactory();
+        using var client = factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/v1/model-providers", new {
+            driver = "anthropic", protocol = "anthropic-messages", display_name = "Anthropic", connection_kind = "api-key",
+            model_parameters = new Dictionary<string, object> { ["m"] = new { reasoning_effort = "high" } }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     // ── If-Match enforcement ────────────────────────────────────────────────
 
     [Fact]

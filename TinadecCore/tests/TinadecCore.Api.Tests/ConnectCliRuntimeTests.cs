@@ -122,6 +122,35 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
         Assert.Equal(body.GetProperty("id").GetString(), againBody.GetProperty("id").GetString());
     }
 
+    [Theory]
+    [InlineData("claude-code")]
+    [InlineData("codex")]
+    [InlineData("zcode")]
+    [InlineData("codebuddy")]
+    [InlineData("dsh")]
+    public async Task Connect_HeadlessChannel_PersistsTheSelectedCliRoute(string driver)
+    {
+        var binary = WriteRunnableStub(driver);
+        var client = _factory!.CreateClient();
+
+        var response = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
+        {
+            driver,
+            channel = "cli",
+            protocol = "headless-cli",
+            binary_path = binary,
+            display_name = driver
+        }));
+
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
+        var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal(driver, body.GetProperty("driver").GetString());
+        Assert.Equal("cli", body.GetProperty("channel").GetString());
+        Assert.Equal("headless-cli", body.GetProperty("protocol").GetString());
+        Assert.Equal(Path.GetFullPath(binary), Path.GetFullPath(body.GetProperty("binary_path").GetString()!));
+        Assert.True(body.GetProperty("enabled").GetBoolean());
+    }
+
     [Fact]
     public async Task Connect_HttpServerShape_UnreachableRuntime_FailsWith502()
     {

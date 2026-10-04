@@ -361,6 +361,7 @@ internal sealed class AgentModelResolver : IAgentModelResolver
             return new ChatResolution
             {
                 IsAvailable = true, BaseUrl = baseUrl, ApiKey = apiKey, Model = model,
+                Parameters = ModelParameters.ForModel(root, model),
                 ModelId = $"{provider.Driver}/{model}", Protocol = protocol,
                 ServerUrl = Text("server_url"), BinaryPath = Text("binary_path"), LaunchArgs = Text("launch_args"), HomePath = Text("home_path"),
                 ProviderInstanceId = provider.Id, ProviderVersionId = version.Id,
@@ -387,6 +388,7 @@ internal sealed class AgentModelResolver : IAgentModelResolver
         IsAvailable = value.IsAvailable,
         BaseUrl = value.BaseUrl,
         Model = value.Model,
+        Parameters = value.Parameters,
         ApiKey = value.ApiKey,
         ModelId = value.ModelId,
         Protocol = value.Protocol,

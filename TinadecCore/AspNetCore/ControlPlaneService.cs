@@ -116,7 +116,7 @@ public sealed class ControlPlaneService
         JsonElement Value(string key) => cfg != null && cfg.TryGetValue(key, out var v) ? v : default;
         string? String(string key) => Value(key).ValueKind == JsonValueKind.String ? Value(key).GetString() : null;
         string[] Models() => Value("models").ValueKind == JsonValueKind.Array ? Value("models").EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray() : Array.Empty<string>();
-        return new { id = row.Id, driver = row.Driver, protocol = HarnessCatalog.ResolveProtocol(String("protocol"), row.Driver, String("channel")), channel = String("channel"), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
+        return new { id = row.Id, driver = row.Driver, protocol = HarnessCatalog.ResolveProtocol(String("protocol"), row.Driver, String("channel")), channel = String("channel"), display_name = row.DisplayName, connection_kind = row.ConnectionKind, base_url = String("base_url"), model = String("model"), models = Models(), model_parameters = ModelParameters.ReadMap(Value("model_parameters")), has_api_key = row.SecretReference != null && _secrets.ExistsAsync(row.SecretReference).GetAwaiter().GetResult(), binary_path = String("binary_path"), home_path = String("home_path"), server_url = String("server_url"), launch_args = String("launch_args"), capabilities = cfg != null && cfg.TryGetValue("capabilities", out var c) && c.ValueKind == JsonValueKind.Array ? c.EnumerateArray().Select(x => x.GetString() ?? "").ToArray() : Array.Empty<string>(), enabled = row.Enabled, status = row.Enabled ? "configured" : "disabled", status_message = "Persisted configuration", revision = row.Revision, scope = row.Scope, created_at = row.CreatedAt, updated_at = row.UpdatedAt }; }
 
     public async Task<IResult> RefreshProviderModels(Guid id, CancellationToken ct)
     {
@@ -248,9 +248,23 @@ public sealed class ControlPlaneService
         {
             return Results.BadRequest(new { code = "harness_protocol_unsupported", message = $"'{driver}' does not speak '{protocol}'; this harness offers {string.Join(", ", OfferedProtocols(spec))}." });
         }
-        if (ChatProtocols.HarnessClientGap(protocol) is { } gap)
-            return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' on protocol '{protocol}' cannot be connected by this build: {gap}." });
-        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe)) return Results.BadRequest(new { code = "CLI_CONNECT_INVALID", message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}' and '{ChatProtocols.OpencodeServe}'." });
+        if (protocol == ChatProtocols.HeadlessCli && !HarnessCatalog.HasVerifiedHeadlessEnvelope(driver))
+        {
+            return Results.BadRequest(new
+            {
+                code = "CLI_CONNECT_INVALID",
+                message = $"'{driver}' has no headless answer frame captured by this build; choose another declared channel."
+            });
+        }
+
+        if (protocol is not (ChatProtocols.Acp or ChatProtocols.OpencodeServe or ChatProtocols.HeadlessCli))
+        {
+            return Results.BadRequest(new
+            {
+                code = "CLI_CONNECT_INVALID",
+                message = $"'{driver}' does not resolve to a channel this build can connect (protocol '{protocol}'); connectable protocols are '{ChatProtocols.Acp}', '{ChatProtocols.HeadlessCli}' and '{ChatProtocols.OpencodeServe}'."
+            });
+        }
 
         OpencodeServeEndpoint? endpoint = null;
         var existing = await ExistingCliProviderAsync(driver, ct);
@@ -271,7 +285,7 @@ public sealed class ControlPlaneService
                 return Results.Json(new { code = "CLI_CONNECT_FAILED", message = ex.Message }, statusCode: 502);
             }
         }
-        else
+        else if (protocol == ChatProtocols.OpencodeServe)
         {
             try
             {
@@ -415,16 +429,31 @@ public sealed class ControlPlaneService
     {
         var channels = new List<object>();
         if (spec.HttpServer is { } server)
-            channels.Add(ChannelFact(null, server.Protocol));
+            channels.Add(ChannelFact(null, server.Protocol, spec.Id));
         foreach (var channel in spec.Channels)
-            channels.Add(ChannelFact(channel.Channel, channel.Protocol));
+            channels.Add(ChannelFact(channel.Channel, channel.Protocol, spec.Id));
         return channels;
 
-        static ChannelFact ChannelFact(string? channel, string protocol) => new(
-            channel,
-            protocol,
-            ChatProtocols.IsDrivable(protocol),
-            ChatProtocols.HarnessClientGap(protocol));
+        /// <summary>
+        /// Drivability of the one-shot channel is a (harness, channel) fact: the headless client exists,
+        /// but it only parses answer frames this build has actually captured from that vendor. Offering
+        /// <c>cli</c> for a harness whose stdout has only ever been seen failing would light a button
+        /// whose run ends in "the harness never answered".
+        /// </summary>
+        static ChannelFact ChannelFact(string? channel, string protocol, string harnessId)
+        {
+            var drivable = ChatProtocols.IsDrivable(protocol)
+                && (ChatProtocols.Normalize(protocol) != ChatProtocols.HeadlessCli
+                    || HarnessCatalog.HasVerifiedHeadlessEnvelope(harnessId));
+            return new ChannelFact(
+                channel,
+                protocol,
+                drivable,
+                drivable ? null : ChatProtocols.HarnessClientGap(protocol)
+                    ?? (ChatProtocols.Normalize(protocol) == ChatProtocols.HeadlessCli
+                        ? $"'{harnessId}' has no headless answer frame captured by this build"
+                        : null));
+        }
     }
 
     private sealed record ChannelFact(string? Channel, string Protocol, bool Drivable, string? Reason);
@@ -463,15 +492,36 @@ public sealed class ControlPlaneService
                 if (disablePurposes.Count > 0) return ProviderInUse(disablePurposes);
             }
         }
+        var merged = row is null
+            ? MergeProviderConfig(new Dictionary<string, JsonElement>(), input)
+            : MergeProviderConfig(await LoadProviderConfigAsync(db, row.CurrentVersionId, ct), input);
+        try
+        {
+            if (merged.TryGetValue("model_parameters", out var parameters))
+            {
+                var settings = ModelParameters.ReadMap(parameters);
+                string? ConfigText(string key) => merged.TryGetValue(key, out var text) && text.ValueKind == JsonValueKind.String ? text.GetString() : null;
+                var protocol = HarnessCatalog.ResolveProtocol(ConfigText("protocol"), ConfigText("driver") ?? row?.Driver, ConfigText("channel"));
+                foreach (var item in settings.Values.Where(x => !x.IsEmpty))
+                {
+                    if (ChatProtocols.IsModelChosenByHarness(protocol)) throw new ArgumentException("Inference settings are managed by this harness.");
+                    if (item.ReasoningEffort is not null && !ModelParameters.SupportsReasoning(protocol))
+                        throw new ArgumentException("reasoning_effort is supported for OpenAI Chat and Responses protocols.");
+                    if (protocol == ChatProtocols.AnthropicMessages && item.Temperature is > 1)
+                        throw new ArgumentException("Anthropic temperature must be between 0 and 1.");
+                }
+            }
+        }
+        catch (Exception ex) when (ex is ArgumentException or JsonException)
+        {
+            return Results.BadRequest(new { code = "invalid_model_parameters", message = ex.Message });
+        }
         var isNew = row is null;
         if (isNew) row = new ModelProviderRecord { Id = id ?? Guid.NewGuid(), TenantId = Tenant.TenantId, WorkspaceId = Tenant.WorkspaceId, CreatedByPrincipalId = Tenant.PrincipalId, CreatedAt = now, Revision = 0 };
         var provider = row!;
         if (isNew) db.Providers.Add(provider);
         provider.Driver = input.TryGetProperty("driver", out var p) ? p.GetString() ?? "" : provider.Driver; provider.DisplayName = input.TryGetProperty("display_name", out p) ? p.GetString() ?? provider.Driver : provider.DisplayName; provider.ConnectionKind = input.TryGetProperty("connection_kind", out p) ? p.GetString() ?? "api-key" : provider.ConnectionKind; provider.Scope = input.TryGetProperty("scope", out p) ? p.GetString() ?? "workspace" : provider.Scope; provider.Enabled = !input.TryGetProperty("enabled", out p) || p.ValueKind != JsonValueKind.False; provider.UpdatedByPrincipalId = Tenant.PrincipalId; provider.UpdatedAt = now;
         if (input.TryGetProperty("api_key", out p) && p.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(p.GetString())) { provider.SecretReference ??= "provider-" + provider.Id.ToString("N"); await _secrets.PutAsync(provider.SecretReference, p.GetString()!, ct); } else if (input.TryGetProperty("clear_api_key", out p) && p.ValueKind == JsonValueKind.True && provider.SecretReference != null) { await _secrets.DeleteAsync(provider.SecretReference, ct); provider.SecretReference = null; }
-        var merged = isNew
-            ? MergeProviderConfig(new Dictionary<string, JsonElement>(), input)
-            : MergeProviderConfig(await LoadProviderConfigAsync(db, provider.CurrentVersionId, ct), input);
         RemoveSecret(merged);
         var stored = await PutJsonAsync(_content, Tenant.TenantId, Tenant.WorkspaceId, "model-config", merged, ct);
         // Version numbers must come from the existing version rows, not from the

@@ -7,6 +7,7 @@ using OpenAI;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Models.Harness.Acp;
+using TinadecCore.Models.Harness.Headless;
 
 namespace TinadecCore.Models.Harness;
 
@@ -21,6 +22,8 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
     private readonly IChatResolver _resolver;
     private readonly IOpencodeServeProcessManager? _processes;
     private readonly IAcpSessionHost? _acp;
+    private readonly IHarnessWorkspaceRoots? _roots;
+    private readonly IHeadlessHarnessRunner? _headless;
     private readonly ILogger<AgentChatClientFactory>? _logger;
 
     public AgentChatClientFactory(IChatResolver resolver)
@@ -32,28 +35,40 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
         IChatResolver resolver,
         IOpencodeServeProcessManager processes,
         IAcpSessionHost acp,
-        ILogger<AgentChatClientFactory> logger)
+        ILogger<AgentChatClientFactory> logger,
+        IHarnessWorkspaceRoots? roots = null,
+        IHeadlessHarnessRunner? headless = null)
     {
         _resolver = resolver;
         _processes = processes;
         _acp = acp;
         _logger = logger;
+        _roots = roots;
+        _headless = headless;
     }
 
     public Task<ChatResolution> ResolveChatAsync(string routePurpose, CancellationToken cancellationToken = default) =>
         _resolver.ResolveChatAsync(routePurpose, cancellationToken);
 
-    public Task<IChatClient> CreateAsync(ChatResolution resolution, CancellationToken cancellationToken = default) =>
-        ChatProtocols.Normalize(resolution.Protocol) switch
+    public async Task<IChatClient> CreateAsync(ChatResolution resolution, CancellationToken cancellationToken = default)
+    {
+        var client = await (ChatProtocols.Normalize(resolution.Protocol) switch
         {
             ChatProtocols.OpenAiResponses => Task.FromResult(CreateResponsesClient(resolution)),
             ChatProtocols.AnthropicMessages => Task.FromResult(CreateAnthropicClient(resolution)),
             ChatProtocols.Acp => CreateAcpClientAsync(resolution, cancellationToken),
             ChatProtocols.OpencodeServe => CreateOpenCodeClientAsync(resolution, cancellationToken),
-            ChatProtocols.HeadlessCli => UnsupportedAsync(ChatProtocols.HeadlessCli),
+            ChatProtocols.HeadlessCli => CreateHeadlessClientAsync(resolution),
             ChatProtocols.Tui => UnsupportedAsync(ChatProtocols.Tui),
             _ => Task.FromResult(CreateOpenAiChatClient(resolution))
-        };
+        }).ConfigureAwait(false);
+        return ConfigureParameters(client, resolution);
+    }
+
+    internal static IChatClient ConfigureParameters(IChatClient client, ChatResolution resolution)
+        => resolution.Parameters is { IsEmpty: false } settings
+            ? new ConfigureOptionsChatClient(client, options => settings.ApplyTo(options, resolution.Model ?? ""))
+            : client;
 
     /// <summary>
     /// A process-backed protocol with no client in this build fails here instead of falling through
@@ -149,6 +164,41 @@ internal sealed class AgentChatClientFactory : IAgentChatClientFactory
         string.IsNullOrWhiteSpace(resolution.HomePath)
             ? null
             : new Dictionary<string, string?> { ["HOME"] = resolution.HomePath };
+
+    /// <summary>
+    /// Opens the one-shot headless channel for a provider. The catalog decides the argv, where the
+    /// prompt goes, and which stdout vocabulary counts as an answer, so a harness this build has only
+    /// ever seen fail to answer is refused here by name instead of being parsed on assumption.
+    /// </summary>
+    private Task<IChatClient> CreateHeadlessClientAsync(ChatResolution resolution)
+    {
+        var driver = DriverOf(resolution);
+        var channel = HarnessCatalog.Find(driver)?.Channel(AgentChannels.Cli);
+        var envelopeKind = channel?.Envelope ?? HarnessHeadlessEnvelopes.None;
+        if (channel is null || HeadlessEnvelopes.For(envelopeKind) is null)
+        {
+            return Task.FromException<IChatClient>(new InvalidOperationException(
+                $"'{driver}' has no headless answer frame that this build has captured, so protocol " +
+                $"'{ChatProtocols.HeadlessCli}' stays refused rather than parsed by guesswork."));
+        }
+
+        var runner = _headless ?? throw new InvalidOperationException(
+            $"Protocol {ChatProtocols.HeadlessCli} requires {nameof(IHeadlessHarnessRunner)} to be registered.");
+        var roots = _roots ?? throw new InvalidOperationException(
+            $"Protocol {ChatProtocols.HeadlessCli} requires {nameof(IHarnessWorkspaceRoots)} to be registered.");
+        var provider = resolution.ProviderInstanceId
+            ?? throw new InvalidOperationException($"Chat protocol {ChatProtocols.HeadlessCli} needs a provider instance to own its working directory.");
+
+        return Task.FromResult<IChatClient>(new HeadlessCliChatClient(
+            driver,
+            channel,
+            envelopeKind,
+            resolution.BinaryPath ?? throw new InvalidOperationException(
+                $"Process protocol {ChatProtocols.HeadlessCli} requires a binary_path."),
+            roots.ForProvider(provider),
+            EnvironmentOf(resolution),
+            runner));
+    }
 
     private async Task<IChatClient> CreateOpenCodeClientAsync(ChatResolution resolution, CancellationToken cancellationToken)
     {

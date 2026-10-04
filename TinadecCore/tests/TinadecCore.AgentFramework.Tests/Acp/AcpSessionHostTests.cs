@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Persistence;
 
@@ -33,7 +34,7 @@ public sealed class AcpSessionHostTests : IDisposable
     {
         var paths = new StoragePaths(contentRoot, Options.Create(new TinadecPersistenceOptions { DataRoot = "data" }));
         var pool = new FakeAcpGenerationPool();
-        var host = new AcpSessionHost(AcpSessionTestSupport.FastOptions(), paths, new RefusingAcpInteractionRouterFactory(),
+        var host = new AcpSessionHost(AcpSessionTestSupport.FastOptions(), new HarnessWorkspaceRoots(paths), new RefusingAcpInteractionRouterFactory(),
             NullLogger<AcpSessionHost>.Instance, pool.Create);
         return (host, pool);
     }
@@ -137,7 +138,7 @@ public sealed class AcpSessionHostTests : IDisposable
         var first = Guid.NewGuid();
         var second = Guid.NewGuid();
 
-        var root = Path.GetFullPath(Path.Combine(_contentRoot, "data", "acp-sessions"));
+        var root = Path.GetFullPath(Path.Combine(_contentRoot, "data", "harness-workspaces"));
         Assert.StartsWith(root, Path.GetFullPath(host.ScratchDirectoryFor(first)), StringComparison.Ordinal);
         Assert.Equal(host.ScratchDirectoryFor(first), host.ScratchDirectoryFor(first));
         Assert.True(Directory.Exists(host.ScratchDirectoryFor(first)));

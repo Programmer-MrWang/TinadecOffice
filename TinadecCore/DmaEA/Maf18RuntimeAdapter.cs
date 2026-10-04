@@ -26,7 +26,7 @@ internal static class Maf18RuntimeAdapter
     /// answer, and one worker turn all need more room than a chat-completions default
     /// gives. Deliberately generous: it is a ceiling, not a target.
     /// </summary>
-    internal const int DefaultMaxOutputTokens = 4096;
+    internal const int DefaultMaxOutputTokens = ModelParameters.DefaultMaxOutputTokens;
 
     internal static IReadOnlyDictionary<string, Version> FrameworkVersions => new Dictionary<string, Version>(StringComparer.Ordinal)
     {

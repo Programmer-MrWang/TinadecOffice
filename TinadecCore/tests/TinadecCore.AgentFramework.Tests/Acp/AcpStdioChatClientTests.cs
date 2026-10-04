@@ -1,6 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using TinadecCore.Models.Harness;
 using TinadecCore.Models.Harness.Acp;
 using TinadecCore.Persistence;
 
@@ -35,7 +36,7 @@ public sealed class AcpStdioChatClientTests : IDisposable
     {
         var paths = new StoragePaths(_contentRoot, Options.Create(new TinadecPersistenceOptions { DataRoot = "data" }));
         var pool = new FakeAcpGenerationPool();
-        var host = new AcpSessionHost(AcpSessionTestSupport.FastOptions(), paths, new RefusingAcpInteractionRouterFactory(),
+        var host = new AcpSessionHost(AcpSessionTestSupport.FastOptions(), new HarnessWorkspaceRoots(paths), new RefusingAcpInteractionRouterFactory(),
             NullLogger<AcpSessionHost>.Instance, pool.Create);
         return (host, pool);
     }
@@ -147,7 +148,7 @@ public sealed class AcpStdioChatClientTests : IDisposable
         Assert.Equal(1, pool.Count);
         Assert.Equal(2, pool.Latest.Prompts);
         Assert.Equal(scratch, host.ScratchDirectoryFor(provider));
-        Assert.StartsWith(Path.GetFullPath(Path.Combine(_contentRoot, "data", "acp-sessions")), scratch, StringComparison.Ordinal);
+        Assert.StartsWith(Path.GetFullPath(Path.Combine(_contentRoot, "data", "harness-workspaces")), scratch, StringComparison.Ordinal);
         await host.DisposeAsync();
     }
 

@@ -15,6 +15,11 @@ internal interface IAcpSessionHost : IAsyncDisposable
     /// The governed working directory for one provider instance, created on first use and stable
     /// afterwards. A harness reads and writes its <c>cwd</c> with its own tools regardless of declared
     /// capabilities, so this directory — not a capability flag — is the boundary.
+    /// <para>
+    /// This is a delegate to <see cref="IHarnessWorkspaceRoots"/>, kept on the session port because ACP
+    /// callers already hold the host. It is deliberately the same object the headless channel asks, so
+    /// a provider does not end up with two workspaces depending on which channel a run chose.
+    /// </para>
     /// </summary>
     string ScratchDirectoryFor(Guid providerInstanceId);
 
@@ -37,35 +42,29 @@ internal interface IAcpSessionHost : IAsyncDisposable
 internal sealed class AcpSessionHost : IAcpSessionHost
 {
     private readonly AcpSessionOptions _options;
-    private readonly StoragePaths _paths;
+    private readonly IHarnessWorkspaceRoots _roots;
     private readonly IAcpInteractionRouterFactory _routers;
     private readonly Func<AcpSessionRequest, IAcpTransport> _transportFactory;
     private readonly ILogger<AcpSessionHost> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly ConcurrentDictionary<Guid, AcpSession> _sessions = new();
-    private readonly ConcurrentDictionary<Guid, string> _scratchDirectories = new();
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _turnGates = new();
 
     public AcpSessionHost(
         AcpSessionOptions options,
-        StoragePaths paths,
+        IHarnessWorkspaceRoots roots,
         IAcpInteractionRouterFactory routers,
         ILogger<AcpSessionHost> logger,
         Func<AcpSessionRequest, IAcpTransport>? transportFactory = null)
     {
         _options = options;
-        _paths = paths;
+        _roots = roots;
         _routers = routers;
         _logger = logger;
         _transportFactory = transportFactory ?? DefaultTransport;
     }
 
-    public string ScratchDirectoryFor(Guid providerInstanceId) => _scratchDirectories.GetOrAdd(providerInstanceId, id =>
-    {
-        var path = _paths.AcpSessionScratch(id, Guid.NewGuid());
-        Directory.CreateDirectory(path);
-        return path;
-    });
+    public string ScratchDirectoryFor(Guid providerInstanceId) => _roots.ForProvider(providerInstanceId);
 
     public async Task<IDisposable> AcquireTurnLeaseAsync(Guid providerInstanceId, CancellationToken cancellationToken = default)
     {
