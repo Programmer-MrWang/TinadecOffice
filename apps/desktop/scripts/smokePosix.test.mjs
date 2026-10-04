@@ -9,6 +9,7 @@ import {
 	electronSmokeArgs,
 	packagedExecutablePath,
 	parseHdiutilOutput,
+	parseSmokeArgs,
 	posixDataRoot,
 	sanitizedPosixEnvironment,
 } from "./smoke-packaged-posix.mjs";
@@ -132,4 +133,41 @@ test("A desktop session's X authority survives the redirected HOME", () => {
 	assert.equal(env.XAUTHORITY, "/run/user/1000/mcookie");
 	assert.equal(env.HOME, "/p", "the two are not in conflict: the app's data stays in the profile");
 	assert.equal(sanitizedPosixEnvironment({ profile: "/p", temporary: "/t" }).XAUTHORITY, undefined);
+});
+
+test("The smoke can be pointed at an installed binary instead of the unpacked one", () => {
+	assert.deepEqual(parseSmokeArgs(["/r"]), { releaseDir: "/r" });
+	assert.deepEqual(
+		parseSmokeArgs(["/r", "--executable=/opt/TinadecOffice/TinadecOffice", "--label=linux-x64 installed"]),
+		{ releaseDir: "/r", executable: "/opt/TinadecOffice/TinadecOffice", label: "linux-x64 installed" },
+	);
+	// A typo here must not silently fall back to the unpacked directory — the step would still pass
+	// while proving nothing about what the package manager installed.
+	assert.throws(() => parseSmokeArgs(["--executible=/opt/x"]), /Unknown smoke option --executible=/);
+});
+
+test("The Linux leg installs its own .deb and smoke tests the installed file", () => {
+	// Normalise the line endings: a Windows checkout hands this file CRLF, and a pattern that spans
+	// lines matches nothing there (it cost a run once).
+	const workflow = readFileSync(resolve(desktopDir, "..", "..", ".github", "workflows", "desktop-release.yml"), "utf8").replace(
+		/\r\n/gu,
+		"\n",
+	);
+	const install = workflow.slice(
+		workflow.indexOf("- name: Install the .deb the way a user would"),
+		workflow.indexOf("- name: Smoke test the installed application (Linux)"),
+	);
+	assert.ok(install.length > 0 && install.includes("matrix.label == 'linux-x64'"), "the install step is Linux-only");
+	assert.match(install, /apt-get install -y --no-install-recommends "\.\/\$deb"/, "let the package manager resolve Depends");
+	assert.match(install, /dpkg-deb -f "\$deb" Package/, "read the identity out of the artifact, not a guess");
+	assert.match(install, /test -x \/opt\/TinadecOffice\/TinadecOffice/, "the installed launcher has to be there");
+	// The installed launcher name must agree with what the packager was told to produce.
+	assert.equal(`/opt/${pkg.build.productName}/${pkg.build.linux.executableName}`, "/opt/TinadecOffice/TinadecOffice");
+
+	const installedSmoke = workflow.slice(workflow.indexOf("- name: Smoke test the installed application (Linux)"));
+	const step = installedSmoke.slice(0, installedSmoke.indexOf("\n\n"));
+	assert.match(step, /smoke:packaged:posix/, "the installed run uses the POSIX smoke, not the Windows one");
+	assert.match(step, /--\s*\n?\s*--executable=\/opt\/TinadecOffice\/TinadecOffice/, "without the override it re-runs the unpacked app");
+	assert.match(step, /--label="linux-x64 installed"/, "the log line must say which binary ran");
+	assert.match(step, /xvfb-run[^\n]*-ac/, "the installed run needs the same X server treatment");
 });

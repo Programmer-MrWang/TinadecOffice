@@ -235,19 +235,41 @@ function findDmg(releaseDir) {
 	return dmg ? join(releaseDir, dmg) : null;
 }
 
+/// CLI shape: `smoke-packaged-posix.mjs [releaseDir] [--executable=<path>] [--label=<text>]`.
+///
+/// The executable override exists for one reason: `dpkg -i` puts the launcher under `/opt`, and the
+/// thing a user actually runs is that installed file, not the `linux-unpacked` directory that fed the
+/// packager. Without the override the smoke could only ever prove the latter.
+export function parseSmokeArgs(argv) {
+	const parsed = {};
+	for (const entry of argv) {
+		const option = /^--(executable|label)=(.+)$/u.exec(entry);
+		if (option) {
+			parsed[option[1]] = option[2];
+			continue;
+		}
+		if (entry.startsWith("--")) {
+			throw new Error(`Unknown smoke option ${entry}. Known: --executable=, --label=`);
+		}
+		parsed.releaseDir ??= entry;
+	}
+	return parsed;
+}
+
 export async function runPackagedPosixSmoke(options = {}) {
 	const target = hostRuntimeTarget(options.platform ?? process.platform, options.arch ?? process.arch);
 	if (target.platform === "win32") {
 		throw new Error("The POSIX smoke does not run on Windows; use smoke:packaged (Windows).");
 	}
 
-	const releaseDir = resolve(options.releaseDir ?? process.argv[2] ?? join(desktopDir, "release"));
+	const cli = parseSmokeArgs(process.argv.slice(2));
+	const releaseDir = resolve(options.releaseDir ?? cli.releaseDir ?? join(desktopDir, "release"));
 	const smokeRoot = resolve(
 		options.smokeRoot ??
 			process.env.TINADEC_SMOKE_ROOT ??
 			join(desktopDir, ".runtime-cache", `packaged smoke ${process.pid}`),
 	);
-	const label = options.label ?? `${target.key} packaged`;
+	const label = options.label ?? cli.label ?? `${target.key} packaged`;
 	const timeoutMs = Number(options.timeoutMs ?? process.env.TINADEC_SMOKE_TIMEOUT_MS ?? 180_000);
 	const cleanup = options.cleanup ?? process.env.TINADEC_SMOKE_KEEP_ROOT !== "1";
 
@@ -268,7 +290,8 @@ export async function runPackagedPosixSmoke(options = {}) {
 	// the packager. The mount point comes from hdiutil's own answer, and the attach happens after the
 	// smoke root is recreated — a volume mounted under it would be wiped by that very step.
 	let mountedVolume = null;
-	let executable = options.executable ? resolve(options.executable) : null;
+	const requestedExecutable = options.executable ?? cli.executable;
+	let executable = requestedExecutable ? resolve(requestedExecutable) : null;
 
 	await assertPortsAvailable(smokePorts, `${label} preflight`);
 	rmSync(smokeRoot, { recursive: true, force: true });

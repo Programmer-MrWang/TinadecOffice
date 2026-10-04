@@ -160,6 +160,26 @@ jobs:
           xvfb-run -a --server-args="-screen 0 1280x1024x24 -ac"
           npm run smoke:packaged:posix -w @tinadec/desktop
 
+      # The .deb is what ships, and so far only `ar`/`tar` had ever read it. Let the package manager
+      # resolve its Depends and lay it under /opt, then run that file: a deb whose dependency list
+      # names a library Ubuntu 24.04 renamed installs fine from a directory nobody installs from.
+      - name: Install the .deb the way a user would
+        if: matrix.label == 'linux-x64'
+        run: |
+          set -e
+          deb=$(ls apps/desktop/release/*-linux-x64.deb)
+          sudo apt-get install -y --no-install-recommends "./$deb"
+          pkg=$(dpkg-deb -f "$deb" Package)
+          dpkg-query -W -f='installed ${Package} ${Version} ${Architecture}\n' "$pkg"
+          test -x /opt/TinadecOffice/TinadecOffice || { echo '/opt after install:'; ls -l /opt; exit 1; }
+
+      - name: Smoke test the installed application (Linux)
+        if: matrix.label == 'linux-x64'
+        run: >-
+          xvfb-run -a --server-args="-screen 0 1280x1024x24 -ac"
+          npm run smoke:packaged:posix -w @tinadec/desktop --
+          --executable=/opt/TinadecOffice/TinadecOffice --label="linux-x64 installed"
+
       # The macOS smoke mounts the .dmg and runs the binary inside it, so this step is the evidence
       # that the shipped artifact — not just the directory that fed the packager — starts.
       - name: Smoke test the packaged application (macOS)
