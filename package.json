@@ -21,6 +21,7 @@
     "postinstall": "node scripts/setup-shadcn-ai.mjs",
     "setup:rg": "node scripts/setup-ripgrep.mjs --force",
     "restore:dotnet": "node scripts/dotnet.mjs restore TinadecCore/TinadecCore.slnx && node scripts/dotnet.mjs restore TinadecOffice.slnx",
+    "diagrams": "d2 --layout tala --sketch --theme 0 --dark-theme 200 --pad 40 docs/diagrams/boundary.d2 docs/diagrams/out/boundary.svg && d2 --sketch --theme 0 --dark-theme 200 --pad 40 docs/diagrams/dual-layer.d2 docs/diagrams/out/dual-layer.svg && d2 --sketch --theme 0 --dark-theme 200 --pad 40 docs/diagrams/roadmap.d2 docs/diagrams/out/roadmap.svg",
     "ai:codegraph:init": "codegraph init",
     "ai:codegraph:sync": "codegraph sync",
     "ai:codegraph:status": "codegraph status",

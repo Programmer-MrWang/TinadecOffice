@@ -64,50 +64,17 @@ TinadecOffice is a **product family for multi-agent collaboration**: every piece
 
 The UI only ever sees the gateway. Business state lives in Core alone. The tool layer is the only thing that touches the outside world — and it reports state back up the same wires.
 
-```mermaid
-flowchart LR
-    DT["Desktop / Web<br/>TinadecApp UI"]
-    GW["Gateway<br/>stateless facade"]
-    CORE["Tinadec Core<br/>dual-layer agents"]
-    TL["Tool layer<br/>TinadecTool"]
-    OUT["outside world<br/>files · shell · git · MCP"]
-
-    DT <--> GW
-    GW <--> CORE
-    GW <--> TL
-    CORE <--> TL
-    TL <--> OUT
-```
+<p align="center">
+  <img src="docs/diagrams/out/boundary.svg" alt="Frontend/backend separation: UI, gateway, core, tool layer and the outside world" />
+</p>
 
 ### One runtime, two layers of agents
 
 DmaEA (Dual-layer Modular Agent Architecture) separates **the agents that govern the team** from **the agents that do the work** — that separation is the team-orchestration capability:
 
-```mermaid
-flowchart TB
-    U(["You"])
-    subgraph OP["Operation layer — governs the team · zero tools"]
-        MTG["Meeting<br/>talks with you, owns the context"]
-        PLN["Planner<br/>turns the goal into a task graph"]
-        SUP["Supervisor<br/>reviews evidence, escalates"]
-    end
-
-    subgraph EX["Execution layer — does the work · scoped per task"]
-        CW["code worker"]
-        SW["search worker"]
-        DW["data worker"]
-    end
-
-    GATE{{"approval gate<br/>every write call"}}
-
-    U <--> MTG
-    MTG --> PLN
-    PLN --> CW & SW & DW
-    CW & SW & DW -->|"evidence"| SUP
-    SUP -->|"verdict"| MTG
-    EX -. "write_file · shell · git_*" .-> GATE
-    GATE -. "human / delegated review" .-> EX
-```
+<p align="center">
+  <img src="docs/diagrams/out/dual-layer.svg" alt="Dual-layer DmaEA: the operation layer orchestrates the execution layer, with an approval gate on every write" />
+</p>
 
 - The operation layer **cannot invoke any tool** — enforced as permission data, not as a convention.
 - Every worker's tool surface = its instance grant ∩ the **run-frozen tool manifest** (hash-pinned, immutable).
@@ -115,27 +82,9 @@ flowchart TB
 
 ## Where we are
 
-```mermaid
-gantt
-    dateFormat YYYY-MM-DD
-    axisFormat %Y-%m
-
-    section Shipped
-    DmaEA dual-layer runtime & durable runs     :done,      r1, 2026-03-01, 2026-08-15
-    Permissions · approvals · checkpoint closure :done,     r2, 2026-08-15, 2026-09-10
-    Graph orchestration (3 tiers)                :done,     r3, 2026-09-12, 2026-09-30
-    Desktop workbench (Electron + Vue)           :done,     r4, 2026-05-01, 2026-09-24
-    v0.2.0 — 3-platform installers               :milestone, r5, 2026-10-04, 0d
-
-    section Building now
-    TUI channel & host PTY backend               :active,   r6, 2026-09-25, 2026-11-30
-    Cross-platform polish (Linux/macOS)          :active,   r7, 2026-10-01, 2026-12-15
-
-    section Next up
-    In-app updater                               :          r8, 2026-11-15, 2026-12-31
-    Git governance & auto-evolution              :          r9, 2026-12-01, 2027-02-15
-    Stable client SDK · CLI · container release  :          r10, 2027-01-01, 2027-03-31
-```
+<p align="center">
+  <img src="docs/diagrams/out/roadmap.svg" alt="Roadmap: shipped, building now, and next up" />
+</p>
 
 ## Quick start
 

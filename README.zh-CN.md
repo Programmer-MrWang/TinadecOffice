@@ -64,50 +64,17 @@ TinadecOffice 是面向**多智能体协作**的产品族：桌面客户端、�
 
 UI 只看得到 Gateway。业务状态只活在 Core 里。工具层是唯一触碰外界的东西——而且它会沿同一条线路把外界状态报回来。
 
-```mermaid
-flowchart LR
-    DT["Desktop / Web<br/>TinadecApp UI"]
-    GW["Gateway<br/>无状态门面"]
-    CORE["Tinadec Core<br/>双层智能体"]
-    TL["工具层<br/>TinadecTool"]
-    OUT["外部世界<br/>文件 · shell · git · MCP"]
-
-    DT <--> GW
-    GW <--> CORE
-    GW <--> TL
-    CORE <--> TL
-    TL <--> OUT
-```
+<p align="center">
+  <img src="docs/diagrams/out/boundary.svg" alt="前后端分离：UI、网关、Core、工具层与外部世界" />
+</p>
 
 ### 一个运行时，两层智能体
 
 DmaEA（双层模块化智能体架构）把**治理团队的智能体**和**干活的智能体**分开——团队编排能力就来自这个分层：
 
-```mermaid
-flowchart TB
-    U(["你"])
-    subgraph OP["治理层 operation —— 零工具权限"]
-        MTG["会议<br/>和你对话，掌管上下文"]
-        PLN["规划<br/>把目标拆成任务图"]
-        SUP["监督<br/>评审证据，必要时升级"]
-    end
-
-    subgraph EX["执行层 execution —— 按需生成 · 权限收窄"]
-        CW["代码 worker"]
-        SW["检索 worker"]
-        DW["数据 worker"]
-    end
-
-    GATE{{"审批门<br/>每一次写调用"}}
-
-    U <--> MTG
-    MTG --> PLN
-    PLN --> CW & SW & DW
-    CW & SW & DW -->|"证据"| SUP
-    SUP -->|"裁决"| MTG
-    EX -. "write_file · shell · git_*" .-> GATE
-    GATE -. "人工 / 委托审查" .-> EX
-```
+<p align="center">
+  <img src="docs/diagrams/out/dual-layer.svg" alt="双层 DmaEA：治理层编排执行层，每一次写调用都过审批门" />
+</p>
 
 - 治理层**无法调用任何工具**——这是权限数据层的强制，不是约定。
 - 每个 worker 的工具面 = 实例授权 ∩ **run 冻结工具清单**（哈希钉死、不可变）。
@@ -115,27 +82,9 @@ flowchart TB
 
 ## 我们进行到哪一步
 
-```mermaid
-gantt
-    dateFormat YYYY-MM-DD
-    axisFormat %Y-%m
-
-    section 已发布
-    DmaEA 双层运行时与持久化 run              :done,      r1, 2026-03-01, 2026-08-15
-    权限 · 审批 · 检查点闭环                   :done,      r2, 2026-08-15, 2026-09-10
-    图编排（三档 tier）                        :done,      r3, 2026-09-12, 2026-09-30
-    桌面工作台（Electron + Vue）              :done,      r4, 2026-05-01, 2026-09-24
-    v0.2.0 —— 三平台安装器                    :milestone, r5, 2026-10-04, 0d
-
-    section 正在构建
-    TUI 渠道与宿主 PTY 后端                   :active,    r6, 2026-09-25, 2026-11-30
-    跨平台打磨（Linux / macOS）               :active,    r7, 2026-10-01, 2026-12-15
-
-    section 接下来
-    应用内更新器                               :           r8, 2026-11-15, 2026-12-31
-    Git 治理与自动演化                         :           r9, 2026-12-01, 2027-02-15
-    稳定 Client SDK · CLI · 容器发布           :           r10, 2027-01-01, 2027-03-31
-```
+<p align="center">
+  <img src="docs/diagrams/out/roadmap.svg" alt="路线图：已发布、正在构建、接下来" />
+</p>
 
 ## 快速开始
 

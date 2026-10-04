@@ -9,5 +9,7 @@ world: "外部世界 · outside world\nfiles · shell · git · MCP"
 ui <-> gw: "HTTP / SSE / WebSocket"
 gw <-> core: "纯代理 · pure proxy"
 gw <-> tools: "显式工具入口 · direct tool entry"
-core <-> tools: "工具提供者契约 · tool provider contract"
+core <-> tools: "工具提供者契约 · tool provider contract" {
+  style.stroke-width: 2
+}
 tools <-> world: "执行 · 回执状态"
