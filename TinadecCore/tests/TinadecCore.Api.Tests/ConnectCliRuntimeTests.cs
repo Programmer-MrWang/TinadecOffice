@@ -152,6 +152,42 @@ public sealed class ConnectCliRuntimeTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Connect_SameHarnessOnAnotherChannel_PreservesBothProviderRows()
+    {
+        var binary = WriteRunnableStub("codebuddy");
+        var client = _factory!.CreateClient();
+        var acp = await client.PostAsync("/api/v1/model-providers", JsonContent(new
+        {
+            driver = "codebuddy",
+            channel = "acp",
+            protocol = "acp",
+            connection_kind = "cli",
+            binary_path = binary,
+            enabled = true
+        }));
+        Assert.True(acp.IsSuccessStatusCode, await acp.Content.ReadAsStringAsync());
+
+        var cli = await client.PostAsync("/api/v1/model-providers/harnesses/connect", JsonContent(new
+        {
+            driver = "codebuddy",
+            channel = "cli",
+            protocol = "headless-cli",
+            binary_path = binary
+        }));
+        Assert.True(cli.IsSuccessStatusCode, await cli.Content.ReadAsStringAsync());
+
+        var rows = JsonDocument.Parse(await client.GetStringAsync("/api/v1/model-providers")).RootElement
+            .EnumerateArray().Where(row => row.GetProperty("driver").GetString() == "codebuddy").ToList();
+        Assert.Equal(2, rows.Count);
+        Assert.Contains(rows, row => row.GetProperty("channel").GetString() == "acp");
+        Assert.Contains(rows, row => row.GetProperty("channel").GetString() == "cli");
+
+        var discovery = JsonDocument.Parse(await client.GetStringAsync("/api/v1/model-providers/harnesses/discover")).RootElement;
+        var candidate = discovery.GetProperty("cli_runtimes").EnumerateArray().Single(row => row.GetProperty("driver").GetString() == "codebuddy");
+        Assert.Equal(new[] { "acp", "cli" }, candidate.GetProperty("configured_channels").EnumerateArray().Select(value => value.GetString()).OrderBy(value => value).ToArray());
+    }
+
+    [Fact]
     public async Task Connect_HttpServerShape_UnreachableRuntime_FailsWith502()
     {
         var binary = Path.Combine(_bin, "opencode.cmd");

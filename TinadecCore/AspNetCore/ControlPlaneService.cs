@@ -168,14 +168,28 @@ public sealed class ControlPlaneService
     public async Task<IResult> DiscoverHarnesses(CancellationToken ct, IEnumerable<string>? searchPaths = null)
     {
         await using var db = await _models.CreateDbContextAsync(ct);
-        var configured = (await db.Providers
+        var configuredRows = await db.Providers
             .Where(x => x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null)
-            .Select(x => x.Driver).ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(x => new { x.Driver, x.CurrentVersionId }).ToListAsync(ct);
 
         var candidates = new List<object>();
         foreach (var spec in HarnessCatalog.All)
         {
-            var existing = configured.Contains(spec.Id);
+            var rows = configuredRows
+                .Where(row => string.Equals(row.Driver, spec.Id, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var configuredChannels = new List<string>();
+            string? configuredBinaryPath = null;
+            foreach (var row in rows)
+            {
+                var cfg = await LoadProviderConfigAsync(db, row.CurrentVersionId, ct);
+                string? ConfigText(string key) => cfg.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+                var channel = AgentChannels.Normalize(ConfigText("channel"));
+                var protocol = HarnessCatalog.ResolveProtocol(ConfigText("protocol"), spec.Id, ConfigText("channel"));
+                configuredChannels.Add(channel ?? protocol);
+                configuredBinaryPath ??= ConfigText("binary_path");
+            }
+            var existing = rows.Count > 0;
             var located = _harnessBinaries.Resolve(spec.Id, searchPaths);
             var probe = located is null ? null : await VerifyCliExecutable(located.BinaryName, located.BinaryPath, spec.VersionProbe, ct);
             var reachable = existing || probe?.Runnable == true;
@@ -191,7 +205,7 @@ public sealed class ControlPlaneService
                 display_name = spec.DisplayName,
                 vendor = spec.Vendor,
                 docs_url = spec.DocsUrl,
-                binary_path = reachable ? located?.BinaryPath : null,
+                binary_path = reachable ? located?.BinaryPath ?? configuredBinaryPath : null,
                 // Reported as a fact about the harness, not as the process HOME. The two are different
                 // directories: Kimi's config home is `~/.kimi-code`, and handing that to the child as
                 // HOME would make it look for `~/.kimi-code/.kimi-code`. Only the path the operator
@@ -200,6 +214,7 @@ public sealed class ControlPlaneService
                 server_url = reachable && spec.HttpServer is { } endpoint ? $"http://127.0.0.1:{endpoint.DefaultPort}" : null,
                 launch_args = reachable ? serveArgv : null,
                 status = existing ? "configured" : probe?.Runnable == true ? "found" : "missing",
+                configured_channels = configuredChannels.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                 // A probe that did not answer is not evidence that the harness is absent, and the old
                 // code turned that difference invisible: an unread stdout pipe or a loaded machine made
                 // an installed binary read as "not detected". The note says which is which.
@@ -267,7 +282,7 @@ public sealed class ControlPlaneService
         }
 
         OpencodeServeEndpoint? endpoint = null;
-        var existing = await ExistingCliProviderAsync(driver, ct);
+        var existing = await ExistingCliProviderAsync(driver, channel, protocol, ct);
         if (protocol == ChatProtocols.Acp)
         {
             // A stdio session has no port to poll, so readiness is a real handshake: spawn,
@@ -324,10 +339,22 @@ public sealed class ControlPlaneService
     private async Task ProbeAcpHandshakeAsync(string driver, string binaryPath, string? homePath, Guid? providerInstanceId, CancellationToken ct) =>
         await _acp.ProbeAsync(providerInstanceId, driver, binaryPath, homePath, ct);
 
-    private async Task<ModelProviderRecord?> ExistingCliProviderAsync(string driver, CancellationToken ct)
+    private async Task<ModelProviderRecord?> ExistingCliProviderAsync(string driver, string? channel, string protocol, CancellationToken ct)
     {
         await using var db = await _models.CreateDbContextAsync(ct);
-        return await db.Providers.SingleOrDefaultAsync(x => x.Driver == driver && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null, ct);
+        var rows = await db.Providers
+            .Where(x => x.Driver == driver && x.TenantId == Tenant.TenantId && x.WorkspaceId == Tenant.WorkspaceId && x.DeletedAt == null)
+            .ToListAsync(ct);
+        foreach (var row in rows)
+        {
+            var cfg = await LoadProviderConfigAsync(db, row.CurrentVersionId, ct);
+            string? ConfigText(string key) => cfg.TryGetValue(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+            var savedChannel = AgentChannels.Normalize(ConfigText("channel"));
+            if (channel is not null && string.Equals(savedChannel, AgentChannels.Normalize(channel), StringComparison.Ordinal)) return row;
+            if (channel is null && savedChannel is null && string.Equals(
+                HarnessCatalog.ResolveProtocol(ConfigText("protocol"), driver, null), protocol, StringComparison.OrdinalIgnoreCase)) return row;
+        }
+        return null;
     }
 
     /// <summary>
