@@ -414,6 +414,15 @@ test("Channel scripts take their platform facts from the table instead of hardco
 		Object.values(RUNTIME_TARGETS).every((target) => target.channelArchive && target.installerAssets && target.managerPlatform),
 		"the runtime table has to carry the channel facts the scripts read",
 	);
+
+	// A tree copy has to state the mode it carries: `stage-runtime.mjs` chmods every staged binary to
+	// 0755, an archive records whatever mode the file has when the archiver runs, and whether a plain
+	// file copy keeps that bit over is host-dependent. Windows cannot show either half of this, so the
+	// packager copies the mode explicitly and the verifier demands the bit from the extracted bytes.
+	const packager = readFileSync(join(scriptsDir, "package-office-channel.mjs"), "utf8");
+	const verifier = readFileSync(join(scriptsDir, "verify-office-channel.mjs"), "utf8");
+	assert.match(packager, /chmodSync\(destinationPath, statSync\(sourcePath\)\.mode\)/, "the channel copy must carry the staged mode");
+	assert.match(verifier, /mode & 0o100/, "the verifier must check the execute bit it is asking for");
 });
 
 test("The release job's channel gates match what the legs actually upload", () => {

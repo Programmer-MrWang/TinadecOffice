@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
+	chmodSync,
 	copyFileSync,
 	existsSync,
 	mkdirSync,
@@ -117,7 +118,14 @@ function copyTree(source, destination) {
 		const sourcePath = join(source, entry.name);
 		const destinationPath = join(destination, entry.name);
 		if (entry.isDirectory()) copyTree(sourcePath, destinationPath);
-		else if (entry.isFile()) copyFileSync(sourcePath, destinationPath);
+		else if (entry.isFile()) {
+			copyFileSync(sourcePath, destinationPath);
+			// Copy the mode deliberately: `stage-runtime.mjs` chmods every staged binary to 0755, and
+			// an archive records whatever mode the file has when the archiver runs. Whether a plain
+			// file copy carries that bit over is host-dependent — so the channel copy states it, and
+			// the verifier's execute-bit check on the *extracted* copy is the reading that decides.
+			chmodSync(destinationPath, statSync(sourcePath).mode);
+		}
 	}
 }
 
