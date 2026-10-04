@@ -412,8 +412,6 @@ export function createMockApi(scenario: Ref<ScenarioId>) {
       } as McpServerToolsDto, scenario.value)
     },
     listAcpAdapters: () => delay(data().acpAdapters as AcpAdapterDto[], scenario.value),
-    probeAcpAdapter: (adapterId: string) =>
-      delay({ ...data().acpAdapters[0], id: adapterId, status: 'active', status_message: '探测成功' } as AcpAdapterDto, scenario.value),
 
     listAgentModes: () => delay(data().agentModes as AgentModeDto[], scenario.value),
     listAgents: () => delay(data().agents as AgentDirectoryItemDto[], scenario.value),

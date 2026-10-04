@@ -242,6 +242,13 @@ describe('runtime center view', () => {
     expect(aggregate.acp_runtimes.map((row) => row.provider_instance_id)).toEqual(['p-legacy'])
   })
 
+  it('does not claim an adapter probe this build cannot perform', () => {
+    // Core answers 501 NOT_IMPLEMENTED for POST /api/v1/acp/adapters/{id}/probe, and this flag is what
+    // gates the only control that would call it. A `true` here is a button that cannot work.
+    const aggregate = aggregateModelCenterOverview({ providers: [], templates: [], routes: [] })
+    expect(aggregate.capabilities.acp_probe).toBe(false)
+  })
+
   it('names a channel-less discovery affordance by protocol instead of calling it a CLI', () => {
     // Core reports opencode's `serve` as a fact with no channel. Labelling it 'one-shot CLI' would
     // offer the user two words for one shape and hide that this one is reached over HTTP.

@@ -1054,20 +1054,6 @@ async function refreshProviderModels(providerInstanceId: string) {
   }
 }
 
-async function probeAcpRuntime(runtime: ModelCenterAcpRuntimeDto) {
-  if (!runtime.adapter_id) return
-  modelCenterBusy.value = true
-  try {
-    await api.probeAcpAdapter(runtime.adapter_id)
-    await Promise.all([loadModelCenter(), loadAgentCenter()])
-    notify.success(runtime.display_name)
-  } catch (error) {
-    notify.error(error, { title: t('settings.acpProbeFailed') })
-  } finally {
-    modelCenterBusy.value = false
-  }
-}
-
 const cliDiscoveryCandidates = ref<CliDiscoveryCandidateDto[]>([])
 const cliDiscoveryLoading = ref(false)
 const cliDiscoveryLoaded = ref(false)
@@ -2552,16 +2538,9 @@ import '../settings/settings.css'
                   >
                     <Trash2 :size="14" />
                   </UiButton>
-                  <UiButton
-                    v-if="runtime.adapter_id"
-                    variant="outline"
-                    size="sm"
-                    :disabled="modelCenterBusy || !modelCenterOverview?.capabilities.acp_probe"
-                    @click="probeAcpRuntime(runtime)"
-                  >
-                    <Server :size="14" />
-                    {{ t('settings.probe') }}
-                  </UiButton>
+                  <!-- No probe affordance here: Core answers 501 for adapter probes, so a button
+                       would be a control that cannot work, which is the failure class the read-only
+                       notices on these panes exist to prevent. -->
                 </div>
               </article>
             </div>

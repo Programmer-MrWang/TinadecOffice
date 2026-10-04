@@ -3070,7 +3070,6 @@ export const api = {
   listMcpServerTools: (serverId: string) =>
     request<McpServerToolsDto>(`/api/v1/mcp/servers/${encodeURIComponent(serverId)}/tools`),
   listAcpAdapters: () => request<AcpAdapterDto[]>('/api/v1/acp/adapters'),
-  probeAcpAdapter: (adapterId: string) => request<AcpAdapterDto>(`/api/v1/acp/adapters/${encodeURIComponent(adapterId)}/probe`, { method: 'POST' }),
   listAgentModes: () => request<AgentModeDto[]>('/api/v1/agent-modes'),
   listAgents: () => request<AgentDirectoryItemDto[]>('/api/v1/agents'),
   getAgent: (id: string) => request<AgentDefinitionDto>(`/api/v1/agents/${encodeURIComponent(id)}`),

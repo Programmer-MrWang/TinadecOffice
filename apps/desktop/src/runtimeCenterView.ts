@@ -723,7 +723,10 @@ export function aggregateModelCenterOverview(input: ModelCenterAggregateInput): 
       // PUT /api/v1/agents/{id}/runtime-binding 是真实端点（Gateway 已代理）。
       agent_runtime_binding_write: true,
       acp_adapter_read: true,
-      acp_probe: true
+      // Core's `POST /api/v1/acp/adapters/{id}/probe` answers 501 NOT_IMPLEMENTED, so this build
+      // cannot probe an adapter and must not claim it can. Kept as a field rather than deleted
+      // because it is the flag that decides whether an affordance appears at all.
+      acp_probe: false
     },
     suppliers,
     api_connections: apiConnections,
