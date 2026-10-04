@@ -193,8 +193,15 @@ public sealed class ModelProbeService
         return item;
     }
 
+    /// <summary>
+    /// Provider identity plus the protocol. The protocol belongs here because the probe's answer is a
+    /// statement about a dialect, not about a row: flipping a provider from <c>openai-chat</c> to
+    /// <c>acp</c> keeps every id and the model name, and without this key readiness would keep serving
+    /// the HTTP probe's "ready" for the rest of the cache window against a provider that is now a
+    /// stdio session.
+    /// </summary>
     private static string BuildFingerprint(ChatResolution resolution, string baseUrl) =>
-        $"{resolution.ProviderInstanceId}:{resolution.ProviderVersionId}:{resolution.Model}:{baseUrl}";
+        $"{resolution.ProviderInstanceId}:{resolution.ProviderVersionId}:{resolution.Model}:{baseUrl}:{ChatProtocols.Normalize(resolution.Protocol)}";
 
     private static string? GetOverrideBaseUrl()
     {
