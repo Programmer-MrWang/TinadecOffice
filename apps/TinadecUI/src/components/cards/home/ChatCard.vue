@@ -5,7 +5,7 @@ import { homeController } from '@/controllers/HomeController'
 const c = homeController
 </script>
 
-<template vapor>
+<template>
   <ChatPanel
     :messages="c.messages.value"
     :sessions="c.sessions.value"

@@ -13,6 +13,8 @@ export interface ProxyOptions {
   method?: string;
   body?: ProxyBody;
   headers?: HeadersInit;
+  /** Abort the upstream request when the downstream client disconnects. */
+  signal?: AbortSignal;
 }
 
 export interface ProxyResult {
@@ -38,6 +40,7 @@ export async function proxyRaw(path: string, options: ProxyOptions = {}): Promis
         ...options.headers,
       },
       body,
+      signal: options.signal,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network request failed';
@@ -94,7 +97,8 @@ export async function proxyJson(path: string, options: ProxyOptions = {}): Promi
         ...baseHeaders,
         ...options.headers
       },
-      body
+      body,
+      signal: options.signal,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Network request failed';

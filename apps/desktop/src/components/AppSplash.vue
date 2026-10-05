@@ -7,7 +7,9 @@
  * so it follows the active theme (dark/light).
  *
  * Shown by App.vue when connectionState === 'connecting'.
- * Removed when connectionState becomes 'connected' or 'timeout'.
+ * Stays mounted while the main tree hydrates; App.vue toggles its leaving
+ * class instead of wrapping it in a Vue Transition. This avoids the
+ * classic/Vapor leave-anchor race during the first main-screen mount.
  */
 </script>
 
@@ -30,6 +32,15 @@
   justify-content: center;
   background: var(--bg-primary);
   z-index: 9999;
+  transition:
+    transform 600ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 400ms ease-out;
+  pointer-events: auto;
+}
+.app-splash--leaving {
+  transform: translateY(-100vh);
+  opacity: 0;
+  pointer-events: none;
 }
 .app-splash__logo {
   /* 内层包裹：让 logo 独立接受 filter 光影，
@@ -58,6 +69,12 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .app-splash {
+    transition: opacity 200ms ease-out;
+  }
+  .app-splash--leaving {
+    transform: none;
+  }
   .app-splash__logo {
     animation: none;
     /* 静态显示 logo，保留基础光晕（非动画） */

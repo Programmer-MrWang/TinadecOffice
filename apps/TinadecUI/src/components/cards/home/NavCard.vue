@@ -34,7 +34,7 @@ function toggleCollapse() {
 }
 </script>
 
-<template vapor>
+<template>
   <AppSidebar
     :projects="c.projects.value"
     :sessions="c.sessions.value"

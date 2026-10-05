@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<template vapor>
+<template>
   <div
     ref="containerRef"
     class="uie-dock"

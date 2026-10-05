@@ -290,7 +290,7 @@ onUnmounted(() => {
 })
 </script>
 
-<template vapor>
+<template>
   <div
     ref="panelRef"
     class="uie-stack"

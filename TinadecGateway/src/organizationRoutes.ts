@@ -27,6 +27,7 @@ export function registerOrganizationRoutes(app: AnyElysia, forwardHeaders: (requ
           method: verb,
           headers: forwardHeaders(request),
           body: verb === 'GET' || body === undefined ? undefined : JSON.stringify(body),
+          signal: request.signal,
         });
       }, { detail: detail as never });
     }

@@ -35,7 +35,7 @@ const showTitlebar = computed(() => mode.value !== 'hidden')
 const showTab = computed(() => mode.value === 'full')
 </script>
 
-<template vapor>
+<template>
   <article
     class="uie-card-frame"
     :class="{

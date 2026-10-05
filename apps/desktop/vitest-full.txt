@@ -1,0 +1,571 @@
+(node:32744) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/git/agent/TinadecOffice/apps/desktop[39m
+
+  ➜  MCP:     Server is running at http://localhost:5173/__mcp/sse
+(node:26560) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30316) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33364) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15784) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/agentPacks/GraphSeedPack/GraphSeedPack.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+(node:29024) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33740) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29460) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26908) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/runtimeCenterView.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m src/composables/useNotifications.test.ts [2m([22m[2m42 tests[22m[2m)[22m[32m 197[2mms[22m[39m
+ [32m✓[39m src/settings/settingsCssContract.test.ts [2m([22m[2m72 tests[22m[2m)[22m[32m 208[2mms[22m[39m
+ [32m✓[39m src/api.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+(node:2888) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/controllers/MarketController.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/pendingAttachments.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 605[2mms[22m[39m
+(node:3812) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32648) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11992) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [2m[90m↓[39m[22m src/components/NotificationIslandHost.test.ts [2m([22m[2m14 tests[22m[2m | [22m[33m14 skipped[39m[2m)[22m
+ [32m✓[39m src/composables/useAgentActivity.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+(node:32864) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/controllers/HomeController.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 112[2mms[22m[39m
+(node:14532) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4568) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31800) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32116) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/composables/useTerminal.test.ts[2m > [22m[2museTerminal[2m > [22m[2mcreate[2m > [22m[2mkeeps the failure visible after the component that hit it is gone
+[22m[39m[useTerminal] Failed to create terminal: Error: posix_spawnp failed
+    at C:/git/agent/TinadecOffice/apps/desktop/src/composables/useTerminal.test.ts:186:45
+    at file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2956:64
+
+[90mstderr[2m | src/composables/useTerminal.test.ts[2m > [22m[2museTerminal[2m > [22m[2mcreate[2m > [22m[2msurfaces the reason the main process gave instead of inventing one
+[22m[39m[useTerminal] Failed to create terminal: Error: Working directory is not available: C:\gone
+    at createTerminalInstance (C:/git/agent/TinadecOffice/apps/desktop/src/composables/useTerminal.ts:251:13)
+[90m    at processTicksAndRejections (node:internal/process/task_queues:104:5)[39m
+    at C:/git/agent/TinadecOffice/apps/desktop/src/composables/useTerminal.test.ts:207:24
+
+ [32m✓[39m src/composables/useTerminal.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 682[2mms[22m[39m
+ [32m✓[39m src/components/organization/OrganizationPanel.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 2407[2mms[22m[39m
+     [33m[2m✓[22m[39m groups members by role in a fixed order, with presence and who dispatched an executor [33m 448[2mms[22m[39m
+     [33m[2m✓[22m[39m re-reads and says so when the report changed underneath (412) or was already decided (409) [33m 354[2mms[22m[39m
+ [32m✓[39m src/components/OrchestrationTab.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 1050[2mms[22m[39m
+ [32m✓[39m src/components/ComposerBar.test.ts [2m([22m[2m32 tests[22m[2m)[22m[33m 2455[2mms[22m[39m
+(node:3164) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1820) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30508) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/monetExtract.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 154[2mms[22m[39m
+ [32m✓[39m src/settings/sections/AppearanceSection.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 3520[2mms[22m[39m
+     [33m[2m✓[22m[39m opens with the stored custom hex and commits it exactly [33m 683[2mms[22m[39m
+     [33m[2m✓[22m[39m ignores an invalid hex instead of committing garbage [33m 422[2mms[22m[39m
+     [33m[2m✓[22m[39m returns to the wheel when a preset is picked afterwards [33m 322[2mms[22m[39m
+ [32m✓[39m src/lib/appCommands.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+(node:30048) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/components/MessageList.test.ts
+[22m[39m[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with.
+
+(node:28308) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/pages/SettingsPage.agentPack.test.ts[2m > [22m[2mSettingsPage GraphSeedPack clone flow[2m > [22m[2mopens a Pack-managed agent and clones it through the existing custom-agent flow
+[22m[39m[Vue warn]: Extraneous non-props attributes (name, mode) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="section-fade" mode="out-in" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [32m✓[39m src/lib/toolPresentation.test.ts [2m([22m[2m21 tests[22m[2m)[22m[33m 963[2mms[22m[39m
+     [33m[2m✓[22m[39m appears nowhere as a quoted tool id [33m 937[2mms[22m[39m
+[90mstderr[2m | src/pages/SettingsPage.agentPack.test.ts[2m > [22m[2mSettingsPage installed Agent Pack inventory[2m > [22m[2mlists every installed pack with enable, uninstall and set-default controls
+[22m[39m[Vue warn]: Extraneous non-props attributes (name, mode) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="section-fade" mode="out-in" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/pages/SettingsPage.agentPack.test.ts[2m > [22m[2mSettingsPage installed Agent Pack inventory[2m > [22m[2muninstall asks for confirmation and only purges after it is granted
+[22m[39m[Vue warn]: Extraneous non-props attributes (name, mode) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="section-fade" mode="out-in" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/pages/SettingsPage.agentPack.test.ts[2m > [22m[2mSettingsPage installed Agent Pack inventory[2m > [22m[2mdegrades to an empty inventory instead of failing when the listing route rejects
+[22m[39m[Vue warn]: Extraneous non-props attributes (name, mode) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="section-fade" mode="out-in" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+[Vue warn]: Extraneous non-props attributes (name) were passed to component but could not be automatically inherited because component renders fragment or text or teleport root nodes. 
+  at <Anonymous name="modal-fade" > 
+  at <SettingsPage ref="VTU_COMPONENT" > 
+  at <VTUROOT>
+
+ [31m❯[39m src/pages/SettingsPage.agentPack.test.ts [2m([22m[2m4 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[33m 526[2mms[22m[39m
+[31m     [31m×[31m opens a Pack-managed agent and clones it through the existing custom-agent flow[39m[32m 229[2mms[22m[39m
+[31m     [31m×[31m lists every installed pack with enable, uninstall and set-default controls[39m[32m 135[2mms[22m[39m
+[31m     [31m×[31m uninstall asks for confirmation and only purges after it is granted[39m[32m 88[2mms[22m[39m
+[31m     [31m×[31m degrades to an empty inventory instead of failing when the listing route rejects[39m[32m 71[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.smoke.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 421[2mms[22m[39m
+(node:30028) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32240) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24236) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11876) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12536) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/providerTemplates.harness.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/composables/useBackground.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/locales/i18nParity.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 93[2mms[22m[39m
+ [32m✓[39m src/components/CommandPalette.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 388[2mms[22m[39m
+(node:33540) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pages/MemoryPage.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 1060[2mms[22m[39m
+     [33m[2m✓[22m[39m a full page says there may be more, and a short one does not [33m 453[2mms[22m[39m
+ [32m✓[39m src/lib/runStream.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 191[2mms[22m[39m
+(node:31756) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33300) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/toolCatalog.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+(node:29992) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/sessionEventBus.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 299[2mms[22m[39m
+(node:24604) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/GitPanel.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 975[2mms[22m[39m
+ [32m✓[39m src/agentPacks/graphSeedPackBootstrap.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 868[2mms[22m[39m
+     [33m[2m✓[22m[39m treats a concurrent installation as success after a 412 re-preview [33m 409[2mms[22m[39m
+(node:30592) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/keybindings.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/components/SelectionContextMenu.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 270[2mms[22m[39m
+(node:26860) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30888) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33364) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3300) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [31m❯[39m src/settings/sections/PersonalSection.test.ts [2m([22m[2m8 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[33m 454[2mms[22m[39m
+     [32m✓[39m groups every selected role into one chip beside the nickname[32m 83[2mms[22m[39m
+     [32m✓[39m leaves no standalone work-role button in the hero actions[32m 43[2mms[22m[39m
+[31m     [31m×[31m reads as an actionable placeholder while no role is set[39m[32m 51[2mms[22m[39m
+[31m     [31m×[31m opens the role picker, icon per role, previewing the joined draft[39m[32m 81[2mms[22m[39m
+[31m     [31m×[31m saves the picked roles through the store[39m[32m 50[2mms[22m[39m
+     [32m✓[39m renders the bio under the nickname[32m 43[2mms[22m[39m
+     [32m✓[39m shows the placeholder instead of an empty line[32m 50[2mms[22m[39m
+[31m     [31m×[31m writes nickname and bio from the profile dialog[39m[32m 50[2mms[22m[39m
+(node:32084) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33048) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/workspaceSearch.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m src/components/chat/TerminalCallBlock.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+ [32m✓[39m src/composables/usePanelStyles.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 268[2mms[22m[39m
+ [32m✓[39m src/components/AppSidebar.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 696[2mms[22m[39m
+(node:32612) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/MessageList.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 658[2mms[22m[39m
+ [32m✓[39m src/settings/sections/TinaChatSection.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 1265[2mms[22m[39m
+     [33m[2m✓[22m[39m registers an agent identity with the capability flags the server expects [33m 417[2mms[22m[39m
+(node:32384) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/stores/userAction.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+(node:30844) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12536) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33772) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/userToolAction.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+(node:16712) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33504) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32028) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/selectionContext.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m src/modelCenterView.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstderr[2m | src/components/ChatPanel.test.ts[2m > [22m[2mChatPanel persistent composer[2m > [22m[2mkeeps the same composer element when the first message docks the panel
+[22m[39m[Vue warn]: injection "Symbol(router)" not found. 
+  at <ComposerBar hero=true busy=false model-value=""  ... > 
+  at <ChatPanel sessions= [] projects= [] currentSession=null  ... > 
+  at <VTUROOT>
+
+(node:13232) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pages/SnapshotsPage.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 418[2mms[22m[39m
+[90mstderr[2m | src/components/ChatPanel.test.ts[2m > [22m[2mChatPanel persistent composer[2m > [22m[2mkeeps the same composer element when returning to the start page
+[22m[39m[Vue warn]: injection "Symbol(router)" not found. 
+  at <ComposerBar hero=false busy=false model-value=""  ... > 
+  at <ChatPanel sessions= [] projects= [] currentSession=null  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/ChatPanel.test.ts[2m > [22m[2mChatPanel persistent composer[2m > [22m[2mFLIP setup tolerates zero-size rects (no measurement available)
+[22m[39m[Vue warn]: injection "Symbol(router)" not found. 
+  at <ComposerBar hero=true busy=false model-value=""  ... > 
+  at <ChatPanel sessions= [] projects= [] currentSession=null  ... > 
+  at <VTUROOT>
+
+[90mstderr[2m | src/components/ChatPanel.test.ts[2m > [22m[2mChatPanel send payload[2m > [22m[2mpasses the composer meeting_model_override object through verbatim
+[22m[39m[Vue warn]: injection "Symbol(router)" not found. 
+  at <ComposerBar hero=false busy=false model-value=""  ... > 
+  at <ChatPanel sessions= [] projects= [] currentSession= {
+  id: [32m's1'[39m,
+  meeting_model_override: { provider_instance_id: [32m'prov-1'[39m, model: [32m'gpt-x'[39m }
+}  ... > 
+  at <VTUROOT>
+
+ [32m✓[39m src/components/ChatPanel.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 669[2mms[22m[39m
+DOMException [AbortError]: The operation was aborted.
+    at Fetch.onAsyncTaskManagerAbort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:546:23)
+    at Object.<anonymous> (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:416:101)
+    at AsyncTaskManager.abortAll (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:292:30)
+    at AsyncTaskManager.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:52:21)
+    at DetachedBrowserFrame.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/browser/detached-browser/DetachedBrowserFrame.js:112:58)
+    at DetachedWindowAPI.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/window/DetachedWindowAPI.js:51:35)
+    at teardownWindow (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:331:22)
+    at Object.teardown (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:392:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/base.B6Opl8PE.js:168:65
+    at Traces.$ (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/traces.DT5aQ62U.js:142:27)
+DOMException [AbortError]: The operation was aborted.
+    at Fetch.onAsyncTaskManagerAbort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:546:23)
+    at Object.<anonymous> (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:416:101)
+    at AsyncTaskManager.abortAll (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:292:30)
+    at AsyncTaskManager.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:52:21)
+    at DetachedBrowserFrame.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/browser/detached-browser/DetachedBrowserFrame.js:112:58)
+    at DetachedWindowAPI.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/window/DetachedWindowAPI.js:51:35)
+    at teardownWindow (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:331:22)
+    at Object.teardown (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:392:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/base.B6Opl8PE.js:168:65
+    at Traces.$ (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/traces.DT5aQ62U.js:142:27)
+DOMException [AbortError]: The operation was aborted.
+    at Fetch.onAsyncTaskManagerAbort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:546:23)
+    at Object.<anonymous> (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:416:101)
+    at AsyncTaskManager.abortAll (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:292:30)
+    at AsyncTaskManager.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:52:21)
+    at DetachedBrowserFrame.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/browser/detached-browser/DetachedBrowserFrame.js:112:58)
+    at DetachedWindowAPI.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/window/DetachedWindowAPI.js:51:35)
+    at teardownWindow (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:331:22)
+    at Object.teardown (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:392:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/base.B6Opl8PE.js:168:65
+    at Traces.$ (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/traces.DT5aQ62U.js:142:27)
+DOMException [AbortError]: The operation was aborted.
+    at Fetch.onAsyncTaskManagerAbort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:546:23)
+    at Object.<anonymous> (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:416:101)
+    at AsyncTaskManager.abortAll (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:292:30)
+    at AsyncTaskManager.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:52:21)
+    at DetachedBrowserFrame.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/browser/detached-browser/DetachedBrowserFrame.js:112:58)
+    at DetachedWindowAPI.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/window/DetachedWindowAPI.js:51:35)
+    at teardownWindow (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:331:22)
+    at Object.teardown (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:392:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/base.B6Opl8PE.js:168:65
+    at Traces.$ (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/traces.DT5aQ62U.js:142:27)
+(node:10060) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/petWindows.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m src/settingsCenters.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/composables/useDetachedTabs.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 297[2mms[22m[39m
+(node:24060) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pages/GovernanceBoardPage.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 1724[2mms[22m[39m
+     [33m[2m✓[22m[39m splits the heterogeneous /approvals projection by kind into separate columns [33m 567[2mms[22m[39m
+     [33m[2m✓[22m[39m deciding an approval removes only that card and posts to the approvals endpoint [33m 308[2mms[22m[39m
+     [33m[2m✓[22m[39m polls approvals on an interval while mounted and stops after unmount [33m 748[2mms[22m[39m
+ [32m✓[39m src/lib/modelUsage.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+(node:21848) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5008) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29048) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27312) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32604) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/gitStatusSides.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+ [32m✓[39m src/lib/attachments.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+(node:32044) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33604) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/ApprovalTab.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 728[2mms[22m[39m
+ [32m✓[39m src/components/NotificationDetailDialog.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 538[2mms[22m[39m
+DOMException [AbortError]: The operation was aborted.
+    at Fetch.onAsyncTaskManagerAbort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:546:23)
+    at Object.<anonymous> (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/fetch/Fetch.js:416:101)
+    at AsyncTaskManager.abortAll (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:292:30)
+    at AsyncTaskManager.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/async-task-manager/AsyncTaskManager.js:52:21)
+    at DetachedBrowserFrame.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/browser/detached-browser/DetachedBrowserFrame.js:112:58)
+    at DetachedWindowAPI.abort (file:///C:/git/agent/TinadecOffice/node_modules/happy-dom/lib/window/DetachedWindowAPI.js:51:35)
+    at teardownWindow (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:331:22)
+    at Object.teardown (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/index.DC7d2Pf8.js:392:10)
+    at file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/base.B6Opl8PE.js:168:65
+    at Traces.$ (file:///C:/git/agent/TinadecOffice/node_modules/vitest/dist/chunks/traces.DT5aQ62U.js:142:27)
+ [32m✓[39m src/settings/sections/ArchiveTrashSection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 468[2mms[22m[39m
+ [32m✓[39m src/components/governance/PreAuthorizationDialog.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 345[2mms[22m[39m
+(node:30980) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:744) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/ui/color-field.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 145[2mms[22m[39m
+(node:2220) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/organization/EnvironmentList.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 498[2mms[22m[39m
+(node:1820) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28424) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33732) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/approval/ApprovalGateStatus.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 346[2mms[22m[39m
+ [32m✓[39m src/components/governance/SnapshotOverrideDialog.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 513[2mms[22m[39m
+(node:33476) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/organization/EvidenceSearch.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 823[2mms[22m[39m
+     [33m[2m✓[22m[39m searches the session archive and shows each hit with its kind, author, snippet and how it matched [33m 668[2mms[22m[39m
+(node:5920) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28344) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/fileMentions.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m src/components/chat/TurnTimeline.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 228[2mms[22m[39m
+ [32m✓[39m src/components/RowContextMenu.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 225[2mms[22m[39m
+(node:21780) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/composables/useConnection.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+(node:32048) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26008) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/composables/useAiChangeAnalysis.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m src/components/code/FileTreePanel.contextmenu.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 603[2mms[22m[39m
+     [33m[2m✓[22m[39m consumes contextmenu on a tree row so the global selection menu stays out [33m 302[2mms[22m[39m
+(node:18000) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/agentPacks/agentPackApi.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 108[2mms[22m[39m
+(node:29300) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19080) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/composables/useAgentActivity.taskGraph.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 23[2mms[22m[39m
+(node:11880) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/gitDiffParser.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+(node:32544) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32020) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/ChatHeader.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 98[2mms[22m[39m
+ [32m✓[39m src/lib/dropdownPlacement.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+(node:30748) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/windowLifecycle.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+(node:27280) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29512) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/git/diffUtils.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/components/ui/island-card.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+(node:33140) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33200) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/vapor/vaporBatch.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 71[2mms[22m[39m
+(node:32896) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31552) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/generated/agentPackClient.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/modePresentation.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/components/InlineRenameInput.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 100[2mms[22m[39m
+(node:33252) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/CommandPaletteButton.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 179[2mms[22m[39m
+(node:31588) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/providerTemplates.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+(node:33036) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pets/petRuntime.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+(node:30144) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/lib/runReply.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 5[2mms[22m[39m
+(node:29944) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/gitIndexPatch.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 7[2mms[22m[39m
+(node:2220) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33052) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/format.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/workRoleIcons.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m src/lib/dispatchPref.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+(node:21604) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/components/AppHeader.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m src/debug/debugSurface.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m src/composables/useCommandPalette.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 8 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/SettingsPage.agentPack.test.ts[2m > [22mSettingsPage GraphSeedPack clone flow[2m > [22mopens a Pack-managed agent and clones it through the existing custom-agent flow
+[41m[1m FAIL [22m[49m src/pages/SettingsPage.agentPack.test.ts[2m > [22mSettingsPage installed Agent Pack inventory[2m > [22mlists every installed pack with enable, uninstall and set-default controls
+[41m[1m FAIL [22m[49m src/pages/SettingsPage.agentPack.test.ts[2m > [22mSettingsPage installed Agent Pack inventory[2m > [22muninstall asks for confirmation and only purges after it is granted
+[41m[1m FAIL [22m[49m src/pages/SettingsPage.agentPack.test.ts[2m > [22mSettingsPage installed Agent Pack inventory[2m > [22mdegrades to an empty inventory instead of failing when the listing route rejects
+[31m[1mError[22m: [vitest] No "UiAvatar" export is defined on the "@/components/ui" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+vi.mock(import("@/components/ui"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+[36m [2m❯[22m Proxy.get UiAvatar src/settings/sections/PersonalSection.vue:[2m183:36[22m[39m
+    [90m181|[39m     let countedTokens = false
+    [90m182|[39m     const dailyTokens = new Map<string, number>()
+    [90m183|[39m     const activeDays = new Set<string>()
+    [90m   |[39m                                    [31m^[39m
+    [90m184|[39m
+    [90m185|[39m     for (const item of all) {
+[90m [2m❯[22m Object.get ../../node_modules/@vue/reactivity/dist/reactivity.cjs.js:[2m1291:77[22m[39m
+[90m [2m❯[22m Proxy._sfc_render src/settings/sections/PersonalSection.vue:[2m248:20[22m[39m
+[90m [2m❯[22m renderComponentRoot ../../node_modules/@vue/runtime-core/dist/runtime-core.cjs.js:[2m3722:35[22m[39m
+[90m [2m❯[22m SetupRenderEffect.fn ../../node_modules/@vue/runtime-core/dist/runtime-core.cjs.js:[2m4718:41[22m[39m
+[90m [2m❯[22m SetupRenderEffect.run ../../node_modules/@vue/reactivity/dist/reactivity.cjs.js:[2m1452:16[22m[39m
+[90m [2m❯[22m setupRenderEffect ../../node_modules/@vue/runtime-core/dist/runtime-core.cjs.js:[2m4787:10[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/settings/sections/PersonalSection.test.ts[2m > [22mPersonalSection work identity[2m > [22mreads as an actionable placeholder while no role is set
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/settings/sections/PersonalSection.test.ts:[2m88:59[22m[39m
+    [90m 86|[39m     // The placeholder is the entry to the role picker, like the fille…
+    [90m 87|[39m     [35mawait[39m chip[33m.[39m[34mtrigger[39m([32m'click'[39m)
+    [90m 88|[39m     [34mexpect[39m(wrapper[33m.[39m[34mfind[39m([32m'.personal-role-chips'[39m)[33m.[39m[34mexists[39m())[33m.[39m[34mtoBe[39m([35mtrue[39m)
+    [90m   |[39m                                                           [31m^[39m
+    [90m 89|[39m   })
+    [90m 90|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/settings/sections/PersonalSection.test.ts[2m > [22mPersonalSection work identity[2m > [22mopens the role picker, icon per role, previewing the joined draft
+[31m[1mAssertionError[22m: expected [] to have a length of 11 but got +0[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 11[39m
+[31m+ 0[39m
+
+[36m [2m❯[22m src/settings/sections/PersonalSection.test.ts:[2m97:19[22m[39m
+    [90m 95|[39m
+    [90m 96|[39m     [35mconst[39m chips [33m=[39m wrapper[33m.[39m[34mfindAll[39m([32m'.personal-role-chip'[39m)
+    [90m 97|[39m     [34mexpect[39m(chips)[33m.[39m[34mtoHaveLength[39m([33mWORK_ROLES[39m[33m.[39mlength)
+    [90m   |[39m                   [31m^[39m
+    [90m 98|[39m     for (const chip of chips) expect(chip.find('svg').exists()).toBe(t…
+    [90m 99|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/settings/sections/PersonalSection.test.ts[2m > [22mPersonalSection work identity[2m > [22msaves the picked roles through the store
+[31m[1mTypeError[22m: Cannot read properties of undefined (reading 'trigger')[39m
+[36m [2m❯[22m src/settings/sections/PersonalSection.test.ts:[2m115:51[22m[39m
+    [90m113|[39m     [35mconst[39m wrapper [33m=[39m [34mmountSection[39m()
+    [90m114|[39m     [35mawait[39m wrapper[33m.[39m[34mfind[39m([32m'.personal-identity'[39m)[33m.[39m[34mtrigger[39m([32m'click'[39m)
+    [90m115|[39m     [35mawait[39m wrapper[33m.[39m[34mfindAll[39m([32m'.personal-role-chip'[39m)[[34m0[39m][33m![39m[33m.[39m[34mtrigger[39m([32m'click'[39m)
+    [90m   |[39m                                                   [31m^[39m
+    [90m116|[39m     [35mconst[39m save [33m=[39m wrapper[33m.[39m[34mfindAll[39m([32m'.gateway-config-actions button'[39m)
+    [90m117|[39m     [35mawait[39m save[save[33m.[39mlength [33m-[39m [34m1[39m][33m![39m[33m.[39m[34mtrigger[39m([32m'click'[39m)
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/settings/sections/PersonalSection.test.ts[2m > [22mPersonalSection bio[2m > [22mwrites nickname and bio from the profile dialog
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/settings/sections/PersonalSection.test.ts:[2m149:31[22m[39m
+    [90m147|[39m     [35mconst[39m nickname [33m=[39m wrapper[33m.[39m[34mfind[39m([32m'#personal-nickname'[39m)
+    [90m148|[39m     [35mconst[39m bio [33m=[39m wrapper[33m.[39m[34mfind[39m([32m'#personal-bio'[39m)
+    [90m149|[39m     [34mexpect[39m(nickname[33m.[39m[34mexists[39m())[33m.[39m[34mtoBe[39m([35mtrue[39m)
+    [90m   |[39m                               [31m^[39m
+    [90m150|[39m     [34mexpect[39m(bio[33m.[39m[34mexists[39m())[33m.[39m[34mtoBe[39m([35mtrue[39m)
+    [90m151|[39m     // The dialog states the stored limit instead of silently truncati…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m87 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (90)[39m
+[2m      Tests [22m [1m[31m8 failed[39m[22m[2m | [22m[1m[32m821 passed[39m[22m[2m | [22m[33m14 skipped[39m[90m (843)[39m
+[2m   Start at [22m 23:03:34
+[2m   Duration [22m 61.59s[2m (transform 136.24s, setup 3.73s, import 178.68s, tests 31.27s, environment 88.91s)[22m
+

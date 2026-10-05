@@ -24,7 +24,7 @@ provide('uie:cardState', props.instance.state)
 provide('uie:active', computed(() => props.active))
 </script>
 
-<template vapor>
+<template>
   <div
     class="uie-card-host"
     :class="{ 'uie-card-host--hidden': !active }"

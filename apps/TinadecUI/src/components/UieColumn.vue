@@ -257,7 +257,7 @@ function onDividerUp() {
 }
 </script>
 
-<template vapor>
+<template>
   <div
     ref="colRef"
     class="uie-column"

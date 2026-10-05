@@ -174,7 +174,7 @@ onUnmounted(() => {
 })
 </script>
 
-<template vapor>
+<template>
   <div class="browser-tab-bar uie-stack-tabbar">
     <!-- Pinned Home tab -->
     <button

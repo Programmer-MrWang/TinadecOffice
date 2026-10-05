@@ -94,11 +94,14 @@ onBeforeUnmount(() => {
 
   <template v-else>
   <!-- Splash: shown until backend connects or 30s timeout.
-       Visual matches index.html native splash for seamless transition.
-       splash-exit Transition: logo slides up out of window + container fades. -->
-  <Transition name="splash-exit">
-    <AppSplash v-if="isConnecting" />
-  </Transition>
+       Keep the same DOM node mounted and animate its own CSS state. A Vue
+       leave transition here races the first mount of the Vapor UIE tree and
+       can ask the interop renderer to insert before a removed anchor. -->
+  <AppSplash
+    v-if="!isChildWindow && !isPetWindow"
+    :class="{ 'app-splash--leaving': !isConnecting }"
+    :aria-hidden="!isConnecting ? 'true' : undefined"
+  />
 
   <!-- Background Layer — rendered as soon as splash dismisses.
        INTENTIONALLY OUTSIDE any <Transition> / transformed ancestor:

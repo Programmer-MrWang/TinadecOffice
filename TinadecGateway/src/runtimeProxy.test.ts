@@ -23,6 +23,25 @@ test('run SSE forwards live answer frames before the upstream completes', { conc
   }
 });
 
+test('run SSE forwards the downstream abort signal to Core', { concurrency: false, timeout: 5000 }, async () => {
+  const controller = new AbortController();
+  let receivedSignal: AbortSignal | undefined;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    receivedSignal = init?.signal as AbortSignal | undefined;
+    return new Response(new ReadableStream<Uint8Array>({
+      start(stream) { stream.enqueue(new TextEncoder().encode(': heartbeat\n\n')); },
+      cancel() {},
+    }), { headers: { 'content-type': 'text/event-stream' } });
+  }) as typeof fetch;
+  try {
+    const response = await app.handle(new Request('http://gateway.local/api/v1/runs/run-1/stream', { signal: controller.signal }));
+    assert.equal(receivedSignal, controller.signal);
+    await response.body?.cancel();
+  } finally {
+    controller.abort();
+  }
+});
+
 afterEach(() => {
   globalThis.fetch = originalFetch;
 });

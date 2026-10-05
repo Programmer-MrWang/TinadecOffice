@@ -7,7 +7,7 @@ import { useUie } from './useUie'
 const uie = useUie()
 </script>
 
-<template vapor>
+<template>
   <main class="shell">
     <div class="top-drag-bar" />
     <AppHeader />

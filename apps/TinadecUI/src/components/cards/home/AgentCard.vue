@@ -5,7 +5,7 @@ import { homeController } from '@/controllers/HomeController'
 const c = homeController
 </script>
 
-<template vapor>
+<template>
   <AgentActivityPanel
     :activity="c.agentActivity.value"
     :agent-states="c.agentStatesMap.value"

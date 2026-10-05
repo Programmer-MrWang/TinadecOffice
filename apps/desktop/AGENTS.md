@@ -1,8 +1,8 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** TUI + model center channel integration（commit c279cb8）；前次：模型设置与权限细节端到端修复（报告：docs/model-settings-review-2026-10-05.zh-CN.md）；前批记录：Phase 7 读数收口——Office 渠道三平台化（构建侧三腿闭合）。每条腿产出本平台的四个归档 + `catalog-<target>.json`，`catalog.json` 由 release job 的 `merge-office-channel-catalog.mjs` 合并；包元数据镜像移到 artifact，`expectedArtifact` 由合并规则收成跨平台形式。POSIX 腿的模块归档是 **tar.gz 而不是 zip**：GNU tar 接 `tar -a -cf x.zip` 会以 0 退出码写出一个 tar 归档（首字节 `2e 2f 00 00`），并且读真 zip 直接失败（exit 2），而 Manager 的 `extractArchive()` 用的就是它。本机 win 腿 package+verify 端到端跑通，desktop `node --test` **105/105**，14 条表/合并/合并命令 + 3 条 workflow 文本 + 2 条 CRLF 场景 + 1 条 mac 路径的变异逐条验红。**run 37181829872：三条腿的 `Package`/`Verify Office channel artifacts`/`Upload` 全部 success**（win 发 zip，linux 与 mac 发 tar.gz，POSIX 腿连解包后的属主执行位一起验；三腿 fragment 10,002 / 10,022 / 10,560 字节；合并命令的三道否定门禁在三个宿主上都执行过）。这一轮被 runner 当场抓出三个我看不见的缺陷：**Windows runner 上 `core.autocrlf` 让跨行源码扫描什么都匹配不到**（`0 !== 3`，同一文件在 linux/mac 绿）、**mac 的 extraResources 在 bundle 内 `Contents/Resources`**（单一 `unpackedDir` 字段只能对两个平台）、以及上面那条 tar/zip 陷阱。消费侧两处 `agent-pack` 拒绝已用真实 catalog 量到并修掉（Manager 仓库 commit `eda169c`，本地未推）；**`release` job 的合并与数字门禁已在真实 CI 工件上本地演练通过（16 个 artifact 全核对、22 行 sums 全覆盖），没演练的只剩 `gh release create` 本身——那需要一次真 tag。**Phase 6 留下的最后一格也补了：run 37185143705 里 linux 腿用 apt 真装自己的 .deb（`installed tinadecoffice 0.1.1 amd64`）并对 `/opt/TinadecOffice/TinadecOffice` 跑完整冒烟（`linux-x64 installed smoke passed`），三腿同轮全绿、本机 107/107。**v0.2.0 已发布**（23 个资产：三平台安装器 + 12 个模块归档 + 合并 catalog + 三份 fragment + `SHA256SUMS` 等），release job 第一次真跑并 8 步全绿；发布后用只读命令复核过 16 个 artifact URL（全 200）、catalog 的 size/sha 与线上字节一致、Manager `validateManifest()` 对线上 catalog 得 0 条。**新发现的流程坑：推 tag 不会触发 `desktop-release.yml`**（push 触发带 `paths:`，指向当前 tip 的 tag 没有变更列表，事件被静默丢弃），已改为 `create-version.yml` 打完 tag 自己 dispatch。先前：Phase 6 收口——run 37168346909 三条腿同轮全绿，且**逐步骤**确认各自冒烟真的执行（linux：deb 结构检查 + xvfb 冒烟；mac：挂 dmg 跑里面二进制；win：原有装机链）。为到这一步修掉的三个真缺陷：node-pty 的 `build/` 没进包（Linux 打包版终端起不来）、X 授权（HOME 重定向后 Xlib 找不到 cookie → SIGSEGV）、一个用假 pid 却走真实 `process.kill(-pid)` 的测试（会在 runner 上打到无关进程）。同日先前：Linux 产物按他的决定从 AppImage 换成 .deb；锁文件平台原生包必须声明进根 `package.json` 的 optionalDependencies；osx-arm64 腿首次整腿绿并产出工件；三平台图标、跨卷路径声明修复、`.vite` 依赖戳守卫、聊天室界面移除。
-**Last Verified Commit:** `c279cb8`（Desktop full 870 passed / 14 skipped）；工作树基线 `8f71e0d`；Desktop 859 passed/14 skipped＋最终定向 95/95，Gateway 76/76，AgentFramework 580/580，Api 定向 20/20。；前批记录：基线 `3c1e368`（其前 `a310cd6` 版本 0.2.0、`e975642` .deb 安装+安装版冒烟、`2c09bcb` mac 资源路径、`2655bbb` CRLF 源码扫描、`987a810` 归档携带 mode、`18410ca` 渠道三平台化第一刀、`6ceb78e` Phase 6 收口）。本机实测（Windows）：`node scripts/package-office-channel.mjs` + `verify-office-channel.mjs` 全链路 EXIT=0（4 个 zip + 1 份 fragment，9,771 条 Tools 条目，9,046 个内置运行时文件逐字节一致，AgentPack digest `25d64d68…`）；`node scripts/merge-office-channel-catalog.mjs` 对单腿真数据报 `Channel fragments are missing for: linux-x64, osx-arm64`；desktop `node --test` 全清单 **105/105**；Manager `validateManifest()` 对真 fragment 得 2 条拒绝（bun 直读 TS，未改那个仓库）。CI 实测见上（run 37181829872 三腿 success）。**未跑**：`release` job（仅 tag 触发）；`vitest run` 与 `vue-tsc` 本机本轮未跑（CI 三腿都过）。
+**Last Updated By:** Home UIE classic fallback + stable splash mount after real Electron insertBefore reproduction
+**Last Verified Commit:** 工作树未提交；windowLifecycle/vaporBatch 9/9，desktop build 通过；真实 Electron 无 Gateway 等待 45 秒 Home 无 UI crashed
 **Branch:** main
 
 ### 2026-10-02 前端 UX 改进
@@ -18,6 +18,14 @@
 ### 2026-10-05 模型中心渠道与搜索稳定性
 
 模型中心保留 harness 的 `cli` / `tui` / `acp` 渠道轴，发现结果带 `configured_channels`，同一二进制可保留多条 provider 记录；TUI 文案反映 Core 的 one-shot PTY 客户端。万能搜索按 command/conversation/model/setting/resource 分组，点击和 Enter 共用同一个 action，实时运行状态变化会刷新可用命令。验证：Desktop 全量 **870 passed / 14 skipped**，`vue-tsc`、`vite build` 通过；本轮未做真实外部 harness 账号回合。
+
+### 2026-10-05 正式用户场景与渲染专项
+
+正式基线 `2aae779`，模型渠道复验 `6d4af02`；报告 `docs/whole-product-eval-2026-10-05.zh-CN.md`。本会话独立实测 Api 689/689、Governance 88/88、Architecture 18/18、Desktop 870 passed/14 skipped、native/scripts 107/107、UIE 140/140、Gateway 76/76；AgentFramework 两项红测交回模型中心会话修复后 626/626。Tools 首次 353/354（WebFetch deadline 分类失败）、隔离1/1、减载全量354/354，原因未定性。六个真实模型用户场景2 succeeded/4 abandoned，后四者的产品 Bun Gateway 原生断言崩溃；不能写成整链全绿。原生与web CodePage打开普通文件触发worker错误遮罩；构建通用worker为含相对import的data URI。900/1120渲染宽度右栏盖住发送；welcome附件置灰和AbortError包成普通Error已留现场。队列/会话逻辑11项仅静态审查，跨租户未演练。录制编码失败，未证明动效流畅；未改其他产品代码。
+
+### 2026-10-05 主界面 insertBefore 修复
+
+真实 Electron 在无 Gateway 启动后约 30 秒连接超时，Home UIE 首次挂载触发 Failed to execute insertBefore on Node；Settings 路由不触发。根因是 Home 的 classic HomePage 动态挂载整棵 Vapor UIE 树，同时根 splash Transition 卸载。AppSplash 现在常驻并用 app-splash--leaving CSS 离场；Home UIE 的 19 个 Uie/feature card SFC 暂退 classic template，vaporBatch batch1 留空并记录 deferred，避免 classic/Vapor interop 锚点竞态。真实 Electron 在同一无 Gateway 场景停留 45 秒无 UI crashed；windowLifecycle/vaporBatch 9/9，vite build 通过。
 
 ## OVERVIEW
 

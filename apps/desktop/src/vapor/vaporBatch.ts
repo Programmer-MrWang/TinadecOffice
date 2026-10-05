@@ -34,37 +34,18 @@ export const VAPOR_BATCHES: readonly VaporBatch[] = [
       'src/components/ui/progress.vue',
     ],
   },
-  // batch1 (M1): TinadecUI Components module self-authored components — added as they are created.
+  // batch1 (M1): deferred. The Home UIE tree stays classic until the Vue RC
+  // interop renderer can mount/unmount it without insertBefore anchor failures.
   {
     id: 'batch1',
     milestone: 'M1',
-    description: 'TinadecUI Components (render components + Home cards), built fresh on Vapor.',
-    files: [
-      '../../TinadecUI/src/components/UieCanvas.vue',
-      '../../TinadecUI/src/components/UieCardFrame.vue',
-      '../../TinadecUI/src/components/UieCardHost.vue',
-      '../../TinadecUI/src/components/UieColumn.vue',
-      '../../TinadecUI/src/components/UieShell.vue',
-      '../../TinadecUI/src/components/UieStack.vue',
-      '../../TinadecUI/src/components/UieDock.vue',
-      '../../TinadecUI/src/components/BrowserTabBar.vue',
-      '../../TinadecUI/src/components/cards/home/AgentCard.vue',
-      '../../TinadecUI/src/components/cards/home/ApprovalCard.vue',
-      '../../TinadecUI/src/components/cards/home/BrowserCard.vue',
-      '../../TinadecUI/src/components/cards/home/ChatCard.vue',
-      '../../TinadecUI/src/components/cards/home/DoctorCard.vue',
-      '../../TinadecUI/src/components/cards/home/EventsCard.vue',
-      '../../TinadecUI/src/components/cards/home/GitCard.vue',
-      '../../TinadecUI/src/components/cards/home/HomePickerCard.vue',
-      '../../TinadecUI/src/components/cards/home/NavCard.vue',
-      '../../TinadecUI/src/components/cards/home/OrchestrationCard.vue',
-      '../../TinadecUI/src/components/cards/home/TerminalCard.vue',
-    ],
+    description: 'Deferred Home UIE Vapor opt-in; classic rendering is the stable path for the main screen.',
+    files: [],
   },
   // batch2 (M1-M2): Home cards + HomeController (TS, no SFC).
   // batch3 (M2): code/market/debug cards + controllers.
   // batch4 (M3): settings cards + lazy modules.
-  // batch5 (M4): remaining UI primitives + shared components, targeting 100%.
+  // batch5 (M4): remaining UI primitives + shared components, targeting 100% after the interop fix.
 ]
 
 /** Flatten every opted-in file across all batches. */

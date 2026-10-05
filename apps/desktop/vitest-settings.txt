@@ -1,0 +1,114 @@
+(node:31792) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/git/agent/TinadecOffice/apps/desktop[39m
+
+  ➜  MCP:     Server is running at http://localhost:5173/__mcp/sse
+(node:33356) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34092) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5008) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29556) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22888) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31724) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27628) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pages/GovernanceBoardPage.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 2335[2mms[22m[39m
+     [33m[2m✓[22m[39m splits the heterogeneous /approvals projection by kind into separate columns [33m 983[2mms[22m[39m
+     [33m[2m✓[22m[39m deciding an approval removes only that card and posts to the approvals endpoint [33m 451[2mms[22m[39m
+     [33m[2m✓[22m[39m polls approvals on an interval while mounted and stops after unmount [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m pauses polling while the page is hidden and resumes when visible again [33m 342[2mms[22m[39m
+ [32m✓[39m src/pages/MemoryPage.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 6039[2mms[22m[39m
+     [33m[2m✓[22m[39m opens on the proposed queue and the active shelf, both one page wide [33m 882[2mms[22m[39m
+     [33m[2m✓[22m[39m omits the grounds block when a candidate carries none, rather than rendering empty rows [33m 307[2mms[22m[39m
+     [33m[2m✓[22m[39m promoting hands the candidate to Core and takes it off the proposed shelf [33m 382[2mms[22m[39m
+     [33m[2m✓[22m[39m a full page says there may be more, and a short one does not [33m 2928[2mms[22m[39m
+ [32m✓[39m src/settings/sections/PersonalSection.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 7862[2mms[22m[39m
+     [33m[2m✓[22m[39m groups every selected role into one chip beside the nickname [33m 779[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the hero actions to edit and share, with no standalone work-role button [33m 737[2mms[22m[39m
+     [33m[2m✓[22m[39m reads as an actionable placeholder while no role is set [33m 619[2mms[22m[39m
+     [33m[2m✓[22m[39m opens the role picker, icon per role, previewing the joined draft [33m 858[2mms[22m[39m
+     [33m[2m✓[22m[39m saves the picked roles through the store [33m 465[2mms[22m[39m
+     [33m[2m✓[22m[39m asks for the user’s own words only while "other" is picked [33m 584[2mms[22m[39m
+     [33m[2m✓[22m[39m stands in for the generic label on the chip once saved [33m 787[2mms[22m[39m
+     [33m[2m✓[22m[39m falls back to "other" when the custom field is left empty [33m 951[2mms[22m[39m
+     [33m[2m✓[22m[39m retires a stale custom label when "other" is deselected [33m 776[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the bio under the nickname [33m 328[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the placeholder instead of an empty line [33m 322[2mms[22m[39m
+     [33m[2m✓[22m[39m writes nickname and bio from the profile dialog [33m 587[2mms[22m[39m
+ [32m✓[39m src/settings/sections/TinaChatSection.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 6950[2mms[22m[39m
+     [33m[2m✓[22m[39m registers an agent identity with the capability flags the server expects [33m 2466[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps a human identity able to read originals regardless of the checkbox [33m 1528[2mms[22m[39m
+     [33m[2m✓[22m[39m creates a room as the acting identity without inviting itself [33m 1188[2mms[22m[39m
+     [33m[2m✓[22m[39m sends the policy revision it read and preserves the untouched flag [33m 534[2mms[22m[39m
+     [33m[2m✓[22m[39m names a stale revision instead of failing quietly [33m 688[2mms[22m[39m
+     [33m[2m✓[22m[39m shows nothing actionable until an identity is registered [33m 504[2mms[22m[39m
+(node:32428) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33036) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26768) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/settings/sections/AppearanceSection.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 19720[2mms[22m[39m
+     [33m[2m✓[22m[39m ranges opacity over the stored 0–100 percent domain [33m 1503[2mms[22m[39m
+     [33m[2m✓[22m[39m ranges blur over the 0–20 domain its clamp enforces [33m 612[2mms[22m[39m
+     [33m[2m✓[22m[39m writes a percent value when the opacity slider moves [33m 742[2mms[22m[39m
+     [33m[2m✓[22m[39m shows HTML guidance for the HTML type instead of video formats [33m 720[2mms[22m[39m
+     [33m[2m✓[22m[39m uses a single-line input for image and video sources [33m 871[2mms[22m[39m
+     [33m[2m✓[22m[39m gives every picker control an accessible name [33m 855[2mms[22m[39m
+     [33m[2m✓[22m[39m drives saturation and lightness from a pointer press on the field [33m 554[2mms[22m[39m
+     [33m[2m✓[22m[39m supports keyboard adjustment of the field [33m 452[2mms[22m[39m
+     [33m[2m✓[22m[39m opens with the stored custom hex and commits it exactly [33m 3522[2mms[22m[39m
+     [33m[2m✓[22m[39m warns when the drafted color has low contrast [33m 1602[2mms[22m[39m
+     [33m[2m✓[22m[39m ignores an invalid hex instead of committing garbage [33m 1663[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the hue wheel and a bold plus while no custom color is active [33m 329[2mms[22m[39m
+     [33m[2m✓[22m[39m replaces the wheel with the committed color once custom is selected [33m 1803[2mms[22m[39m
+     [33m[2m✓[22m[39m returns to the wheel when a preset is picked afterwards [33m 2422[2mms[22m[39m
+     [33m[2m✓[22m[39m exposes exactly one reset affordance — the control header button [33m 469[2mms[22m[39m
+     [33m[2m✓[22m[39m lets the control fill the section width now that nothing shares its row [33m 396[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a single extracted swatch, not a role strip [33m 340[2mms[22m[39m
+     [33m[2m✓[22m[39m sits inside the preset swatch row so it right-aligns with them [33m 311[2mms[22m[39m
+(node:30116) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32620) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/settings/settingsCssContract.test.ts [2m([22m[2m72 tests[22m[2m)[22m[33m 2781[2mms[22m[39m
+ [32m✓[39m src/settings/sections/ArchiveTrashSection.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 3742[2mms[22m[39m
+     [33m[2m✓[22m[39m lists archived and trashed projects and sessions with their parent project [33m 907[2mms[22m[39m
+     [33m[2m✓[22m[39m labels an archived free conversation instead of rendering an empty parent [33m 361[2mms[22m[39m
+     [33m[2m✓[22m[39m restores an archived project without confirmation [33m 417[2mms[22m[39m
+     [33m[2m✓[22m[39m purges a trashed session only after destructive confirmation [33m 790[2mms[22m[39m
+     [33m[2m✓[22m[39m does not purge when the confirmation is rejected [33m 1204[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.smoke.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 5540[2mms[22m[39m
+     [33m[2m✓[22m[39m mounts and renders the settings shell with nav entries [33m 1649[2mms[22m[39m
+     [33m[2m✓[22m[39m opens on the personal section, with general still one click away in the nav [33m 1708[2mms[22m[39m
+     [33m[2m✓[22m[39m gives each harness channel a section, and states what this build can do there [33m 1662[2mms[22m[39m
+(node:31972) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/pages/SnapshotsPage.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 4494[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the rows that differ and drops the ones that do not [33m 2719[2mms[22m[39m
+     [33m[2m✓[22m[39m undoes the file the user pointed at, with the hash that row was shown [33m 1018[2mms[22m[39m
+     [33m[2m✓[22m[39m refuses to offer an undo for a row whose content the snapshot never held [33m 400[2mms[22m[39m
+     [33m[2m✓[22m[39m asks for the diff by that path and hands both bodies to the viewer [33m 301[2mms[22m[39m
+ [32m✓[39m src/settingsCenters.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/locales/i18nParity.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 909[2mms[22m[39m
+ [32m✓[39m src/settings/sections/PersonalShareCard.test.ts [2m([22m[2m5 tests[22m[2m)[22m[33m 2393[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the card, says so when this environment cannot paint it, and offers three controls [33m 1177[2mms[22m[39m
+     [33m[2m✓[22m[39m survives a usage aggregate that has not loaded yet [33m 406[2mms[22m[39m
+     [33m[2m✓[22m[39m turns the privacy switch into aria-pressed and back [33m 386[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.agentPack.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 12155[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a Pack-managed agent and clones it through the existing custom-agent flow [33m 7986[2mms[22m[39m
+     [33m[2m✓[22m[39m lists every installed pack with enable, uninstall and set-default controls [33m 1525[2mms[22m[39m
+     [33m[2m✓[22m[39m uninstall asks for confirmation and only purges after it is granted [33m 1556[2mms[22m[39m
+     [33m[2m✓[22m[39m degrades to an empty inventory instead of failing when the listing route rejects [33m 1082[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m13 passed[39m[22m[90m (13)[39m
+[2m      Tests [22m [1m[32m159 passed[39m[22m[90m (159)[39m
+[2m   Start at [22m 23:58:19
+[2m   Duration [22m 119.13s[2m (transform 344.15s, setup 10.19s, import 462.29s, tests 75.02s, environment 160.49s)[22m
+

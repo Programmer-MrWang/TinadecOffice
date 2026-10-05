@@ -19,6 +19,7 @@ export function registerTinaChatRoutes(app: AnyElysia, forwardHeaders: (request:
           method: verb,
           headers: forwardHeaders(request),
           body: verb === 'GET' || body === undefined ? undefined : JSON.stringify(body),
+          signal: request.signal,
         });
       }, { detail: detail as never });
     }

@@ -25,6 +25,9 @@ describe('child window lifecycle', () => {
     // TinadecUIE owns the main window layout; RouterView has no out-in
     // transition wrapper so the page host + card-frame material root stay stable.
     expect(app).not.toContain('mode="out-in"')
+    expect(app).not.toContain('<Transition name="splash-exit">')
+    expect(app).toContain("'app-splash--leaving': !isConnecting")
+    expect(appSplash).toContain('.app-splash--leaving')
     expect(panelWindow).toContain('?splash=0#${hashPath}')
     expect(viteConfig).toContain("base: './'")
   })

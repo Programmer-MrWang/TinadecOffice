@@ -4581,25 +4581,3 @@ Triggered by the page-level transition on the parent .settings-page. */
   color: var(--accent-primary);
   background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary));
 }
-
-/* --- splash 退出：logo 向上飞出窗口 + 容器淡出 --- */
-.splash-exit-leave-active {
-  transition:
-    transform 600ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 400ms ease-out;
-}
-.splash-exit-leave-to {
-  transform: translateY(-100vh);
-  opacity: 0;
-}
-
-/* Reduced motion: 禁用 transform 与 filter，仅保留 opacity 淡入淡出 */
-@media (prefers-reduced-motion: reduce) {
-  .splash-exit-leave-active {
-    transition: opacity 200ms ease-out;
-  }
-  .splash-exit-leave-to {
-    transform: none;
-    opacity: 0;
-  }
-}

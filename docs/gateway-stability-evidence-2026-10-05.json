@@ -1,0 +1,26 @@
+{
+  "source": "working tree before commit, Gateway cancellation propagation patch",
+  "runtime": "Bun 1.3.14 on Windows x64",
+  "isolated_sse_probe": {
+    "before": { "cycles": 200, "upstream_closed": 0, "gateway_exited": false },
+    "after": { "cycles": 200, "upstream_closed": 200, "gateway_exited": false },
+    "long_after": { "event_cycles": 1000, "upstream_closed": 1000, "gateway_exited": false }
+  },
+  "gateway_tests": { "passed": 77, "failed": 0 },
+  "build_check": { "command": "bun build --target=bun --outdir=C:/tmp/tinadec-gateway-build-check src/index.ts", "exit_code": 0, "modules": 372 },
+  "real_core_chain": {
+    "health": "503 during Core startup, then 200 core_status=ready",
+    "projects": 1,
+    "sessions": 1,
+    "interaction_status": 201,
+    "run_sse_first_frame": true,
+    "event_abort_cycles": 100,
+    "gateway_exited": false
+  },
+  "historical_crash_signature": "Bun 1.3.14 Windows Internal assertion failure after long-lived proxy activity; source logs retained in the local eval session",
+  "external_references": [
+    "https://github.com/oven-sh/bun/issues/32111",
+    "https://github.com/oven-sh/bun/issues/32585"
+  ],
+  "secrets": "No provider recipe, API key, cookie, or database bytes are included."
+}

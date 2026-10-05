@@ -48,7 +48,7 @@ function openCard(descriptorId: string) {
 }
 </script>
 
-<template vapor>
+<template>
   <div ref="rootRef" class="panel-home-root">
     <section class="panel-home" :class="{ 'panel-home-compact': isCompact }">
       <div class="panel-home-header">

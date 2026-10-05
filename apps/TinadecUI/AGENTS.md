@@ -1,8 +1,8 @@
 # TinadecUI — UI Engineering Suite
 
-**Last Updated:** 2026-09-27
-**Last Updated By:** 单一布局系统清理：删除旧面板体系残留、`wb`→`uie` 命名统一、`showPage` 保留用户布局、分离窗口携带会话上下文。
-**Last Verified Commit:** aa6140d 基线工作树，本轮顺序实测：Desktop vitest 762 passed / 14 skipped（82 文件通过 / 1 跳过），Electron 24/24，TYPECHECK_EXIT=0、BUILD_EXIT=0、DRIFT_EXIT=0。浏览器连接不可用，未做真实 Electron/像素级验收。
+**Last Updated:** 2026-10-05
+**Last Updated By:** Home UIE classic fallback after real Electron insertBefore crash reproduction
+**Last Verified Commit:** 工作树未提交；Home UIE 19 个 SFC 已退出 Vapor，Desktop windowLifecycle/vaporBatch 9/9，真实 Electron 后端超时停留 45 秒无 UI crashed
 **Branch:** Everything-changed
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.
@@ -63,6 +63,10 @@ The feature/right column supports **dock splits** — recursive binary split tre
 - Invariants: exactly one `main` pane hosting `homePicker`; non-main panes are never empty; collapsing to a single main pane normalizes `dock` back to `null` (stacks restored).
 - **Window-stacking overlay**: a float right feature column (hosts `homePicker`) wider than the center's comfort width (`MIN_CHAT_COMFORT_WIDTH`, the composer no-wrap threshold) floats over the chat instead of squeezing it — `computeGeometry` marks `degraded.overlayRight` + `ColumnGeometry.overlay`, clamps the panel so `MIN_OVERLAY_STRIP` of chat stays visible, and `UieColumn` renders it at a higher z-index. Drag ceiling is `maxOverlayColumnWidth`. Visual-only, never written back.
 - `snapshot.version` stays **1**: `dock` is an optional additive field; old persisted snapshots (no `dock`) load unchanged via `repairLayout`, so no `version` bump is required.
+
+## 2026-10-05 Home UIE renderer stability
+
+真实 Electron 启动后等待连接超时会在 Home UIE Vapor 树挂载时触发 insertBefore on Node，Settings 路由不触发。为保住主界面，UieShell/UieCanvas/UieColumn/UieStack/UieDock/UieCardHost/BrowserTabBar 及 Home cards 19 个 SFC 暂退回 classic template；布局、状态、样式和命令总线不变。apps/desktop/src/vapor/vaporBatch.ts 的 batch1 留空并明确 deferred，VAPOR_OPTED_IN 同步收窄。AppSplash 改为常驻节点的 CSS leaving 状态，根 Transition 不再在同一帧卸载 splash 并挂载 UIE。复验：windowLifecycle + vaporBatch 9/9，vite build 通过，真实 Electron 在无 Gateway 场景等待 45 秒仍可见 Home，无 UI crashed。待 Vue Vapor interop 稳定后再逐层恢复，不要只恢复根组件。
 
 ## Module boundary rules
 

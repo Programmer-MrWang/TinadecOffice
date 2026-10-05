@@ -1,0 +1,33 @@
+(node:26500) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90mC:/git/agent/TinadecOffice/apps/desktop[39m
+
+  ➜  MCP:     Server is running at http://localhost:5173/__mcp/sse
+(node:34244) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27692) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33824) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m src/settings/sections/PersonalSection.test.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 4236[2mms[22m[39m
+     [33m[2m✓[22m[39m groups every selected role into one chip beside the nickname [33m 475[2mms[22m[39m
+     [33m[2m✓[22m[39m keeps the hero actions to edit and share, with no standalone work-role button [33m 539[2mms[22m[39m
+     [33m[2m✓[22m[39m reads as an actionable placeholder while no role is set [33m 344[2mms[22m[39m
+     [33m[2m✓[22m[39m saves the picked roles through the store [33m 315[2mms[22m[39m
+     [33m[2m✓[22m[39m asks for the user’s own words only while "other" is picked [33m 350[2mms[22m[39m
+     [33m[2m✓[22m[39m stands in for the generic label on the chip once saved [33m 367[2mms[22m[39m
+     [33m[2m✓[22m[39m falls back to "other" when the custom field is left empty [33m 415[2mms[22m[39m
+     [33m[2m✓[22m[39m retires a stale custom label when "other" is deselected [33m 393[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.smoke.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 1345[2mms[22m[39m
+     [33m[2m✓[22m[39m mounts and renders the settings shell with nav entries [33m 756[2mms[22m[39m
+ [32m✓[39m src/pages/SettingsPage.agentPack.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 3339[2mms[22m[39m
+     [33m[2m✓[22m[39m opens a Pack-managed agent and clones it through the existing custom-agent flow [33m 1859[2mms[22m[39m
+     [33m[2m✓[22m[39m lists every installed pack with enable, uninstall and set-default controls [33m 692[2mms[22m[39m
+     [33m[2m✓[22m[39m uninstall asks for confirmation and only purges after it is granted [33m 541[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m3 passed[39m[22m[90m (3)[39m
+[2m      Tests [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m   Start at [22m 23:54:23
+[2m   Duration [22m 34.56s[2m (transform 47.56s, setup 2.05s, import 56.24s, tests 8.92s, environment 18.67s)[22m
+

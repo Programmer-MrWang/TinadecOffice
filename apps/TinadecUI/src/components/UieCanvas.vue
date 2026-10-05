@@ -31,7 +31,7 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<template vapor>
+<template>
   <div ref="canvasRef" class="uie-canvas">
     <!-- Columns are absolutely positioned by the constraint solver. -->
     <UieColumn

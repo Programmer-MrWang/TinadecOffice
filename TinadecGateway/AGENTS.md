@@ -1,9 +1,17 @@
 # GATEWAY KNOWLEDGE
 
-**Last Updated:** 2026-10-02
-**Last Updated By:** Gateway SSE 主动断开修复；run/events 流直接透传 upstream Response，避免 Elysia 对已取消 reader 重复 release。
-**Last Verified Commit:** c064863；runtime proxy/openapi 16/16。
-**Branch:** Astra
+**Last Updated:** 2026-10-05
+**Last Updated By:** Gateway 长连接取消传播修复与全链路稳定性复查（报告：docs/gateway-stability-2026-10-05.zh-CN.md）
+**Last Verified Commit:** 工作树未提交 signal 修复（基线 6d4af02）；bun test 77/77；隔离 SSE 中断 1000 次上游全部回收；真实 Core 链路 interaction 201 + run SSE 首帧 + events 中断 100 次 Gateway 存活
+**Branch:** main
+
+## 2026-10-05 Gateway 长连接稳定性
+
+`proxySse`/`proxyStream` 以前没有把入站 `request.signal` 传给 Core/Tool Runtime 的 `fetch`。浏览器关闭 run/event/log/attachment 流后，上游响应体继续持有，Windows Bun 1.3.14 的 abort/ReadableStream 原生缺陷会在长时间或大量中断后以 `Internal assertion failure` 退出。`coreClient.ts` 与 `streaming.ts` 现在接受并传递 `AbortSignal`；run SSE、events、日志和附件路由都传 `request.signal`，TinaChat/organization 透明代理也传递。回归实测：隔离 Core 模拟器中断 SSE 200 次，修复前上游关闭 0/200，修复后 200/200；1000 次 events 中断后 Gateway 仍存活；Gateway `bun test` **77/77**。真实 Core + 克隆已配置模型数据库链路：启动期 503→ready、项目/会话读取、真实 interaction 201、run 首帧、100 次 events 中断均完成。详见 `docs/gateway-stability-2026-10-05.zh-CN.md`。修复后每次预期取消仍可能打印 Bun `AbortError`，不要全局吞掉未知异常；Bun 原生缺陷仍需升级/版本门禁。
+
+## 2026-10-05 模型参数薄代理
+
+提供方写入/读取的 `model_parameters` 与 If-Match 原样透传；`invalid_model_parameters` 纳入 `errorMapper` 白名单，400 不得变成 conflict。未加入 Gateway 配置状态、参数合并或推理策略。新增双向透传用例；“运行时绑定路由存在”用例显式模拟上游，避免本机 Core 对虚构 agent 返回 404 而误报代理路由缺失。本轮 bun 全量 76/76；Desktop 生成客户端零漂移。Core 的 provider 动态 JSON 响应仍不含 OpenAPI 结构化字段 schema，字段由传输/HTTP/客户端测试覆盖。
 
 ## OVERVIEW
 独立 Bun 包，薄代理 BFF/API 层。使用 Bun 运行时，拥有独立的 `bun.lock`、启动、测试和部署流程，脱离 Electron 与根 npm workspace。

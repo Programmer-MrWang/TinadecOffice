@@ -5,6 +5,6 @@ import { homeController } from '@/controllers/HomeController'
 const c = homeController
 </script>
 
-<template vapor>
+<template>
   <DoctorTab :doctor="c.doctor.value" :readiness="c.readiness.value" />
 </template>

@@ -669,7 +669,7 @@ const app = new Elysia()
     const suffix = search.toString() ? `?${search.toString()}` : '';
     const responseHeaders: Record<string,string> = { ...headers };
     if (cursor) responseHeaders['last-event-id'] = String(cursor);
-    const response = await proxySse(`/api/v1/runs/${params.runId}/stream${suffix}`, { headers: responseHeaders });
+    const response = await proxySse(`/api/v1/runs/${params.runId}/stream${suffix}`, { headers: responseHeaders, signal: request.signal });
     if (response.status >= 400) {
       const text = await response.text();
       let data: unknown = null; try { data = JSON.parse(text); } catch { data = { message: text }; }
@@ -852,7 +852,7 @@ const app = new Elysia()
     if (q.session_id) params.set('sessionId', String(q.session_id));
     const cursor = (q.cursor as string) ?? (q.after_seq as string) ?? request.headers.get('last-event-id') ?? request.headers.get('Last-Event-ID');
     if (cursor) params.set('afterSeq', String(cursor));
-    const response = await proxySse(`/api/v1/events?${params.toString()}`, { headers: { ...headers, ...(cursor ? { 'last-event-id': String(cursor) } : {}) } });
+    const response = await proxySse(`/api/v1/events?${params.toString()}`, { headers: { ...headers, ...(cursor ? { 'last-event-id': String(cursor) } : {}) }, signal: request.signal });
     set.headers['content-type'] = 'text/event-stream';
     set.headers['cache-control'] = 'no-cache';
     set.headers['x-accel-buffering'] = 'no';
@@ -2371,6 +2371,7 @@ const app = new Elysia()
       path,
       method: 'POST',
       headers: { ...Object.fromEntries(new Headers(headers).entries()), 'content-type': 'application/octet-stream' },
+      signal: request.signal,
       body: request.body,
     });
     setStatus(set, response.status);
@@ -2406,6 +2407,7 @@ const app = new Elysia()
       target: 'core',
       path,
       headers: Object.fromEntries(new Headers(headers).entries()),
+      signal: request.signal,
     });
     setStreamHeaders(set, response);
     setStatus(set, response.status);
@@ -2429,6 +2431,7 @@ const app = new Elysia()
       target: 'core',
       path: `/api/v1/sessions/${params.sessionId}/logs`,
       headers: Object.fromEntries(new Headers(headers).entries()),
+      signal: request.signal,
     });
     setStreamHeaders(set, response);
     setStatus(set, response.status);
@@ -2442,6 +2445,7 @@ const app = new Elysia()
       target: 'core',
       path: `/api/v1/sessions/${params.sessionId}/logs/stream`,
       headers: Object.fromEntries(new Headers(headers).entries()),
+      signal: request.signal,
     });
     setStreamHeaders(set, response);
     setStatus(set, response.status);

@@ -16,6 +16,8 @@ export interface StreamProxyOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: ReadableStream<Uint8Array> | null;
+  /** Abort the upstream stream when the downstream client disconnects. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -31,6 +33,7 @@ export async function proxyStream(options: StreamProxyOptions): Promise<Response
     method: options.method ?? 'GET',
     headers: options.headers ?? {},
     body: options.body ?? undefined,
+    signal: options.signal,
     // @ts-expect-error: Bun 支持 duplex 选项用于流式请求体
     duplex: options.body ? 'half' : undefined,
   });

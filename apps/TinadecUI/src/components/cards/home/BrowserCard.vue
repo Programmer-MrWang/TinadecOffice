@@ -8,6 +8,6 @@ const cardState = inject<Record<string, unknown> | undefined>('uie:cardState')
 const initialUrl = computed(() => (cardState?.url as string) ?? '')
 </script>
 
-<template vapor>
+<template>
   <PreviewBrowserPanel :initial-url="initialUrl" />
 </template>

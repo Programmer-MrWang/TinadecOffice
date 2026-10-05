@@ -12,7 +12,7 @@ const active = inject<MaybeRefOrGetter<boolean>>('uie:active', false)
 const visible = computed(() => toValue(active) ?? false)
 </script>
 
-<template vapor>
+<template>
   <TerminalPanel
     :cwd="c.currentProject.value?.path"
     :visible="visible"
