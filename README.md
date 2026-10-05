@@ -77,7 +77,8 @@ DmaEA (Dual-layer Modular Agent Architecture) separates **the agents that govern
   <img src="docs/diagrams/out/dual-layer.svg" alt="Dual-layer DmaEA: the operation layer orchestrates the execution layer, with an approval gate on every write" />
 </p>
 
-- The operation layer **cannot invoke any tool** — enforced as permission data, not as a convention.
+- The operation layer **governs instead of executing** — it plans, dispatches and reviews. It may *declare* tools, but the calls only ever run through Core's dispatcher; nothing executes in a governance agent's own hands.
+- Tool access is never implicit: it comes from an explicit pack `tool_scope` and an explicit write grant, and every mutation still passes the **approval gate** — human or delegated.
 - Every worker's tool surface = its instance grant ∩ the **run-frozen tool manifest** (hash-pinned, immutable).
 - Runs are durable: pause, resume, cancel — and recover across restarts.
 
