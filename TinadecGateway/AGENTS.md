@@ -1,8 +1,8 @@
 # GATEWAY KNOWLEDGE
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** Gateway 长连接取消传播修复与全链路稳定性复查（报告：docs/gateway-stability-2026-10-05.zh-CN.md）
-**Last Verified Commit:** 工作树未提交 signal 修复（基线 6d4af02）；bun test 77/77；隔离 SSE 中断 1000 次上游全部回收；真实 Core 链路 interaction 201 + run SSE 首帧 + events 中断 100 次 Gateway 存活
+**Last Updated By:** 本轮架构图源码核对，纠正 Tool Runtime 默认配置、Core 工具传输与 WS 状态
+**Last Verified Commit:** b6115e6 + 工作树；静态核对 src/config.ts 与 src/index.ts，未跑运行验证；长连接验证记录见下文
 **Branch:** main
 
 ## 2026-10-05 Gateway 长连接稳定性
@@ -18,7 +18,7 @@
 
 Gateway 自身不执行文件、Git、Shell、PTY 或 MCP 操作，只负责：
 - **鉴权**：云端模式支持 API Key / JWT / 租户上下文
-- **BFF 组合**：Model/Agent Center 聚合视图
+- **配置代理**：Model/Agent Center 由 Desktop 组合版本化 Core 响应
 - **协议转换**：HTTP/JSON、SSE、WebSocket、流式 HTTP
 - **流式转发**：代理到 Core 和 Tool Runtime
 
@@ -34,7 +34,7 @@ Core run stream 新增 `answer.started/delta/failed` 可替换预览，会话事
 |------|------|----------|
 | HTTP/JSON | 普通命令与查询 | `index.ts` 路由 + `coreClient.ts` / `toolRuntimeClient.ts` |
 | SSE | 统一事件流 | `index.ts` SSE 路由 + `proxySse()` |
-| WebSocket | 终端、调试、协作 | `index.ts` `.ws()` 路由 + `websocket.ts` |
+| WebSocket | 终端、调试、协作的路由桩 | `index.ts` `.ws()` 当前只有 Bun pub/sub，尚未连接上游；`websocket.ts` 代理辅助未接线 |
 | 流式 HTTP | 大文件与日志 | `index.ts` 流式路由 + `streaming.ts` |
 
 ### 部署模式
@@ -45,12 +45,13 @@ Core run stream 新增 `answer.started/delta/failed` 可替换预览，会话事
 
 ### 连接拓扑
 ```
-Desktop ──HTTP/SSE/WS──> Gateway ──HTTP/SSE/WS──> Core
-                         Gateway ──HTTP/SSE/WS──> Tool Runtime（用户工具传输面）
-                         Core ←──HTTP──→ Tool Runtime
+Desktop/Web ──HTTP/JSON/SSE/流式HTTP──> Gateway ──HTTP──> Core
+                                                      Core ──stdio──> TinadecTools（本机子进程）
+Gateway ──HTTP──> 独立 Tool Runtime（显式配置后的 health/manifest/tools 读代理）
+Desktop ──IPC──> Electron terminalManager ──node-pty──> 用户 Shell
 ```
 
-Gateway 是北向无状态门面。用户在 Desktop 触发的工具请求可以通过 Gateway 传输到 Tool Runtime；Gateway 不读取审批、不计算参数哈希、不选择工具、不保存状态。智能体的治理执行仍走 Core 的 run-scoped 工具路径。`/api/v1` 是当前唯一公开 HTTP API 前缀；没有 `/v2`、legacy 或兼容别名，破坏性变更直接更新 v1 并同步文档。
+Gateway 是北向无状态门面。用户 Code 工具执行入口代理 Core `/api/v1/tools/{toolId}/execute`，治理写操作走 `/api/v1/user/tool-actions`；智能体执行走 Core 的 run-scoped 工具路径。Gateway 不计算参数哈希、不选择工具、不保存治理状态。WS 三个端点尚未连接上游（见下文“WS 代理现状”）。`/api/v1` 是当前唯一公开 HTTP API 前缀；没有 `/v2`、legacy 或兼容别名，破坏性变更直接更新 v1 并同步文档。
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
@@ -63,11 +64,11 @@ Gateway 是北向无状态门面。用户在 Desktop 触发的工具请求可以
 | Tool Runtime 代理 | `src/toolRuntimeClient.ts` | `toolRuntimeUrl()`，JSON 代理，SSE 代理，流式代理 |
 | 认证中间件 | `src/auth.ts` | API Key / JWT HS256 验签（WebCrypto），租户上下文，反向代理头 |
 | 请求上下文 | `src/headers.ts`, `src/auth.ts` | 只处理请求 id、认证和租户头；授权事实由 Core 或 Tool Provider 产生 |
-| WebSocket 代理 | `src/websocket.ts` | 路由表，目标 URL 构建，消息透传 |
+| WebSocket 路由桩 | `src/index.ts`, `src/websocket.ts` | 路由表与目标 URL 构建存在，当前端点只做本地 pub/sub；辅助代理未被调用 |
 | 流式 HTTP 代理 | `src/streaming.ts` | 大文件/日志流式透传 |
 | Model/Agent 配置代理 | `src/index.ts` | 版本化 provider/route/Agent/Mode/Prompt/default 路径；旧 overview 路由已删除，`PUT /api/v1/agents/:id/runtime-binding` 仍是当前代理（`src/index.ts:1523` → Core `AspNetCore/Endpoints/AgentConfigurationEndpoints.cs:21`）。 |
 | Agent Pack 代理 | `src/index.ts`, `src/runtimeProxy.test.ts`, `tests/__snapshots__/openapi.external.json` | 四条显式薄代理；保留 ETag、`If-Match`、`Idempotency-Key` 和 Core ProblemDetails code。 |
-| Code tools 传输 | `src/index.ts`, `src/toolRuntimeClient.ts` | Desktop 工具目录代理 Core，用户执行请求原样转发 Tool Provider |
+| Code tools 传输 | `src/index.ts`, `src/coreClient.ts` | Desktop 目录与工具读执行代理 Core；治理写操作代理 Core 的 user/tool-actions，Core 调用 Tool Provider |
 | MCP 读代理 | `src/index.ts` | 只有 Core 实现的两条 GET；`source` 字段逐字透传，网关不判断"连不连得上"（历史上这里还有 5 条 Core 从不存在的路由，见 `DELETED FILES`） |
 | 市场读代理 | `src/index.ts`, `src/marketProxy.test.ts` | 六条 `/api/v1/market/*`（sources GET/POST/PATCH/DELETE、refresh、catalog 两条）纯透传，五类信封带 `detail.responses` 类型。**目录查询参数名按 Core 的拼写转发**（`q`/`source_id`/`limit`/`offset`）：这里曾发 `query` 与 `sourceId`，Core 从来没读过这两个名字，所以搜索框在真机上什么都不会筛而每个 mock 过测试的调用方都是绿的 |
 | 测试 | `src/coreClient.test.ts`, `src/modelAgentCenter.test.ts`, `src/runtimeProxy.test.ts` | Bun test |
@@ -86,7 +87,7 @@ Gateway 是北向无状态门面。用户在 Desktop 触发的工具请求可以
 | `TINADEC_GATEWAY_MODE` | `local` | 部署模式：`local` 或 `cloud` |
 | `TINADEC_GATEWAY_PORT` | `48730` | 监听端口 |
 | `TINADEC_CORE_URL` | `http://127.0.0.1:48731` | Core 服务 URL |
-| `TINADEC_TOOL_RUNTIME_URL` | `http://127.0.0.1:48732` | 外部 Tool Runtime 转发地址；本机没有这个 HTTP 服务——工具宿主由 Core 按 `TinadecTools:ExecutablePath` 自动探测（content root → `TinadecTools/bin/{Debug\|Release}/net10.0/`）拉起的子进程承载，没有固定端口 |
+| `TINADEC_TOOL_RUNTIME_URL` | 空字符串（未配置） | 外部 Tool Runtime 转发地址需显式配置；未配置时 health/tools 读路由回落 Core，manifest 返回 501（`src/config.ts`、`src/index.ts`）。本机工具宿主由 Core 按 `TinadecTools:ExecutablePath` 自动探测（content root → `TinadecTools/bin/{Debug\|Release}/net10.0/`）拉起的子进程承载，没有固定 HTTP 端口 |
 | `TINADEC_GATEWAY_AUTH_REQUIRED` | `true`（云端） | 是否必须认证 |
 | `TINADEC_GATEWAY_JWT_SECRET` | — | JWT 验证密钥 |
 | `TINADEC_GATEWAY_API_KEY` | — | API Key |
@@ -97,8 +98,8 @@ Gateway 是北向无状态门面。用户在 Desktop 触发的工具请求可以
 - Gateway 不存储任何业务状态
 - Gateway 不执行文件、Git、Shell、PTY 或 MCP 操作
 - Gateway 只代理请求，不实现业务逻辑
-- 所有工具执行请求代理到 Tool Runtime
-- MCP 连接管理由 Tool Runtime 负责
+- 当前 v1 工具执行请求代理到 Core，由 Core 调用 Tool Provider（本机为 TinadecTools 子进程）
+- MCP 连接管理由 Tool Provider 负责
 
 ### 全双工运行期代理
 - **组织与委托审批门（2026-09-29）**：`registerOrganizationRoutes` 按 `src/contracts/organization.openapi.json` 逐条挂载并 `proxyRaw` 透传（与 TinaChat 同形）。契约由 `scripts/sync-organization-contract.mjs` 从 Core 快照投影（`bun run generate:organization-contract` / `check:organization-contract`），包含组织、拓扑、证据检索（`GET …/evidence`）与 `GET /api/v1/approvals/{approvalId}/gates`；自有 schema 前缀 `Organization*`/`SessionTopology*`/`ApprovalGate*`/`Evidence*` 原名保留，其余加 `Organization` 前缀。**不要在 index.ts 里再手写这些路径**：Elysia 先注册者生效，曾有一套手写重复路由把 `GET …/organization` 的查询串吞掉，已删；`src/organizationRoutes.test.ts` 按契约逐条校验路径、查询串、正文与 Core 拒绝码透传，并钉住 7/8。
@@ -142,13 +143,13 @@ Gateway 是北向无状态门面。用户在 Desktop 触发的工具请求可以
 ### 工具传输与治理边界
 1. Core 是 agent/run 工具治理、权限状态、动作审批、会话归属和审计的权威；Gateway 不信任或解释客户端 `approved`、`source`、参数哈希或工具风险字段。
 2. `/api/v1/runs/{runId}/tools/{toolId}/execute` 是智能体的 Core-owned 工具执行路径，Core 负责冻结配置、PDP、租约、ActionApproval 和 Tool Provider 调用。
-3. `/api/v1/code/tools/{toolId}/execute` 与 `/api/v1/tool-runtime/tools/{toolId}/execute` 是 Desktop 用户直操作的当前 v1 传输入口。Gateway 原样转发请求、状态码和响应，不在本地审批或过滤。
+3. `/api/v1/code/tools/{toolId}/execute` 与 `/api/v1/tool-runtime/tools/{toolId}/execute` 是 Desktop 用户工具的当前 v1 传输入口，均代理 Core `/api/v1/tools/{toolId}/execute`；治理写操作使用 `/api/v1/user/tool-actions`。Gateway 原样转发请求、状态码和响应，不在本地审批或过滤。
 4. Tool Runtime/Tool Provider 必须继续执行自己的沙箱与协议校验；需要 Core 治理事实的用户动作应由 Core 提供对应的直接工具 API，Gateway 不得自行补做一套授权状态机。
 
 ### Code Tool 规格
 - `/api/v1/code/tools` 是 Core `/api/v1/tools` 的薄代理；目录由 Core/当前 Tool Provider 生成，Gateway 不维护风险、审批或工具状态事实。
 - Gateway 不再包含本地 `codeTools.ts` catalog 或 `approval.ts` 风险/审批辅助；路由层只代理实时清单和执行传输。
-- `/api/v1/code/tools/:toolId/execute` 与 `/api/v1/tool-runtime/tools/:toolId/execute` 均为当前 v1 的无状态传输入口，工具请求不得在 Gateway 形成授权事实。
+- `/api/v1/code/tools/:toolId/execute` 与 `/api/v1/tool-runtime/tools/:toolId/execute` 均代理 Core `/api/v1/tools/:toolId/execute`，不受独立 Tool Runtime URL 配置影响；治理写操作走 Core user/tool-actions，工具请求不得在 Gateway 形成授权事实。
 - 这两组入口不是兼容路由：它们是 Desktop/用户显式使用工具的当前传输面。Gateway 必须保留请求体、Tool Provider 状态码、响应体和必要响应头；不要把 provider 错误转换成 Core ProblemDetails，也不要把用户请求改写成 run-scoped agent 调用。
 - 智能体执行必须使用 `/api/v1/runs/{runId}/tools/{toolId}/execute`，不要从用户直操作入口绕过 Core。
 

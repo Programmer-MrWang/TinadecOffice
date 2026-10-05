@@ -1,0 +1,15 @@
+{
+  "overflow": [],
+  "sourceErrors": [],
+  "checks": {
+    "zoom": true,
+    "detail": true,
+    "related": true,
+    "search": true,
+    "reset": true,
+    "nodeCount": 82,
+    "viewBox": "0 0 4240 3070",
+    "narrow": true
+  },
+  "browserErrors": []
+}
