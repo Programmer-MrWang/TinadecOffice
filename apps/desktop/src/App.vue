@@ -58,9 +58,9 @@ function onPageReady() {
 }
 
 function onRouteMounted() {
-  // Home reports readiness after disk layout + measured preparation frames.
+  // UIE routes report readiness after selecting and measuring their layouts.
   // Other routes have their own entry animations and are ready on mount.
-  if (route.name !== 'home') onPageReady()
+  if (route.name !== 'home' && route.name !== 'market') onPageReady()
 }
 
 watch(connectionState, (state) => {

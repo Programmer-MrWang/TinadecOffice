@@ -43,7 +43,8 @@ export const VAPOR_BATCHES: readonly VaporBatch[] = [
     files: [],
   },
   // batch2 (M1-M2): Home cards + HomeController (TS, no SFC).
-  // batch3 (M2): code/market/debug cards + controllers.
+  // batch3 (M2): code/debug cards + controllers. Market's route and three
+  // cards remain classic (see VAPOR_EXEMPTIONS) while its UIE boundary is verified.
   // batch4 (M3): settings cards + lazy modules.
   // batch5 (M4): remaining UI primitives + shared components, targeting 100% after the interop fix.
 ]

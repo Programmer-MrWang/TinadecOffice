@@ -85,6 +85,17 @@ describe('startup handoff', () => {
     expect(wrapper.get('.app-splash').classes()).toContain('app-splash--leaving')
   })
 
+  it('holds splash on a cold Market route until the Market canvas reports readiness', async () => {
+    const { wrapper, page } = start('market')
+    connection.state.value = 'connected'
+    await nextTick(); await nextTick()
+    expect(wrapper.find('.page').exists()).toBe(true)
+    expect(wrapper.get('.app-splash').classes()).not.toContain('app-splash--leaving')
+    wrapper.findComponent(page).vm.$emit('ready')
+    await nextTick()
+    expect(wrapper.get('.app-splash').classes()).toContain('app-splash--leaving')
+  })
+
   it('preserves the live page and dismissed splash when the connection is retried', async () => {
     const { wrapper, page } = start()
     connection.state.value = 'connected'

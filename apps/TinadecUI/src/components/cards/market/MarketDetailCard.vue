@@ -61,7 +61,7 @@ function statusLine() {
 }
 </script>
 
-<template vapor>
+<template>
   <aside class="market-detail">
     <template v-if="selectedItem">
       <div class="market-detail-head">

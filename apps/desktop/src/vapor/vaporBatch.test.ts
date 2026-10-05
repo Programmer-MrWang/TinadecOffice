@@ -11,8 +11,9 @@ const srcRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 function readSource(file: string): string | null {
   // batch files are listed as 'src/components/...' (relative to apps/desktop);
   // srcRoot is already apps/desktop/src, so strip a leading 'src/' when present.
-  const rel = file.replace(/^src\//, '')
-  const abs = resolve(srcRoot, rel)
+  const abs = file.startsWith('src/')
+    ? resolve(srcRoot, file.slice(4))
+    : resolve(srcRoot, '..', file)
   if (!existsSync(abs)) return null
   return readFileSync(abs, 'utf-8')
 }

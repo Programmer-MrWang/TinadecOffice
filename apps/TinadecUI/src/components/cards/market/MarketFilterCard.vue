@@ -39,7 +39,7 @@ function filterLabel(key: string) {
 }
 </script>
 
-<template vapor>
+<template>
   <aside class="market-rail">
     <div class="market-rail-title">
       <UiButton variant="ghost" size="icon" :title="t('settings.back')" @click="router.push('/')">
