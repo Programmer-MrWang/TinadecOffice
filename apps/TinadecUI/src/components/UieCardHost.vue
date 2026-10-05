@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 import { useUie } from './useUie'
 import type { PersistedCardInstance } from '../engine/types'
 
@@ -13,11 +13,18 @@ const uie = useUie()
 
 const component = computed(() => uie.componentFor(props.instance.descriptorId))
 
+// Presets include unopened tabs. Mount their content on first activation, then
+// keep it alive when hidden so editors, terminals and card-local state survive.
+const activated = ref(props.active)
+watch(() => props.active, (active) => {
+  if (active) activated.value = true
+})
+
 // Provide card context via inject so the card content can read its instance id,
 // serialized state, and visibility without extraneous non-props attribute warnings.
 //
-// `uie:active` is provided as a ComputedRef: this SFC is Vapor, so setup runs once and
-// a plain value would freeze the flag at whatever it was on mount. Consumers must
+// `uie:active` is provided as a ComputedRef; a plain value would freeze the flag
+// at whatever it was on mount. Consumers must
 // unwrap it (`toValue`) rather than treat it as a boolean.
 provide('uie:instanceId', props.instance.id)
 provide('uie:cardState', props.instance.state)
@@ -33,10 +40,10 @@ provide('uie:active', computed(() => props.active))
   >
     <component
       :is="component"
-      v-if="component"
+      v-if="activated && component"
       :key="instance.id"
     />
-    <div v-else class="uie-card-unknown">
+    <div v-else-if="activated" class="uie-card-unknown">
       Unknown card: {{ instance.descriptorId }}
     </div>
   </div>

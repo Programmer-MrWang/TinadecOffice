@@ -29,6 +29,8 @@ import type { Component } from 'vue'
 // ---------------------------------------------------------------------------
 
 export interface UieStore {
+  /** Settles after the initial persisted layout has been restored (or failed). */
+  ready: Promise<void>
   bus: CommandBus
   registry: CardRegistry
   pool: InstancePool
@@ -128,9 +130,10 @@ export function createUie(options: UieStoreOptions): UieStore {
   // A failed hydrate/restore must never become an unhandled rejection or take
   // down the renderer — on failure we keep the built-in preset (repairLayout in
   // restoreSnapshot is already the blank-window guard).
+  let ready = Promise.resolve()
   if (options.persistence) {
     const layerStore = options.persistence.store
-    void layerStore
+    ready = layerStore
       .hydrate()
       .then((loaded) => {
         if (!loaded) return
@@ -177,6 +180,7 @@ export function createUie(options: UieStoreOptions): UieStore {
   }
 
   return {
+    ready,
     bus,
     registry,
     pool,

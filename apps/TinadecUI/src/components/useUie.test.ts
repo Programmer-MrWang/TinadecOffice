@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createUie, __resetUieForTests, type UieStoreOptions } from './useUie'
 import { makeRegistry } from '../engine/__testUtils'
 import { createCardRegistry } from '../engine/registry'
@@ -44,6 +44,38 @@ function memoryLayerStore(initial: LayoutStorageBlob | null = null) {
     async save(payload) { blob = payload; return true },
   })
 }
+
+describe('initial layout readiness', () => {
+  it('settles only after the persisted layout is restored', async () => {
+    const seeded = createUie({ registry: makeFullRegistry() })
+    seeded.snapshot.value.columns.left.width = 333
+    let completeLoad!: (blob: LayoutStorageBlob) => void
+    const store = createLayerStore({
+      load: () => new Promise((resolve) => { completeLoad = resolve }),
+      save: async () => true,
+    })
+    const uie = createUie({ registry: makeFullRegistry(), persistence: { store } })
+    let ready = false
+    void uie.ready.then(() => { ready = true })
+    await Promise.resolve()
+    expect(ready).toBe(false)
+    completeLoad({ version: 1, pageByPageId: { home: seeded.snapshot.value } })
+    await uie.ready
+    expect(ready).toBe(true)
+    expect(uie.snapshot.value.columns.left.width).toBe(333)
+  })
+
+  it('settles with the preset if persistence fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const store = createLayerStore({ load: async () => { throw new Error('disk unavailable') }, save: async () => true })
+      const uie = createUie({ registry: makeFullRegistry(), persistence: { store } })
+      await expect(uie.ready).resolves.toBeUndefined()
+      expect(uie.pageId.value).toBe('home')
+      expect(log).toHaveBeenCalledOnce()
+    } finally { log.mockRestore() }
+  })
+})
 
 describe('useUie page preset switching (market → home navigation)', () => {
   beforeEach(() => {
@@ -216,4 +248,3 @@ describe('useUie per-project layouts', () => {
     expect(leftWidth()).toBe(333)
   })
 })
-
