@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** Desktop 入场修复提交完成，归档逐帧验证与提交阶段
-**Last Verified Commit:** 完整代码提交76797fc（UIE前序49684ef）；提交前同内容快照验证Desktop threads全量882 passed/14 skipped、后补启动4/4，UIE142/142、类型/正式构建通过，真实Electron六条启动/返回路径完成，采集不证明恒定60FPS
+**Last Updated By:** 市场路由 classic 边界、首次布局与冷启动 ready 修复（已提交 41a6e63）
+**Last Verified Commit:** 完整代码提交41a6e63（基线b6115e6，版本86aeff6=v0.2.1）；Desktop threads全量887 passed/14 skipped、市场/启动/Vapor定向13/13、node--test 107/107、UIE142/142、类型/正式构建通过，真实Electron开发目录选择/筛选/往返、冷市场1200ms布局延迟及最终构建完成，未取得用户同一错误的基线堆栈
 **Branch:** main
+
+### 2026-10-05 市场路由
+
+MarketPage 与三张卡片保持 classic（VAPOR_EXEMPTIONS）；页面在布局 ready 后选择市场快照，再挂载画布并启动控制器，nextTick 后发 ready。等待期间离开不得重新启动读取。App 对 home/market 等待页面 ready，其他路线按 mounted 就绪。报告 docs/market-route-stability-2026-10-05.zh-CN.md，受控基线未复现同一异常，不能继承缓存/锚点机制猜测为结论。
 
 ### 2026-10-05 首页入场
 

@@ -2,8 +2,8 @@
 
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-05
-**Last Updated By:** 模块化开发档案初始化、来源复核、任务归属收口与图形验证
-**Last Verified Commit:** b6115e6 + 当前工作树；55模块/97初始功能/101任务，Core24/24与总图82/82，链接/ID及55SVG/总图交互通过；未重跑业务测试
+**Last Updated By:** 模块化开发档案初始化、来源复核、任务归属收口与图形验证（已提交 ae97e96）
+**Last Verified Commit:** ae97e96（版本基线 86aeff6 = v0.2.1）；55模块/97初始功能/101任务，Core24/24与总图82/82，reindex门禁1780链接/198稳定ID/239Markdown/0错误且重跑无diff，55SVG与总图交互通过；未重跑业务测试
 **Branch:** main
 
 ## Scope

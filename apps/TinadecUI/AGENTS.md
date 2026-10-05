@@ -1,8 +1,8 @@
 # TinadecUI — UI Engineering Suite
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** UIE 基础与 Desktop 消费方分阶段提交完成，归档验证
-**Last Verified Commit:** UIE代码49684ef，完整消费方代码76797fc；提交前同内容快照UIE142/142、卡片行为2/2、Desktop threads全量882 passed/14 skipped、后补启动4/4，类型/正式构建通过，真实慢读取恢复310px左栏/44px右侧栏并完成三处入场。
+**Last Updated By:** 市场三卡 classic 回退与目标布局首次挂载核对（已提交 41a6e63）
+**Last Verified Commit:** 完整代码提交41a6e63（基线b6115e6，版本86aeff6=v0.2.1）；UIE142/142、Desktop threads全量887 passed/14 skipped、市场/启动/Vapor定向13/13、node--test 107/107、类型/正式构建通过，真实开发与构建版目录选择/筛选/往返、冷市场慢读取完成
 **Branch:** main
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.
@@ -33,6 +33,7 @@ UIE is the **only** layout system. The legacy panel system (`ContextPanel`/`Pane
 - **Per-project layouts**: `ensureProductionUie` binds `homeController.selectedProjectId` → `uie.setActiveProjectId` once. Pages in `PROJECT_SCOPED_PAGES` (`engine/scope.ts`, currently only `home`) read/write `workspace-page(project, page)`; a project with no layout of its own inherits the page-wide layout (the one used with no workspace selected) → global → preset, and forks only on its first edit. `market` stays page-wide. Context swaps (page, project, hydration) go through `bus.loadSnapshot`: not persisted back and undo/redo history cleared, so an inherited layout is never silently copied and undo never crosses page/project. Only commands/undo/redo/`applyPreset` persist.
 - **Card content** (`AppSidebar` `.sidebar`, `ChatPanel` `.conversation`) is normal-flow content that fills its card; the stack owns position, size and material.
 - **Initial readiness**: `UieStore.ready` settles after initial hydrate + restore, including fallback on failure. Consumers can await it before mounting card content to avoid replacing an already-entering default tree with a slow saved layout.
+- **Market readiness**: Market selects its target snapshot after `ready` and before creating the canvas; never mount the previously shared Home cards as a temporary Market tree.
 - **First activation**: `UieCardHost` creates content when its tab is first active. Thereafter hidden tabs keep the same component and local state, with reactive `uie:active`; do not turn this into destroy-on-every-tab-switch.
 - **Detached windows**: the window `type` is the UIE descriptor id; `useDetachedTabs` adds `sessionId`/`projectPath` on detach and strips them on reattach.
 - **Feature icons** come only from `cards/home/featureCatalog.ts` (`featureIconFor`).
@@ -77,7 +78,7 @@ The feature/right column supports **dock splits** — recursive binary split tre
 - **Persistence** (`engine/persistence/`) is part of the Engine module (storage logic, not UI); it stays DOM-free and writes through Electron `layoutStore.cjs` → `userData/uie-layout.json`.
 - All layout mutations go through `commandBus.dispatch({ command, source, expectedRevision })`; `ai` source is reserved/rejected.
 - Persistence format is versioned; a breaking snapshot-shape change bumps `snapshot.version` and is handled in `repairLayout`. No legacy-format migration shims are kept (the old PanelType migration was removed 2026-09-27).
-- Vapor: Home UIE's 19 rendering/card SFCs currently use classic templates (see stability record); do not restore them without real-renderer verification. Other opted-in primitives stay registered in `apps/desktop/src/vapor/`; keep that registry consistent when adding/renaming components.
+- Vapor: Home UIE's 19 rendering/card SFCs and the three Market cards currently use classic templates; MarketPage is classic too. Do not restore these boundaries without real-renderer verification. Other opted-in primitives stay registered in `apps/desktop/src/vapor/`; keep the registry consistent when adding/renaming components.
 - **Card context injections are reactive contracts.** `UieCardHost` provides `uie:instanceId` (stable value), `uie:cardState` (stable object identity) and `uie:active` (a `ComputedRef`). A Vapor SFC's setup runs once, so providing `props.x` directly freezes it at mount time — which is what made a card mounted behind the active tab report itself hidden forever. Consumers read `uie:active` through `inject<MaybeRefOrGetter<boolean>>` + `toValue`, which also tolerates a host that supplies a plain boolean.
 
 ## Adding a new module
