@@ -1,5 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    ".tinadec_dev/OUTPUT-POLICY.md"
+  ],
   "plugin": [
     "@dietrichgebert/ponytail@4.8.4"
   ],

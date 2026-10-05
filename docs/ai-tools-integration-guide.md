@@ -48,8 +48,8 @@
 - 符合项目架构原则
 
 **Claude Code 项目级链接(2026-08-10)**:
-- 项目 skill `.claude/skills/ponytail/SKILL.md`(Claude Code 自动发现,`/ponytail`)。
-- 官方插件(可选,获得 `/ponytail-review` 等命令)按 `.claude/ponytail-plugin-install.md` 在交互式终端安装。
+- 项目 skill `.tinadec_dev/skills/ponytail/SKILL.md`(Claude Code 自动发现,`/ponytail`)。
+- 官方插件(可选,获得 `/ponytail-review` 等命令)按 `.tinadec_dev/tooling/claude/ponytail-plugin-install.md` 在交互式终端安装。
 
 **实施步骤**：
 

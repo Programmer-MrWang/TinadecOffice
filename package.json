@@ -27,9 +27,11 @@
     "ai:codegraph:status": "codegraph status",
     "ai:codegraph:explore": "codegraph explore",
     "ai:codegraph:impact": "codegraph impact",
-    "ai:ponytail:validate": "node .ponytail/validate.js",
+    "ai:workspace:setup": "node scripts/setup-ai-workspace.mjs",
+    "ai:workspace:test": "node --test scripts/setup-ai-workspace.test.mjs",
+    "ai:ponytail:validate": "node .tinadec_dev/tooling/ponytail/validate.js",
     "ai:tools:install": "npm i -g @colbymchenry/codegraph && codegraph telemetry off && codegraph install --target=opencode --location=local --yes",
-    "ai:tools:check": "npm run ai:codegraph:status && node .ponytail/validate.js",
+    "ai:tools:check": "npm run ai:codegraph:status && npm run ai:ponytail:validate",
     "ai:tools:setup": "powershell -ExecutionPolicy Bypass -File scripts/install-ai-tools.ps1",
     "ai:tools:test": "powershell -ExecutionPolicy Bypass -File scripts/test-ai-tools.ps1",
     "ai:shadcn:setup": "node scripts/setup-shadcn-ai.mjs"

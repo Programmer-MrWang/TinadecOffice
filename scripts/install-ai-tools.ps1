@@ -106,14 +106,16 @@ Write-Host ""
 Write-Host "✅ Step 4: Validating Ponytail configuration..." -ForegroundColor Green
 
 $projectPath = Split-Path -Parent $PSScriptRoot
-$ponytailConfig = "$projectPath\.ponytail\config.json"
-$ponytailRules = "$projectPath\.ponytail\rules.md"
+& node (Join-Path $projectPath 'scripts/setup-ai-workspace.mjs')
+if ($LASTEXITCODE -ne 0) { throw 'AI workspace initialization failed; original local files remain in place or in the reported backup.' }
+$ponytailConfig = "$projectPath\.tinadec_dev\tooling\ponytail\config.json"
+$ponytailRules = "$projectPath\.tinadec_dev\tooling\ponytail\rules.md"
 
 if ((Test-Path $ponytailConfig) -and (Test-Path $ponytailRules)) {
     Write-Host "   ✅ Ponytail configuration files present" -ForegroundColor Green
 
     # Run validation script
-    $validateScript = "$projectPath\.ponytail\validate.js"
+    $validateScript = "$projectPath\.tinadec_dev\tooling\ponytail\validate.js"
     if (Test-Path $validateScript) {
         Write-Host "   Running validation script..." -ForegroundColor Yellow
         Push-Location $projectPath

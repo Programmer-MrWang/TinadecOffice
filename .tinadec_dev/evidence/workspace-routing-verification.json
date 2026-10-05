@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-05",
+  "baseline": "ecde49f",
+  "sourceRecords": 386,
+  "sourceMarkdown": 370,
+  "uniqueImportedMarkdown": 362,
+  "originalsVerified": 386,
+  "canonicalPathOrRuleEdits": 4,
+  "actualDeduplicates": 8,
+  "writeThroughDirectories": 15,
+  "ignoredToolProbePaths": 54,
+  "toolFilesLeftInIndex": 0,
+  "claudeExistingFieldsPreserved": true,
+  "scope": "actual file-system/configuration/ignore checks; no native model or Wiki Git Sync run"
+}

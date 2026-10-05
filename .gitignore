@@ -18,18 +18,15 @@ output/
 .idea/
 /.tinadec/sandbox.json
 /.tinadec/worktrees/
-.opencode/
-.claude/better-harness/
 *.log
 config.json
 oc-debug.log
-/.mimosa
+.mimosa/
 /TinadecCore/Api/data/content/tenants
 /.tmp-dmaea-diagnostic/data/content/tenants
 /.tmp-dmaea-diagnostic/data/tasks
 /.tmp-dmaea-diagnostic
-/apps/desktop/.mimosa
-/.playwright-mcp
+.playwright-mcp/
 /TinadecCore/Api/data/secrets
 /TinadecCore/Api/data/events/
 /TinadecCore/Api/data/tasks/
@@ -37,7 +34,30 @@ oc-debug.log
 /apps/desktop/runtime/
 /apps/desktop/.runtime-cache/
 tmp/
+
+# Local coding-tool configuration, caches and native adapter directories.
+# Useful shared documents/skills live in the tracked .tinadec_dev/ tree.
+.agent/
+.agents/
+.artifacts/
+.catpaw/
+.claude/
+.codebuddy/
+.codegraph/
+.codex/
+.cursor/
+.kimi/
+.opencode/
+.opencode-data/
+.ponytail/
+.qoder/
+.trae/
 .workbuddy/
+.zcode/
+/.trae-tmp-*
+
+# The generic config.json rule must not hide this shared project configuration.
+!/.tinadec_dev/tooling/ponytail/config.json
 
 # Pinned ripgrep staged by scripts/setup-ripgrep.mjs (npm run setup:rg)
 native/rg/

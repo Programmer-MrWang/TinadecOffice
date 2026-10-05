@@ -59,20 +59,20 @@ Write-Host "=" * 60 -ForegroundColor Cyan
 $projectPath = Split-Path -Parent $PSScriptRoot
 
 Run-Test "Ponytail config.json exists" {
-    Test-Path "$projectPath\.ponytail\config.json"
+    Test-Path "$projectPath\.tinadec_dev\tooling\ponytail\config.json"
 }
 
 Run-Test "Ponytail rules.md exists" {
-    Test-Path "$projectPath\.ponytail\rules.md"
+    Test-Path "$projectPath\.tinadec_dev\tooling\ponytail\rules.md"
 }
 
 Run-Test "Ponytail validate.js exists" {
-    Test-Path "$projectPath\.ponytail\validate.js"
+    Test-Path "$projectPath\.tinadec_dev\tooling\ponytail\validate.js"
 }
 
 Run-Test "Ponytail config is valid JSON" {
     try {
-        $config = Get-Content "$projectPath\.ponytail\config.json" | ConvertFrom-Json
+        $config = Get-Content "$projectPath\.tinadec_dev\tooling\ponytail\config.json" | ConvertFrom-Json
         return ($config.project -eq "TinadecOffice")
     } catch {
         return $false
