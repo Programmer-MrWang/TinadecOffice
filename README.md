@@ -1,12 +1,5 @@
-<!--
-╔══════════════════════════════════════════════════════════════════╗
-║                    BANNER SPACE RESERVED                         ║
-║        Cover art / product screenshot — coming soon.             ║
-╚══════════════════════════════════════════════════════════════════╝
--->
-
 <p align="center">
-  <img src="apps/desktop/public/Logo - 白.png" alt="Tinadec" width="120" />
+  <img src="docs/images/poster.webp" alt="TinadecOffice — 当 Agent 开始协同工作 · Agent Teamwork" width="100%" />
 </p>
 
 <h1 align="center">TinadecOffice</h1>
