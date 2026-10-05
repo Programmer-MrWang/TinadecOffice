@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img"><title>TinadecTools / 网络抓取模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="500" fill="#fff"/><text class="title" x="40" y="52">TinadecTools / 网络抓取</text><text class="small" x="40" y="85">TOOLS-WEB · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="330" rx="16" fill="#f3f6fb" stroke="#b8671d"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#b8671d"/><text class="text" x="84" y="205" style="font-weight:650;fill:#b8671d">Web · 受约束网络抓取</text><text class="small" x="84" y="233">HTTP(S) / 重定向 / DNS 地址复验</text><text class="small" x="84" y="255">体积、内容提取、deadline / 公网地址限制</text>
+
+
+<text class="small" x="890" y="205">额外关系待逐功能审计补齐</text>
+<text class="small" x="40" y="475">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

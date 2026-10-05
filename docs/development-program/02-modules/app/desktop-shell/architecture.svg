@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="680" viewBox="0 0 1500 680" role="img"><title>Desktop / Electron 原生壳模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="680" fill="#fff"/><text class="title" x="40" y="52">Desktop / Electron 原生壳</text><text class="small" x="40" y="85">APP-DESKTOP · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="510" rx="16" fill="#f3f6fb" stroke="#245cb0"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#245cb0"/><text class="text" x="84" y="205" style="font-weight:650;fill:#245cb0">apps/desktop</text><text class="small" x="84" y="233">Electron 43 + Vue 3.6</text><text class="small" x="84" y="255">桌面窗口、分离面板、桌宠</text>
+
+
+<rect x="64" y="300" width="620" height="104" rx="10" fill="#fff" stroke="#245cb0"/><text class="text" x="84" y="330" style="font-weight:650;fill:#245cb0">Electron main ↔ preload ↔ window.tinadec</text><text class="small" x="84" y="358">IPC：窗口/文件对话框/剪贴板/布局/本地终端/服务发现</text><text class="small" x="84" y="380">用户终端 → terminalManager → node-pty / ConPTY → 本机 Shell</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">共享渲染层 / 路由与 API</text>
+<text class="small" x="892" y="253">APP-RENDERER</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">Desktop / 本地服务管理</text>
+<text class="small" x="892" y="378">APP-SERVICES</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">Desktop / 偏好与布局持久化</text>
+<text class="small" x="892" y="503">APP-LOCAL-STATE</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">三平台交付、Manager 与更新</text>
+<text class="small" x="892" y="628">X-DELIVERY</text>
+<text class="small" x="40" y="655">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

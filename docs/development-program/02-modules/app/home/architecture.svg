@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img"><title>Home / 会话、对话与投递模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="500" fill="#fff"/><text class="title" x="40" y="52">Home / 会话、对话与投递</text><text class="small" x="40" y="85">APP-HOME · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="330" rx="16" fill="#f3f6fb" stroke="#245cb0"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#245cb0"/><text class="text" x="84" y="205" style="font-weight:650;fill:#245cb0">Home / 对话与执行过程</text><text class="small" x="84" y="233">会话、附件、排队/并行/插入</text><text class="small" x="84" y="255">活动时间线、工具、审批</text>
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">DmaEA / 双层调用与持久运行引擎</text>
+<text class="small" x="892" y="253">CORE-DMAEA</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">Governance · 授权与审批</text>
+<text class="small" x="892" y="378">CORE-GOVERNANCE</text>
+<text class="small" x="40" y="475">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

@@ -1,0 +1,1373 @@
+{
+  "schemaVersion": 1,
+  "created": "2026-10-05",
+  "baseline": "b6115e6 + 当前工作树",
+  "description": "模块目录、架构节点所有权与来源。任务/功能状态以模块TODO.md/STATUS.md为唯一编辑事实。",
+  "groups": {
+    "app": "App / 用户工作台",
+    "core": "Core / 24 个产品工程",
+    "gateway": "Gateway / 无状态传输门面",
+    "tools": "Tools / 执行产品",
+    "cross-cutting": "横切工程 / 数据、质量、交付"
+  },
+  "modules": [
+    {
+      "id": "APP-DESKTOP",
+      "group": "app",
+      "slug": "desktop-shell",
+      "title": "Desktop / Electron 原生壳",
+      "path": "02-modules/app/desktop-shell",
+      "nodeIds": [
+        "desktop",
+        "nativeBridge"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/package.json",
+        "apps/desktop/electron/preload.cjs"
+      ],
+      "project": null,
+      "related": [
+        "APP-RENDERER",
+        "APP-SERVICES",
+        "APP-LOCAL-STATE",
+        "X-DELIVERY"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-WEB",
+      "group": "app",
+      "slug": "web",
+      "title": "Web / 浏览器平台适配",
+      "path": "02-modules/app/web",
+      "nodeIds": [
+        "web"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/web/vite.config.ts:10"
+      ],
+      "project": null,
+      "related": [
+        "APP-RENDERER"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-RENDERER",
+      "group": "app",
+      "slug": "shared-renderer",
+      "title": "共享渲染层 / 路由与 API",
+      "path": "02-modules/app/shared-renderer",
+      "nodeIds": [
+        "renderer",
+        "appRead"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/main.ts",
+        "docs/tinadec-core-product-definition.zh-CN.md:97"
+      ],
+      "project": null,
+      "related": [
+        "APP-HOME",
+        "APP-CODE",
+        "APP-DATA",
+        "APP-SETTINGS",
+        "APP-MARKET",
+        "APP-DEBUG",
+        "APP-UIE-ENGINE",
+        "GW-HTTP"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-HOME",
+      "group": "app",
+      "slug": "home",
+      "title": "Home / 会话、对话与投递",
+      "path": "02-modules/app/home",
+      "nodeIds": [
+        "home"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/controllers/HomeController.ts:22"
+      ],
+      "project": null,
+      "related": [
+        "CORE-DMAEA",
+        "CORE-GOVERNANCE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-CODE",
+      "group": "app",
+      "slug": "code",
+      "title": "Code / 编程工作台",
+      "path": "02-modules/app/code",
+      "nodeIds": [
+        "code"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/pages/CodePage.vue"
+      ],
+      "project": null,
+      "related": [
+        "GW-TOOLS",
+        "APP-DESKTOP"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-DATA",
+      "group": "app",
+      "slug": "data-pages",
+      "title": "Workbench / 治理与数据页面",
+      "path": "02-modules/app/data-pages",
+      "nodeIds": [
+        "govUi"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/router.ts"
+      ],
+      "project": null,
+      "related": [
+        "CORE-GOVERNANCE",
+        "CORE-MEMORY",
+        "CORE-LIFECYCLE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-SETTINGS",
+      "group": "app",
+      "slug": "settings",
+      "title": "Settings / 配置中心",
+      "path": "02-modules/app/settings",
+      "nodeIds": [
+        "settings"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/pages/SettingsPage.vue"
+      ],
+      "project": null,
+      "related": [
+        "CORE-AGENT-CONFIG",
+        "CORE-MODELS",
+        "CORE-SKILLS",
+        "APP-LOCAL-STATE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-MARKET",
+      "group": "app",
+      "slug": "market",
+      "title": "Market / 市场",
+      "path": "02-modules/app/market",
+      "nodeIds": [
+        "marketUi"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/pages/MarketPage.vue"
+      ],
+      "project": null,
+      "related": [
+        "CORE-SKILLS",
+        "APP-UIE-COMPONENTS",
+        "GW-CONFIG"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-DEBUG",
+      "group": "app",
+      "slug": "debug-studio",
+      "title": "Debug Studio / 调试界面",
+      "path": "02-modules/app/debug-studio",
+      "nodeIds": [
+        "debugUi"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/pages/DebugStudioPage.vue"
+      ],
+      "project": null,
+      "related": [
+        "CORE-LIFECYCLE",
+        "GW-CONFIG"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-UIE-ENGINE",
+      "group": "app",
+      "slug": "uie-engine",
+      "title": "TinadecUI / UIE Engine",
+      "path": "02-modules/app/uie-engine",
+      "nodeIds": [
+        "uiEngine"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/TinadecUI/src/index.ts:4"
+      ],
+      "project": null,
+      "related": [
+        "APP-UIE-COMPONENTS",
+        "APP-LOCAL-STATE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-UIE-COMPONENTS",
+      "group": "app",
+      "slug": "uie-components",
+      "title": "TinadecUI / UIE Components",
+      "path": "02-modules/app/uie-components",
+      "nodeIds": [
+        "uiCards"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/TinadecUI/src/index.ts:6"
+      ],
+      "project": null,
+      "related": [
+        "APP-UIE-ENGINE",
+        "APP-RENDERER"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-LOCAL-STATE",
+      "group": "app",
+      "slug": "local-state",
+      "title": "Desktop / 偏好与布局持久化",
+      "path": "02-modules/app/local-state",
+      "nodeIds": [
+        "prefs"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/electron/layoutStore.cjs"
+      ],
+      "project": null,
+      "related": [
+        "APP-UIE-ENGINE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-SERVICES",
+      "group": "app",
+      "slug": "local-services",
+      "title": "Desktop / 本地服务管理",
+      "path": "02-modules/app/local-services",
+      "nodeIds": [
+        "serviceManager"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/electron/serviceManager.cjs"
+      ],
+      "project": null,
+      "related": [
+        "X-DELIVERY"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "APP-PACKS",
+      "group": "app",
+      "slug": "agent-packs",
+      "title": "App / AgentPack 内容与安装体验",
+      "path": "02-modules/app/agent-packs",
+      "nodeIds": [
+        "packs"
+      ],
+      "coreProject": null,
+      "sources": [
+        "apps/desktop/src/agentPacks/GraphSeedPack/manifest.json"
+      ],
+      "project": null,
+      "related": [
+        "CORE-AGENT-CONFIG",
+        "X-DELIVERY"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-API",
+      "group": "core",
+      "slug": "Api",
+      "title": "Api · 可执行宿主",
+      "path": "02-modules/core/Api",
+      "nodeIds": [
+        "api"
+      ],
+      "coreProject": "Api",
+      "sources": [
+        "TinadecCore/Api/Program.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Api/TinadecCore.Api.csproj",
+        "refs": [
+          "AspNetCore"
+        ]
+      },
+      "related": [
+        "CORE-HTTP"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-HTTP",
+      "group": "core",
+      "slug": "AspNetCore",
+      "title": "AspNetCore · 可嵌入 HTTP 层",
+      "path": "02-modules/core/AspNetCore",
+      "nodeIds": [
+        "aspnet"
+      ],
+      "coreProject": "AspNetCore",
+      "sources": [
+        "TinadecCore/AspNetCore/TinadecCore.AspNetCore.csproj"
+      ],
+      "project": {
+        "path": "TinadecCore/AspNetCore/TinadecCore.AspNetCore.csproj",
+        "refs": [
+          "Runtime"
+        ]
+      },
+      "related": [
+        "CORE-RUNTIME",
+        "CORE-DMAEA"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-RUNTIME",
+      "group": "core",
+      "slug": "Runtime",
+      "title": "Runtime · 唯一组合根",
+      "path": "02-modules/core/Runtime",
+      "nodeIds": [
+        "runtime"
+      ],
+      "coreProject": "Runtime",
+      "sources": [
+        "TinadecCore/Runtime/TinadecCoreServiceCollectionExtensions.cs:32"
+      ],
+      "project": {
+        "path": "TinadecCore/Runtime/TinadecCore.Runtime.csproj",
+        "refs": [
+          "Abstractions",
+          "Contracts",
+          "Persistence",
+          "VectorStore",
+          "Tenancy",
+          "AgentConfiguration",
+          "DmaEA",
+          "Models",
+          "Context",
+          "Prompts",
+          "Memory",
+          "Skills",
+          "LoopGuard",
+          "Lifecycle",
+          "Governance",
+          "Tools",
+          "TinaChat",
+          "AgentGraph",
+          "Storage.Migrations.Sqlite",
+          "Storage.Migrations.PostgreSql"
+        ]
+      },
+      "related": [
+        "CORE-GOVERNANCE",
+        "CORE-AGENT-CONFIG",
+        "CORE-TINACHAT",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-DMAEA",
+      "group": "core",
+      "slug": "DmaEA",
+      "title": "DmaEA / 双层调用与持久运行引擎",
+      "path": "02-modules/core/DmaEA",
+      "nodeIds": [
+        "interactions",
+        "engine",
+        "planner",
+        "executor",
+        "supervisor",
+        "finalizer",
+        "evolution"
+      ],
+      "coreProject": "DmaEA",
+      "sources": [
+        "TinadecCore/DmaEA/FullDuplexRunCoordinator.cs:241",
+        "TinadecCore/DmaEA/FullDuplexRunEngine.cs:664",
+        "TinadecCore/DmaEA/PlanningAgent.cs",
+        "TinadecCore/DmaEA/FullDuplexRunEngine.cs",
+        "TinadecCore/DmaEA/ModelOutputStream.cs",
+        "TinadecCore/DmaEA/DmaEAModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/DmaEA/TinadecCore.DmaEA.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-AGENT-CONFIG",
+        "CORE-MODELS",
+        "CORE-TOOLS",
+        "CORE-CONTEXT",
+        "CORE-LIFECYCLE",
+        "CORE-AGENT-GRAPH",
+        "CORE-TINACHAT",
+        "CORE-LOOP-GUARD",
+        "CORE-GOVERNANCE",
+        "CORE-MEMORY",
+        "GW-STREAMING"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-AGENT-CONFIG",
+      "group": "core",
+      "slug": "AgentConfiguration",
+      "title": "AgentConfiguration",
+      "path": "02-modules/core/AgentConfiguration",
+      "nodeIds": [
+        "agentConfig"
+      ],
+      "coreProject": "AgentConfiguration",
+      "sources": [
+        "TinadecCore/AgentConfiguration/AgentConfigurationModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/AgentConfiguration/TinadecCore.AgentConfiguration.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-RUNTIME",
+        "CORE-MODELS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-AGENT-GRAPH",
+      "group": "core",
+      "slug": "AgentGraph",
+      "title": "AgentGraph · 图与资源",
+      "path": "02-modules/core/AgentGraph",
+      "nodeIds": [
+        "agentGraph"
+      ],
+      "coreProject": "AgentGraph",
+      "sources": [
+        "TinadecCore/AgentGraph/AgentGraphModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/AgentGraph/TinadecCore.AgentGraph.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-TOOLS",
+        "CORE-TINACHAT",
+        "CORE-VECTOR"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-GOVERNANCE",
+      "group": "core",
+      "slug": "Governance",
+      "title": "Governance · 授权与审批",
+      "path": "02-modules/core/Governance",
+      "nodeIds": [
+        "governance"
+      ],
+      "coreProject": "Governance",
+      "sources": [
+        "TinadecCore/Governance/GovernanceModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Governance/TinadecCore.Governance.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-TOOLS",
+        "CORE-TENANCY",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-TINACHAT",
+      "group": "core",
+      "slug": "TinaChat",
+      "title": "TinaChat · 会话组织通信",
+      "path": "02-modules/core/TinaChat",
+      "nodeIds": [
+        "tinaChat"
+      ],
+      "coreProject": "TinaChat",
+      "sources": [
+        "TinadecCore/TinaChat/TinaChatModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/TinaChat/TinadecCore.TinaChat.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-DMAEA",
+        "CORE-RUNTIME",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-MODELS",
+      "group": "core",
+      "slug": "Models",
+      "title": "Models · 模型与 Harness",
+      "path": "02-modules/core/Models",
+      "nodeIds": [
+        "models"
+      ],
+      "coreProject": "Models",
+      "sources": [
+        "TinadecCore/Models/Harness/AgentChatClientFactory.cs:18"
+      ],
+      "project": {
+        "path": "TinadecCore/Models/TinadecCore.Models.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "X-DATA"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-CONTEXT",
+      "group": "core",
+      "slug": "Context",
+      "title": "Context · 本轮输入与补丁",
+      "path": "02-modules/core/Context",
+      "nodeIds": [
+        "context"
+      ],
+      "coreProject": "Context",
+      "sources": [
+        "TinadecCore/Context/ContextModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Context/TinadecCore.Context.csproj",
+        "refs": [
+          "Abstractions",
+          "Strategies"
+        ]
+      },
+      "related": [
+        "CORE-PROMPTS",
+        "CORE-MEMORY",
+        "CORE-STRATEGIES"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-PROMPTS",
+      "group": "core",
+      "slug": "Prompts",
+      "title": "Prompts · 提示词组装与版本",
+      "path": "02-modules/core/Prompts",
+      "nodeIds": [
+        "prompts"
+      ],
+      "coreProject": "Prompts",
+      "sources": [
+        "TinadecCore/Prompts/PromptsModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Prompts/TinadecCore.Prompts.csproj",
+        "refs": [
+          "Abstractions",
+          "Strategies",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-CONTEXT",
+        "CORE-STRATEGIES",
+        "CORE-AGENT-CONFIG"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-MEMORY",
+      "group": "core",
+      "slug": "Memory",
+      "title": "Memory · 会话与长期记忆",
+      "path": "02-modules/core/Memory",
+      "nodeIds": [
+        "memory"
+      ],
+      "coreProject": "Memory",
+      "sources": [
+        "TinadecCore/Memory/MemoryModuleRegistrar.cs:43"
+      ],
+      "project": {
+        "path": "TinadecCore/Memory/TinadecCore.Memory.csproj",
+        "refs": [
+          "Abstractions",
+          "Strategies",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "X-DATA",
+        "CORE-STRATEGIES",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-SKILLS",
+      "group": "core",
+      "slug": "Skills",
+      "title": "Skills · 市场与集成配置",
+      "path": "02-modules/core/Skills",
+      "nodeIds": [
+        "skills"
+      ],
+      "coreProject": "Skills",
+      "sources": [
+        "TinadecCore/Skills/SkillsModuleRegistrar.cs:43"
+      ],
+      "project": {
+        "path": "TinadecCore/Skills/TinadecCore.Skills.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-CONTEXT",
+        "APP-MARKET",
+        "CORE-TOOLS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-TOOLS",
+      "group": "core",
+      "slug": "Tools",
+      "title": "Tools · 工具治理与适配",
+      "path": "02-modules/core/Tools",
+      "nodeIds": [
+        "coreTools"
+      ],
+      "coreProject": "Tools",
+      "sources": [
+        "TinadecCore/Tools/ToolsModuleRegistrar.cs:19"
+      ],
+      "project": {
+        "path": "TinadecCore/Tools/TinadecCore.Tools.csproj",
+        "refs": [
+          "Abstractions"
+        ]
+      },
+      "related": [
+        "CORE-GOVERNANCE",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-LIFECYCLE",
+      "group": "core",
+      "slug": "Lifecycle",
+      "title": "Lifecycle · 运行事实与恢复",
+      "path": "02-modules/core/Lifecycle",
+      "nodeIds": [
+        "lifecycle"
+      ],
+      "coreProject": "Lifecycle",
+      "sources": [
+        "TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Lifecycle/TinadecCore.Lifecycle.csproj",
+        "refs": [
+          "Abstractions",
+          "Strategies",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-DMAEA",
+        "CORE-PERSISTENCE",
+        "X-DATA",
+        "GW-STREAMING"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-LOOP-GUARD",
+      "group": "core",
+      "slug": "LoopGuard",
+      "title": "LoopGuard · 防空转与预算",
+      "path": "02-modules/core/LoopGuard",
+      "nodeIds": [
+        "loopGuard"
+      ],
+      "coreProject": "LoopGuard",
+      "sources": [
+        "TinadecCore/LoopGuard/LoopGuardModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/LoopGuard/TinadecCore.LoopGuard.csproj",
+        "refs": [
+          "Abstractions",
+          "Strategies"
+        ]
+      },
+      "related": [
+        "CORE-DMAEA",
+        "CORE-STRATEGIES"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-TENANCY",
+      "group": "core",
+      "slug": "Tenancy",
+      "title": "Tenancy · 身份与隔离",
+      "path": "02-modules/core/Tenancy",
+      "nodeIds": [
+        "tenancy"
+      ],
+      "coreProject": "Tenancy",
+      "sources": [
+        "TinadecCore/Tenancy/TenancyModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Tenancy/TinadecCore.Tenancy.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-GOVERNANCE",
+        "CORE-PERSISTENCE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-VECTOR",
+      "group": "core",
+      "slug": "VectorStore",
+      "title": "VectorStore · 检索底座",
+      "path": "02-modules/core/VectorStore",
+      "nodeIds": [
+        "vector"
+      ],
+      "coreProject": "VectorStore",
+      "sources": [
+        "TinadecCore/VectorStore/VectorStoreModuleRegistrar.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/VectorStore/TinadecCore.VectorStore.csproj",
+        "refs": [
+          "Abstractions",
+          "Persistence"
+        ]
+      },
+      "related": [
+        "CORE-AGENT-GRAPH",
+        "X-DATA",
+        "CORE-MODELS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-PERSISTENCE",
+      "group": "core",
+      "slug": "Persistence",
+      "title": "Persistence · 公共存储适配",
+      "path": "02-modules/core/Persistence",
+      "nodeIds": [
+        "persistence"
+      ],
+      "coreProject": "Persistence",
+      "sources": [
+        "TinadecCore/Persistence/ServiceCollectionExtensions.cs"
+      ],
+      "project": {
+        "path": "TinadecCore/Persistence/TinadecCore.Persistence.csproj",
+        "refs": [
+          "Abstractions"
+        ]
+      },
+      "related": [
+        "X-DATA"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-SQLITE",
+      "group": "core",
+      "slug": "Storage.Migrations.Sqlite",
+      "title": "Storage.Migrations.Sqlite",
+      "path": "02-modules/core/Storage.Migrations.Sqlite",
+      "nodeIds": [
+        "sqliteMigration"
+      ],
+      "coreProject": "Storage.Migrations.Sqlite",
+      "sources": [
+        "TinadecCore/Storage.Migrations.Sqlite/TinadecCore.Storage.Migrations.Sqlite.csproj"
+      ],
+      "project": {
+        "path": "TinadecCore/Storage.Migrations.Sqlite/TinadecCore.Storage.Migrations.Sqlite.csproj",
+        "refs": [
+          "Memory",
+          "Lifecycle",
+          "Governance",
+          "Tenancy",
+          "AgentConfiguration",
+          "Models",
+          "Prompts",
+          "DmaEA",
+          "Skills"
+        ]
+      },
+      "related": [
+        "X-DATA"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-POSTGRES",
+      "group": "core",
+      "slug": "Storage.Migrations.PostgreSql",
+      "title": "Storage.Migrations.PostgreSql",
+      "path": "02-modules/core/Storage.Migrations.PostgreSql",
+      "nodeIds": [
+        "pgMigration"
+      ],
+      "coreProject": "Storage.Migrations.PostgreSql",
+      "sources": [
+        "TinadecCore/Storage.Migrations.PostgreSql/TinadecCore.Storage.Migrations.PostgreSql.csproj"
+      ],
+      "project": {
+        "path": "TinadecCore/Storage.Migrations.PostgreSql/TinadecCore.Storage.Migrations.PostgreSql.csproj",
+        "refs": [
+          "Memory",
+          "Lifecycle",
+          "Governance",
+          "Tenancy",
+          "AgentConfiguration",
+          "Models",
+          "Prompts",
+          "DmaEA",
+          "Skills"
+        ]
+      },
+      "related": [
+        "X-DATA"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-STRATEGIES",
+      "group": "core",
+      "slug": "Strategies",
+      "title": "Strategies · F# 纯策略",
+      "path": "02-modules/core/Strategies",
+      "nodeIds": [
+        "strategies"
+      ],
+      "coreProject": "Strategies",
+      "sources": [
+        "TinadecCore/Strategies/TinadecCore.Strategies.fsproj"
+      ],
+      "project": {
+        "path": "TinadecCore/Strategies/TinadecCore.Strategies.fsproj",
+        "refs": [
+          "Abstractions"
+        ]
+      },
+      "related": [
+        "CORE-CONTEXT",
+        "CORE-MEMORY",
+        "CORE-PROMPTS",
+        "CORE-LOOP-GUARD"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-ABSTRACTIONS",
+      "group": "core",
+      "slug": "Abstractions",
+      "title": "Abstractions · 跨模块端口",
+      "path": "02-modules/core/Abstractions",
+      "nodeIds": [
+        "abstractions"
+      ],
+      "coreProject": "Abstractions",
+      "sources": [
+        "TinadecCore/Abstractions/TinadecCore.Abstractions.csproj"
+      ],
+      "project": {
+        "path": "TinadecCore/Abstractions/TinadecCore.Abstractions.csproj",
+        "refs": [
+          "Contracts"
+        ]
+      },
+      "related": [
+        "CORE-CONTRACTS",
+        "CORE-RUNTIME"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "CORE-CONTRACTS",
+      "group": "core",
+      "slug": "Contracts",
+      "title": "Contracts · 对外契约类型",
+      "path": "02-modules/core/Contracts",
+      "nodeIds": [
+        "contracts"
+      ],
+      "coreProject": "Contracts",
+      "sources": [
+        "TinadecCore/Contracts/TinadecCore.Contracts.csproj"
+      ],
+      "project": {
+        "path": "TinadecCore/Contracts/TinadecCore.Contracts.csproj",
+        "refs": []
+      },
+      "related": [
+        "GW-HTTP",
+        "APP-RENDERER"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-HTTP",
+      "group": "gateway",
+      "slug": "http-auth",
+      "title": "Gateway / HTTP、认证与上下文",
+      "path": "02-modules/gateway/http-auth",
+      "nodeIds": [
+        "gwTransport"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/auth.ts"
+      ],
+      "project": null,
+      "related": [
+        "CORE-HTTP",
+        "CORE-TENANCY",
+        "CORE-CONTRACTS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-SESSIONS",
+      "group": "gateway",
+      "slug": "session-control",
+      "title": "Gateway / 项目、会话与运行控制",
+      "path": "02-modules/gateway/session-control",
+      "nodeIds": [
+        "gwSessions"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/index.ts"
+      ],
+      "project": null,
+      "related": [
+        "CORE-DMAEA",
+        "CORE-LIFECYCLE",
+        "CORE-CONTEXT"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-CONFIG",
+      "group": "gateway",
+      "slug": "configuration-organization",
+      "title": "Gateway / 配置、市场、治理与组织代理",
+      "path": "02-modules/gateway/configuration-organization",
+      "nodeIds": [
+        "gwConfig",
+        "gwControl"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/index.ts",
+        "TinadecGateway/src/organizationRoutes.ts"
+      ],
+      "project": null,
+      "related": [
+        "CORE-AGENT-CONFIG",
+        "CORE-MODELS",
+        "CORE-SKILLS",
+        "CORE-PROMPTS",
+        "CORE-GOVERNANCE",
+        "CORE-TINACHAT",
+        "CORE-AGENT-GRAPH",
+        "CORE-LIFECYCLE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-TOOLS",
+      "group": "gateway",
+      "slug": "user-tool-transport",
+      "title": "Gateway / 用户工具传输与可选读面",
+      "path": "02-modules/gateway/user-tool-transport",
+      "nodeIds": [
+        "gwUserTools",
+        "optionalRuntime"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/index.ts:1200",
+        "TinadecGateway/src/config.ts:74"
+      ],
+      "project": null,
+      "related": [
+        "CORE-TOOLS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-STREAMING",
+      "group": "gateway",
+      "slug": "streaming",
+      "title": "Gateway / SSE、附件、日志与取消",
+      "path": "02-modules/gateway/streaming",
+      "nodeIds": [
+        "gwStream"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/streaming.ts"
+      ],
+      "project": null,
+      "related": [
+        "GW-SESSIONS",
+        "CORE-LIFECYCLE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "GW-WS",
+      "group": "gateway",
+      "slug": "websocket",
+      "title": "Gateway / WebSocket 范围与实现",
+      "path": "02-modules/gateway/websocket",
+      "nodeIds": [
+        "wsPartial"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecGateway/src/index.ts:2326"
+      ],
+      "project": null,
+      "related": [
+        "APP-DESKTOP"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-PROTOCOL",
+      "group": "tools",
+      "slug": "protocol-host",
+      "title": "TinadecTools / 协议、manifest 与执行宿主",
+      "path": "02-modules/tools/protocol-host",
+      "nodeIds": [
+        "toolProtocol",
+        "toolBoundary"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Abstractions/ToolCalling.cs:11",
+        "TinadecTools/Abstractions/ToolRegistry.cs:117"
+      ],
+      "project": null,
+      "related": [
+        "CORE-TOOLS",
+        "TOOLS-FILES",
+        "TOOLS-GIT",
+        "TOOLS-COMMAND",
+        "TOOLS-MCP",
+        "TOOLS-WEB",
+        "CORE-GOVERNANCE",
+        "TOOLS-SANDBOX"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-FILES",
+      "group": "tools",
+      "slug": "files-search",
+      "title": "TinadecTools / 文件与搜索",
+      "path": "02-modules/tools/files-search",
+      "nodeIds": [
+        "toolFiles"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Tools/FileRW/FileSystemTools.cs"
+      ],
+      "project": null,
+      "related": [
+        "CORE-AGENT-GRAPH",
+        "X-DELIVERY"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-GIT",
+      "group": "tools",
+      "slug": "git",
+      "title": "TinadecTools / Git",
+      "path": "02-modules/tools/git",
+      "nodeIds": [
+        "toolGit"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Tools/Git/GitCli.cs"
+      ],
+      "project": null,
+      "related": [
+        "CORE-AGENT-GRAPH",
+        "CORE-GOVERNANCE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-COMMAND",
+      "group": "tools",
+      "slug": "commands-terminals",
+      "title": "TinadecTools / 命令、进程与终端",
+      "path": "02-modules/tools/commands-terminals",
+      "nodeIds": [
+        "toolCommand"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Tools/Command/ShellTool.cs:134"
+      ],
+      "project": null,
+      "related": [
+        "TOOLS-SANDBOX",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-SANDBOX",
+      "group": "tools",
+      "slug": "sandbox",
+      "title": "TinadecTools / 平台沙箱",
+      "path": "02-modules/tools/sandbox",
+      "nodeIds": [
+        "sandbox"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Runtime/Sandbox/CommandSandboxRuntime.cs:19"
+      ],
+      "project": null,
+      "related": [
+        "TOOLS-COMMAND",
+        "CORE-AGENT-GRAPH"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-MCP",
+      "group": "tools",
+      "slug": "mcp",
+      "title": "TinadecTools / MCP 扩展",
+      "path": "02-modules/tools/mcp",
+      "nodeIds": [
+        "toolMcp"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Tools/Mcp/McpClientPool.cs:63"
+      ],
+      "project": null,
+      "related": [
+        "CORE-SKILLS"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-WEB",
+      "group": "tools",
+      "slug": "web-fetch",
+      "title": "TinadecTools / 网络抓取",
+      "path": "02-modules/tools/web-fetch",
+      "nodeIds": [
+        "toolWeb"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools/Tools/Web/WebFetchGuard.cs"
+      ],
+      "project": null,
+      "related": [],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "TOOLS-GENERATOR",
+      "group": "tools",
+      "slug": "source-generator",
+      "title": "TinadecTools.Generators / 构建期生成器",
+      "path": "02-modules/tools/source-generator",
+      "nodeIds": [
+        "generators"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecTools.Generators/ToolFunctionGenerator.cs:9"
+      ],
+      "project": null,
+      "related": [
+        "TOOLS-PROTOCOL"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "X-DATA",
+      "group": "cross-cutting",
+      "slug": "data-security",
+      "title": "数据、安全与持久化验收",
+      "path": "02-modules/cross-cutting/data-security",
+      "nodeIds": [
+        "database",
+        "contentStore",
+        "secretStore"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecCore/Persistence/TinadecDatabaseConfigurer.cs",
+        "TinadecCore/Persistence/StoragePaths.cs:24",
+        "TinadecCore/Persistence/SecretStoreFactory.cs"
+      ],
+      "project": null,
+      "related": [
+        "CORE-PERSISTENCE",
+        "CORE-VECTOR",
+        "CORE-SQLITE",
+        "CORE-POSTGRES",
+        "CORE-MEMORY",
+        "CORE-LIFECYCLE",
+        "CORE-AGENT-GRAPH",
+        "CORE-MODELS",
+        "CORE-GOVERNANCE"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "X-QUALITY",
+      "group": "cross-cutting",
+      "slug": "quality-contracts",
+      "title": "质量、契约与验收门禁",
+      "path": "02-modules/cross-cutting/quality-contracts",
+      "nodeIds": [
+        "quality"
+      ],
+      "coreProject": null,
+      "sources": [
+        "TinadecCore/tests/TinadecCore.Architecture.Tests/ArchitectureTests.cs"
+      ],
+      "project": null,
+      "related": [
+        "CORE-CONTRACTS",
+        "CORE-RUNTIME",
+        "TOOLS-GENERATOR"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    },
+    {
+      "id": "X-DELIVERY",
+      "group": "cross-cutting",
+      "slug": "delivery-manager",
+      "title": "三平台交付、Manager 与更新",
+      "path": "02-modules/cross-cutting/delivery-manager",
+      "nodeIds": [
+        "release",
+        "managerExternal",
+        "nativeAssets"
+      ],
+      "coreProject": null,
+      "sources": [
+        ".github/workflows/desktop-release.yml:69",
+        "docs/tinadec-office-release-contract.zh-CN.md",
+        "apps/desktop/scripts/runtimeTargets.mjs:8"
+      ],
+      "project": null,
+      "related": [
+        "APP-SERVICES",
+        "APP-PACKS",
+        "CORE-AGENT-CONFIG",
+        "TOOLS-FILES",
+        "TOOLS-GIT"
+      ],
+      "review": "初始源码清点；逐功能审计未完成"
+    }
+  ],
+  "nodeNavigation": {
+    "appProduct": "顶层产品边界",
+    "gatewayProduct": "顶层产品边界",
+    "coreProduct": "顶层产品边界",
+    "toolsProduct": "顶层产品边界",
+    "limits1": "全局缺口摘要",
+    "limits2": "全局缺口摘要",
+    "limits3": "全局缺口摘要",
+    "limits4": "证据范围",
+    "modelExternal": "CORE-MODELS",
+    "toolResources": "CORE-AGENT-GRAPH",
+    "mcpExternal": "TOOLS-MCP",
+    "networkExternal": "TOOLS-WEB"
+  }
+}

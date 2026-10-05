@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="680" viewBox="0 0 1500 680" role="img"><title>Runtime · 唯一组合根模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="680" fill="#fff"/><text class="title" x="40" y="52">Runtime · 唯一组合根</text><text class="small" x="40" y="85">CORE-RUNTIME · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="510" rx="16" fill="#f3f6fb" stroke="#7353ae"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#7353ae"/><text class="text" x="84" y="205" style="font-weight:650;fill:#7353ae">Runtime · 唯一组合根</text><text class="small" x="84" y="233">DI 装配 15 个 registrar / 恢复协调</text><text class="small" x="84" y="255">模型解析、委托审批、组织唤醒、拓扑</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">Governance · 授权与审批</text>
+<text class="small" x="892" y="253">CORE-GOVERNANCE</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">AgentConfiguration</text>
+<text class="small" x="892" y="378">CORE-AGENT-CONFIG</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">TinaChat · 会话组织通信</text>
+<text class="small" x="892" y="503">CORE-TINACHAT</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">AgentGraph · 图与资源</text>
+<text class="small" x="892" y="628">CORE-AGENT-GRAPH</text>
+<text class="small" x="40" y="655">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

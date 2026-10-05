@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1180" viewBox="0 0 1500 1180" role="img"><title>TinadecTools / 协议、manifest 与执行宿主模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="1180" fill="#fff"/><text class="title" x="40" y="52">TinadecTools / 协议、manifest 与执行宿主</text><text class="small" x="40" y="85">TOOLS-PROTOCOL · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="1010" rx="16" fill="#f3f6fb" stroke="#b8671d"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,705 870,705" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,830 870,830" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,955 870,955" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,1080 870,1080" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#b8671d"/><text class="text" x="84" y="205" style="font-weight:650;fill:#b8671d">stdio 宿主 / manifest v2 / registry</text><text class="small" x="84" y="233">UTF-8 JSON Lines · stdin / stdout · call id</text><text class="small" x="84" y="255">tool_id / session_id / approved / params</text>
+
+
+<rect x="64" y="300" width="620" height="104" rx="10" fill="#fff" stroke="#b8671d"/><text class="text" x="84" y="330" style="font-weight:650;fill:#b8671d">双层执行约束</text><text class="small" x="84" y="358">Core 授权 → 可信宿主 approved → Tools 校验</text><text class="small" x="84" y="380">Tools 不读取 Core DB，也不独立裁决 Core 权限</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">Tools · 工具治理与适配</text>
+<text class="small" x="892" y="253">CORE-TOOLS</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">TinadecTools / 文件与搜索</text>
+<text class="small" x="892" y="378">TOOLS-FILES</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">TinadecTools / Git</text>
+<text class="small" x="892" y="503">TOOLS-GIT</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">TinadecTools / 命令、进程与终端</text>
+<text class="small" x="892" y="628">TOOLS-COMMAND</text>
+<rect x="870" y="675" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="705">TinadecTools / MCP 扩展</text>
+<text class="small" x="892" y="753">TOOLS-MCP</text>
+<rect x="870" y="800" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="830">TinadecTools / 网络抓取</text>
+<text class="small" x="892" y="878">TOOLS-WEB</text>
+<rect x="870" y="925" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="955">Governance · 授权与审批</text>
+<text class="small" x="892" y="1003">CORE-GOVERNANCE</text>
+<rect x="870" y="1050" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="1080">TinadecTools / 平台沙箱</text>
+<text class="small" x="892" y="1128">TOOLS-SANDBOX</text>
+<text class="small" x="40" y="1155">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

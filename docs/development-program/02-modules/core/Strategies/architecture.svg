@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="680" viewBox="0 0 1500 680" role="img"><title>Strategies · F# 纯策略模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="680" fill="#fff"/><text class="title" x="40" y="52">Strategies · F# 纯策略</text><text class="small" x="40" y="85">CORE-STRATEGIES · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="510" rx="16" fill="#f3f6fb" stroke="#7353ae"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#7353ae"/><text class="text" x="84" y="205" style="font-weight:650;fill:#7353ae">Strategies · F# 纯策略</text><text class="small" x="84" y="233">上下文预算、prompt 选择、记忆评分</text><text class="small" x="84" y="255">loop 检测、状态转移函数</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">Context · 本轮输入与补丁</text>
+<text class="small" x="892" y="253">CORE-CONTEXT</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">Memory · 会话与长期记忆</text>
+<text class="small" x="892" y="378">CORE-MEMORY</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">Prompts · 提示词组装与版本</text>
+<text class="small" x="892" y="503">CORE-PROMPTS</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">LoopGuard · 防空转与预算</text>
+<text class="small" x="892" y="628">CORE-LOOP-GUARD</text>
+<text class="small" x="40" y="655">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

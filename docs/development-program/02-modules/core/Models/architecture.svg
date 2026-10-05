@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="555" viewBox="0 0 1500 555" role="img"><title>Models · 模型与 Harness模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="555" fill="#fff"/><text class="title" x="40" y="52">Models · 模型与 Harness</text><text class="small" x="40" y="85">CORE-MODELS · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="385" rx="16" fill="#f3f6fb" stroke="#7353ae"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#7353ae"/><text class="text" x="84" y="205" style="font-weight:650;fill:#7353ae">Models · 模型与 Harness</text><text class="small" x="84" y="233">API SDK / 路由 / 参数 / 密钥引用</text><text class="small" x="84" y="255">ACP / Headless / TUI / ConPTY</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">数据、安全与持久化验收</text>
+<text class="small" x="892" y="253">X-DATA</text>
+<text class="small" x="40" y="530">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

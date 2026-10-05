@@ -1,0 +1,19 @@
+{
+  "baseline": "b6115e6 + 当前工作树",
+  "moduleCount": 55,
+  "coreProjectCoverage": {
+    "expected": 24,
+    "actual": 24
+  },
+  "architectureNodeCoverage": {
+    "expected": 82,
+    "actual": 82
+  },
+  "featureCount": 97,
+  "taskCount": 101,
+  "markdownFiles": 239,
+  "checkedLinks": 1780,
+  "uniqueIdCount": 198,
+  "errors": [],
+  "scope": "documentation/source checks only; no product tests rerun"
+}

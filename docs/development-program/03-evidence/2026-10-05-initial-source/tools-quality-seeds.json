@@ -1,0 +1,134 @@
+{
+  "toolProtocol": {
+    "facts": [
+      {"name":"UTF-8 JSON Lines 工具宿主与 manifest v2", "state":"源码可见", "evidence":["TinadecTools/Program.cs","TinadecTools/Abstractions/ToolCalling.cs","TinadecTools/Abstractions/ToolRegistry.cs","tests/TinadecTools.Tests/ToolManifestTests.cs"], "boundary":"宿主先取目录与 manifest_hash，再按 call id 关联响应；本轮只核对源码，未复跑真实 Core 子进程链路。"},
+      {"name":"工具控制面与按执行目标分片的写调用串行", "state":"源码可见", "evidence":["TinadecTools/Runtime/ToolDispatchLoop.cs","tests/TinadecTools.Tests/ToolDispatchLoopTests.cs"], "boundary":"#manifest/#terminal 和只读工具并发，写调用按显式 cwd/worktree key 串行；它与 Core 资源租约和跨进程冲突裁决是不同机制。"},
+      {"name":"可信宿主批准与 Tools 二次约束", "state":"范围边界", "evidence":["TinadecTools/Abstractions/ToolRegistry.cs","TinadecTools/Tools/ToolConfirmations.cs"], "boundary":"Tools 接收宿主 approved 后继续检查确认字段、路径、保护分支及沙箱，不读取 Core 数据库或独立裁决 Core 用户权限。"}
+    ],
+    "tasks": [
+      {"title":"验收真实工具进程的协议、并发与故障返回", "type":"验收", "state":"待核查", "priority":"P1", "problem":"目录握手和调用测试已存在，当前文档工程尚无本轮真实子进程及重启恢复证据。", "acceptance":["从真实 Core provider 启动 Tools，记录 manifest v2、hash、中文参数与正确 call id。","并发只读、两个执行目录写调用和长驻 shell 控制面，响应不串线且控制面可及时返回。","坏 JSON、未知工具、未批准写调用和进程退出产生可理解结果；恢复链路与 Core Tools 模块任务关联。"], "evidence":["TinadecTools/Program.cs","TinadecTools/Runtime/ToolDispatchLoop.cs","tests/TinadecTools.Tests/ToolManifestTests.cs","tests/TinadecTools.Tests/ToolDispatchLoopTests.cs"], "legacy":[]}
+    ]
+  },
+  "toolFiles": {
+    "facts": [
+      {"name":"文件读写、编辑、目录、stat、hash 与 ripgrep 搜索", "state":"源码可见", "evidence":["TinadecTools/Tools/FileRW/FileSystemTools.cs","TinadecTools/Tools/FileRW/FileWriter.cs","tests/TinadecTools.Tests/FileSystemToolsTests.cs","tests/TinadecTools.Tests/FileSearchTests.cs","tests/TinadecTools.Tests/WorkspacePathBoundaryTests.cs"], "boundary":"工具工作区根、符号链接、文件 hash 与确认字段约束均有源码及测试；搜索依赖 rg，不据此宣告各平台全部文件行为已验收。"}
+    ],
+    "tasks": [
+      {"title":"核查文件工具边界与跨平台真实操作矩阵", "type":"验收", "state":"待核查", "priority":"P1", "problem":"功能入口已存在，需按用户操作核对路径边界、冲突处理与失败后的文件内容。", "acceptance":["中文及空格路径、允许根、符号链接越界、过期 hash、并发编辑和二进制操作逐项有结果与证据。","授权和确认不足的写操作不产生副作用；失败与取消后检查实际文件，不能只看 response.success。","搜索对 pin 版 rg 可用及 rg 缺失分别给出预期结果。"], "evidence":["TinadecTools/Tools/FileRW/FileWriter.cs","tests/TinadecTools.Tests/FileWriterTests.cs","tests/TinadecTools.Tests/WorkspacePathBoundaryTests.cs","tests/TinadecTools.Tests/FileSearchTests.cs","TinadecTools/TinadecTools.csproj"], "legacy":[]}
+    ]
+  },
+  "toolGit": {
+    "facts": [
+      {"name":"Git 查询、index、提交、分支、worktree、整合与远端操作", "state":"源码可见", "evidence":["TinadecTools/Tools/Git/GitCli.cs","tests/TinadecTools.Tests/GitReadToolsTests.cs","tests/TinadecTools.Tests/GitCommitToolTests.cs","tests/TinadecTools.Tests/GitWorktreeToolsTests.cs","tests/TinadecTools.Tests/GitIntegrationToolsTests.cs","tests/TinadecTools.Tests/GitRemoteMutationToolsTests.cs"], "boundary":"查询和写操作具有不同审批、副作用、重试与确认元数据；本轮未执行真实仓库验收。"},
+      {"name":"保护分支与远端副作用边界", "state":"范围边界", "evidence":["TinadecTools/Tools/Command/ProtectedBranchGuard.cs","tests/TinadecTools.Tests/ProtectedBranchGuardTests.cs"], "boundary":"存在结构化 Git 与 shell 推送保护；远端 ref 的改变不属于本地工作区快照可保证回滚的范围。"}
+    ],
+    "tasks": [
+      {"title":"用临时仓库与临时远端验收 Git 全部操作类别", "type":"验收", "state":"待核查", "priority":"P1", "problem":"需把已有 Git API 和测试转成当前实际副作用证据，并识别确认、分支保护和恢复的真实边界。", "acceptance":["覆盖读取、stage/unstage、commit、branch、worktree、merge/rebase 冲突、discard、fetch/pull/push 的正反路径。","每项保存 HEAD、index、工作树和远端 ref 的前后状态。","未批准、确认不足和保护分支拒绝不发生对应副作用；远端失败与不可本地回滚明确展示。"], "evidence":["TinadecTools/Tools/Git/GitCli.cs","tests/TinadecTools.Tests/GitIndexToolsTests.cs","tests/TinadecTools.Tests/GitConflictResolveToolTests.cs","tests/TinadecTools.Tests/GitRemoteMutationToolsTests.cs","tests/TinadecTools.Tests/ProtectedBranchGuardTests.cs"], "legacy":[]}
+    ]
+  },
+  "toolCommand": {
+    "facts": [
+      {"name":"一次性 command_run 与长驻 shell", "state":"源码可见", "evidence":["TinadecTools/Tools/Command/CommandRunner.cs","TinadecTools/Tools/Command/ShellTool.cs","TinadecTools/Runtime/TerminalSessionRunner.cs","TinadecTools/Runtime/TerminalRunner.cs","tests/TinadecTools.Tests/ShellToolTests.cs"], "boundary":"智能体终端经 Tools 与 Core 返回输出/stdin/kill/status/replay；用户桌面 node-pty 终端另有路径。"}
+    ],
+    "tasks": [
+      {"title":"验收智能体一次性和长驻命令生命周期", "type":"验收", "state":"待核查", "priority":"P1", "problem":"需从真实工具调用确认及时输出、交互、超时、取消、重放与资源释放，组件存在不足以证明终端可用。", "acceptance":["一次性与长驻命令分别覆盖首帧、stdout/stderr、stdin、状态查询、超时、取消和 kill。","Core 记录的终端状态与实际进程相符，重放能关联正确会话与调用。","结束后核查子进程与管道清理；平台沙箱限制由 sandbox 主任务验收。"], "evidence":["TinadecTools/Runtime/TerminalSessionRunner.cs","TinadecTools/Runtime/TerminalRunner.cs","tests/TinadecTools.Tests/TerminalRunnerTests.cs","tests/TinadecTools.Tests/ShellToolTests.cs"], "legacy":[]}
+    ]
+  },
+  "sandbox": {
+    "facts": [
+      {"name":"三平台命令与流式 shell 沙箱入口", "state":"源码可见", "evidence":["TinadecTools/Runtime/Sandbox/CommandSandboxRuntime.cs","TinadecTools/Runtime/Sandbox/Windows/WindowsSandboxBackend.cs","TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs","tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs"], "boundary":"Windows 低权限账户/ACL/DPAPI/JobObject，Linux Landlock，macOS Seatbelt/sandbox-exec；不能沿用 Linux/macOS 未实现的历史标签。"},
+      {"name":"主要限制写入而非全面隔离", "state":"范围边界", "evidence":["TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs","TinadecTools/Runtime/Sandbox/Posix/SeatbeltProfile.cs","TinadecTools/Runtime/Sandbox/Posix/LandlockApi.cs"], "boundary":"POSIX 读、执行和网络未全面隔离；sandbox-exec 不是公开稳定 Apple API；Linux 进程组终止与 macOS 的进程树终止实现不同。"}
+    ],
+    "tasks": [
+      {"title":"复验三平台真实内核沙箱与缺失机制行为", "type":"验收", "state":"待核查", "priority":"P1", "problem":"配置和测试代码已存在，但本轮没有真实账户或内核限制证据；必须区分写限制与全面隔离。", "acceptance":["三平台一次性与长驻 shell 均证明允许目录可写、越界写被拒和环境变量过滤。","限制机制不可用时明确失败，禁止悄悄退为不受约束执行。","Linux 验进程组终止；macOS 和 Windows 各自验证子孙进程清理，单列尚未覆盖范围。","报告清晰列出读/执行/网络的实际边界，Windows 首次账户设置与重置另有实机结果。"], "evidence":["TinadecTools/Runtime/Sandbox/CommandSandboxRuntime.cs","tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs","tests/TinadecTools.Tests/PosixSandboxTests.cs","tests/TinadecTools.Tests/SandboxRuntimeTests.cs"], "legacy":[]}
+    ]
+  },
+  "toolMcp": {
+    "facts": [
+      {"name":"stdio MCP 连接池、目录搜索与调用", "state":"源码可见", "evidence":["TinadecTools/Tools/Mcp/McpClientPool.cs","TinadecTools/Tools/Mcp/McpInvokeTool.cs","TinadecTools/Tools/Mcp/McpRuntime.cs","tests/TinadecTools.Tests/McpPassThroughTests.cs"], "boundary":"当前连接是 StdioClientTransport；mcp_invoke 要审批且不自动声明为工作区修改。"},
+      {"name":"外部扩展能力范围", "state":"范围边界", "evidence":["TinadecTools/Tools/Mcp/McpClientPool.cs","TinadecTools/Tools/Mcp/McpModels.cs"], "boundary":"Tools 未自带 HTTP MCP transport、浏览器自动化或 A2A；这些扩展是否属于产品必需范围仍需定义，不能直接记成必补缺陷。"}
+    ],
+    "tasks": [
+      {"title":"用真实 stdio MCP server 验收目录与调用生命周期", "type":"验收", "state":"待核查", "priority":"P2", "problem":"mock pass-through 测试存在，实际配置、外部进程生命周期与调用审批需当前证据。", "acceptance":["真实 server 的 list/search/schema 与 invoke 可对应，未知 server/工具给出可理解错误。","分别验证批准、拒绝、server 报错、调用取消、server crash 和重新连接。","Tools 退出后核查 MCP 子进程和连接清理，记录外部工具副作用边界。"], "evidence":["TinadecTools/Tools/Mcp/McpClientPool.cs","TinadecTools/Tools/Mcp/McpServerRepository.cs","tests/TinadecTools.Tests/McpPassThroughTests.cs"], "legacy":[]}
+    ]
+  },
+  "toolWeb": {
+    "facts": [
+      {"name":"受约束公网 HTTP(S) 抓取", "state":"源码可见", "evidence":["TinadecTools/Tools/Web/WebFetchGuard.cs","TinadecTools/Tools/Web/WebFetchTool.cs","tests/TinadecTools.Tests/WebFetchTests.cs","tests/TinadecTools.Tests/RawFetchTests.cs"], "boundary":"连接时 DNS 地址复验、每跳重定向检查、全链 deadline、内容体积和文本提取均有实现；不是浏览器渲染；Git remote 不继承该公网地址策略。"},
+      {"name":"历史 deadline 分类失败尚无确定归因", "state":"范围边界", "evidence":["docs/whole-product-eval-2026-10-05.zh-CN.md","tests/TinadecTools.Tests/WebFetchTests.cs"], "boundary":"历史全量出现 FetchAsync_TurnsItsOwnTimeoutIntoAnAnswer 失败，隔离与减载全量通过；尚不能定性环境抖动或源码缺陷。"}
+    ],
+    "tasks": [
+      {"title":"复现 WebFetch deadline 分类并形成可验证归因", "type":"核查", "state":"待核查", "priority":"P1", "problem":"历史全量与隔离不同结果尚无证据闭环，deadline 失败可能影响工具返回与取消分类。", "acceptance":["记录相同代码的隔离与负载运行次数、结果、调用 deadline、外部取消和响应时序。","定位失败触发条件；修复后对比，或证明不需要产品改动并保留可复跑证据。","重定向至私网、DNS重绑定、超量内容、非文本和4xx/5xx相关既有守卫仍成立。"], "evidence":["TinadecTools/Tools/Web/WebFetchTool.cs","TinadecTools/Tools/Web/WebFetchGuard.cs","tests/TinadecTools.Tests/WebFetchTests.cs","docs/whole-product-eval-2026-10-05.zh-CN.md"], "legacy":[{"file":"docs/whole-product-eval-2026-10-05.zh-CN.md","section":"自动化与协同复验"}]}
+    ]
+  },
+  "generators": {
+    "facts": [
+      {"name":"工具注册与参数 JSON Schema 生成", "state":"源码可见", "evidence":["TinadecTools.Generators/ToolFunctionGenerator.cs","TinadecTools/TinadecTools.csproj","tests/TinadecTools.Tests/ToolManifestTests.cs"], "boundary":"Roslyn 增量 generator 被 Tools 以 Analyzer 引用；TTG001 缺描述为 Warning；它是构建期机制，不是独立运行服务。"}
+    ],
+    "tasks": [
+      {"title":"盘点并验收生成器的编译输入与 manifest 语义", "type":"核查", "state":"待核查", "priority":"P2", "problem":"生成器及 manifest 守卫已存在，需确定复杂参数与诊断的真实覆盖，不能因未找到独立测试项目就宣称无测试。", "acceptance":["列出现有测试覆盖与缺少的有意义边界：嵌套参数、JsonPropertyName、描述、确认字段与错误签名。","必要时用编译夹具验证生成输出和诊断，manifest 可被真实宿主读取。","明确 TTG001 当前告警策略；是否提升严重性作为范围决策，不能默认修改。"], "evidence":["TinadecTools.Generators/ToolFunctionGenerator.cs","tests/TinadecTools.Tests/ToolManifestTests.cs","TinadecTools/TinadecTools.csproj"], "legacy":[]}
+    ]
+  },
+  "database": {
+    "facts": [
+      {"name":"SQLite 与 PostgreSQL 领域存储", "state":"源码可见", "evidence":["TinadecCore/Persistence/TinadecDatabaseConfigurer.cs","TinadecCore/Storage.Migrations.Sqlite/TinadecCore.Storage.Migrations.Sqlite.csproj","TinadecCore/Storage.Migrations.PostgreSql/TinadecCore.Storage.Migrations.PostgreSql.csproj",".github/workflows/core-storage-postgres.yml"], "boundary":"默认 SQLite，可选 Npgsql/pgvector 及各自迁移；领域 DbContext 分区不代表独立数据库；CI PostgreSQL storage 定向配置不能替代全业务整链验收。"}
+    ],
+    "tasks": [
+      {"title":"形成 SQLite 与 PostgreSQL 同场景持久化验收矩阵", "type":"验收", "state":"待核查", "priority":"P1", "problem":"两种存储配置与迁移已经存在，当前能力完成判断需要按同一场景核对实际运行，而非用配置文件宣布支持闭环。", "acceptance":["从空库与现有库分别验证启动迁移、写入读取和重启恢复。","对会话/run/审批/组织等选定真实场景比较后端结果，并覆盖并发与身份隔离。","每项记录执行/失败/跳过及原因；迁移模块和业务模块各自的详细任务作为关联项，避免复制。"], "evidence":["TinadecCore/Persistence/TinadecDatabaseConfigurer.cs","TinadecCore/tests/TinadecCore.Api.Tests/PostgreSqlStorageTests.cs","TinadecCore/tests/TinadecCore.Api.Tests/StorageApiTests.cs",".github/workflows/core-storage-postgres.yml"], "legacy":[]}
+    ]
+  },
+  "contentStore": {
+    "facts": [
+      {"name":"内容寻址文件与 Core 数据根", "state":"源码可见", "evidence":["TinadecCore/Persistence/LocalFileContentStore.cs","TinadecCore/Persistence/StoragePaths.cs"], "boundary":"内容经 SHA256、临时文件、flush 与 move 保存，支持并发同内容去重；引用带tenant/workspace范围且禁止逃逸根；不能推断文件与数据库跨资源事务已闭环。"}
+    ],
+    "tasks": [
+      {"title":"验收内容文件引用一致性与异常后的真实状态", "type":"验收", "state":"待核查", "priority":"P1", "problem":"存储路径和写文件机制有实现，需确认取消、失败和数据库引用不一致时的可检测与恢复行为。", "acceptance":["覆盖并发同内容、取消、写入失败、非法引用和tenant/workspace越界。","检查实际临时文件与最终文件，不以返回值代替副作用事实。","记录数据库引用缺文件与孤儿文件的现状，确认检测/修复所需能力；发现真实缺口后另立实现任务。"], "evidence":["TinadecCore/Persistence/LocalFileContentStore.cs","TinadecCore/Persistence/StoragePaths.cs","TinadecCore/tests/TinadecCore.Api.Tests/StorageApiTests.cs"], "legacy":[]}
+    ]
+  },
+  "secretStore": {
+    "facts": [
+      {"name":"平台默认加密密钥存储与受校验引用", "state":"源码可见", "evidence":["TinadecCore/Persistence/SecretStoreFactory.cs","TinadecCore/Persistence/EncryptedFileSecretStore.cs","TinadecCore/tests/TinadecCore.Governance.Tests/SecretStorePlatformTests.cs"], "boundary":"Windows 默认 DPAPI，POSIX 默认 AES-GCM 文件；environment 可选且只读；secret reference 不可目录逃逸。"}
+    ],
+    "tasks": [
+      {"title":"验收平台密钥保存、重启读取与损坏行为", "type":"验收", "state":"待核查", "priority":"P1", "problem":"平台后端已有源码，密钥存储可用性需实际保存读取证据；备份/迁移/轮换范围尚未逐项审计。", "acceptance":["在相应平台验证保存、读取、重启、文件权限、损坏密文与非法reference。","environment 模式拒绝保存时错误可理解；不把只读设计误报为后端不可用。","明确密钥迁移与轮换当前能力及产品范围，有已确认缺口再派生任务。"], "evidence":["TinadecCore/Persistence/SecretStoreFactory.cs","TinadecCore/Persistence/EncryptedFileSecretStore.cs","TinadecCore/tests/TinadecCore.Governance.Tests/SecretStorePlatformTests.cs"], "legacy":[]}
+    ]
+  },
+  "quality": {
+    "facts": [
+      {"name":"活动测试、架构门禁与契约漂移链", "state":"源码可见", "evidence":["TinadecOffice.slnx","TinadecCore/TinadecCore.slnx","TinadecCore/tests/TinadecCore.Api.Tests/CoreOpenApiSnapshotTests.cs",".github/workflows/contracts-drift.yml","apps/desktop/package.json"], "boundary":"活动 .NET 测试是 Core Architecture/AgentFramework/Api/Governance 与 Tools；另有 Gateway/ Desktop/UIE/native/scripts。契约由 Core OpenAPI、Gateway快照和前端生成类型验证；本轮未复跑。"},
+      {"name":"旧 Contracts.Tests 仅作遗留需求证据", "state":"范围边界", "evidence":["tests/Tinadec.Contracts.Tests/README.md","tests/Tinadec.Contracts.Tests/Tinadec.Contracts.Tests.csproj","TinadecOffice.slnx"], "boundary":"依赖已删除旧 src，不在活动解决方案且不可构建，不能计入当前活动测试或作验证锚点。"},
+      {"name":"审批响应 schema 登记缺口由 Core AspNetCore 主任务负责", "state":"缺口已确认", "evidence":["TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs","TinadecCore/AspNetCore/ControlPlaneService.cs","apps/desktop/src/generated/schema.d.ts"], "boundary":"approvals 主端点返回 Task<IResult> 且无 DTO Produces，生成客户端未出现 ApprovalResponseDto；此处仅交叉引用 Core AspNetCore 的实现任务，不复制质量模块任务。"}
+    ],
+    "tasks": [
+      {"title":"建立活动测试与功能验收证据矩阵", "type":"核查", "state":"待核查", "priority":"P1", "problem":"历史全绿、隔离复跑和静态核对不能互相替代；需要按功能与当前版本识别有效验证和空白。", "acceptance":["只列活动测试项目与实际执行命令，旧 Contracts.Tests 标为遗留需求证据。","每模块区分静态、单测、组件、真实端到端、外部模型、平台和后端，记录代码基线、结果及跳过。","发现失败记录原始证据和归因状态，不继承环境抖动标签。","审批schema修复完成后关联 Core AspNetCore 主任务与快照/漂移结果，此处不建立重复实现任务。"], "evidence":["TinadecOffice.slnx","tests/Tinadec.Contracts.Tests/README.md",".github/workflows/contracts-drift.yml","docs/whole-product-eval-2026-10-05.zh-CN.md"], "legacy":[{"file":"docs/whole-product-eval-2026-10-05.zh-CN.md","section":"自动化与协同复验"},{"file":"docs/whole-product-eval-2026-10-05.zh-CN.md","section":"尚未覆盖与诚实边界"}]}
+    ]
+  },
+  "release": {
+    "facts": [
+      {"name":"三平台安装器、模块包与渠道发布", "state":"源码可见", "evidence":[".github/workflows/desktop-release.yml","apps/desktop/scripts/runtimeTargets.mjs","apps/desktop/scripts/package-office-channel.mjs","apps/desktop/scripts/verify-office-channel.mjs","apps/desktop/scripts/merge-office-channel-catalog.mjs"], "boundary":"win-x64 NSIS/portable、linux-x64 deb、osx-arm64 dmg；模块与AgentPack、catalog、SHA256均有实现。Linux CI已配置apt安装和安装版冒烟，macOS挂dmg运行；本轮未重跑。"},
+      {"name":"应用内更新与发布信任链边界", "state":"缺口已确认", "evidence":["apps/desktop/package.json","apps/desktop/electron/main.cjs","apps/desktop/AGENTS.md","docs/tinadec-office-release-contract.zh-CN.md"], "boundary":"应用内 autoUpdater/electron-updater 业务接入未实现；macOS为ad-hoc未公证。完整更新所有者与发布者签名信任链需要方案，不能仅凭SHA256宣布身份可信。"}
+    ],
+    "tasks": [
+      {"title":"按真实三平台制品收集安装、启动和退出验收", "type":"验收", "state":"待核查", "priority":"P1", "problem":"三平台CI及历史发布证据存在，当前工程需要绑定实际run和制品，区分包结构、服务冒烟与完整用户体验。", "acceptance":["逐平台记录打包、安装、健康、Tools目录、退出端口/进程释放和可行的卸载结果。","catalog资产URL、size/sha、归档格式、机器码、POSIX执行位和模块与内置runtime一致性均有对应证据。","Linux安装版与mac挂dmg步骤逐项核对，终端交互由nativeAssets主任务负责。","macOS普通用户Gatekeeper/quarantine首启单列实机体验，不用runner能跑代替。"], "evidence":[".github/workflows/desktop-release.yml","apps/desktop/scripts/verify-office-channel.mjs","apps/desktop/scripts/smoke-packaged-posix.mjs","docs/tinadec-office-release-contract.zh-CN.md"], "legacy":[{"file":"docs/tinadec-office-release-contract.zh-CN.md","section":"CI 门禁"},{"file":"docs/tinadec-office-release-contract.zh-CN.md","section":"发布记录与残余边界（2026-10-04）"}]},
+      {"title":"定义应用整包更新与 Manager 模块更新的职责和交互", "type":"方案", "state":"待方案", "priority":"P2", "problem":"应用内updater未接入，Manager模块交接又有独立生命周期，需要先确定谁发现、校验、安装与回退，避免两套所有者同时改runtime。", "acceptance":["明确整包、模块与AgentPack更新的所有者、版本来源、用户入口和互斥规则。","列出发现新版、下载中断、校验失败、安装失败、旧版保留、数据兼容与回退的预期行为。","区分SHA256完整性和发布者身份，明确签名/公证适用范围。","方案形成可拆分的后续实现与真实升级验收任务。"], "evidence":["apps/desktop/package.json","apps/desktop/electron/serviceManager.cjs","docs/tinadec-office-release-contract.zh-CN.md"], "legacy":[{"file":"docs/tinadec-office-release-contract.zh-CN.md","section":"Manager 与 Office 的交接"},{"file":"docs/tinadec-office-release-contract.zh-CN.md","section":"发布记录与残余边界（2026-10-04）"}]}
+    ]
+  },
+  "managerExternal": {
+    "facts": [
+      {"name":"Manager 机器注册交接尚未接入 App", "state":"缺口已确认", "evidence":["apps/desktop/electron/serviceManager.cjs","docs/tinadec-office-release-contract.zh-CN.md"], "boundary":"serviceManager当前只取resources/runtime；office-runtime.json注册读取与校验、模块优先及AgentPack交接是契约目标。Manager是仓库外消费者，不能将其源码状态由Office配置推断。"},
+      {"name":"本地服务拥有条件采用 URL 规范化", "state":"范围边界", "evidence":["apps/desktop/electron/serviceManager.cjs","apps/desktop/electron/serviceManager.test.cjs"], "boundary":"需packaged且规范本地Gateway URL；canonicalLocalGatewayUrl也接受http://localhost:48730及尾斜杠，归一为127.0.0.1，不能写只接受精确字面字符串。"}
+    ],
+    "tasks": [
+      {"title":"实现并验收 Office 对 Manager 机器注册的受控消费", "type":"实现", "state":"未开始", "priority":"P1", "problem":"发布契约要求消费机器注册，App启动仍只读内置runtime，模块发布与实际启动之间缺少交接。", "acceptance":["按契约读取注册并验证受控路径、版本、平台及digest；完整注册使用Manager模块，缺失和不完整的回退策略明确。","真实Manager模块启动Office，错误注册/缺失文件/校验失败不破坏原有版本与数据。","注册AgentPack交Core install-preview/install并遵守owner确认、revision/ETag和幂等，不能直接修改Core DB。","保存跨产品交接与失败路径证据，Manager仓库改动单独关联。"], "evidence":["apps/desktop/electron/serviceManager.cjs","apps/desktop/electron/serviceManager.test.cjs","docs/tinadec-office-release-contract.zh-CN.md"], "legacy":[{"file":"docs/tinadec-office-release-contract.zh-CN.md","section":"Manager 与 Office 的交接"}]}
+    ]
+  },
+  "nativeAssets": {
+    "facts": [
+      {"name":"原生搜索、用户PTY与平台Git资源", "state":"源码可见", "evidence":["scripts/setup-ripgrep.mjs","scripts/ripgrep-pin.mjs","apps/desktop/scripts/runtimeTargets.mjs","apps/desktop/electron/terminalManager.cjs"], "boundary":"Windows随包PortableGit，POSIX使用系统Git；用户PTY与智能体Tools终端分属不同链路。当前产品发布平台为win-x64/linux-x64/osx-arm64，linux-arm64的rg pin不等于发布支持。"},
+      {"name":"服务冒烟不覆盖真实终端交互", "state":"范围边界", "evidence":["apps/desktop/scripts/smoke-packaged-posix.mjs","apps/desktop/electron/terminalManager.cjs","apps/desktop/AGENTS.md"], "boundary":"服务健康与工具目录不能证明native pty可加载、实际输入、resize、字体、菜单/托盘或Wayland体验。"}
+    ],
+    "tasks": [
+      {"title":"验收三平台打包版用户终端与原生依赖", "type":"验收", "state":"待核查", "priority":"P1", "problem":"原生资源及平台分支已有实现，需要真实窗口操作确认PTY与shell可用，包结构和服务冒烟不足。", "acceptance":["各支持平台真实窗口打开终端、输入命令、看实时输出、resize和关闭，核查native模块加载及进程清理。","Windows随包Git和POSIX系统Git分别记录可用及缺失体验，pin版rg可运行。","Wayland-only、菜单/托盘与字体表现标注实际覆盖范围；未演练项保留待验收。"], "evidence":["apps/desktop/electron/terminalManager.cjs","apps/desktop/electron/terminalManager.test.cjs","apps/desktop/scripts/runtimeTargets.mjs","apps/desktop/scripts/smoke-packaged-posix.mjs"], "legacy":[{"file":"apps/desktop/AGENTS.md","section":"POSIX MAIN-PROCESS PORTABILITY（2026-10-03，Phase 4；Phase 5 打包与 Phase 6 冒烟已于 2026-10-04 三腿读数收口）"}]}
+    ]
+  }
+}

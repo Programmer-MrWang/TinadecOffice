@@ -1,0 +1,36 @@
+# TinadecUI / UIE Engine：模块架构
+
+模块ID：`APP-UIE-ENGINE` · 基线：2026-10-05，b6115e6 + 当前工作树。
+
+![模块职责与关联图](architecture.svg)
+
+这是总图的**模块职责投影**：实线无箭头表示相关职责，不表示调用先后。逐模块审计任务将补充成功/失败、控制流、数据流和恢复关系；仅ProjectReference箭头表示已从工程文件读出的编译依赖。
+
+## 可编辑架构图
+
+```mermaid
+flowchart LR
+  subgraph S["TinadecUI / UIE Engine"]
+    scope["模块整体"]
+    f0["TinadecUI / engine"]
+  end
+  r0["TinadecUI / UIE Components"]
+  scope ---|"职责关联，方向待精化"| r0
+  r1["Desktop / 偏好与布局持久化"]
+  scope ---|"职责关联，方向待精化"| r1
+```
+
+## 模块边界与输入/输出
+
+| 职责 | 当前边界 | 来源 |
+| --- | --- | --- |
+| TinadecUI / engine | UIE 是唯一工作台布局系统。engine 不依赖 DOM，处理列/栈/卡片模型、命令总线、布局计算与持久化协议。 | [apps/TinadecUI/src/index.ts:4](../../../../../apps/TinadecUI/src/index.ts#L4) |
+
+## 继续精化时必须补齐
+
+- 实际入口、调用方向与状态所有者；每个有向关系有源码依据。
+- 成功与错误/取消路径、身份/权限边界、异步与恢复时序。
+- 哪些是Core内部端口、哪些跨进程/HTTP/stdio，哪些仅是UI职责关联。
+- 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
+
+任务入口：[APP-UIE-ENGINE-001](TODO.md#app-uie-engine-001)。

@@ -1,0 +1,798 @@
+{
+  "home": {
+    "facts": [
+      {
+        "name": "项目、会话、附件及 queued/parallel/insert 消息投递协调",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/controllers/HomeController.ts"
+        ],
+        "boundary": "发送前记录权限；队列晋升保留模式、模型、权限和附件。本轮仅静态核对源码，未运行业务测试或产品验收。"
+      },
+      {
+        "name": "按 run 归属的活动、首轮 live block、审批与监督裁决入口",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/controllers/HomeController.ts",
+          "apps/desktop/src/components/chat/LiveTurnBlock.vue"
+        ],
+        "boundary": "界面实现存在，真实并行与三个监督决策本轮未验收。"
+      },
+      {
+        "name": "Home 初始布局就绪与 splash 入场同步",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/pages/HomePage.vue",
+          "apps/desktop/src/App.vue",
+          "docs/home-entry-motion-2026-10-05.zh-CN.md"
+        ],
+        "boundary": "最新修复已有历史专项验证；本轮未重跑，不重复登记为未修缺陷。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收真实消息投递、并行活动与监督决策",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "源码与组件证据不能替代真实模型下 queued/parallel/insert、审批和监督的产品闭环。",
+        "acceptance": [
+          "queued 晋升后保留发送时模式、模型、权限及附件",
+          "两个 run 同时活动时显示归属正确；切会话迟到事件不覆盖当前会话",
+          "insert 中断在途请求后读取纠正文本；首轮可查看审批事实并裁决",
+          "监督 continue/correct/cancel 均到达对应 Core 状态并清理已回答入口"
+        ],
+        "evidence": [
+          "apps/desktop/src/controllers/HomeController.ts",
+          "apps/desktop/src/components/chat/LiveTurnBlock.vue"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "模型中心之外的只读逻辑审查"
+          }
+        ]
+      },
+      {
+        "title": "复验首次会话欢迎页附件可用性",
+        "type": "核查",
+        "state": "待核查",
+        "priority": "P1",
+        "problem": "历史正式 eval 观察到 welcome 附件置灰；本轮未复现，不能直接声明当前缺陷仍存在。",
+        "acceptance": [
+          "在新会话首次发送前确认附件入口的可用条件",
+          "记录上传、发送与失败反馈；若复现则保存当前版本及实际错误证据再进入修复"
+        ],
+        "evidence": [
+          "apps/desktop/src/components/WelcomeScreen.vue",
+          "apps/desktop/src/controllers/HomeController.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "直接观察与代码解释"
+          }
+        ]
+      }
+    ]
+  },
+  "code": {
+    "facts": [
+      {
+        "name": "Monaco、文件/Git 查询及治理写操作",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/pages/CodePage.vue",
+          "apps/desktop/src/monaco.config.ts",
+          "apps/desktop/src/api.ts"
+        ],
+        "boundary": "读操作经 Gateway/Core/Tools，写操作经 Core user/tool-actions；用户本地终端走 Electron IPC。本轮仅静态核对源码，未运行业务测试或产品验收。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "复验并修复生产构建的 Monaco worker 加载",
+        "type": "核查",
+        "state": "待核查",
+        "priority": "P1",
+        "problem": "历史 eval 在 Web 与 Electron 打开普通文件触发 worker 错误遮罩；当前源码仍先保存 URL 再构造 Worker，本轮尚未检查当前 production bundle。",
+        "acceptance": [
+          "用当前 production Desktop/Web bundle 打开 txt、TypeScript、JSON、CSS、HTML 与 diff",
+          "worker 依赖实际加载成功且无全局 UI crashed 遮罩",
+          "若复现，修复构建入口并验证局部编辑器错误不阻断整个 App"
+        ],
+        "evidence": [
+          "apps/desktop/src/monaco.config.ts",
+          "apps/desktop/src/pages/CodePage.vue"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "直接观察与代码解释"
+          }
+        ]
+      }
+    ]
+  },
+  "web": {
+    "facts": [
+      {
+        "name": "通过 alias 复用 Desktop renderer 与平台 shim",
+        "state": "源码可见",
+        "evidence": [
+          "apps/web/vite.config.ts",
+          "apps/web/src/main.ts",
+          "apps/web/src/platform/webShim.ts"
+        ],
+        "boundary": "webShim 必须先于 renderer 安装；Gateway 使用同源地址。"
+      },
+      {
+        "name": "浏览器未提供本地 PTY、桌宠、分离窗口、原生目录选择及 Electron 磁盘布局 adapter",
+        "state": "范围边界",
+        "evidence": [
+          "apps/web/src/platform/webShim.ts",
+          "apps/web/vite.config.ts"
+        ],
+        "boundary": "这是当前平台能力范围，不能全部自动登记为必须补齐的缺陷。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "明确 Web 平台能力与布局持久化范围",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "现有平台 shim 有意降级原生能力；是否增加浏览器布局持久化和远程终端需要产品范围决策。",
+        "acceptance": [
+          "记录 Web 支持与不可用能力，并说明各功能可理解的降级行为",
+          "明确是否建设浏览器布局持久化和远程终端；只有纳入范围的能力再拆实现任务",
+          "验证不提供 terminal/pets/native picker 时共享页面不抛未处理错误"
+        ],
+        "evidence": [
+          "apps/web/src/platform/webShim.ts",
+          "apps/TinadecUI/src/components/useUie.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "gwTransport": {
+    "facts": [
+      {
+        "name": "HTTP JSON/raw 代理及 local/cloud 认证",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecGateway/src/auth.ts",
+          "TinadecGateway/src/config.ts",
+          "TinadecGateway/src/coreClient.ts"
+        ],
+        "boundary": "本地跳过认证，云端 API Key/JWT HS256 与租户上下文；Gateway 不持有业务权威状态。本轮仅静态核对源码，未运行业务测试或产品验收。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收云端身份与跨租户传输链路",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "已有认证实现，但正式 eval 未演练真实 Core 的跨租户隔离，本轮也未验收。",
+        "acceptance": [
+          "真实 Core 下两个租户的会话、运行和审批访问互不越界",
+          "伪造、过期、缺失凭据得到准确拒绝码",
+          "principal/tenant/request id 经 Gateway 转发且不能绕过 Core 的授权"
+        ],
+        "evidence": [
+          "TinadecGateway/src/auth.ts",
+          "TinadecGateway/src/headers.ts",
+          "TinadecGateway/src/coreClient.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "尚未覆盖与诚实边界"
+          }
+        ]
+      }
+    ]
+  },
+  "gwSessions": {
+    "facts": [
+      {
+        "name": "项目、会话、interaction 与 run 控制薄代理",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/coreClient.ts"
+        ],
+        "boundary": "interaction 受理返回 JSON receipt，客户端另订 run SSE；业务状态归 Core。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收 run 控制与 SSE 续接透传",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "真实 admission/control/reconnect 的透传行为需要联合 App/Core 验收，不能只看路由存在。",
+        "acceptance": [
+          "interaction 的 201 receipt、错误状态及幂等头正确",
+          "暂停、恢复、取消到达真实 Core 状态",
+          "Last-Event-ID/cursor 重连续接保留事件顺序及去重语义",
+          "首个模型预览可在上游流结束前收到"
+        ],
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/coreClient.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "gwConfig": {
+    "facts": [
+      {
+        "name": "模型、配置、AgentPack 与市场薄代理",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/marketProxy.test.ts"
+        ],
+        "boundary": "model_parameters、If-Match 与 Core 错误透传；市场 query 使用 q/source_id/limit/offset，没有独立配置权威。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收配置 revision 与真实市场查询透传",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "历史存在市场参数拼写错误被 mock 测试掩盖；当前已修源码需要真实端点验证，并检查配置 revision 的真实链路。",
+        "acceptance": [
+          "同一配置经直接 Core 与 Gateway 写读一致，ETag/If-Match 与过期冲突正确",
+          "市场 q/source_id/limit/offset 在真实目录产生预期过滤和分页",
+          "AgentPack 幂等头、安装 receipt 与 ProblemDetails 不丢失"
+        ],
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/marketProxy.test.ts",
+          "TinadecGateway/src/runtimeProxy.test.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "gwControl": {
+    "facts": [
+      {
+        "name": "组织、拓扑、证据、审批 gate 与 TinaChat 生成契约代理",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecGateway/src/organizationRoutes.ts",
+          "TinadecGateway/src/tinaChatRoutes.ts"
+        ],
+        "boundary": "query/body/header/status 透传；Core 决定成员可见性与决策权限；全局聊天室 UI 删除不等于 HTTP observer 契约删除。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收组织可见性与治理拒绝的真实透传",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "生成路由和契约存在，不代表真实身份可见性、静音和审批 gate 数据已经验收。",
+        "acceptance": [
+          "非角色访问/决策得到 Core 原始拒绝状态与代码",
+          "组织、拓扑、证据、审批 gate 的 query/body 均实际生效",
+          "成员可见性配置与静音变化在通过 Gateway 的读面正确呈现"
+        ],
+        "evidence": [
+          "TinadecGateway/src/organizationRoutes.ts",
+          "TinadecGateway/src/tinaChatRoutes.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "gwUserTools": {
+    "facts": [
+      {
+        "name": "工具执行由 Core 治理；独立 Tool Runtime 仅可选读查询",
+        "state": "范围边界",
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/config.ts",
+          "TinadecGateway/src/toolRuntimeClient.ts"
+        ],
+        "boundary": "code/tools execute 和 user/tool-actions 均转 Core；Tool Runtime 默认 URL 空，无默认 48732 HTTP 服务；当前独立面仅 health/manifest/tools 读查询。"
+      }
+    ],
+    "tasks": []
+  },
+  "gwStream": {
+    "facts": [
+      {
+        "name": "SSE、raw、日志和附件流的取消信号传播",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecGateway/src/coreClient.ts",
+          "TinadecGateway/src/streaming.ts",
+          "TinadecGateway/src/index.ts"
+        ],
+        "boundary": "request.signal 已传上游，最新修复已有历史 200/200 上游关闭与 1000 次中断存活证据；本轮未重跑，不重复列未修。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "建立长期连接与 Bun 版本升级的稳定性验收",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "取消传播专项已修；历史 Bun 原生断言意味着长期真实负载和运行时版本门禁仍需证据。",
+        "acceptance": [
+          "真实 Core/模型下持续运行并混合 run/events/log/attachment 流的关闭和重连",
+          "下游关闭后上游与响应体资源释放，Gateway 不出现原生断言退出",
+          "Bun 升级复跑取消与长连接场景并记录版本、时长和资源读数",
+          "预期 AbortError 不被伪装成未知错误，也不全局吞掉异常"
+        ],
+        "evidence": [
+          "TinadecGateway/src/coreClient.ts",
+          "TinadecGateway/src/streaming.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/gateway-stability-2026-10-05.zh-CN.md",
+            "section": "未闭合边界"
+          }
+        ]
+      }
+    ]
+  },
+  "wsPartial": {
+    "facts": [
+      {
+        "name": "三个 WebSocket 路由尚未连接上游",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/websocket.ts"
+        ],
+        "boundary": "terminal/debug/collaboration 路由仅本地 pub/sub；用户终端经 IPC、智能体终端经 Core journal/SSE 与 HTTP，两种当前终端均不依赖这些 WS 桩。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "确定 WebSocket 的产品用途与保留策略",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "路由桩存在不表示产品已要求全部 WS 能力；必须先确认用途，避免默认另建终端执行链。",
+        "acceptance": [
+          "逐条确认 terminal/debug/collaboration 的真实消费者与需求",
+          "记录保留并实现、明确不可用或退役的选择",
+          "若纳入实现，定义身份、上游往返、断线传播与背压验收"
+        ],
+        "evidence": [
+          "TinadecGateway/src/index.ts",
+          "TinadecGateway/src/websocket.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "debugUi": {
+    "facts": [
+      {
+        "name": "Debug Studio 前端存在，部分专用后端仍是桩",
+        "state": "部分实现",
+        "evidence": [
+          "apps/desktop/src/debug/DebugStudio.vue",
+          "apps/desktop/src/debug/composables/useTraceData.ts",
+          "apps/desktop/src/debug/composables/useMetrics.ts",
+          "TinadecCore/AspNetCore/Endpoints/StubEndpoints.cs"
+        ],
+        "boundary": "MapDebugStubs 的 trace/metrics/diagnostics 返回空集合，trace detail 404，模拟/breakpoint 写返回 501；已有 Core journal/SSE 不等于专用调试后端完成。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "完成真实 trace、metrics、diagnostics 数据到界面的闭环",
+        "type": "实现",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "Debug UI 已能发请求，但专用后端仍返回空桩，无法靠真实运行定位各阶段故障。",
+        "acceptance": [
+          "先确定真实 trace/metrics/diagnostics schema 与数据采集责任",
+          "实际 run 生成可关联阶段、时间及失败的 trace/metrics 数据",
+          "界面的会话/时间窗筛选、详情与失败定位使用真实数据",
+          "模拟写操作和 breakpoint 的产品范围、身份与权限另行明确"
+        ],
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/StubEndpoints.cs",
+          "apps/desktop/src/debug/DebugStudio.vue"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "marketUi": {
+    "facts": [
+      {
+        "name": "UIE 市场过滤、目录、详情与安装提案界面",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/pages/MarketPage.vue",
+          "apps/desktop/src/controllers/MarketController.ts"
+        ],
+        "boundary": "目录与安装业务归 Core Skills；等待 UIE.ready 后选择市场快照、挂载画布并启动 controller。"
+      },
+      {
+        "name": "市场 classic 边界与初次布局 ready 修复",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/pages/MarketPage.vue",
+          "docs/market-route-stability-2026-10-05.zh-CN.md"
+        ],
+        "boundary": "最新专项已历史验收；离开等待页不得重新启动读取；没有证明具体 anchor/cache 根因，本轮未重跑。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收真实市场来源、安装提案与结果回写",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "页面与专项路由稳定性已有实现，但完整市场业务不能由布局验证代替。",
+        "acceptance": [
+          "真实来源添加/刷新/筛选/分页得到正确目录",
+          "详情→安装提案→批准/执行→安装状态形成可追踪闭环",
+          "离线、坏源及读取期间离开页面提供准确状态且无重复请求",
+          "Home/Market 往返保留用户布局与当前筛选状态"
+        ],
+        "evidence": [
+          "apps/desktop/src/controllers/MarketController.ts",
+          "apps/desktop/src/pages/MarketPage.vue"
+        ],
+        "legacy": [
+          {
+            "file": "docs/market-route-stability-2026-10-05.zh-CN.md",
+            "section": "验证与诚实边界"
+          }
+        ]
+      }
+    ]
+  },
+  "desktop": {
+    "facts": [
+      {
+        "name": "Electron Desktop 与三平台辅助资源",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/package.json",
+          "apps/desktop/electron/preload.cjs",
+          "apps/desktop/scripts/runtimeTargets.mjs"
+        ],
+        "boundary": "主进程/原生桥/共享 renderer 已存在；服务冒烟不等于全部原生交互完成。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收三平台安装版原生交互",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "已有三平台发布和服务冒烟记录；Linux/macOS 用户终端、菜单、托盘和字体等交互尚缺真实操作证据。",
+        "acceptance": [
+          "在目标安装版窗口实际输入命令、resize、退出终端，验证 PTY 与子进程清理",
+          "验证独立面板、主题同步、原生菜单/托盘与字体",
+          "macOS 首启检查 quarantine/Gatekeeper 的实际体验",
+          "记录目标 OS、安装制品及真实交互结果"
+        ],
+        "evidence": [
+          "apps/desktop/electron/terminalManager.cjs",
+          "apps/desktop/electron/preload.cjs",
+          "apps/desktop/scripts/runtimeTargets.mjs"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "nativeBridge": {
+    "facts": [
+      {
+        "name": "受控 preload API 暴露原生能力与用户本地终端",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/electron/preload.cjs",
+          "apps/desktop/electron/terminalManager.cjs"
+        ],
+        "boundary": "窗口、对话框、剪贴板、偏好、宠物与终端由 Electron 提供；业务文件和 Git 操作仍经 Gateway/Core/Tools，不能另建第二套业务执行后端。"
+      }
+    ],
+    "tasks": []
+  },
+  "serviceManager": {
+    "facts": [
+      {
+        "name": "读取内置 runtime 并管理本地 Core/Gateway",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/electron/serviceManager.cjs"
+        ],
+        "boundary": "仅 packaged 且 Gateway 配置为精确本地地址时拥有服务；Tools 进程归 Core；已按平台处理数据根与进程树。"
+      },
+      {
+        "name": "Manager 机器注册交接尚未接通",
+        "state": "缺口已确认",
+        "evidence": [
+          "apps/desktop/electron/serviceManager.cjs",
+          "docs/tinadec-office-release-contract.zh-CN.md"
+        ],
+        "boundary": "当前实现只读取 resources/runtime；Manager 是仓库外消费者，不应默认成为强制产品依赖。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "定义 App 与 Manager 的运行时发现和归属交接",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "规范中的机器注册交接未落到当前 serviceManager，需先明确运行时选择、版本及进程归属契约。",
+        "acceptance": [
+          "形成内置 runtime 与 Manager 管理 runtime 的发现、选择与版本契约",
+          "定义运行时不可用、冲突、回落及诊断行为",
+          "定义退出时仅停止 App 拥有的进程，且独立部署仍可使用",
+          "实现任务在契约确定后按平台拆分"
+        ],
+        "evidence": [
+          "apps/desktop/electron/serviceManager.cjs",
+          "docs/tinadec-office-release-contract.zh-CN.md"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "prefs": {
+    "facts": [
+      {
+        "name": "桌面偏好与按项目/页面布局的本地持久化",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/electron/layoutStore.cjs",
+          "apps/TinadecUI/src/components/useUie.ts"
+        ],
+        "boundary": "不保存第二份会话、审批或模型路由权威状态；Web 当前未提供 Electron 磁盘 adapter。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收重启、损坏和历史布局的恢复",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "源码已有持久化与修复；真实旧 chatroom 布局项、坏文件和多个项目重启还原需要产品证据。",
+        "acceptance": [
+          "自定义两个项目的 Home/Market 布局，重启后分别还原",
+          "损坏文件有可理解降级且不覆盖未损坏布局",
+          "带历史 chatroom 条目的真实布局文件不引发路由或渲染错误",
+          "undo 不跨项目，继承布局未被无意写回成项目自定义"
+        ],
+        "evidence": [
+          "apps/desktop/electron/layoutStore.cjs",
+          "apps/TinadecUI/src/components/useUie.ts"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "renderer": {
+    "facts": [
+      {
+        "name": "App、路由、API、状态与通知组合层",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/App.vue",
+          "apps/desktop/src/router.ts",
+          "apps/desktop/src/api.ts"
+        ],
+        "boundary": "展示 Core 返回事实；Home/Market 页面 ready 控制 splash；连接重试不重挂主页面。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "复验 API 包装后的取消错误语义",
+        "type": "核查",
+        "state": "待核查",
+        "priority": "P1",
+        "problem": "历史 eval 记录 AbortError 被包装成普通连接错误；当前 api.ts 的网络 catch 仍创建新 Error，本轮未实际取消请求复现。",
+        "acceptance": [
+          "主动取消与切页中断不出现无法连接后端的错误通知",
+          "真实网络失败仍展示准确错误",
+          "若复现保留原始取消类别/原因，并在真实请求与组件交互中复验"
+        ],
+        "evidence": [
+          "apps/desktop/src/api.ts",
+          "apps/desktop/src/controllers/HomeController.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "直接观察与代码解释"
+          }
+        ]
+      },
+      {
+        "title": "复验窄宽度布局中的发送主操作",
+        "type": "核查",
+        "state": "待核查",
+        "priority": "P1",
+        "problem": "历史 eval 在 900/1120 渲染宽度观察到右栏遮挡发送控件；本轮未检查当前布局，先复验再决定修复范围。",
+        "acceptance": [
+          "在当前 Web 与 Electron 的 900/1120 及最小支持宽度检查发送/附件/权限菜单可用",
+          "打开不同右栏、折叠/拖动/切会话后主操作仍可点击和键盘访问",
+          "复现时记录尺寸、布局和截图，修复后沿同一配置验收"
+        ],
+        "evidence": [
+          "apps/desktop/src/pages/HomePage.vue",
+          "apps/TinadecUI/src/components/useUie.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/whole-product-eval-2026-10-05.zh-CN.md",
+            "section": "直接观察与代码解释"
+          }
+        ]
+      }
+    ]
+  },
+  "settings": {
+    "facts": [
+      {
+        "name": "版本化模型、agent、mode、prompt 与集成配置界面",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/pages/SettingsPage.vue",
+          "apps/desktop/src/settings/sections/AgentPacksPanel.vue",
+          "apps/desktop/src/api.ts"
+        ],
+        "boundary": "模型参数按 provider+model 保存并传 If-Match；保存失败保留编辑区，刷新失败保留旧列表；最新已修项不重复登记为缺口。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收配置发布到真实供应商与冻结 run 的生效范围",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "模型参数和配置修复已有单测及历史局部验证，但真实外部模型与 harness 账号回合仍缺证据。",
+        "acceptance": [
+          "修改 provider/model 参数并保存，新 run 使用参数，旧冻结 run 不追溯变化",
+          "过期 revision 提示可刷新且保存失败保留草稿",
+          "API、CLI、TUI、ACP 仅对已纳入支持范围的渠道分别用真实账号验收",
+          "删除模型按 provider+model 精确匹配，默认模型与其他配置不被误改"
+        ],
+        "evidence": [
+          "apps/desktop/src/pages/SettingsPage.vue",
+          "apps/desktop/src/api.ts"
+        ],
+        "legacy": [
+          {
+            "file": "docs/model-settings-review-2026-10-05.zh-CN.md",
+            "section": "验证与后续事项"
+          }
+        ]
+      }
+    ]
+  },
+  "packs": {
+    "facts": [
+      {
+        "name": "GraphSeedPack 制品与 preview/install/upgrade bootstrap",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/agentPacks/GraphSeedPack/manifest.json",
+          "apps/desktop/src/agentPacks/graphSeedPackBootstrap.ts"
+        ],
+        "boundary": "App 持有制品，Core 拥有安装与不可变版本；preview 身份/digest/action、preview_id、ETag/If-Match 有校验。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收 AgentPack 安装升级与模式切换的真实闭环",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "bootstrap 与契约守卫存在，真实多窗口并发、升级冲突和用户自定义保留需产品验收。",
+        "acceptance": [
+          "新工作区、重复安装与多窗口/浏览器标签并发安装得到正确幂等结果",
+          "延期、新于内置版本、冲突、升级失败均保留准确状态",
+          "升级保留用户绑定与不可变发布版本",
+          "七模式切换维持同一 meeting 会话身份且冻结配置准确"
+        ],
+        "evidence": [
+          "apps/desktop/src/agentPacks/graphSeedPackBootstrap.ts",
+          "apps/desktop/src/agentPacks/GraphSeedPack/manifest.json"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "uiEngine": {
+    "facts": [
+      {
+        "name": "UIE 唯一布局权威与纯 TS engine",
+        "state": "源码可见",
+        "evidence": [
+          "apps/TinadecUI/src/engine/commandBus.ts",
+          "apps/TinadecUI/src/engine/constraints.ts",
+          "apps/TinadecUI/src/engine/index.ts"
+        ],
+        "boundary": "布局修改统一走 command bus；具备 revision、undo/redo、约束、修复与持久化协议；本轮未重跑 engine 用例。"
+      }
+    ],
+    "tasks": []
+  },
+  "uiCards": {
+    "facts": [
+      {
+        "name": "UIE 组件、15 卡型与首次激活挂载",
+        "state": "源码可见",
+        "evidence": [
+          "apps/TinadecUI/src/components/cards/index.ts",
+          "apps/TinadecUI/src/components/UieCardHost.vue",
+          "apps/TinadecUI/src/components/useUie.ts"
+        ],
+        "boundary": "组件单向依赖 engine；classic/Vapor 是实现边界；最新 Home/Market classic 规避和 ready 修复有历史专项证据，恢复 Vapor 是后续优化选择，不默认算缺功能。"
+      }
+    ],
+    "tasks": []
+  },
+  "govUi": {
+    "facts": [
+      {
+        "name": "运行、治理、记忆、制品、快照与恢复检查页面",
+        "state": "源码可见",
+        "evidence": [
+          "apps/desktop/src/router.ts",
+          "apps/desktop/src/pages/WorkbenchPage.vue",
+          "apps/desktop/src/pages/GovernanceBoardPage.vue",
+          "apps/desktop/src/pages/MemoryPage.vue",
+          "apps/desktop/src/pages/SnapshotsPage.vue",
+          "apps/desktop/src/pages/LibraryPage.vue",
+          "apps/desktop/src/pages/RecoveryCheckPage.vue"
+        ],
+        "boundary": "页面存在不代表真实数据、决策及完整恢复计划均验收；全局聊天室 UI 已删除。"
+      },
+      {
+        "name": "完整 restore-plan UX 尚未整体闭环",
+        "state": "部分实现",
+        "evidence": [
+          "apps/desktop/src/pages/RecoveryCheckPage.vue",
+          "apps/desktop/src/pages/SnapshotsPage.vue",
+          "docs/architecture-views/overview-2026-10-05/README.zh-CN.md"
+        ],
+        "boundary": "已有快照与恢复检查切片；不能把页面或单次接口调用等同于完整恢复计划能力。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "联合 Lifecycle 定义完整恢复计划用户流程",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "恢复检查与快照界面存在，完整 restore-plan 的选择、影响解释、确认、执行和失败恢复仍需明确。",
+        "acceptance": [
+          "明确可恢复对象、前置条件、冲突及恢复影响的呈现",
+          "形成用户选择计划→审查→执行→进度→结果与失败处置流程",
+          "为快照/恢复检查的既有切片和新流程分别列验收，不重复记实现",
+          "与 Core Lifecycle 的恢复计划契约和任务建立依赖关系"
+        ],
+        "evidence": [
+          "apps/desktop/src/pages/RecoveryCheckPage.vue",
+          "apps/desktop/src/pages/SnapshotsPage.vue",
+          "docs/architecture-views/overview-2026-10-05/README.zh-CN.md"
+        ],
+        "legacy": []
+      }
+    ]
+  }
+}

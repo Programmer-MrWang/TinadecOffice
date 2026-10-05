@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1305" viewBox="0 0 1500 1305" role="img"><title>数据、安全与持久化验收模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="1305" fill="#fff"/><text class="title" x="40" y="52">数据、安全与持久化验收</text><text class="small" x="40" y="85">X-DATA · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="1135" rx="16" fill="#f3f6fb" stroke="#22754e"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,705 870,705" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,830 870,830" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,955 870,955" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,1080 870,1080" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,1205 870,1205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="205" style="font-weight:650;fill:#22754e">关系状态与向量</text><text class="small" x="84" y="233">SQLite 默认 / PostgreSQL 可选</text><text class="small" x="84" y="255">11 个领域 DbContext</text>
+
+
+<rect x="64" y="300" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="330" style="font-weight:650;fill:#22754e">内容、事件与证据文件</text><text class="small" x="84" y="358">sessions / tasks / events / artifacts</text><text class="small" x="84" y="380">content / vectors / harness scratch</text>
+
+
+<rect x="64" y="425" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="455" style="font-weight:650;fill:#22754e">密钥与一次性材料</text><text class="small" x="84" y="483">provider credential 仅存引用</text><text class="small" x="84" y="505">Windows DPAPI / 加密 SecretStore</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">Persistence · 公共存储适配</text>
+<text class="small" x="892" y="253">CORE-PERSISTENCE</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">VectorStore · 检索底座</text>
+<text class="small" x="892" y="378">CORE-VECTOR</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">Storage.Migrations.Sqlite</text>
+<text class="small" x="892" y="503">CORE-SQLITE</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">Storage.Migrations.PostgreSql</text>
+<text class="small" x="892" y="628">CORE-POSTGRES</text>
+<rect x="870" y="675" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="705">Memory · 会话与长期记忆</text>
+<text class="small" x="892" y="753">CORE-MEMORY</text>
+<rect x="870" y="800" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="830">Lifecycle · 运行事实与恢复</text>
+<text class="small" x="892" y="878">CORE-LIFECYCLE</text>
+<rect x="870" y="925" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="955">AgentGraph · 图与资源</text>
+<text class="small" x="892" y="1003">CORE-AGENT-GRAPH</text>
+<rect x="870" y="1050" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="1080">Models · 模型与 Harness</text>
+<text class="small" x="892" y="1128">CORE-MODELS</text>
+<rect x="870" y="1175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="1205">Governance · 授权与审批</text>
+<text class="small" x="892" y="1253">CORE-GOVERNANCE</text>
+<text class="small" x="40" y="1280">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>

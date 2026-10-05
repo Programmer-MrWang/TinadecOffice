@@ -1,0 +1,735 @@
+{
+  "Api": {
+    "facts": [
+      {
+        "name": "可执行 HTTP 宿主与启动编排",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Api/Program.cs"
+        ],
+        "boundary": "先注册 persistence 与 Runtime，再注册 HTTP；启动阶段迁移、Lifecycle 对账及幂等开发种子。源码存在不代表本轮启动/重启验收完成。"
+      }
+    ],
+    "tasks": []
+  },
+  "AspNetCore": {
+    "facts": [
+      {
+        "name": "可挂载 HTTP 层",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/AspNetCore/TinadecCore.AspNetCore.csproj",
+          "TinadecCore/AspNetCore/TinadecCoreHttpExtensions.cs"
+        ],
+        "boundary": "该工程引用 Runtime，端点实现归属此层，可供其他 ASP.NET Core 宿主挂载。"
+      },
+      {
+        "name": "提示词 HTTP 能力仍有占位",
+        "state": "缺口已确认",
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs:59"
+        ],
+        "boundary": "clone/rollback/signals/compare/context-preview 返回 501；versions 返回空；effectiveness 返回零占位，不可计为已实现功能。"
+      },
+      {
+        "name": "部分审批响应未登记类型 schema",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs:70",
+          "TinadecCore/tests/TinadecCore.Api.Tests/CoreOpenApiSnapshotTests.cs"
+        ],
+        "boundary": "审批列表/详情委托给返回 IResult 的服务，未通过 Produces 登记响应类型；应进一步核查完整内部快照。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "确认并补全审批响应契约登记",
+        "type": "核查",
+        "state": "待核查",
+        "priority": "P2",
+        "problem": "列表和详情响应端点未显式登记 DTO，OpenAPI/生成客户端对真实审批证据的覆盖需要确认。",
+        "acceptance": [
+          "核对 /approvals 与 /approvals/{id} 当前快照能否表达真实响应及证据字段。",
+          "如缺失，登记真实响应类型并同步更新唯一 v1 快照、Gateway 映射和生成客户端；不新增兼容层。",
+          "生成类型应准确包含可选证据字段与状态，真实响应可按生成类型消费。"
+        ],
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs:70",
+          "TinadecCore/tests/TinadecCore.Api.Tests/CoreOpenApiSnapshotTests.cs"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "Runtime": {
+    "facts": [
+      {
+        "name": "全量模块组合根及跨模块适配",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Runtime/TinadecCoreServiceCollectionExtensions.cs:32"
+        ],
+        "boundary": "装配正式模式、身份边界、模型解析、用户工具动作、恢复、拓扑、唤醒和审批门；也有 Minimal 注册入口。"
+      },
+      {
+        "name": "治理动作执行入口",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/Runtime/GovernanceActionExecutor.cs:39"
+        ],
+        "boundary": "支持 pause/resume/stop run、环境指派和已有 worktree 指派；其他动作返回 action_not_implemented，报告保留未执行。"
+      },
+      {
+        "name": "启动恢复与持续终态修复",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Runtime/RecoveryCoordinator.cs"
+        ],
+        "boundary": "区分运行恢复和用户工具动作恢复；源码存在不等于恢复计划 UX 或多宿主恢复完成。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "确定剩余治理动作的范围与实施顺序",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "统一执行入口对改派、串行化等动作尚无 executor，历史项目级治理写面仍未闭环；不能把报告提出建议记作实际执行。",
+        "acceptance": [
+          "列出本期支持的动词、执行者与目标状态所有者，逐项确定权限和会话范围。",
+          "改派/串行化应有可观察的执行效果、幂等键、审计和未执行原因。",
+          "项目级治理若纳入范围，应单独定义跨会话权限与受控写面。"
+        ],
+        "evidence": [
+          "TinadecCore/Runtime/GovernanceActionExecutor.cs:39"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N9：治理动作与项目级治理"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N5. 执行者通讯与治理动作"
+          }
+        ]
+      }
+    ]
+  },
+  "DmaEA": {
+    "facts": [
+      {
+        "name": "准入冻结及持久运行主链",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/DmaEA/FullDuplexRunCoordinator.cs:241",
+          "TinadecCore/DmaEA/FullDuplexRunEngine.cs"
+        ],
+        "boundary": "主链包含计划、执行、监督和最终回答；配置冻结与模型输出流已有源码，完整业务验收未重跑。"
+      },
+      {
+        "name": "独立工具任务并发推进",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/DmaEA/FullDuplexRunEngine.cs:1541"
+        ],
+        "boundary": "任务私有 checkpoint 合并与审批过期驻留传播已有，不能据此称执行子 run 已交付。"
+      },
+      {
+        "name": "task_dispatch 当前写入同一 run 任务图",
+        "state": "缺口已确认",
+        "evidence": [
+          "TinadecCore/DmaEA/FullDuplexRunEngine.cs:2971"
+        ],
+        "boundary": "ApplyPendingTaskDispatchesAsync 把任务加入 checkpoint.Tasks；尚未从这条路径创建独立执行子 run。"
+      },
+      {
+        "name": "operation 工具面由模式声明决定",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/DmaEA/RunFreezeGate.cs:24"
+        ],
+        "boundary": "operation 永久零工具闸已移除，不能沿用旧图的禁工具解释；实际派发仍受声明与授权约束。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "把 task_dispatch 接入持久执行子 run",
+        "type": "实现",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "派发当前只追加父 run 的任务图，尚不能提供完整独立执行、审批、取消和恢复容器。",
+        "acceptance": [
+          "真实 task_dispatch 产生 parent_run_id、parent_task_id、run_kind 并冻结子执行配置。",
+          "子 run 的审批、取消、恢复和资源授权互相隔离，父控制按已定义语义级联。",
+          "子结果和失败证据回流父任务，重启后不会重复派发或重复回流。",
+          "拓扑能表达父子关系，兄弟 checkpoint 及用量不会互相污染。"
+        ],
+        "evidence": [
+          "TinadecCore/DmaEA/FullDuplexRunEngine.cs:2971",
+          "TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs:81"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N4：执行并发与执行子 run"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N4. 执行并发容器与资源所有权"
+          }
+        ]
+      }
+    ]
+  },
+  "AgentGraph": {
+    "facts": [
+      {
+        "name": "资源账本、环境登记与审批规则",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/AgentGraph/AgentGraphModuleRegistrar.cs"
+        ],
+        "boundary": "具有写范围租约、失活回收、环境 registry、规则服务与证据索引器注册；登记不等于完整资源隔离。"
+      },
+      {
+        "name": "证据混合回查与正文上限",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:21",
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:89",
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:160"
+        ],
+        "boundary": "向量/关键词回查已接，正文默认按 MaxContentChars=64000 截断，完整原文不保证保留。"
+      },
+      {
+        "name": "本地执行根绑定与拒绝不明确目标",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/AgentGraph/ToolExecutionTargetResolver.cs:36"
+        ],
+        "boundary": "单一 worktree 或带本地根的 local/test/terminal 环境可绑定 provider；多个未绑定 worktree、多个匹配环境及 remote/cloud 无本地绑定时明确拒绝。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "将证据全文与检索摘要分离保存",
+        "type": "实现",
+        "state": "未开始",
+        "priority": "P1",
+        "problem": "证据正文写入时默认截断 64000 字符，超长报告无法保证完整回查。",
+        "acceptance": [
+          "超长报告的全文以内容引用完整保存，摘要与原文使用不同字段及明确版本。",
+          "按权限可读完整原文，检索片段可定位原文及来源。",
+          "嵌入缺失或模型故障不影响原文读取；重建索引无需丢弃原文。"
+        ],
+        "evidence": [
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:89"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N8：证据与上下文治理"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N8. 全文与上下文角色闭环"
+          }
+        ]
+      },
+      {
+        "title": "设计任务级多目标资源与远程 provider 契约",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "现有 resolver 只支持明确本地目标；多 worktree 缺任务绑定、remote/cloud 无 provider 绑定。",
+        "acceptance": [
+          "明确 run/task/worktree/environment 的绑定模型和唯一执行目标选择规则。",
+          "remote/cloud/browser 声明实际执行 provider、认证边界和取消/恢复语义。",
+          "任何多义或不支持目标明确拒绝，不能静默退回项目根。",
+          "执行证据可定位实际机器、provider 与工作目录。"
+        ],
+        "evidence": [
+          "TinadecCore/AgentGraph/ToolExecutionTargetResolver.cs"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N7：环境与沙箱"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N7. shell 沙箱与资源到执行的绑定"
+          }
+        ]
+      }
+    ]
+  },
+  "TinaChat": {
+    "facts": [
+      {
+        "name": "组织通信与持久唤醒",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/TinaChat/TinaChatModuleRegistrar.cs",
+          "TinadecCore/TinaChat/TinaChatService.Wakes.cs:129"
+        ],
+        "boundary": "组织成员、收件箱与报告具备实现；wake 有 claim、fencing、重试及成员/组织预算。全局聊天室 UI 已移除，不改变组织通信模块的存在。"
+      },
+      {
+        "name": "执行者提醒接入原 run 的上下文补丁",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/TinaChat/TinaChatService.Wakes.cs:221",
+          "TinadecCore/Runtime/ExecutorMessageWakeSink.cs"
+        ],
+        "boundary": "在线执行者提醒由 wake 进入 run-scoped patch；这不等于专用执行者回合、reply receipt、离线待办转移和终态回群全闭环。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "设计执行者通讯回执与离线待办协议",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "现有消息唤醒接入原 run 的补丁，成员独立持久回合与明确回复确认仍需定义。",
+        "acceptance": [
+          "定义来源消息、领取、执行回合、回复回执和完成的持久状态。",
+          "失败/取消/崩溃后重试不丢输入，也不重复已有回复副作用。",
+          "离线/旧 run 的 inbox 保留，并定义何时移交到新执行回合。",
+          "100 条突发提醒可追溯全部消费或显式待处理；权限限制不放宽。"
+        ],
+        "evidence": [
+          "TinadecCore/TinaChat/TinaChatService.Wakes.cs:221",
+          "TinadecCore/Runtime/ExecutorMessageWakeSink.cs"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N5：执行者通讯"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "O5. 唤醒泛化"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N5. 执行者通讯与治理动作"
+          }
+        ]
+      }
+    ]
+  },
+  "Context": {
+    "facts": [
+      {
+        "name": "本轮上下文输入与安全边界补丁",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Context/ContextModuleRegistrar.cs:57",
+          "TinadecCore/Context/ContextModuleRegistrar.cs:242"
+        ],
+        "boundary": "组装消息、工作区指令、附件、技能文件与 run 补丁，进行预算分配；不能把预算裁剪等同于事件驱动语义压缩。"
+      },
+      {
+        "name": "工作区技能与指令按实际文件读取",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Context/ContextModuleRegistrar.cs:526"
+        ],
+        "boundary": "与 Skills 通用 provider 区别明确；符号链接、路径拼写和跨平台边界仍需定向验收。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "定义预算驱动的上下文压缩与恢复协议",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P1",
+        "problem": "现有预算分配/裁剪及补丁不构成专用上下文角色、可恢复摘要和全文引用的完整闭环。",
+        "acceptance": [
+          "明确触发事件、预算阈值、压缩角色权限和摘要版本。",
+          "压缩后的 run 可恢复，摘要能追溯完整来源，敏感来源权限不被扩大。",
+          "超长对话/报告压缩后仍可按权限回查全文，压缩模型故障有明确退路。"
+        ],
+        "evidence": [
+          "TinadecCore/Context/ContextModuleRegistrar.cs:57",
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:89"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/review-2026-10-01.zh-CN.md",
+            "section": "N8：证据与上下文治理"
+          },
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N8. 全文与上下文角色闭环"
+          }
+        ]
+      }
+    ]
+  },
+  "Memory": {
+    "facts": [
+      {
+        "name": "会话事实、附件与长期记忆审核",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Memory/MemoryModuleRegistrar.cs",
+          "TinadecCore/Memory/ProjectSessionStore.cs",
+          "TinadecCore/Memory/MessageAttachmentStore.cs"
+        ],
+        "boundary": "保存会话/消息/turn 与附件；长期记忆候选可采纳和撤销。存储存在不代表真实场景与跨租户验收完成。"
+      },
+      {
+        "name": "已采纳记忆当前按关键词评分检索",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Memory/MemoryModuleRegistrar.cs:107"
+        ],
+        "boundary": "未接 VectorStore；语义检索是否属于必需产品行为需先决定，不能自动创造实现任务。"
+      }
+    ],
+    "tasks": []
+  },
+  "Skills": {
+    "facts": [
+      {
+        "name": "市场目录与受控安装",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Skills/MarketCatalogService.cs",
+          "TinadecCore/Skills/MarketInstallService.cs"
+        ],
+        "boundary": "市场与集成配置已有实现；可安装不等于通用技能 provider 已实现。"
+      },
+      {
+        "name": "通用 ISkillProvider 为空实现",
+        "state": "缺口已确认",
+        "evidence": [
+          "TinadecCore/Skills/SkillsModuleRegistrar.cs:43"
+        ],
+        "boundary": "ListSkillsAsync 返回空数组，GetSkillAsync 返回 null；实际 SKILL.md 读取仍由 Context 完成。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "实现通用技能 provider 的列出与读取",
+        "type": "实现",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "ISkillProvider 当前为空，实现与实际工作区技能读取之间尚无统一事实来源。",
+        "acceptance": [
+          "定义并实现技能 ID、来源、范围、启禁及缺失语义。",
+          "已安装/可用技能可按 agent/工作区范围列出与读取，禁用技能不进入模型输入。",
+          "与 Context 工作区技能读取共享明确所有者，避免重复发现和重复注入。",
+          "市场安装结果可追溯到 provider 可见的对应技能，写入仍走受控安装路径。"
+        ],
+        "evidence": [
+          "TinadecCore/Skills/SkillsModuleRegistrar.cs:43",
+          "TinadecCore/Abstractions/Ports/ISkillProvider.cs",
+          "TinadecCore/Context/ContextModuleRegistrar.cs:526"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "Governance": {
+    "facts": [
+      {
+        "name": "授权决策与策略快照",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Governance/GovernanceModuleRegistrar.cs"
+        ],
+        "boundary": "PDP、authorization service 与 policy snapshot 由 Governance 拥有；模块单独注册时缺可信上下文的默认 resolver fail-closed。"
+      },
+      {
+        "name": "委托审批门与权限检查为不同责任",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Runtime/TinadecCoreServiceCollectionExtensions.cs:79",
+          "TinadecCore/tests/TinadecCore.Api.Tests/ApprovalGateServiceTests.cs"
+        ],
+        "boundary": "运行时负责门调度与读取，Governance 负责授权；不能把独立模型裁决理解为可绕过权限、风险或人类专用动作。"
+      }
+    ],
+    "tasks": []
+  },
+  "Models": {
+    "facts": [
+      {
+        "name": "SDK 与外部 harness 协议适配归属模型模块",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Models/Harness/AgentChatClientFactory.cs:57"
+        ],
+        "boundary": "ACP/headless/TUI/OpenCode 分支均由工厂创建；DmaEA 消费 IAgentChatClientFactory，不直接拥有协议传输实现。"
+      },
+      {
+        "name": "TUI 宿主平台能力需要独立核查",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/Models/Harness/ConPtyTerminalHost.cs",
+          "TinadecCore/Models/Harness/Tui/TuiHarnessRunner.cs"
+        ],
+        "boundary": "Windows ConPTY 宿主存在；平台支持与真实 harness 回合应按当前源码与实机证据逐项登记，不继承历史全支持结论。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "验收真实模型与每个声明支持的 harness 渠道",
+        "type": "验收",
+        "state": "未开始",
+        "priority": "P2",
+        "problem": "工厂分支与进程内测试不能证明真实供应商/二进制、取消/排空及平台行为。",
+        "acceptance": [
+          "每个对用户声明可用的渠道完成真实初始化、回合、公开输出和 usage 核对。",
+          "取消、超时、关闭后无遗留 harness 进程；不支持平台给出准确不可用结果。",
+          "模型参数的真实请求值与用户保存值一致，显式短调用预算不被默认参数放大。"
+        ],
+        "evidence": [
+          "TinadecCore/Models/Harness/AgentChatClientFactory.cs",
+          "TinadecCore/tests/TinadecCore.AgentFramework.Tests/HarnessTerminalHostTests.cs"
+        ],
+        "legacy": [
+          {
+            "file": "docs/agent-graph/todo.zh-CN.md",
+            "section": "N9. 外部验收与遗留问题"
+          }
+        ]
+      }
+    ]
+  },
+  "Lifecycle": {
+    "facts": [
+      {
+        "name": "运行、事件、流、冻结配置、checkpoint 与租约持久化",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs"
+        ],
+        "boundary": "为引擎提供事实和恢复基础；turn 归 Memory，恢复编排归 Runtime。"
+      },
+      {
+        "name": "父子 run 字段与父控制级联",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs:81",
+          "TinadecCore/Lifecycle/StorageLifecycleService.cs:356"
+        ],
+        "boundary": "ParentRunId、ParentTaskId、RunKind 与级联已有；task_dispatch 仍未因此形成完整独立执行子 run。"
+      }
+    ],
+    "tasks": []
+  },
+  "LoopGuard": {
+    "facts": [
+      {
+        "name": "循环检测与任务预算约束",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/LoopGuard/LoopGuardModuleRegistrar.cs:37"
+        ],
+        "boundary": "检查迭代、token、工具次数、连续错误及重复指纹，输出分类与具体计数；引擎如何据此交接仍须业务验收。"
+      }
+    ],
+    "tasks": []
+  },
+  "VectorStore": {
+    "facts": [
+      {
+        "name": "索引、查询与删除底座",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/VectorStore/VectorStoreModuleRegistrar.cs:41",
+          "TinadecCore/VectorStore/VectorStoreModuleRegistrar.cs:65"
+        ],
+        "boundary": "调用 embedding 与项目向量数据库；真实持久化、隔离和重建验收需独立记录。"
+      },
+      {
+        "name": "AgentGraph 已使用向量回查",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/AgentGraph/EvidenceArchiveService.cs:160"
+        ],
+        "boundary": "证据 archive 混合回查是实际生产调用方；Memory 仍只按关键词检索。"
+      }
+    ],
+    "tasks": []
+  },
+  "Prompts": {
+    "facts": [
+      {
+        "name": "冻结流水线与版本片段组装",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Prompts/PromptsModuleRegistrar.cs:57"
+        ],
+        "boundary": "组装器存在；流水线配置/发布归 AgentConfiguration，不能把 HTTP 占位功能算成组装器已验收。"
+      },
+      {
+        "name": "提示词版本及效果 HTTP 面存在占位",
+        "state": "缺口已确认",
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs:59"
+        ],
+        "boundary": "版本列表为空、效果统计为零占位，多项操作 501。"
+      }
+    ],
+    "tasks": [
+      {
+        "title": "确定提示词版本与效果管理的正式功能范围",
+        "type": "方案",
+        "state": "待方案",
+        "priority": "P2",
+        "problem": "公开 HTTP 面保留 versions/effectiveness/clone/rollback/signals/compare/context-preview 占位，不能把占位当作事实数据。",
+        "acceptance": [
+          "逐端点确定保留并实现、明确不可用或删除的正式契约决定。",
+          "保留的 versions 返回真实不可变版本；rollback 行为与版本事实一致。",
+          "效果指标和 signals 来自真实运行事实；context preview 使用实际组装链且遵守权限。",
+          "契约修改同步唯一 v1 快照和客户端，不建立兼容层。"
+        ],
+        "evidence": [
+          "TinadecCore/AspNetCore/Endpoints/ControlPlaneEndpoints.cs:59",
+          "TinadecCore/Prompts/PromptsModuleRegistrar.cs:57"
+        ],
+        "legacy": []
+      }
+    ]
+  },
+  "AgentConfiguration": {
+    "facts": [
+      {
+        "name": "智能体/模式配置与包服务",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/AgentConfiguration/AgentConfigurationModuleRegistrar.cs",
+          "TinadecCore/Runtime/FormalModeResolver.cs"
+        ],
+        "boundary": "拥有配置版本和包服务；正式解析按运行需要冻结配置，源码注册不能代表所有包安装/清理路径已完成验收。"
+      }
+    ],
+    "tasks": []
+  },
+  "Tools": {
+    "facts": [
+      {
+        "name": "Core 中的工具治理与提供方派发",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Tools/ToolsModuleRegistrar.cs",
+          "TinadecCore/Tools/ToolDispatcher.cs"
+        ],
+        "boundary": "负责可信调用准备、授权、审批、租约及恢复；实际执行产品 TinadecTools 独立。"
+      },
+      {
+        "name": "资源账本到本地 provider 根的绑定",
+        "state": "部分实现",
+        "evidence": [
+          "TinadecCore/AgentGraph/ToolExecutionTargetResolver.cs"
+        ],
+        "boundary": "支持明确本地目标；平台沙箱、远程 provider 与多目标行为由对应模块/跨模块任务验收，不继承历史未实现或全面隔离标签。"
+      }
+    ],
+    "tasks": []
+  },
+  "Tenancy": {
+    "facts": [
+      {
+        "name": "租户范围存储与 context accessor",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Tenancy/TenancyModuleRegistrar.cs",
+          "TinadecCore/Tenancy/DevelopmentTenantContextAccessor.cs:15"
+        ],
+        "boundary": "开发 identity 仅在 EnableDevelopmentIdentity 时返回固定范围；否则缺验证上下文明确拒绝。生产身份注入及跨租户黑盒验收需另记。"
+      }
+    ],
+    "tasks": []
+  },
+  "Abstractions": {
+    "facts": [
+      {
+        "name": "跨模块端口和公共运行状态/恢复约束",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Abstractions/TinadecCore.Abstractions.csproj",
+          "TinadecCore/Abstractions/RunStatus/RunStatusMachine.cs",
+          "TinadecCore/Abstractions/RunStatus/RecoveryPolicy.cs"
+        ],
+        "boundary": "引用 Contracts，作为模块编译边界；端口存在不等于每个平台都有实现。"
+      }
+    ],
+    "tasks": []
+  },
+  "Contracts": {
+    "facts": [
+      {
+        "name": "公共 DTO 与事件契约工程",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Contracts/TinadecCore.Contracts.csproj",
+          "TinadecCore/Contracts/Events/EventEnvelope.cs"
+        ],
+        "boundary": "公共类型需与实际 HTTP、OpenAPI、Gateway 和客户端一致；breaking changes 同步唯一 v1，不引入兼容层。"
+      }
+    ],
+    "tasks": []
+  },
+  "Strategies": {
+    "facts": [
+      {
+        "name": "F# 纯策略内核",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Strategies/TinadecCore.Strategies.fsproj"
+        ],
+        "boundary": "列出 ContextBudget、PromptSelection、MemoryScoring、LoopDetection、StateTransition；每个内核的消费者及边界仍需审计，不能认为它替代完整持久运行状态机。"
+      }
+    ],
+    "tasks": []
+  },
+  "Persistence": {
+    "facts": [
+      {
+        "name": "公共数据库与内容/密钥/nonce 适配",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Persistence/ServiceCollectionExtensions.cs"
+        ],
+        "boundary": "注册数据库配置、内容存储、SQLite/PostgreSQL 项目向量库、secret、nonce 和迁移调度；领域各自拥有 DbContext。"
+      }
+    ],
+    "tasks": []
+  },
+  "Storage.Migrations.Sqlite": {
+    "facts": [
+      {
+        "name": "SQLite 独立迁移程序集",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Storage.Migrations.Sqlite/TinadecCore.Storage.Migrations.Sqlite.csproj",
+          "TinadecCore/Storage.Migrations.Sqlite/InitialStorageMigrations.cs"
+        ],
+        "boundary": "包含独立领域迁移文件；旧版本升级、schema reconciliation、备份恢复及重复启动需后续验收。"
+      }
+    ],
+    "tasks": []
+  },
+  "Storage.Migrations.PostgreSql": {
+    "facts": [
+      {
+        "name": "PostgreSQL 独立迁移与 pgvector",
+        "state": "源码可见",
+        "evidence": [
+          "TinadecCore/Storage.Migrations.PostgreSql/TinadecCore.Storage.Migrations.PostgreSql.csproj",
+          "TinadecCore/Storage.Migrations.PostgreSql/VectorStorePgVector.cs"
+        ],
+        "boundary": "提供可选数据库部署迁移；文件存在和历史 CI 都不代表本轮真实 PostgreSQL 或多宿主验收完成。"
+      }
+    ],
+    "tasks": []
+  }
+}
+

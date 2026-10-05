@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="805" viewBox="0 0 1500 805" role="img"><title>三平台交付、Manager 与更新模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="805" fill="#fff"/><text class="title" x="40" y="52">三平台交付、Manager 与更新</text><text class="small" x="40" y="85">X-DELIVERY · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="635" rx="16" fill="#f3f6fb" stroke="#22754e"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
+<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,455 870,455" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,580 870,580" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<path d="M710,205 C810,205 790,705 870,705" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
+<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="205" style="font-weight:650;fill:#22754e">scripts / CI / 三平台制品</text><text class="small" x="84" y="233">win-x64：NSIS + portable</text><text class="small" x="84" y="255">linux-x64：deb / osx-arm64：dmg</text>
+
+
+<rect x="64" y="300" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="330" style="font-weight:650;fill:#22754e">GitHub Release / Manager</text><text class="small" x="84" y="358">发布 artifacts / channel catalog</text><text class="small" x="84" y="380">Manager 消费模块与版本契约</text>
+
+
+<rect x="64" y="425" width="620" height="104" rx="10" fill="#fff" stroke="#22754e"/><text class="text" x="84" y="455" style="font-weight:650;fill:#22754e">native / 平台辅助资源</text><text class="small" x="84" y="483">pin 版 ripgrep、PTY/ConPTY</text><text class="small" x="84" y="505">Windows PortableGit 随包</text>
+
+
+<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="205">Desktop / 本地服务管理</text>
+<text class="small" x="892" y="253">APP-SERVICES</text>
+<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="330">App / AgentPack 内容与安装体验</text>
+<text class="small" x="892" y="378">APP-PACKS</text>
+<rect x="870" y="425" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="455">AgentConfiguration</text>
+<text class="small" x="892" y="503">CORE-AGENT-CONFIG</text>
+<rect x="870" y="550" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="580">TinadecTools / 文件与搜索</text>
+<text class="small" x="892" y="628">TOOLS-FILES</text>
+<rect x="870" y="675" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
+<text class="text" x="892" y="705">TinadecTools / Git</text>
+<text class="small" x="892" y="753">TOOLS-GIT</text>
+<text class="small" x="40" y="780">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>
