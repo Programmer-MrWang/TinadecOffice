@@ -40,6 +40,7 @@
   <a href="https://discord.gg/EcKYQfbG72"><img alt="Discord" src="https://img.shields.io/badge/Discord-加入社区-5865F2?logo=discord&logoColor=white"></a>
   <a href="#社区"><img alt="QQ Group" src="https://img.shields.io/badge/QQ群-370780878-EB1923?logo=tencentqq&logoColor=white"></a>
   <a href="https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=7a3k9813-07f8-4e13-b00c-d9d1c07d539b"><img alt="Feishu" src="https://img.shields.io/badge/飞书群-点击加入-3370FF?logo=feishu&logoColor=white"></a>
+  <a href="https://x.com/tinadecoffice"><img alt="X (Twitter)" src="https://img.shields.io/badge/X-%40tinadecoffice-000000?logo=x&logoColor=white"></a>
 </p>
 
 ---
@@ -156,6 +157,7 @@ TinadecOffice/
 - **QQ 群** —— `370780878`
 - **飞书群** —— [点击加入](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=7a3k9813-07f8-4e13-b00c-d9d1c07d539b)
 - **Discord** —— [discord.gg/EcKYQfbG72](https://discord.gg/EcKYQfbG72)
+- **X (Twitter)** —— [@tinadecoffice](https://x.com/tinadecoffice)
 
 ## 贡献者
 
