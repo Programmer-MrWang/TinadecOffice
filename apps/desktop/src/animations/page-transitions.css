@@ -8,19 +8,18 @@ DESIGN PRINCIPLES:
 2. Only opacity + transform on animated elements - NO color/background
 3. Parent chain MUST NOT have transform when child has backdrop-filter
 4. Staggered animations for depth perception
-5. Easing: cubic-bezier(0.16, 1, 0.3, 1) - "snap ease-out" native feel
+5. Entry easing: cubic-bezier(0.2, 0, 0, 1) - visible acceleration and landing
 
 ARCHITECTURE CONTRACT:
 - This file contains ONLY declarative CSS rules: @keyframes + class-driven
   rules toggled by HomePage.vue (.home-entering / .home-exiting) and
   SettingsPage.vue (.settings-exiting). No JavaScript inline-style
   manipulation of engine nodes.
-- The Workbench layout engine (src/workbench/) is the single authority
+- The UIE layout engine (apps/TinadecUI/src/engine/) is the single authority
   for geometry (left/top/width/height). These rules only animate
   transform + opacity, which the engine's patchStyle diff never touches.
-- HomePage.vue keeps a CLASSIC plain div as the transition container (never
-  the Vapor WorkbenchShell root) to avoid the classic↔Vapor interop leave
-  crash documented in VaporExemptions.ts.
+- HomePage.vue supplies preparation/entry/exit classes on a plain wrapper;
+  the transforms stay on the material roots so their blur keeps working.
 
 ANIMATION LAYERS (stacked order, lowest z-index first):
 Layer 0: .background-layer (static, z-index: 0) - backdrop-filter applied here
@@ -44,6 +43,7 @@ from below with stagger on entry.
    [data-v-xxx] attribute selector wins over plain global specificity (0,2,0).
    overflow does NOT create a backdrop root, so blur is unaffected;
    .uie-canvas stays overflow:hidden and clips at the window edge. */
+.home-page-container.home-preparing .uie-column,
 .home-page-container.home-entering .uie-column,
 .home-page-container.home-exiting .uie-column {
   overflow: visible !important;
@@ -93,17 +93,26 @@ from below with stagger on entry.
   }
 }
 
-.home-page-container.home-entering .uie-stack {
-  animation: home-up-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+.home-page-container.home-preparing :is(.uie-stack, .uie-column-rail) {
+  will-change: transform, opacity;
+  transform: translateY(40px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
 }
 
-.home-page-container.home-entering .uie-column:nth-child(1) .uie-stack {
+.home-page-container.home-entering :is(.uie-stack, .uie-column-rail) {
+  will-change: transform, opacity;
+  animation: home-up-enter 0.35s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.home-page-container.home-entering .uie-column:nth-child(1) :is(.uie-stack, .uie-column-rail) {
   animation-delay: 0s;
 }
-.home-page-container.home-entering .uie-column:nth-child(2) .uie-stack {
+.home-page-container.home-entering .uie-column:nth-child(2) :is(.uie-stack, .uie-column-rail) {
   animation-delay: 0.05s;
 }
-.home-page-container.home-entering .uie-column:nth-child(3) .uie-stack {
+.home-page-container.home-entering .uie-column:nth-child(3) :is(.uie-stack, .uie-column-rail) {
   animation-delay: 0.1s;
 }
 
@@ -135,7 +144,7 @@ from below with stagger on entry.
    ---------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .home-page-container.home-entering .uie-stack,
+  .home-page-container.home-entering :is(.uie-stack, .uie-column-rail),
   .home-page-container.home-exiting .uie-stack {
     animation: none !important;
   }

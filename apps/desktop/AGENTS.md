@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** Home UIE classic fallback + stable splash mount after real Electron insertBefore reproduction
-**Last Verified Commit:** 工作树未提交；windowLifecycle/vaporBatch 9/9，desktop build 通过；真实 Electron 无 Gateway 等待 45 秒 Home 无 UI crashed
+**Last Updated By:** Desktop 阶段提交：首页入场准备、真实动画完成与启动屏衔接
+**Last Verified Commit:** 提交前完整改动快照（基线22c63b4，UIE阶段49684ef）；Desktop全量threads 882 passed/14 skipped、后补启动4/4，UIE142/142、类型/正式构建通过；真实Electron六条启动/返回路径完成，采集不证明恒定60FPS
 **Branch:** main
+
+### 2026-10-05 首页入场
+
+健康成功/超时只挂载准备中的主界面；`HomePage` 通过 `useHomeEntrance` 等 UIE 初次布局 ready、字体和测量后的绘制机会，再发 ready。`App.vue` 此时启动同一个 splash 节点离场，保留主页面与通知的启动状态，不因连接变化重新挂载。入场由真实 CSS animation.finished 收尾，替换栈会重查，取消 rAF/卸载不再发 ready，减少动态效果无动画也能结束。动画仍只改变实际材质根的 transform/opacity；折叠栏参与，350ms 入场用 .2/0/0/1 曲线，不能把 transform 放到 backdrop-filter 祖先。证据与复验：docs/home-entry-motion-2026-10-05.zh-CN.md；该专项不代表模型业务 E2E 或恒定60FPS。
 
 ### 2026-10-02 前端 UX 改进
 
@@ -25,7 +29,7 @@
 
 ### 2026-10-05 主界面 insertBefore 修复
 
-真实 Electron 在无 Gateway 启动后约 30 秒连接超时，Home UIE 首次挂载触发 Failed to execute insertBefore on Node；Settings 路由不触发。根因是 Home 的 classic HomePage 动态挂载整棵 Vapor UIE 树，同时根 splash Transition 卸载。AppSplash 现在常驻并用 app-splash--leaving CSS 离场；Home UIE 的 19 个 Uie/feature card SFC 暂退 classic template，vaporBatch batch1 留空并记录 deferred，避免 classic/Vapor interop 锚点竞态。真实 Electron 在同一无 Gateway 场景停留 45 秒无 UI crashed；windowLifecycle/vaporBatch 9/9，vite build 通过。
+真实 Electron 在无 Gateway 启动后约 30 秒连接超时，Home UIE 首次挂载触发 Failed to execute insertBefore on Node；Settings 路由不触发。AppSplash 保持常驻 CSS 离场，Home UIE 的 19 个 Uie/feature card SFC 暂退 classic template，vaporBatch batch1 留空并记录 deferred。该规避在同一场景停留 45 秒无 UI crashed；windowLifecycle/vaporBatch 9/9，vite build 通过。完整堆栈未证明具体 interop 锚点机制，不能仅据规避成功写成确定根因。
 
 ## OVERVIEW
 

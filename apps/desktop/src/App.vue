@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-import { computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+import { computed, watch, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useBackground } from '@/composables/useBackground'
 import {
@@ -33,7 +33,7 @@ const { settings: backgroundSettings, applyBackground } = useBackground()
 watch(backgroundSettings, () => applyBackground(), { deep: true, immediate: true })
 
 // ---- Backend connection gating ----
-// Splash stays visible until backend connects or 30s timeout.
+// Health success/timeout mounts the route; splash leaves when that route is ready.
 // 子窗口（?splash=0，如 Debug Studio / Detached Panel）跳过 splash：
 // 它们复用主窗口已建立的后端连接，不应重播首次启动序列。
 const isChildWindow = new URLSearchParams(window.location.search).get('splash') === '0'
@@ -45,6 +45,23 @@ const { status, dismissByKey } = useNotifications()
 let unsubscribeStatusSync: (() => void) | undefined
 let uninstallPaletteKeys: (() => void) | undefined
 const isConnecting = computed(() => !isChildWindow && connectionState.value === 'connecting')
+const route = useRoute()
+// Startup happens once. Retrying a lost backend must preserve the live page.
+const mainStarted = ref(!isConnecting.value)
+const entryReady = ref(isChildWindow)
+watch(isConnecting, (connecting) => {
+  if (!connecting) mainStarted.value = true
+})
+
+function onPageReady() {
+  entryReady.value = true
+}
+
+function onRouteMounted() {
+  // Home reports readiness after disk layout + measured preparation frames.
+  // Other routes have their own entry animations and are ready on mount.
+  if (route.name !== 'home') onPageReady()
+}
 
 watch(connectionState, (state) => {
   if (isPetWindow || isChildWindow) return
@@ -93,23 +110,21 @@ onBeforeUnmount(() => {
   <RouterView v-if="isPetWindow" />
 
   <template v-else>
-  <!-- Splash: shown until backend connects or 30s timeout.
-       Keep the same DOM node mounted and animate its own CSS state. A Vue
-       leave transition here races the first mount of the Vapor UIE tree and
-       can ask the interop renderer to insert before a removed anchor. -->
+  <!-- Keep one Vue splash node through route preparation and CSS departure.
+       Home readiness includes saved layout, fonts and measured paint frames. -->
   <AppSplash
     v-if="!isChildWindow && !isPetWindow"
-    :class="{ 'app-splash--leaving': !isConnecting }"
-    :aria-hidden="!isConnecting ? 'true' : undefined"
+    :class="{ 'app-splash--leaving': entryReady }"
+    :aria-hidden="entryReady ? 'true' : undefined"
   />
 
-  <!-- Background Layer — rendered as soon as splash dismisses.
+  <!-- Background Layer — rendered behind splash during route preparation.
        INTENTIONALLY OUTSIDE any <Transition> / transformed ancestor:
        CSS position:fixed degrades to absolute inside a transformed parent,
        which would make the background slide with the page (see comment below).
        This div is the stable, static foundation of the entire window. -->
   <div
-    v-if="!isConnecting"
+    v-if="mainStarted"
     class="background-layer"
     :class="{ 'background-layer--none': backgroundSettings.type === 'none' }"
   >
@@ -157,17 +172,17 @@ onBeforeUnmount(() => {
        页面入场动画由各页面（如 HomePage）内部触发，
        而非在此处包裹 RouterView —— 因为路由组件是懒加载的，外层 Transition
        会在子元素挂载前就移除 enter-active 类，导致动画失效。 -->
-  <div v-if="!isConnecting" class="main-content">
+  <div v-if="mainStarted" class="main-content">
     <!-- No Transition wrapper around RouterView: TinadecUIE owns the main
          window layout and the stable card-frame material root. A transition
          would unload the page host on route change, breaking backdrop-filter
          and hitting removed-node patches with TinadecUIE's absolute layout. -->
     <RouterView v-slot="{ Component }">
-      <component :is="Component" />
+      <component :is="Component" @ready="onPageReady" @vue:mounted="onRouteMounted" />
     </RouterView>
   </div>
-  <NotificationIslandHost v-if="!isConnecting" />
-  <NotificationDetailDialog v-if="!isConnecting" />
+  <NotificationIslandHost v-if="entryReady" />
+  <NotificationDetailDialog v-if="entryReady" />
   <SelectionContextMenu />
   <CommandPalette />
   </template>

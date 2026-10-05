@@ -6,10 +6,8 @@
  * from native (pre-Vue) → Vue splash is seamless. Uses CSS variables
  * so it follows the active theme (dark/light).
  *
- * Shown by App.vue when connectionState === 'connecting'.
- * Stays mounted while the main tree hydrates; App.vue toggles its leaving
- * class instead of wrapping it in a Vue Transition. This avoids the
- * classic/Vapor leave-anchor race during the first main-screen mount.
+ * App.vue keeps it visible through backend connection and route preparation.
+ * It stays mounted; the leaving class starts departure when the page is ready.
  */
 </script>
 

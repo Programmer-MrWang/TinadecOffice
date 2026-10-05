@@ -26,7 +26,7 @@ describe('child window lifecycle', () => {
     // transition wrapper so the page host + card-frame material root stay stable.
     expect(app).not.toContain('mode="out-in"')
     expect(app).not.toContain('<Transition name="splash-exit">')
-    expect(app).toContain("'app-splash--leaving': !isConnecting")
+    expect(app).toContain("'app-splash--leaving': entryReady")
     expect(appSplash).toContain('.app-splash--leaving')
     expect(panelWindow).toContain('?splash=0#${hashPath}')
     expect(viteConfig).toContain("base: './'")
