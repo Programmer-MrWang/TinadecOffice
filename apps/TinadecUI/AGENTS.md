@@ -1,8 +1,8 @@
 # TinadecUI — UI Engineering Suite
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** UIE 阶段提交：初次布局就绪与卡片首次激活挂载
-**Last Verified Commit:** 提交前验证快照（基线22c63b4＋本阶段UIE改动）；UIE142/142，Desktop UieCardHost行为回归2/2。完整桌面衔接与逐帧验证随下一阶段交付。
+**Last Updated By:** UIE 基础与 Desktop 消费方分阶段提交完成，归档验证
+**Last Verified Commit:** UIE代码49684ef，完整消费方代码76797fc；提交前同内容快照UIE142/142、卡片行为2/2、Desktop threads全量882 passed/14 skipped、后补启动4/4，类型/正式构建通过，真实慢读取恢复310px左栏/44px右侧栏并完成三处入场。
 **Branch:** main
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.

@@ -1,8 +1,8 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-05
-**Last Updated By:** Desktop 阶段提交：首页入场准备、真实动画完成与启动屏衔接
-**Last Verified Commit:** 提交前完整改动快照（基线22c63b4，UIE阶段49684ef）；Desktop全量threads 882 passed/14 skipped、后补启动4/4，UIE142/142、类型/正式构建通过；真实Electron六条启动/返回路径完成，采集不证明恒定60FPS
+**Last Updated By:** Desktop 入场修复提交完成，归档逐帧验证与提交阶段
+**Last Verified Commit:** 完整代码提交76797fc（UIE前序49684ef）；提交前同内容快照验证Desktop threads全量882 passed/14 skipped、后补启动4/4，UIE142/142、类型/正式构建通过，真实Electron六条启动/返回路径完成，采集不证明恒定60FPS
 **Branch:** main
 
 ### 2026-10-05 首页入场
