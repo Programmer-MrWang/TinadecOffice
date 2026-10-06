@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-10-06
 **Last Updated By:** 右侧 UIE 标签中键关闭交互专项（已提交）
-**Last Verified Commit:** 提交2c40329；BrowserTabBar中键关闭定向3/3，主/分栏/普通标签接入，Home固定标签保护；既有UIE142/142、Desktop UieCardHost2/2、layoutStore7/7，空间画布基础切片已实现，仍未完成真实画布验收。市场历史提交41a6e63的验证见下文及专项报告。
+**Last Verified Commit:** 提交3be8368；BrowserTabBar中键关闭定向3/3，主/分栏/普通标签接入，Home固定标签保护；既有UIE142/142、Desktop UieCardHost2/2、layoutStore7/7，空间画布基础切片已实现，仍未完成真实画布验收。市场历史提交41a6e63的验证见下文及专项报告。
 **Branch:** main
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.

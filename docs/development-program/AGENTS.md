@@ -3,7 +3,7 @@
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-06
 **Last Updated By:** 分类搜索浮窗/沉浸式窗口控制专项登记，补充共享渲染与Desktop桥运行流
-**Last Verified Commit:** 提交2c40329；新增APP-RENDERER-F002/103，整体逐功能审计及原取消/窄宽发送任务仍未完成。Windows窗口/设置专项82/82、Desktop914 passed/14 skipped、native/scripts107/107；最终定向48/48、类型/构建和真实Electron浮窗专项通过。reindex：55模块/98功能/102任务、Core24/24/总图82/82、1823链接/200ID/0错误，重跑哈希一致；原ae97e96图形门禁仅历史证据
+**Last Verified Commit:** 提交3be8368；新增APP-RENDERER-F002/103，整体逐功能审计及原取消/窄宽发送任务仍未完成。Windows窗口/设置专项82/82、Desktop914 passed/14 skipped、native/scripts107/107；最终定向48/48、类型/构建和真实Electron浮窗专项通过。reindex：55模块/98功能/102任务、Core24/24/总图82/82、1823链接/200ID/0错误，重跑哈希一致；原ae97e96图形门禁仅历史证据
 **Branch:** main
 
 ## Scope

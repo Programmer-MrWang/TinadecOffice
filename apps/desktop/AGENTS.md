@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-10-06
 **Last Updated By:** 搜索分类滚动指示器移除与右侧标签中键关闭专项（已提交）
-**Last Verified Commit:** 2c40329（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
+**Last Verified Commit:** 3be8368（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
 **Branch:** main
 
 ### 2026-10-06 标签与分类交互补充
