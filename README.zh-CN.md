@@ -156,7 +156,7 @@ TinadecOffice/
 ## 贡献者
 
 <a href="https://github.com/Tinadec/TinadecOffice/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice" alt="Contributors" />
+  <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice&anon=1" alt="Contributors" />
 </a>
 
 ## Star 历史
