@@ -137,7 +137,7 @@ import PromptEngineeringMerged from '@/settings/sections/PromptEngineeringMerged
 import RuntimeInstancesPanel from '@/settings/sections/RuntimeInstancesPanel.vue'
 import AgentPacksPanel from '@/settings/sections/AgentPacksPanel.vue'
 import ModelParametersEditor from '@/settings/sections/ModelParametersEditor.vue'
-import { consumeRequest, pendingModelProviderId, pendingSettingsSection } from '@/lib/pageRequests'
+import { consumeRequest, pendingAgentId, pendingModeId, pendingPromptId, pendingToolId, pendingModelProviderId, pendingSettingsSection } from '@/lib/pageRequests'
 import { routesAfterModelRemoval } from '@/lib/modelRouteEdits'
 import PanelStyleControl from '@/components/ui/panel-style-control.vue'
 import { usePanelStyles } from '@/composables/usePanelStyles'
@@ -288,6 +288,11 @@ const projectTemplates = ref<ProjectTemplateSummary[]>([])
 const selectedProviderId = ref('')
 const selectedAgentId = ref('')
 const configuringAgentId = ref('')
+const requestedAgentId = ref<string | null>(null)
+const requestedProviderId = ref<string | null>(null)
+let agentNavigationGeneration = 0
+let providerNavigationGeneration = 0
+onBeforeUnmount(() => { agentNavigationGeneration++; providerNavigationGeneration++ })
 const modelCenterSection = ref<ModelCenterSection>('api')
 const agentRuntimeSelection = ref<AgentRuntimeSelectionKind>('inherit')
 const agentRuntimeModelKey = ref('')
@@ -842,7 +847,11 @@ function closeModal() {
   showModal.value = false
 }
 
-async function loadModelCenter() {
+let modelCenterRead: Promise<void> | null = null
+function loadModelCenter(): Promise<void> {
+  return modelCenterRead ??= loadModelCenterData().finally(() => { modelCenterRead = null })
+}
+async function loadModelCenterData() {
   modelCenterLoading.value = true
   dismissByKey('model-center')
   try {
@@ -1128,7 +1137,11 @@ function channelLabel(fact: HarnessChannelDto): string {
   return t(discoveryAffordanceLabelKey(fact))
 }
 
-async function loadAgentCenter() {
+let agentCenterRead: Promise<void> | null = null
+function loadAgentCenter(): Promise<void> {
+  return agentCenterRead ??= loadAgentCenterData().finally(() => { agentCenterRead = null })
+}
+async function loadAgentCenterData() {
   agentCenterLoading.value = true
   dismissByKey('agent-center')
   // getAgentCenterOverview is a deleted 404 route (docs/app-core-ui.md §4.8).
@@ -1136,7 +1149,7 @@ async function loadAgentCenter() {
   loading.value = true
   try {
       const [directory, modes, candidates, toolReadiness, packDetail] = await Promise.all([
-        api.listAgents().catch(() => [] as AgentDirectoryItemDto[]),
+        api.listAgents(),
         api.listAgentModes().catch(() => [] as AgentModeDto[]),
         api.listAgentCandidates().catch(() => [] as AgentCandidateDto[]),
         api.getToolLayerReadiness().catch(() => null),
@@ -1210,10 +1223,14 @@ async function loadAgentCenter() {
               toolSearchResults.value = []
             })
         })
-      const activeAgent = agents.value.find((agent) => agent.id === configuringAgentId.value)
-        ?? agents.value.find((agent) => agent.id === selectedAgentId.value)
-        ?? agents.value[0]
-      if (activeAgent) openAgentConfig(activeAgent)
+      const activeAgent = requestedAgentId.value
+        ? agents.value.find((agent) => agent.id === requestedAgentId.value)
+        : agents.value.find((agent) => agent.id === configuringAgentId.value)
+          ?? agents.value.find((agent) => agent.id === selectedAgentId.value)
+          ?? agents.value[0]
+      if (activeAgent) {
+        openAgentConfig(activeAgent)
+      }
       api.executeCodeTool('project_templates')
         .then((result) => { projectTemplates.value = projectTemplatesFromResult(result) })
         .catch(() => { projectTemplates.value = [] })
@@ -1459,11 +1476,12 @@ function openAgentConfig(agent: AgentViewDto) {
 async function loadAgentVersionHistory(agentId: string) {
   agentVersionsLoading.value = true
   try {
-    agentVersionHistory.value = await api.listAgentVersions(agentId)
+    const versions = await api.listAgentVersions(agentId)
+    if (configuringAgentId.value === agentId) agentVersionHistory.value = versions
   } catch {
-    agentVersionHistory.value = []
+    if (configuringAgentId.value === agentId) agentVersionHistory.value = []
   } finally {
-    agentVersionsLoading.value = false
+    if (configuringAgentId.value === agentId) agentVersionsLoading.value = false
   }
 }
 
@@ -1863,19 +1881,57 @@ function readinessStatusLabel(status: string) {
 consumeRequest(pendingSettingsSection, (section) => {
   selectSettingsSection(section as SettingsSection)
 })
-consumeRequest(pendingModelProviderId, (providerId) => {
+consumeRequest(pendingModelProviderId, async (providerId) => {
+  const generation = ++providerNavigationGeneration
+  requestedProviderId.value = providerId
   selectSettingsSection('model')
   modelCenterSection.value = 'api'
-  const expand = () => { selectedProviderDetailId.value = providerId }
-  if (providers.value.some((provider) => provider.id === providerId)) expand()
-  else {
-    const stop = watch(providers, (list) => {
-      if (!list.some((provider) => provider.id === providerId)) return
-      stop()
-      expand()
-    })
+  modelProviderQuery.value = ''
+  modelProviderFilter.value = 'all'
+  if (!providers.value.some((provider) => provider.id === providerId)) await loadModelCenter()
+  if (generation !== providerNavigationGeneration) return
+  requestedProviderId.value = null
+  if (providers.value.some((provider) => provider.id === providerId)) {
+    selectedProviderDetailId.value = providerId
+    const overview = modelCenterOverview.value
+    modelCenterSection.value = overview?.cli_runtimes.some(row => row.provider_instance_id === providerId) ? 'cli'
+      : overview?.tui_runtimes.some(row => row.provider_instance_id === providerId) ? 'tui'
+        : overview?.acp_runtimes.some(row => row.provider_instance_id === providerId) ? 'acp' : 'api'
+  }
+  else notify.error(t('app.loadFailedMessage'), { title: t('app.loadFailed'), key: 'search-navigation' })
+})
+consumeRequest(pendingAgentId, async (agentId) => {
+  const generation = ++agentNavigationGeneration
+  selectSettingsSection('agentCenter')
+  switchAgentCenterTab('agents')
+  agentViewMode.value = 'list'
+  selectedAgentId.value = agentId
+  configuringAgentId.value = agentId
+  requestedAgentId.value = agentId
+  if (!agents.value.some((item) => item.id === agentId)) await loadAgentCenter()
+  if (generation !== agentNavigationGeneration) return
+  const agent = agents.value.find((item) => item.id === agentId)
+  requestedAgentId.value = null
+  if (agent) {
+    openAgentConfig(agent)
+  } else {
+    notify.error(t('app.loadFailedMessage'), { title: t('app.loadFailed'), key: 'search-navigation' })
   }
 })
+// Child panels own these request IDs; activate their host before they consume.
+watch(pendingModeId, (id) => {
+  if (!id) return
+  selectSettingsSection('agentCenter')
+  switchAgentCenterTab('modes')
+}, { immediate: true })
+watch(pendingPromptId, (id) => {
+  if (!id) return
+  selectSettingsSection('agentCenter')
+  switchAgentCenterTab('prompts')
+}, { immediate: true })
+watch(pendingToolId, (id) => {
+  if (id) selectSettingsSection('tools')
+}, { immediate: true })
 
 loadModelCenter()
 loadAgentCenter()
@@ -1891,14 +1947,14 @@ import '../settings/settings.css'
 <div class="top-drag-bar" />
 <div class="settings-window-controls">
       <CommandPaletteButton />
-      <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" @click="minimizeWindow">
-        <Minus :size="14" />
+      <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" :aria-label="t('app.minimize')" @click="minimizeWindow">
+        <Minus :size="14" aria-hidden="true" />
       </UiButton>
-      <UiButton variant="ghost" size="icon" class="window-btn maximize" :title="t('app.maximize')" @click="maximizeWindow">
-        <Square :size="12" />
+      <UiButton variant="ghost" size="icon" class="window-btn maximize" :title="t('app.maximize')" :aria-label="t('app.maximize')" @click="maximizeWindow">
+        <Square :size="12" aria-hidden="true" />
       </UiButton>
-      <UiButton variant="ghost" size="icon" class="window-btn close" :title="t('app.close')" @click="closeWindow">
-        <X :size="14" />
+      <UiButton variant="ghost" size="icon" class="window-btn close" :title="t('app.close')" :aria-label="t('app.close')" @click="closeWindow">
+        <X :size="14" aria-hidden="true" />
       </UiButton>
     </div>
     <div class="settings-shell">

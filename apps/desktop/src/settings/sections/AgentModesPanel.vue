@@ -8,6 +8,7 @@ import GovernanceRolesPanel from '@/components/agentCenter/GovernanceRolesPanel.
 import { api, type AgentDefinitionDto, type AgentModeEdgeDto, type AgentModeNodeDto, type AgentModeTopologyDto, type ModeVersionDto, type ModelProviderInstanceDto, type ModelRouteDto } from '@/api'
 import { useNotifications } from '@/composables/useNotifications'
 import { modeIcon, sortModes } from '@/lib/modePresentation'
+import { consumeRequest, pendingModeId } from '@/lib/pageRequests'
 
 const { t } = useI18n()
 const { notify } = useNotifications()
@@ -22,6 +23,7 @@ const modeVersions = ref<ModeVersionDto[]>([])
 const modeVersionsLoading = ref(false)
 const showVersionDrawer = ref(false)
 const modeBusy = ref(false)
+let modeNavigationGeneration = 0
 
 const selectedModeNode = ref<AgentModeNodeDto | null>(null)
 const selectedEdge = ref<AgentModeEdgeDto | null>(null)
@@ -50,7 +52,7 @@ const filteredModes = computed(() => {
 const selectedMode = computed(() => modes.value.find((m) => m.id === selectedModeId.value) ?? null)
 const selectedModeReadOnly = computed(() => {
   const m = selectedMode.value
-  return m !== null && Boolean(m.managed || m.status === 'published' || m.status === 'archived')
+  return Boolean(selectedModeId.value && (!m || m.managed || m.status === 'published' || m.status === 'archived'))
 })
 
 function normalizeLayer(layer?: string): 'operation' | 'execution' {
@@ -62,7 +64,11 @@ function readinessVariant(status?: string): 'default' | 'secondary' | 'outline' 
   return 'outline'
 }
 
-async function loadModes() {
+let modesRead: Promise<void> | null = null
+function loadModes(): Promise<void> {
+  return modesRead ??= loadModesData().finally(() => { modesRead = null })
+}
+async function loadModesData() {
   try {
     const list = await api.listAgentModeTopologies()
     modes.value = Array.isArray(list) ? list : []
@@ -85,6 +91,7 @@ async function selectMode(id: string) {
   selectedModeId.value = id
   try {
     const m = await api.getAgentModeTopology(id)
+    if (selectedModeId.value !== id) return
     let operationIndex = 0
     let executionIndex = 0
     modeNodes.value = ((m.nodes ?? []) as unknown as Array<Record<string, unknown>>).map((n) => {
@@ -122,12 +129,34 @@ async function selectMode(id: string) {
           : row,
       )
     }
-  } catch {
+  } catch (error) {
+    if (selectedModeId.value !== id) return
     modeNodes.value = []
     modeEdges.value = []
     modeEtag.value = null
+    notify.error(error, { title: t('agentCenter.loadModesFailed') })
   }
 }
+
+consumeRequest(pendingModeId, async (modeId) => {
+  const generation = ++modeNavigationGeneration
+  modeQuery.value = ''
+  selectedModeId.value = modeId
+  modeNodes.value = []
+  modeEdges.value = []
+  modeEtag.value = null
+  if (!modes.value.some((mode) => mode.id === modeId)) await loadModes()
+  if (generation !== modeNavigationGeneration) return
+  if (!modes.value.some((mode) => mode.id === modeId)) {
+    selectedModeId.value = ''
+    modeNodes.value = []
+    modeEdges.value = []
+    modeEtag.value = null
+    notify.error(t('app.loadFailedMessage'), { title: t('agentCenter.loadModesFailed'), key: 'search-navigation' })
+    return
+  }
+  void selectMode(modeId)
+})
 
 async function createMode() {
   modeBusy.value = true
@@ -339,7 +368,7 @@ onMounted(() => {
   void api.listModelRoutes().then((rows) => { routes.value = rows }).catch(() => { routes.value = [] })
 })
 
-onBeforeUnmount(() => { /* no timers held */ })
+onBeforeUnmount(() => { modeNavigationGeneration++ })
 
 defineExpose({ loadModes })
 </script>

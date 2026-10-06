@@ -1922,15 +1922,47 @@ export interface ToolDescriptorDto {
   requires_approval: boolean;
   execute_endpoint: string;
   capabilities: string[];
+  description?: string;
+  input_schema?: Record<string, unknown>;
+  mutates_workspace?: boolean;
+  retry_safety?: string;
+  confirmation_fields?: string[];
+}
+
+/** Current Core manifest transport; display/discovery metadata is not present. */
+export interface ToolManifestEntryDto {
+  id: string;
+  description: string;
+  requires_approval: boolean;
+  input_schema: Record<string, unknown>;
+  risk: string;
+  mutates_workspace: boolean;
+  retry_safety: string;
+  confirmation_fields: string[];
 }
 
 export interface ToolSearchResultDto {
   tool: ToolDescriptorDto;
-  score: number;
+  score?: number;
   matched_fields: string[];
   provider_layer: string;
-  requires_human_checkpoint: boolean;
+  requires_human_checkpoint?: boolean;
   approval_summary: string;
+}
+
+export function normalizeToolDescriptor(tool: ToolDescriptorDto | ToolManifestEntryDto): ToolDescriptorDto {
+  if ('display_name' in tool) return tool;
+  return {
+    ...tool,
+    display_name: tool.id,
+    domain: '', source: '', execute_endpoint: '', capabilities: [],
+  };
+}
+
+export function normalizeToolSearchResults(items: (ToolSearchResultDto | ToolManifestEntryDto)[]): ToolSearchResultDto[] {
+  return items.map((item) => 'tool' in item
+    ? { ...item, tool: normalizeToolDescriptor(item.tool) }
+    : { tool: normalizeToolDescriptor(item), matched_fields: [], provider_layer: '', approval_summary: '' });
 }
 
 export interface AgentLayerManifestDto {
@@ -2806,7 +2838,7 @@ export const api = {
   doctor: () => request<DoctorReportDto>('/api/v1/doctor'),
   readiness: () => request<RuntimeReadinessReceiptDto>('/api/v1/readiness'),
   getToolLayerReadiness: () => request<ToolLayerReadinessReceiptDto>('/api/v1/tool-layer-readiness'),
-  listProjects: () => request<ProjectDto[]>('/api/v1/projects'),
+  listProjects: (options?: { signal?: AbortSignal }) => request<ProjectDto[]>('/api/v1/projects', options),
   createProject: (name: string, path: string) => request<ProjectDto>('/api/v1/projects', {
     method: 'POST',
     body: JSON.stringify({ name, path })
@@ -2977,7 +3009,7 @@ export const api = {
     body: JSON.stringify(input)
   }),
   listModelProviderTemplates: () => request<ModelProviderTemplateDto[]>('/api/v1/model-provider-templates'),
-  listModelProviders: () => request<ModelProviderInstanceDto[]>('/api/v1/model-providers'),
+  listModelProviders: (options?: { signal?: AbortSignal }) => request<ModelProviderInstanceDto[]>('/api/v1/model-providers', options),
   discoverHarnesses: () => request<CliDiscoveryResultDto>('/api/v1/model-providers/harnesses/discover'),
   connectHarness: (input: ConnectHarnessInput) => request<ModelProviderInstanceDto>('/api/v1/model-providers/harnesses/connect', {
     method: 'POST',
@@ -3084,8 +3116,8 @@ export const api = {
   listMcpServerTools: (serverId: string) =>
     request<McpServerToolsDto>(`/api/v1/mcp/servers/${encodeURIComponent(serverId)}/tools`),
   listAcpAdapters: () => request<AcpAdapterDto[]>('/api/v1/acp/adapters'),
-  listAgentModes: () => request<AgentModeDto[]>('/api/v1/agent-modes'),
-  listAgents: () => request<AgentDirectoryItemDto[]>('/api/v1/agents'),
+  listAgentModes: (options?: { signal?: AbortSignal }) => request<AgentModeDto[]>('/api/v1/agent-modes', options),
+  listAgents: (options?: { signal?: AbortSignal }) => request<AgentDirectoryItemDto[]>('/api/v1/agents', options),
   getAgent: (id: string) => request<AgentDefinitionDto>(`/api/v1/agents/${encodeURIComponent(id)}`),
   // ── New 5-tab config objects (snake_case, If-Match via etag) ──
   // `/api/v1/agents` is the directory projection; full definitions are fetched per id.
@@ -3141,7 +3173,7 @@ export const api = {
   archiveAgentMode: (id: string) => request<AgentModeTopologyDto>(`/api/v1/agent-modes/${encodeURIComponent(id)}/archive`, { method: 'POST' }),
   listAgentModeVersions: (id: string) => request<ModeVersionDto[]>(`/api/v1/agent-modes/${encodeURIComponent(id)}/versions`),
   // prompt pipelines
-  listPromptPipelines: () => request<PromptPipelineDto[]>('/api/v1/prompt-pipelines'),
+  listPromptPipelines: (options?: { signal?: AbortSignal }) => request<PromptPipelineDto[]>('/api/v1/prompt-pipelines', options),
   createPromptPipelineDraft: (body: Partial<PromptPipelineDto>) => request<PromptPipelineDto>('/api/v1/prompt-pipelines', { method: 'POST', body: JSON.stringify(body) }),
   getPromptPipeline: (id: string) => request<PromptPipelineDto>(`/api/v1/prompt-pipelines/${encodeURIComponent(id)}`),
   updatePromptPipelineDraft: (id: string, body: Partial<PromptPipelineDto>, etag?: string | null) => request<PromptPipelineDto>(`/api/v1/prompt-pipelines/${encodeURIComponent(id)}/draft`, { method: 'PUT', headers: etag ? { 'if-match': etag } : {}, body: JSON.stringify(body) }),
@@ -3193,8 +3225,9 @@ export const api = {
   attachmentContentUrl: (attachmentId: string) =>
     `${gatewayUrl}/api/v1/attachments/${encodeURIComponent(attachmentId)}/content`,
 
-  listTools: () => request<ToolDescriptorDto[]>('/api/v1/tools'),
-  searchTools: (params: { query?: string; domain?: string; source?: string; risk?: string; limit?: number } = {}) => {
+  listTools: async (options?: { signal?: AbortSignal }) =>
+    (await request<(ToolDescriptorDto | ToolManifestEntryDto)[]>('/api/v1/tools', { signal: options?.signal })).map(normalizeToolDescriptor),
+  searchTools: async (params: { query?: string; domain?: string; source?: string; risk?: string; limit?: number } = {}, options?: { signal?: AbortSignal }) => {
     const search = new URLSearchParams();
     if (params.query) search.set('query', params.query);
     if (params.domain) search.set('domain', params.domain);
@@ -3202,17 +3235,17 @@ export const api = {
     if (params.risk) search.set('risk', params.risk);
     if (params.limit !== undefined) search.set('limit', String(params.limit));
     const suffix = search.toString() ? `?${search.toString()}` : '';
-    return request<ToolSearchResultDto[]>(`/api/v1/tools/search${suffix}`);
+    return normalizeToolSearchResults(await request<(ToolSearchResultDto | ToolManifestEntryDto)[]>(`/api/v1/tools/search${suffix}`, { signal: options?.signal }));
   },
   getHarnessManifest: () => request<HarnessManifestDto>('/api/v1/harness/manifest'),
-  listPromptFragments: (params: { scope?: string; target_agent_id?: string; category?: string; enabled?: boolean } = {}) => {
+  listPromptFragments: (params: { scope?: string; target_agent_id?: string; category?: string; enabled?: boolean } = {}, options?: { signal?: AbortSignal }) => {
     const search = new URLSearchParams();
     if (params.scope) search.set('scope', params.scope);
     if (params.target_agent_id) search.set('target_agent_id', params.target_agent_id);
     if (params.category) search.set('category', params.category);
     if (params.enabled !== undefined) search.set('enabled', String(params.enabled));
     const suffix = search.toString() ? `?${search.toString()}` : '';
-    return request<PromptFragmentDto[]>(`/api/v1/prompt-fragments${suffix}`);
+    return request<PromptFragmentDto[]>(`/api/v1/prompt-fragments${suffix}`, { signal: options?.signal });
   },
   createPromptFragment: (fragment: SavePromptFragmentInput) => request<PromptFragmentDto>('/api/v1/prompt-fragments', {
     method: 'POST',
@@ -3233,7 +3266,8 @@ export const api = {
     body: JSON.stringify(input)
   }),
   /** Current v1 user tool transport. Gateway forwards this request to the Tool Provider. */
-  executeCodeTool: (toolId: string, payload: CodeToolExecuteRequestDto = {}) => request<CodeToolExecuteResultDto>(`/api/v1/code/tools/${encodeURIComponent(toolId)}/execute`, {
+  executeCodeTool: (toolId: string, payload: CodeToolExecuteRequestDto = {}, options?: { signal?: AbortSignal }) => request<CodeToolExecuteResultDto>(`/api/v1/code/tools/${encodeURIComponent(toolId)}/execute`, {
+    signal: options?.signal,
     method: 'POST',
     body: JSON.stringify(payload)
   }),
@@ -3259,8 +3293,8 @@ export const api = {
    * `{ success, error, entry }` with `entry.type` in directory|file|link. */
   statEntry: (cwd: string, filePath: string) =>
     api.executeCodeTool('stat', { cwd, arguments: { path: filePath } }),
-  grepContent: (cwd: string, pattern: string, options?: { case_sensitive?: boolean; context_lines?: number; max_results?: number; glob?: string; fixed_strings?: boolean }) =>
-    api.executeCodeTool('file_search', { cwd, arguments: { pattern, ...options } }),
+  grepContent: (cwd: string, pattern: string, options?: { case_sensitive?: boolean; context_lines?: number; max_results?: number; glob?: string; fixed_strings?: boolean }, transport?: { signal?: AbortSignal }) =>
+    api.executeCodeTool('file_search', { cwd, arguments: { pattern, ...options } }, transport),
   // There is deliberately no apply_patch / code_editor wrapper here: neither tool id
   // exists in the TinadecTools manifest, and the governed write path is
   // createUserToolActionForPath(cwd, 'write_file', { filepath, content, file_hash }).

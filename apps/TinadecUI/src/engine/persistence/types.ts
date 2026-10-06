@@ -11,6 +11,8 @@ import type { UieLayoutSnapshot, UiePageId } from '../types'
 // ---------------------------------------------------------------------------
 
 export interface LayoutStorageBlob {
+  /** Space layouts are isolated by conversation, never inherited across sessions. */
+  sessionBySessionId?: Record<string, UieLayoutSnapshot>
   version: 1
   /** Layout used as the global default template, keyed by page. */
   globalByPage?: Record<string, UieLayoutSnapshot>

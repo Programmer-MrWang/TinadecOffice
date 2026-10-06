@@ -9,8 +9,9 @@ import {
   Search,
   X,
 } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AppHeader from '@/components/AppHeader.vue'
 import FileTreePanel from '@/components/code/FileTreePanel.vue'
 import SearchPanel from '@/components/code/SearchPanel.vue'
@@ -19,13 +20,50 @@ import CodeEditor from '@/components/code/CodeEditor.vue'
 import PatchPreview from '@/components/code/PatchPreview.vue'
 import { UiButton, UiSelect } from '@/components/ui'
 import { codeController } from '@/controllers/CodeController'
+import { consumeRequest, pendingWorkspaceFile, type WorkspaceFileRequest } from '@/lib/pageRequests'
+import { useNotifications } from '@/composables/useNotifications'
 
 const router = useRouter()
 const c = codeController
 const activeTab = computed(() => c.activeTab.value)
+const requestedFile = ref<WorkspaceFileRequest | null>(null)
+const controllerStarted = ref(false)
+const refreshingNavigation = ref(false)
+let navigationGeneration = 0
+let refreshedGeneration = -1
+const { t } = useI18n()
+const { notify } = useNotifications()
+
+consumeRequest(pendingWorkspaceFile, (file) => {
+  navigationGeneration++
+  requestedFile.value = file
+})
+watch([requestedFile, c.projects, controllerStarted], () => {
+  const file = requestedFile.value
+  if (!file || !controllerStarted.value) return
+  if (file.projectId && !c.projects.value.some((project) => project.id === file.projectId)) return
+  if (!file.projectId && !c.currentProject.value) return
+  requestedFile.value = null
+  if (file.projectId) c.setProject(file.projectId)
+  c.handleFileSelect(file.path)
+}, { immediate: true })
+watch([requestedFile, c.busy, controllerStarted, refreshingNavigation], () => {
+  if (!requestedFile.value || !controllerStarted.value || c.busy.value || refreshingNavigation.value) return
+  const projectId = requestedFile.value.projectId
+  if (projectId ? c.projects.value.some((item) => item.id === projectId) : c.currentProject.value) return
+  if (refreshedGeneration !== navigationGeneration) {
+    refreshedGeneration = navigationGeneration
+    refreshingNavigation.value = true
+    void c.loadProjects().finally(() => { refreshingNavigation.value = false })
+    return
+  }
+  requestedFile.value = null
+  notify.error(t('app.loadFailedMessage'), { title: t('app.loadFailed'), key: 'search-navigation' })
+})
 
 onMounted(() => {
   c.start()
+  controllerStarted.value = true
 })
 </script>
 

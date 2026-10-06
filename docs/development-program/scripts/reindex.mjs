@@ -106,7 +106,7 @@ else{
  status+='- 模块档案：'+registry.modules.length+'。\n- Core工程覆盖：'+coreModules.length+'/'+coreProjects.length+'。\n- 已登记功能条目：'+features.length+'（部分仍是聚合能力，后续拆分）。\n- 已登记任务：'+tasks.length+'。\n- 总图节点归属/导航：'+graph.nodes.length+'/'+graph.nodes.length+'。\n\n';
  status+='## 功能判断分布\n\n| 判断 | 数量 |\n| --- | --- |\n'+featureStates.map(s=>'| '+s+' | '+featureCounts[s]+' |').join('\n')+'\n\n';
  status+='## 任务状态分布\n\n| 状态 | 数量 |\n| --- | --- |\n'+states.map(s=>'| '+s+' | '+counts[s]+' |').join('\n')+'\n\n';
- status+='## 验证边界\n\n本轮文档工程只核对源码/工程引用/历史报告与文档、图形；业务功能没有在本轮重跑验收。历史测试结果仅作为来源记录。没有将任何初始功能直接标为已验收，也没有把初始任务标为已完成。后续每次更新均以模块正文和明确证据为准。\n\n[模块索引](../MODULE-INDEX.md) · [总TODO](MASTER-TODO.md) · [初始证据](../03-evidence/2026-10-05-initial-source/README.md)\n';
+ status+='## 验证边界\n\n初始建档只核对源码、工程引用、历史报告与文档图形，未以历史测试结果代替验收。后续专项的实现判断、测试环境与剩余边界以模块正文和明确证据为准；专项完成不代表整个模块或产品已验收。\n\n[模块索引](../MODULE-INDEX.md) · [总TODO](MASTER-TODO.md) · [初始证据](../03-evidence/2026-10-05-initial-source/README.md)\n';
  fs.writeFileSync(path.join(base,'01-program/STATUS.md'),status);
  const report={baseline:registry.baseline,moduleCount:registry.modules.length,coreProjectCoverage:{expected:coreProjects.length,actual:coreModules.length},architectureNodeCoverage:{expected:graph.nodes.length,actual:graph.nodes.length},featureCount:features.length,taskCount:tasks.length,markdownFiles:markdownFiles.length,checkedLinks:links,uniqueIdCount:ids.size,errors:[],scope:'documentation/source checks only; no product tests rerun'};
  fs.writeFileSync(path.join(base,'03-evidence/2026-10-05-initial-source/documentation-checks.json'),JSON.stringify(report,null,2)+'\n');

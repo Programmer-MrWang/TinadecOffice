@@ -1,9 +1,9 @@
 # DEVELOPMENT PROGRAM MEMORY
 
 **Generated:** 2026-10-05
-**Last Updated:** 2026-10-05
-**Last Updated By:** 模块化开发档案初始化、来源复核、任务归属收口与图形验证（已提交 ae97e96）
-**Last Verified Commit:** ae97e96（版本基线 86aeff6 = v0.2.1）；55模块/97初始功能/101任务，Core24/24与总图82/82，reindex门禁1780链接/198稳定ID/239Markdown/0错误且重跑无diff，55SVG与总图交互通过；未重跑业务测试
+**Last Updated:** 2026-10-06
+**Last Updated By:** 分类搜索浮窗/沉浸式窗口控制专项登记，补充共享渲染与Desktop桥运行流
+**Last Verified Commit:** 提交b0f92cd；新增APP-RENDERER-F002/103，整体逐功能审计及原取消/窄宽发送任务仍未完成。Windows窗口/设置专项82/82、Desktop914 passed/14 skipped、native/scripts107/107；最终定向48/48、类型/构建和真实Electron浮窗专项通过。reindex：55模块/98功能/102任务、Core24/24/总图82/82、1823链接/200ID/0错误，重跑哈希一致；原ae97e96图形门禁仅历史证据
 **Branch:** main
 
 ## Scope
@@ -14,6 +14,7 @@
 
 - 模块TODO.md是任务唯一编辑位置，STATUS.md是功能状态唯一编辑位置；全局MASTER-TODO/STATUS/MODULE-INDEX由reindex生成，勿手改后期待保留。
 - modules.json只维护目录/ID/节点归属；禁止生成器覆盖手写模块档案。reindex只刷新派生汇总并验证链接、稳定ID和Core24工程覆盖。
+- reindex的总STATUS验证边界描述初始建档与后续专项的不同范围，不能硬编码“当前没有已验收/已完成”而否定模块更新。
 - 每个Feature/Task有长期稳定ID。删除、合并或不做的条目保留替代/决策指针；同一功能缺口由一个主责模块持有，其它模块交叉引用。
 - 区分源码可见、历史验证、本轮验证；只有与目标范围匹配的证据才能标已验收/已完成。禁止用测试数量或目录存在推算完成百分比。
 - 未跑测试写待验收，不写未实现；平台限制先记范围边界，不默认开发所有可选能力。

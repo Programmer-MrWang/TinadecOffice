@@ -4,6 +4,7 @@ import type { CardRegistry } from '../engine/registry'
 import { buildPreset } from '../engine/presets'
 import { repairLayout, type RepairContext } from '../engine/repair'
 import { computeGeometry } from '../engine/constraints'
+import { emptySpace } from '../engine/spatial'
 import { PROJECT_SCOPED_PAGES, writeScopeFor } from '../engine/scope'
 import { createInstancePool, type InstancePool } from '../engine/instancePool'
 import type {
@@ -29,6 +30,7 @@ import type { Component } from 'vue'
 // ---------------------------------------------------------------------------
 
 export interface UieStore {
+  showSpace(sessionId: string): void
   /** Settles after the initial persisted layout has been restored (or failed). */
   ready: Promise<void>
   bus: CommandBus
@@ -195,8 +197,15 @@ export function createUie(options: UieStoreOptions): UieStore {
       return ok
     },
     showPage(nextPage) {
-      if (snapshot.value.pageId === nextPage) return
+      if (snapshot.value.pageId === nextPage && !snapshot.value.space) return
       loadLayout(nextPage)
+    },
+    showSpace(sessionId) {
+      if (snapshot.value.space?.sessionId === sessionId) return
+      const stored = options.persistence?.store.resolveSpace(sessionId)
+      const next = stored ?? { ...buildPreset('home', { nextInstanceId: createUieInstanceId }), space: emptySpace(sessionId) }
+      restoreSnapshot(next)
+      scope.value = writeScopeFor('home', activeProjectId.value)
     },
     applyPreset(nextPage) {
       bus.setSnapshot(buildPreset(nextPage, { nextInstanceId: createUieInstanceId }))
@@ -232,7 +241,7 @@ export function createUie(options: UieStoreOptions): UieStore {
       if (activeProjectId.value === id) return
       activeProjectId.value = id
       const page = snapshot.value.pageId
-      if (PROJECT_SCOPED_PAGES.has(page)) loadLayout(page)
+      if (PROJECT_SCOPED_PAGES.has(page) && !snapshot.value.space) loadLayout(page)
       else scope.value = writeScopeFor(page, id)
     },
     activeProjectId,

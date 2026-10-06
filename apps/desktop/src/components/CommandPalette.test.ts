@@ -7,10 +7,24 @@ import { closePalette, openPalette, paletteIsOpen } from '@/composables/useComma
 import { PALETTE_COMBO, formatCombo } from '@/lib/keybindings'
 import { __resetSpotlightForTests } from '@/lib/spotlight'
 import type { SessionDto } from '@/api'
+import { codeController } from '@/controllers/CodeController'
+import { pendingWorkspaceFile } from '@/lib/pageRequests'
+import { api } from '@/api'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
 }))
+
+vi.mock('@/api', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/api')>()
+  return { ...original, api: { ...original.api,
+    listProjects: vi.fn(async () => []), listSessions: vi.fn(async () => []),
+    listModelProviders: vi.fn(async () => []), listAgents: vi.fn(async () => []),
+    listAgentModes: vi.fn(async () => []), listPromptFragments: vi.fn(async () => []),
+    searchTools: vi.fn(async () => []),
+    grepContent: vi.fn(async () => ({ status: 'ok', data: { lines: [], file_hashes: {} } })),
+  } }
+})
 
 /**
  * The refs are created inside the async factories: `vi.hoisted` runs before imports, so
@@ -49,6 +63,10 @@ vi.mock('@/controllers/HomeController', async () => {
   homeMock.currentProject = ref(null)
   return { homeController: homeMock }
 })
+vi.mock('@/controllers/CodeController', async () => {
+  const { ref } = await import('vue')
+  return { codeController: { currentProject: ref<{ id: string; path: string } | null>(null) } }
+})
 
 async function mountOpen() {
   // Attached to the document on purpose: focus and `getElementById` only reach nodes
@@ -77,6 +95,9 @@ function rowText(wrapper: ReturnType<typeof mount>, id: string): string | undefi
 
 beforeEach(() => {
   closePalette()
+  // The test double owns this ref; the production controller derives it from its catalog.
+  ;(codeController.currentProject as Ref<{ id: string; path: string } | null>).value = null
+  pendingWorkspaceFile.value = null
   homeMock.stoppableRunId.value = null
   homeMock.draft.value = ''
   homeMock.sessions.value = []
@@ -88,6 +109,13 @@ beforeEach(() => {
   homeMock.updateDraft.mockClear()
   homeMock.createSession.mockClear()
   homeMock.stopRun.mockClear()
+  vi.mocked(api.listProjects).mockResolvedValue([])
+  vi.mocked(api.listSessions).mockResolvedValue([])
+  vi.mocked(api.listModelProviders).mockResolvedValue([])
+  vi.mocked(api.listAgents).mockResolvedValue([])
+  vi.mocked(api.listAgentModes).mockResolvedValue([])
+  vi.mocked(api.listPromptFragments).mockResolvedValue([])
+  vi.mocked(api.searchTools).mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -103,6 +131,7 @@ describe('CommandPalette', () => {
     expect(wrapper.find('[data-testid="palette-row-session.new"]').exists()).toBe(true)
     // The current page hides its own navigation row, and the others stay.
     expect(wrapper.find('[data-testid="palette-row-view.goChat"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="palette-more-command"]').trigger('click')
     expect(wrapper.find('[data-testid="palette-row-view.goSettings"]').exists()).toBe(true)
 
     homeMock.stoppableRunId.value = 'run-1'
@@ -137,7 +166,9 @@ describe('CommandPalette', () => {
     await settleSearch()
     const ids = wrapper.findAll('[data-testid^="palette-row-"]').map((row) => row.attributes('data-testid'))
     expect(ids.slice(0, 2)).toEqual(['palette-row-view.goSettings', 'palette-row-setting.personal'])
-    expect(ids).toHaveLength(13)
+    expect(ids).toHaveLength(5)
+    await wrapper.get('[data-testid="palette-more-setting"]').trigger('click')
+    expect(wrapper.findAll('[data-testid^="palette-row-"]')).toHaveLength(13)
 
     await input.setValue('qqzzxx')
     await settleSearch()
@@ -150,7 +181,7 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const list = wrapper.find('[data-testid="palette-list"]')
     const rows = () => list.findAll('[role="option"]')
-    expect(rows()).toHaveLength(9)
+    expect(rows()).toHaveLength(8)
     expect(rows()[0].classes()).toContain('is-active')
 
     await wrapper.find('[data-testid="palette-input"]').trigger('keydown', { key: 'ArrowDown' })
@@ -214,7 +245,7 @@ describe('CommandPalette', () => {
     const wrapper = await mountOpen()
     const input = wrapper.find('[data-testid="palette-input"]')
     expect(input.attributes('role')).toBe('combobox')
-    expect(input.attributes('aria-controls')).toBe('command-palette-list')
+    expect(input.attributes('aria-controls')?.split(' ')).toContain('palette-results-command')
     expect(input.attributes('aria-activedescendant')).toBe('command-palette-option-0')
     expect(document.getElementById('command-palette-option-0')).not.toBeNull()
     wrapper.unmount()
@@ -231,6 +262,78 @@ describe('CommandPalette', () => {
     dialogOf(wrapper).close()
     await flushPromises()
     expect(paletteIsOpen()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('previews large project groups, expands, collapses and filters without losing results', async () => {
+    vi.mocked(api.listProjects).mockResolvedValue(Array.from({ length: 9 }, (_, i) => ({
+      id: `project-${i}`, name: `Studio ${i}`, path: `C:/projects/studio-${i}`,
+      created_at: '2026-10-06T00:00:00Z', updated_at: '2026-10-06T00:00:00Z',
+    })) as Awaited<ReturnType<typeof api.listProjects>>)
+    const wrapper = await mountOpen()
+    const projectRows = () => wrapper.findAll('[data-testid^="palette-row-project."]')
+    expect(projectRows()).toHaveLength(4)
+    expect(wrapper.get('[data-testid="palette-kind-project"] .search-group-count').text()).toBe('9')
+    await wrapper.get('[data-testid="palette-more-project"]').trigger('click')
+    expect(projectRows()).toHaveLength(9)
+    await wrapper.get('[data-testid="palette-more-project"]').trigger('click')
+    expect(projectRows()).toHaveLength(4)
+    await wrapper.get('[data-testid="palette-toggle-project"]').trigger('click')
+    expect(projectRows()).toHaveLength(0)
+    expect(wrapper.get('[data-testid="palette-toggle-project"]').attributes('aria-expanded')).toBe('false')
+    await wrapper.get('[data-testid="palette-toggle-project"]').trigger('click')
+    await wrapper.get('[data-testid="palette-filter-project"]').trigger('click')
+    expect(wrapper.findAll('[role="option"]')).toHaveLength(4)
+    expect(wrapper.find('[data-testid="palette-row-session.new"]').exists()).toBe(false)
+    expect(projectRows()[0]!.find('svg').exists()).toBe(true)
+    await projectRows()[0]!.trigger('click')
+    expect(paletteIsOpen()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('invalidates the old selection immediately when typing a new query', async () => {
+    const wrapper = await mountOpen()
+    const input = wrapper.get('[data-testid="palette-input"]')
+    await input.setValue('market')
+    await settleSearch()
+    expect(wrapper.find('[data-testid="palette-row-view.goMarket"]').exists()).toBe(true)
+    await input.setValue('next query')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(routerMock.push).not.toHaveBeenCalled()
+    expect(paletteIsOpen()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('searches the Code page project and keeps its identity when opening a hit', async () => {
+    homeMock.currentProject.value = { path: 'C:/home-project' }
+    routerMock.currentRoute.value = { name: 'code-editor' }
+    ;(codeController.currentProject as Ref<{ id: string; path: string } | null>).value = { id: 'code-project', path: 'C:/code-project' }
+    vi.mocked(api.grepContent).mockResolvedValue({ tool_id: 'file_search', status: 'completed', summary: '', evidence: [], requires_approval: false,
+      data: { success: true, lines: [], file_hashes: { 'C:/code-project/hit.ts': 'hash' } } })
+    const wrapper = await mountOpen()
+    await wrapper.get('[data-testid="palette-input"]').setValue('needle')
+    await settleSearch()
+    expect(api.grepContent).toHaveBeenLastCalledWith('C:/code-project', 'needle', expect.anything(), expect.anything())
+    ;(codeController.currentProject as Ref<{ id: string; path: string } | null>).value = { id: 'later-project', path: 'C:/later-project' }
+    await wrapper.get('[data-testid="palette-row-resource.hit.ts"]').trigger('click')
+    expect(pendingWorkspaceFile.value).toEqual({ path: 'hit.ts', projectId: 'code-project' })
+    wrapper.unmount()
+  })
+
+  it('shows a failed source alongside useful local results and keeps window controls available', async () => {
+    vi.mocked(api.listProjects).mockRejectedValue(new Error('Project source unavailable'))
+    const wrapper = await mountOpen()
+    expect(wrapper.get('[data-testid="palette-error-project"]').text()).toContain('palette.sourceUnavailable')
+    expect(wrapper.find('[data-testid="palette-row-session.new"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="palette-filter-setting"]').exists()).toBe(true)
+    expect(wrapper.findAll('.window-controls .window-btn')).toHaveLength(0)
+    expect(wrapper.find('[data-testid="command-palette-button"]').exists()).toBe(false)
+    expect(wrapper.get('dialog').classes()).not.toContain('command-palette--fullscreen')
+    await wrapper.get('[data-testid="palette-fullscreen"]').trigger('click')
+    expect(wrapper.get('dialog').classes()).toContain('command-palette--fullscreen')
+    expect(wrapper.findAll('.window-controls .window-btn')).toHaveLength(3)
+    await wrapper.get('[data-testid="palette-fullscreen"]').trigger('click')
+    expect(wrapper.get('dialog').classes()).not.toContain('command-palette--fullscreen')
     wrapper.unmount()
   })
 })

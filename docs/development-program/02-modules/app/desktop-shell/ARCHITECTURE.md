@@ -32,6 +32,18 @@ flowchart LR
 | apps/desktop | Electron main + preload + Vue renderer。桌面独立窗口和桌宠属于本地交互能力。 | [apps/desktop/package.json](../../../../../apps/desktop/package.json) |
 | Electron main ↔ preload ↔ window.tinadec | renderer 通过受控 preload API 使用原生能力。用户打开的本地终端属于桌面功能，与 Core 管理的智能体工具终端是两条路径。 | [apps/desktop/electron/preload.cjs](../../../../../apps/desktop/electron/preload.cjs) |
 
+## 窗口控制运行流（2026-10-06专项核对）
+
+```mermaid
+flowchart LR
+  renderer["AppHeader / SettingsPage<br/>纯图标窗口控件"] --> preload["window.tinadec<br/>minimizeWindow / maximizeWindow / closeWindow"]
+  preload --> ipc["ipcRenderer.send<br/>tinadec:minimize / maximize / close"]
+  ipc --> main["main.cjs对应ipcMain handler"]
+  main --> window["BrowserWindow.fromWebContents(sender)<br/>最小化 / 最大化或还原 / 关闭"]
+```
+
+源码依据：[AppHeader.vue](../../../../../apps/desktop/src/components/AppHeader.vue)、[SettingsPage.vue](../../../../../apps/desktop/src/pages/SettingsPage.vue)、[preload.cjs](../../../../../apps/desktop/electron/preload.cjs)、[main.cjs](../../../../../apps/desktop/electron/main.cjs)。本轮不改变原生消息契约；透明、无胶囊/阴影样式与搜索浮窗归[APP-RENDERER-F002](../shared-renderer/STATUS.md)，完成专项归[APP-RENDERER-103](../shared-renderer/TODO.md#app-renderer-103)。组件测试证明点击到桥动作，不据此宣称整个Desktop壳或三平台交互已验收。
+
 ## 继续精化时必须补齐
 
 - 实际入口、调用方向与状态所有者；每个有向关系有源码依据。

@@ -1434,40 +1434,44 @@ button.agent-topology-node:hover,
 .window-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0;
 }
 
-/* The window-chrome buttons read as one family instead of four loose squares:
-   a quiet pill the traffic-light cluster and the search entry share. The
-   `.window-controls` prefix beats the UiButton `h-9 w-9` icon default. */
-.window-controls .window-btn {
+/* Window controls share the same bare icon treatment on the main and settings
+   surfaces. Keep the click target generous without painting a button surface. */
+.window-controls .window-btn,
+.settings-window-controls .window-btn {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 26px;
+  width: 36px;
+  min-width: 36px;
+  height: 32px;
   padding: 0;
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--surface-input) 55%, transparent);
-  border: 1px solid transparent;
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
   cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.12s ease;
+  transition: color 0.15s ease;
+  -webkit-app-region: no-drag;
 }
 
-.window-controls .window-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-muted);
+.window-controls .window-btn:hover,
+.settings-window-controls .window-btn:hover {
+  background: transparent;
   color: var(--text-primary);
 }
 
-.window-controls .window-btn:active {
-  transform: scale(0.92);
+.window-controls .window-btn:focus-visible,
+.settings-window-controls .window-btn:focus-visible {
+  outline: 2px solid var(--border-input-focus);
+  outline-offset: -3px;
 }
 
-.window-controls .window-btn.close:hover {
-  background: var(--accent-danger);
-  border-color: transparent;
-  color: #ffffff;
+.window-controls .window-btn.close:hover,
+.settings-window-controls .window-btn.close:hover {
+  color: var(--accent-danger);
 }
 
 .sidebar {

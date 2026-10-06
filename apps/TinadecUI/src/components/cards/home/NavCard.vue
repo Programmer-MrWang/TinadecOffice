@@ -11,12 +11,12 @@ const uie = useUie()
 
 async function openSession(id: string) {
   await c.setSelectedSession(id)
-  if (route.path !== '/') await router.push('/')
+  if (route.path !== '/' && route.path !== '/space') await router.push('/')
 }
 
 async function createSession(projectId: string | null) {
   await c.createSession(projectId)
-  if (route.path !== '/') await router.push('/')
+  if (route.path !== '/' && route.path !== '/space') await router.push('/')
 }
 
 function toggleCollapse() {
@@ -39,7 +39,8 @@ function toggleCollapse() {
     :projects="c.projects.value"
     :sessions="c.sessions.value"
     :selected-project-id="c.selectedProjectId.value"
-    :selected-session-id="route.path === '/' ? c.selectedSessionId.value : null"
+    :selected-session-id="route.path === '/' || route.path === '/space' ? c.selectedSessionId.value : null"
+    :space-active="route.path === '/space'"
     :busy="c.busy.value"
     :collapsed="uie.snapshot.value.columns.left?.collapsed"
     @select-project="c.setSelectedProject($event)"
@@ -49,6 +50,7 @@ function toggleCollapse() {
     @go-market="router.push('/market')"
     @go-settings="router.push('/settings')"
     @go-workbench="router.push('/workbench')"
+    @change-view="router.push($event === 'space' ? '/space' : '/')"
     @toggle-collapse="toggleCollapse"
     @rename-project="(id, name) => c.renameProject(id, name)"
     @rename-session="(id, title) => c.renameSession(id, title)"

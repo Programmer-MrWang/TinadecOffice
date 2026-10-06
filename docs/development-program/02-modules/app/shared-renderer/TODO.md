@@ -66,6 +66,42 @@
 
 - [docs/whole-product-eval-2026-10-05.zh-CN.md](../../../../whole-product-eval-2026-10-05.zh-CN.md)：直接观察与代码解释；只作来源，不继承完成勾选
 
+<a id="app-renderer-103"></a>
+
+### APP-RENDERER-103 完成分类搜索浮窗与沉浸式窗口控制专项
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-RENDERER
+- 前置依赖：复用现有窗口级命令面板、Gateway/Core目录与工具搜索接口；本专项无未完成任务依赖
+- 关联功能：APP-RENDERER-F002
+- 完成证据：2026-10-06 Windows当前工作树，窗口/设置专项82/82；本轮整合Desktop914 passed/14 skipped、native/scripts107/107。最终定向48/48、类型/构建和真实Electron浮窗专项通过；不据此关闭其他模块任务。
+
+**问题与目的**
+
+右上窗口控制曾用独立胶囊背景，搜索入口需先展开窄输入再进入面板；结果范围、类型区分和大量结果管理不足。改为纯图标窗口控制，点击搜索直接进入分类浮窗，扩大真实目录范围并使大量结果可预览、展开与折叠。
+
+**验收条件**
+
+- [x] 主界面与设置窗口控制使用ghost、透明背景、零边框/阴影；保留36×32点击区域、读屏名称、键盘焦点及no-drag，三窗口动作仍发送对应IPC。
+- [x] 搜索入口直接打开唯一窗口级原生dialog；默认760×590自适应浮窗，可选全屏，不在顶栏生成第二个输入。
+- [x] 全部＋10类筛选以图标区分；每组默认4项、可展开更多/收起及整组折叠，长标题与上下文省略，键盘与鼠标激活同一结果动作。
+- [x] 搜索命令、项目、跨项目会话、模型、智能体、模式、提示词片段、Core工具目录、设置与当前工作区内容，按来源独立更新；5秒超时/取消不阻塞其他来源。
+- [x] 结果通过一次性请求导航并定位Home项目/会话、Code文件与Settings配置；当前工作区内容上限100匹配行，保留服务端截断提示。
+- [x] 明确范围：会话检索标题及项目名，文件内容限定当前工作区；不宣称历史消息全文或全磁盘文件名搜索。
+
+**源码与活动测试**
+
+- [本轮最终报告与Electron证据](../../../../../.tinadec_dev/reports/2026-10-06-search-and-window-chrome.zh-CN.md)
+- 标签中键关闭定向验证：[BrowserTabBar.test.ts](../../../../../apps/desktop/src/components/BrowserTabBar.test.ts)（3/3）。
+- [CommandPaletteButton.vue](../../../../../apps/desktop/src/components/CommandPaletteButton.vue)、[CommandPalette.vue](../../../../../apps/desktop/src/components/CommandPalette.vue)、[spotlight.ts](../../../../../apps/desktop/src/lib/spotlight.ts)、[pageRequests.ts](../../../../../apps/desktop/src/lib/pageRequests.ts)
+- [CommandPaletteButton.test.ts](../../../../../apps/desktop/src/components/CommandPaletteButton.test.ts)、[CommandPalette.test.ts](../../../../../apps/desktop/src/components/CommandPalette.test.ts)、[spotlight.test.ts](../../../../../apps/desktop/src/lib/spotlight.test.ts)、[AppHeader.test.ts](../../../../../apps/desktop/src/components/AppHeader.test.ts)
+
+**关联边界**
+
+APP-RENDERER-001逐功能审计、APP-RENDERER-101取消错误分类与APP-RENDERER-102窄宽度发送可用性仍保持原状态；来源5秒取消专项不等于全局API取消语义已修。
+
 <a id="app-renderer-102"></a>
 
 ### APP-RENDERER-102 复验窄宽度布局中的发送主操作
@@ -96,4 +132,3 @@
 **历史任务映射**
 
 - [docs/whole-product-eval-2026-10-05.zh-CN.md](../../../../whole-product-eval-2026-10-05.zh-CN.md)：直接观察与代码解释；只作来源，不继承完成勾选
-

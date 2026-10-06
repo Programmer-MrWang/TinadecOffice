@@ -34,6 +34,7 @@ const router = useRouter()
 const props = defineProps<{
   /** Hero (start page) variant: centered box, welcome-send dispatch, no queued cards. */
   hero?: boolean
+  spatial?: boolean
   busy: boolean
   modelValue: string
   permission: PermissionLevel
@@ -507,7 +508,7 @@ function confirmSteer(id: string, interrupt = false) {
       v-bind="panelDataAttrs"
     >
       <!-- queued cards sit inside dialog top when items are queued -->
-      <div v-if="!hero && queued.length" class="composer-queued">
+      <div v-if="!hero && !spatial && queued.length" class="composer-queued">
         <div v-for="item in queued" :key="item.id" class="queued-card">
           <div class="queued-content">{{ item.content }}</div>
           <div class="queued-actions">
@@ -691,9 +692,11 @@ function confirmSteer(id: string, interrupt = false) {
         <div class="toolbar-left">
           <!-- THE one mode selector: the installed packs' published versions. -->
           <ModeSelector
+            v-if="!spatial"
             :mode-version-id="modeVersionId ?? null"
             @update:mode-version-id="emit('update:modeVersionId', $event)"
           />
+          <slot v-if="spatial" name="capabilities" />
           <PermissionSelector
             :model-value="permission"
             @update:model-value="emit('update:permission', $event)"

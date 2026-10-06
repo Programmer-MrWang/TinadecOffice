@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Circle, Server, ShieldCheck } from '@lucide/vue'
+import { Circle, Search, Server, ShieldCheck } from '@lucide/vue'
 import { UiBadge, UiButton, UiInput } from '@/components/ui'
 import {
   api,
@@ -12,6 +12,8 @@ import {
   type ToolSearchResultDto,
 } from '@/api'
 import { codeSuiteTools, languageSupportFromTools, manifestTools, projectTemplatesFromResult, sortedAgentLayers, sortedRiskPolicies, sortedToolProviders, sortedToolSearchResults, type ProjectTemplateSummary } from '@/toolCatalog'
+import { consumeRequest, pendingToolId } from '@/lib/pageRequests'
+import { useNotifications } from '@/composables/useNotifications'
 
 /**
  * Tool layer section extracted from SettingsPage (D7.2).
@@ -21,6 +23,7 @@ import { codeSuiteTools, languageSupportFromTools, manifestTools, projectTemplat
  * shown are Core/Tool Provider projections; no local tool specs.
  */
 const { t } = useI18n()
+const { notify } = useNotifications()
 
 const loading = ref(false)
 const harnessManifest = ref<HarnessManifestDto | null>(null)
@@ -31,8 +34,11 @@ const toolDiscoveryQuery = ref('')
 const toolDiscoverySource = ref('all')
 const toolDiscoveryRisk = ref('all')
 const toolDiscoveryLoading = ref(false)
+const toolDiscoveryError = ref<string | null>(null)
+const selectedToolId = ref('')
+const toolDiscoveryRef = ref<HTMLElement | null>(null)
 
-const manifestToolList = computed(() => manifestTools(harnessManifest.value, []))
+const manifestToolList = computed(() => manifestTools(harnessManifest.value, availableTools.value))
 const manifestProviders = computed(() => sortedToolProviders(harnessManifest.value))
 const manifestAgentLayers = computed(() => sortedAgentLayers(harnessManifest.value))
 const manifestRiskPolicies = computed(() => sortedRiskPolicies(harnessManifest.value))
@@ -45,12 +51,16 @@ const warningToolLayerAgents = computed(() =>
   (toolLayerReadiness.value?.agent_scopes ?? []).filter((agent) => agent.status !== 'ready'),
 )
 const toolSourceOptions = computed(() =>
-  Array.from(new Set(manifestToolList.value.map((tool) => tool.source))).sort(),
+  Array.from(new Set(manifestToolList.value.map((tool) => tool.source).filter(Boolean))).sort(),
 )
 const toolRiskOptions = computed(() =>
-  Array.from(new Set(manifestToolList.value.map((tool) => tool.risk))).sort(),
+  Array.from(new Set(manifestToolList.value.map((tool) => tool.risk).filter(Boolean))).sort(),
 )
-const sortedToolDiscoveryResults = computed(() => sortedToolSearchResults(toolSearchResults.value))
+const sortedToolDiscoveryResults = computed(() => sortedToolSearchResults(toolSearchResults.value).filter((result) =>
+  (toolDiscoveryRisk.value === 'all' || result.tool.risk === toolDiscoveryRisk.value)
+  && (toolDiscoverySource.value === 'all' || result.tool.source === toolDiscoverySource.value)
+  && (!selectedToolId.value || toolDiscoveryQuery.value !== selectedToolId.value || result.tool.id === selectedToolId.value),
+))
 const codexPrimitiveTools = computed(() => manifestToolList.value.filter((tool) => tool.source === 'codex-rust'))
 const projectTemplates = ref<ProjectTemplateSummary[]>([])
 
@@ -82,31 +92,52 @@ async function loadAgentCenter(): Promise<void> {
         .then((result) => { projectTemplates.value = projectTemplatesFromResult(result) })
         .catch(() => { projectTemplates.value = [] })
     } else {
-      harnessManifest.value = null
       await api.listTools()
-        .then((tools) => { availableTools.value = tools })
-        .catch(() => { availableTools.value = [] })
+        .then((tools) => {
+          harnessManifest.value = null
+          availableTools.value = tools
+          void loadToolDiscovery()
+        })
+        .catch((error) => { notify.error(error, { title: t('app.loadFailed'), source: 'tools' }) })
     }
   } finally {
     loading.value = false
   }
 }
 
+let discoveryRead = 0
 async function loadToolDiscovery(): Promise<void> {
+  const read = ++discoveryRead
   toolDiscoveryLoading.value = true
+  toolDiscoveryError.value = null
   try {
-    toolSearchResults.value = await api.searchTools({
+    const results = await api.searchTools({
       query: toolDiscoveryQuery.value.trim() || undefined,
       source: toolDiscoverySource.value === 'all' ? undefined : toolDiscoverySource.value,
       risk: toolDiscoveryRisk.value === 'all' ? undefined : toolDiscoveryRisk.value,
       limit: 10,
     })
-  } catch {
-    toolSearchResults.value = []
+    if (read === discoveryRead) toolSearchResults.value = results
+  } catch (error) {
+    if (read === discoveryRead) {
+      toolDiscoveryError.value = error instanceof Error ? error.message : t('app.loadFailedMessage')
+      notify.error(error, { title: t('app.loadFailed'), source: 'tools', key: 'tools-search' })
+    }
   } finally {
-    toolDiscoveryLoading.value = false
+    if (read === discoveryRead) toolDiscoveryLoading.value = false
   }
 }
+
+consumeRequest(pendingToolId, (toolId) => {
+  selectedToolId.value = toolId
+  toolDiscoveryQuery.value = toolId
+  toolDiscoverySource.value = 'all'
+  toolDiscoveryRisk.value = 'all'
+  void loadToolDiscovery().then(() => nextTick(() => {
+    toolDiscoveryRef.value?.scrollIntoView({ block: 'center' })
+    toolDiscoveryRef.value?.focus({ preventScroll: true })
+  }))
+})
 
 onMounted(loadAgentCenter)
 </script>
@@ -290,7 +321,7 @@ onMounted(loadAgentCenter)
             <UiBadge variant="outline">{{ sortedToolDiscoveryResults.length }}</UiBadge>
           </div>
 
-          <div class="tool-discovery-controls">
+          <div ref="toolDiscoveryRef" class="tool-discovery-controls" tabindex="-1">
             <UiInput
               v-model="toolDiscoveryQuery"
               :placeholder="t('settings.toolDiscoveryPlaceholder')"
@@ -315,17 +346,21 @@ onMounted(loadAgentCenter)
               v-for="result in sortedToolDiscoveryResults"
               :key="result.tool.id"
               class="tool-discovery-card"
-              :class="{ risky: result.requires_human_checkpoint }"
+              :class="{ risky: result.tool.requires_approval || result.requires_human_checkpoint }"
             >
               <span class="tool-discovery-title">{{ result.tool.display_name }}</span>
-              <span class="tool-discovery-meta">{{ result.tool.source }} · {{ result.provider_layer }} · {{ result.tool.risk }}</span>
-              <span class="tool-discovery-meta">{{ result.approval_summary }}</span>
-              <span class="tool-discovery-fields">
+              <span v-if="result.tool.description" class="tool-discovery-meta">{{ result.tool.description }}</span>
+              <span class="tool-discovery-meta">{{ [result.tool.source, result.provider_layer, result.tool.risk].filter(Boolean).join(' · ') }}</span>
+              <span v-if="result.tool.requires_approval" class="tool-discovery-meta">{{ t('settings.approvalRequired') }}</span>
+              <span v-if="result.tool.confirmation_fields?.length" class="tool-discovery-meta">{{ t('settings.humanCheckpoints') }} · {{ result.tool.confirmation_fields.join(', ') }}</span>
+              <span v-if="result.approval_summary" class="tool-discovery-meta">{{ result.approval_summary }}</span>
+              <span v-if="result.matched_fields.length" class="tool-discovery-fields">
                 {{ t('settings.matchedFields') }} {{ result.matched_fields.join(', ') }}
               </span>
             </button>
           </div>
-          <p v-if="!toolDiscoveryLoading && sortedToolDiscoveryResults.length === 0" class="quiet">
+          <p v-if="toolDiscoveryError" class="quiet" role="alert">{{ t('app.loadFailed') }} · {{ toolDiscoveryError }}</p>
+          <p v-if="!toolDiscoveryLoading && !toolDiscoveryError && sortedToolDiscoveryResults.length === 0" class="quiet">
             {{ t('settings.noToolSearchResults') }}
           </p>
 

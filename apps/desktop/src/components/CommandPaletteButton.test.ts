@@ -29,42 +29,28 @@ describe('CommandPaletteButton', () => {
     expect(button.attributes('title')).toBe(`palette.openWithShortcut:${formatCombo(PALETTE_COMBO)}`)
   })
 
-  it('clicking the button expands the strip instead of opening the dialog', async () => {
+  it('opens the search screen immediately and keeps one icon entry', async () => {
     const wrapper = mount(CommandPaletteButton)
     expect(paletteIsOpen()).toBe(false)
 
     await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
-
-    // The dialog stays closed until there is a query; the strip is the
-    // preview of the surface, not a second surface of its own.
-    expect(paletteIsOpen()).toBe(false)
-    expect(wrapper.find('[data-testid="command-palette-button"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(true)
-  })
-
-  it('typing into the strip and pressing Enter hands the query over to the dialog', async () => {
-    const wrapper = mount(CommandPaletteButton)
-    await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
-
-    const input = wrapper.get('[data-testid="palette-entry-input"]')
-    await input.setValue('launcher')
-    await input.trigger('keydown', { key: 'Enter' })
 
     expect(paletteIsOpen()).toBe(true)
-    // The strip collapses once the palette takes over; two inputs would
-    // fight for the same keystroke behind the dialog.
+    expect(wrapper.get('[data-testid="command-palette-button"]').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 
-  it('the strip closes itself on Escape without touching the palette', async () => {
+  it('keeps the icon entry after closing the search screen', async () => {
     const wrapper = mount(CommandPaletteButton)
     await wrapper.get('[data-testid="command-palette-button"]').trigger('click')
-    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="palette-entry-input"]').trigger('keydown', { key: 'Escape' })
-
-    expect(paletteIsOpen()).toBe(false)
-    expect(wrapper.find('[data-testid="palette-entry-input-wrap"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="command-palette-button"]').exists()).toBe(true)
+    closePalette()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="command-palette-button"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('input').exists()).toBe(false)
+    wrapper.unmount()
   })
+
 })

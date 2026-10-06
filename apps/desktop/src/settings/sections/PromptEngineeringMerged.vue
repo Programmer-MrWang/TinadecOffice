@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Activity,
@@ -24,6 +24,7 @@ import {
   type PromptPipelineDto,
 } from '@/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { consumeRequest, pendingPromptId } from '@/lib/pageRequests'
 
 const { t } = useI18n()
 const { notify } = useNotifications()
@@ -75,6 +76,9 @@ const fragments = ref<PromptFragmentDto[]>([])
 const fragQuery = ref('')
 const fragEnabledFilter = ref<'all' | 'enabled' | 'disabled'>('all')
 const selectedFragmentId = ref('')
+const requestedPromptId = ref<string | null>(null)
+let promptNavigationGeneration = 0
+onBeforeUnmount(() => { promptNavigationGeneration++ })
 const fragmentVersions = ref<PromptFragmentVersionDto[]>([])
 const fragmentEffectiveness = ref<PromptFragmentEffectivenessDto | null>(null)
 const promptPreview = ref<PromptContextPreviewDto | null>(null)
@@ -95,7 +99,11 @@ const filteredFragments = computed(() => {
 const selectedFragment = computed(() => fragments.value.find((f) => f.id === selectedFragmentId.value) ?? null)
 const sortedVersions = computed(() => [...fragmentVersions.value].sort((a, b) => b.version - a.version))
 
-async function loadFragments() {
+let fragmentsRead: Promise<void> | null = null
+function loadFragments(): Promise<void> {
+  return fragmentsRead ??= loadFragmentsData().finally(() => { fragmentsRead = null })
+}
+async function loadFragmentsData() {
   fragLoading.value = true
   try {
     const [fragmentList, effList] = await Promise.all([
@@ -104,13 +112,38 @@ async function loadFragments() {
     ])
     fragments.value = Array.isArray(fragmentList) ? fragmentList : []
     void effList
-    if (!selectedFragmentId.value && fragments.value.length > 0) await selectFragment(fragments.value[0])
+    if (requestedPromptId.value) return
+    const selected = fragments.value.find((fragment) => fragment.id === selectedFragmentId.value)
+    if (selected) await selectFragment(selected)
+    else if (!selectedFragmentId.value && fragments.value[0]) await selectFragment(fragments.value[0])
+    else if (selectedFragmentId.value) {
+      selectedFragmentId.value = ''
+      notify.error(t('app.loadFailedMessage'), { title: t('settings.fragmentDetailFailed'), key: 'search-navigation' })
+    }
   } catch (err) {
     notify.error(err, { title: t('settings.promptLoadFailed') })
   } finally {
     fragLoading.value = false
   }
 }
+
+consumeRequest(pendingPromptId, async (promptId) => {
+  const generation = ++promptNavigationGeneration
+  promptCanvasMode.value = 'fragments'
+  fragQuery.value = ''
+  fragEnabledFilter.value = 'all'
+  selectedFragmentId.value = promptId
+  requestedPromptId.value = promptId
+  if (!fragments.value.some((item) => item.id === promptId)) await loadFragments()
+  if (generation !== promptNavigationGeneration) return
+  const fragment = fragments.value.find((item) => item.id === promptId)
+  requestedPromptId.value = null
+  if (fragment) void selectFragment(fragment)
+  else {
+    selectedFragmentId.value = ''
+    notify.error(t('app.loadFailedMessage'), { title: t('settings.fragmentDetailFailed'), key: 'search-navigation' })
+  }
+})
 
 async function selectFragment(fragment: PromptFragmentDto) {
   const fid = fragment.id
@@ -125,6 +158,7 @@ async function selectFragment(fragment: PromptFragmentDto) {
     if (selectedFragmentId.value !== fid) return
     fragmentEffectiveness.value = eff as PromptFragmentEffectivenessDto | null
   } catch (e) {
+    if (selectedFragmentId.value !== fid) return
     notify.error(e, { title: t('settings.fragmentDetailFailed') })
   }
 }

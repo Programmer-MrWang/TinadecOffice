@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-DESKTOP | [Desktop / Electron 原生壳](02-modules/app/desktop-shell/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/desktop-shell/TODO.md) |
 | APP-WEB | [Web / 浏览器平台适配](02-modules/app/web/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/web/TODO.md) |
-| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [3项](02-modules/app/shared-renderer/TODO.md) |
+| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [4项](02-modules/app/shared-renderer/TODO.md) |
 | APP-HOME | [Home / 会话、对话与投递](02-modules/app/home/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 0 | [3项](02-modules/app/home/TODO.md) |
 | APP-CODE | [Code / 编程工作台](02-modules/app/code/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/code/TODO.md) |
 | APP-DATA | [Workbench / 治理与数据页面](02-modules/app/data-pages/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/data-pages/TODO.md) |

@@ -61,7 +61,9 @@ export function createUndoStack(limit: number = UNDO_LIMIT): UndoStack {
       return undo.pop()
     },
     popRedo() {
-      return redo.pop()
+      const record = redo.pop()
+      if (record) undo.push(record)
+      return record
     },
     pushRedo(record) {
       redo.push(record)

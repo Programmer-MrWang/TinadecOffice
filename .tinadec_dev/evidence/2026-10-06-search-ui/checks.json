@@ -1,0 +1,86 @@
+{
+  "chrome": [
+    {
+      "label": "搜索",
+      "background": "rgba(0, 0, 0, 0)",
+      "shadow": "none",
+      "border": "0px",
+      "radius": "4px",
+      "width": "36px",
+      "height": "32px"
+    },
+    {
+      "label": "最小化",
+      "background": "rgba(0, 0, 0, 0)",
+      "shadow": "none",
+      "border": "0px",
+      "radius": "4px",
+      "width": "36px",
+      "height": "32px"
+    },
+    {
+      "label": "还原",
+      "background": "rgba(0, 0, 0, 0)",
+      "shadow": "none",
+      "border": "0px",
+      "radius": "4px",
+      "width": "36px",
+      "height": "32px"
+    },
+    {
+      "label": "关闭",
+      "background": "rgba(0, 0, 0, 0)",
+      "shadow": "none",
+      "border": "0px",
+      "radius": "4px",
+      "width": "36px",
+      "height": "32px"
+    }
+  ],
+  "search": {
+    "width": 760.0000610351562,
+    "height": 591.1428833007812,
+    "viewport": {
+      "width": 1463,
+      "height": 867
+    },
+    "background": "rgb(25, 28, 34)",
+    "shadow": "none",
+    "inlineInputs": 0,
+    "categoryCount": 11,
+    "resultIcons": 25,
+    "windowControls": 0,
+    "errors": 0,
+    "rows": 25,
+    "horizontalOverflow": false,
+    "defaultFloating": true,
+    "inputShadow": "none"
+  },
+  "more": {
+    "available": true,
+    "before": 4,
+    "expanded": true
+  },
+  "fold": {
+    "available": true,
+    "before": 1,
+    "collapsed": true
+  },
+  "queried": {
+    "text": "Jalium.UI",
+    "rows": 9,
+    "errors": 0,
+    "filterProject": true
+  },
+  "narrow": {
+    "overflow": false,
+    "listHeight": 390.0714416503906,
+    "categoryScrollable": true
+  },
+  "expanded": true,
+  "reopenedFloating": true,
+  "escapeClosed": true,
+  "exceptions": [],
+  "captureErrors": [],
+  "scope": "running Electron renderer, current backend read queries; no model interaction or write action"
+}

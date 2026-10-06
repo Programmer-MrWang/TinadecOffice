@@ -1,3 +1,4 @@
+import { syncSpace, moveSpace, repairSpace } from './spatial'
 import type {
   PersistedCardInstance,
   UieColumn,
@@ -281,6 +282,16 @@ function applyCommand(
   ctx: ReduceContext,
 ): ReducerResult | null {
   switch (command.type) {
+    case 'spaceSync':
+    case 'spaceMove':
+    case 'spaceViewport': {
+      if (!snapshot.space) return null
+      const space = command.type === 'spaceSync' ? syncSpace(snapshot.space, command.seeds)
+        : command.type === 'spaceMove' ? moveSpace(snapshot.space, command.changes)
+          : repairSpace({ ...snapshot.space, viewport: command.viewport })!
+      return { next: { ...snapshot, revision: snapshot.revision + 1, space },
+        inverse: { type: '__restoreSnapshot', scope: command.scope, snapshot }, changed: space !== snapshot.space }
+    }
     case 'openCard':
       return openCard(snapshot, command, ctx)
     case 'closeCard':

@@ -36,6 +36,8 @@ export type CardTitlebarMode = 'hidden' | 'minimal' | 'full'
 
 /** Versioned, pure-data layout snapshot. version:1 is fixed for this round. */
 export interface UieLayoutSnapshot {
+  /** Optional session canvas branch; old column snapshots remain version 1. */
+  space?: import('./spatial').SpatialLayout
   version: 1
   /** Monotonic counter for optimistic concurrency (expectedRevision checks). */
   revision: number

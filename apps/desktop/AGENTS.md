@@ -1,9 +1,21 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-10-05
-**Last Updated By:** 市场路由 classic 边界、首次布局与冷启动 ready 修复（已提交 41a6e63）
-**Last Verified Commit:** 完整代码提交41a6e63（基线b6115e6，版本86aeff6=v0.2.1）；Desktop threads全量887 passed/14 skipped、市场/启动/Vapor定向13/13、node--test 107/107、UIE142/142、类型/正式构建通过，真实Electron开发目录选择/筛选/往返、冷市场1200ms布局延迟及最终构建完成，未取得用户同一错误的基线堆栈
+**Last Updated:** 2026-10-06
+**Last Updated By:** 搜索分类滚动指示器移除与右侧标签中键关闭专项（已提交）
+**Last Verified Commit:** b0f92cd（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
 **Branch:** main
+
+### 2026-10-06 标签与分类交互补充
+
+`.search-categories` 保留 `overflow-x:auto`，通过 `scrollbar-width:none` 与 Chromium scrollbar display none 隐藏滑动指示器。TinadecUI `BrowserTabBar` 与 `UieStack` 的主/分栏/普通标签通过 `auxclick` 中键关闭可关闭实例，Home 固定标签不可关闭；左键选中、右键分离和拖拽路径保持原有语义。验证：[BrowserTabBar.test.ts](src/components/BrowserTabBar.test.ts) 3/3。
+
+### 2026-10-06 搜索与窗口控制
+
+`CommandPaletteButton`只发open；窗口级原生dialog默认760×590自适应浮窗，放大可选且每次打开reset。分类/结果图标、每组4项预览、展开/收起、整组折叠；查询改变清旧行，增量来源更新按item ID保留选择，IME输入不执行Enter。窗口控制和入口ghost透明、无边框/阴影，输入焦点只强调搜索条分隔线，不继承全局input阴影。
+
+`spotlight.ts`覆盖command/project/conversation/model/agent/mode/prompt/tool/setting/resource；prompt读取真实fragment，工具API归一化flat manifest，未提供的source/domain/score不猜测。六配置目录逐来源缓存，查询/关闭abort，5秒截止；tool和workspace content按查询读取。会话标题/项目名覆盖全部授权活跃会话，资源内容限定当前页面项目、100匹配行上限并保留截断提示。Code路由读取CodeController项目，其余页面用Home；结果动作捕获projectId。`pageRequests`沿既有页面选择目标，目录缺ID重读一次、最新请求优先；provider跳转清旧过滤并按实际渠道选择页签。工具风险/来源在已返回manifest中本地过滤，不代表Core支持这些查询参数。
+
+报告 `.tinadec_dev/reports/2026-10-06-search-and-window-chrome.zh-CN.md`；模块APP-RENDERER-F002/103。上述验证限定此专项，不关闭全局取消错误分类/窄宽发送/模块整体审计。
 
 ### 2026-10-05 市场路由
 

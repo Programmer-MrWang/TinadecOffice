@@ -9,6 +9,11 @@ const router = createRouter({
       component: () => import('./pages/HomePage.vue'),
     },
     {
+      path: '/space',
+      name: 'space',
+      component: () => import('./pages/SpatialPage.vue'),
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('./pages/SettingsPage.vue'),

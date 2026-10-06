@@ -1,3 +1,4 @@
+import { repairSpace } from './spatial'
 import type {
   PersistedCardInstance,
   UieColumn,
@@ -305,6 +306,7 @@ export function repairLayout(
 
   return {
     version: 1,
+    ...(r.space && repairSpace(r.space) ? { space: repairSpace(r.space) } : {}),
     revision,
     pageId,
     columnOrder,

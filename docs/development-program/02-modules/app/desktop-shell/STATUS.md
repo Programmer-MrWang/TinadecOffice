@@ -7,7 +7,7 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | APP-DESKTOP-F001 | Electron Desktop 与三平台辅助资源 | 源码可见 | 本轮静态核对；未做功能验收 | 主进程/原生桥/共享 renderer 已存在；服务冒烟不等于全部原生交互完成。 | [apps/desktop/package.json](../../../../../apps/desktop/package.json)<br>[apps/desktop/electron/preload.cjs](../../../../../apps/desktop/electron/preload.cjs)<br>[apps/desktop/scripts/runtimeTargets.mjs](../../../../../apps/desktop/scripts/runtimeTargets.mjs) |
-| APP-DESKTOP-F002 | 受控 preload API 暴露原生能力与用户本地终端 | 源码可见 | 本轮静态核对；未做功能验收 | 窗口、对话框、剪贴板、偏好、宠物与终端由 Electron 提供；业务文件和 Git 操作仍经 Gateway/Core/Tools，不能另建第二套业务执行后端。 | [apps/desktop/electron/preload.cjs](../../../../../apps/desktop/electron/preload.cjs)<br>[apps/desktop/electron/terminalManager.cjs](../../../../../apps/desktop/electron/terminalManager.cjs) |
+| APP-DESKTOP-F002 | 受控 preload API 暴露原生能力与用户本地终端 | 源码可见 | 2026-10-06 Windows：AppHeader点击三控制调用对应桥动作；窗口/设置专项82/82；其他原生能力保留初始静态判断 | 窗口、对话框、剪贴板、偏好、宠物与终端由 Electron 提供；业务文件和 Git 操作仍经 Gateway/Core/Tools。纯图标控制视觉由共享渲染层APP-RENDERER-F002持有；组件桥调用测试不等于所有原生窗口行为或三平台验收。 | [apps/desktop/electron/preload.cjs](../../../../../apps/desktop/electron/preload.cjs)<br>[apps/desktop/electron/terminalManager.cjs](../../../../../apps/desktop/electron/terminalManager.cjs)<br>[AppHeader.test.ts](../../../../../apps/desktop/src/components/AppHeader.test.ts)<br>[共享渲染专项](../shared-renderer/STATUS.md) |
 
 ## 状态词汇
 

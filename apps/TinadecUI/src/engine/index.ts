@@ -11,6 +11,7 @@
 
 // --- Pure TS engine core ---
 export * from './types'
+export * from './spatial'
 export * from './commands'
 export * from './reducer'
 export * from './undoStack'

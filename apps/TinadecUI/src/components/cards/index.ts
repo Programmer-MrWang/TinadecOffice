@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import SpatialWorkCard from '@/components/spatial/SpatialWorkCard.vue'
 import { createCardRegistry, type CardRegistry } from '../../engine/registry'
 import NavCard from './home/NavCard.vue'
 import ChatCard from './home/ChatCard.vue'
@@ -25,6 +26,7 @@ export function buildUieRegistry(): CardRegistry {
   const reg = createCardRegistry()
 
   const cards: UieCardDescriptor[] = [
+    { type: 'spatialWork', component: SpatialWorkCard, minWidth: 260, minHeight: 220, singleton: false, movable: true, closable: false, detachable: false, defaultTitle: '工作' },
     { type: 'nav', component: NavCard, minWidth: 220, minHeight: 120, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: '项目' },
     { type: 'chat', component: ChatCard, minWidth: 320, minHeight: 200, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: '聊天' },
     { type: 'homePicker', component: HomePickerCard, minWidth: 240, minHeight: 160, singleton: true, movable: false, closable: false, detachable: false, defaultTitle: 'Home' },

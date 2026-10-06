@@ -897,6 +897,7 @@ export const homeController = {
   agentTurnActivities,
   recordApproval,
   loadMessagesAndApprovals,
+  refreshProjectsAndSessions,
   updateDraft: (value: string) => { draft.value = value },
   updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
   setSelectedProject: (id: string | null) => { selectedProjectId.value = id },

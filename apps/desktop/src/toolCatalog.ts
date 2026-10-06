@@ -75,8 +75,10 @@ export function sortedRiskPolicies(manifest: HarnessManifestDto | null | undefin
 }
 
 export function sortedToolSearchResults(results: ToolSearchResultDto[]): ToolSearchResultDto[] {
+  // Native manifest search has no score: preserve Core's order and don't invent one.
+  if (results.some((result) => result.score === undefined)) return [...results];
   return [...results].sort((left, right) => {
-    const score = right.score - left.score;
+    const score = (right.score ?? 0) - (left.score ?? 0);
     if (score !== 0) return score;
     const source = sourceRank(left.tool.source) - sourceRank(right.tool.source);
     if (source !== 0) return source;

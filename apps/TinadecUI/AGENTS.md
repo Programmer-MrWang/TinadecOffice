@@ -1,8 +1,8 @@
 # TinadecUI — UI Engineering Suite
 
-**Last Updated:** 2026-10-05
-**Last Updated By:** 市场三卡 classic 回退与目标布局首次挂载核对（已提交 41a6e63）
-**Last Verified Commit:** 完整代码提交41a6e63（基线b6115e6，版本86aeff6=v0.2.1）；UIE142/142、Desktop threads全量887 passed/14 skipped、市场/启动/Vapor定向13/13、node--test 107/107、类型/正式构建通过，真实开发与构建版目录选择/筛选/往返、冷市场慢读取完成
+**Last Updated:** 2026-10-06
+**Last Updated By:** 右侧 UIE 标签中键关闭交互专项（已提交）
+**Last Verified Commit:** 提交b0f92cd；BrowserTabBar中键关闭定向3/3，主/分栏/普通标签接入，Home固定标签保护；既有UIE142/142、Desktop UieCardHost2/2、layoutStore7/7，空间画布规则仍未进入实现或真实画布验收。市场历史提交41a6e63的验证见下文及专项报告。
 **Branch:** main
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.
@@ -37,8 +37,13 @@ UIE is the **only** layout system. The legacy panel system (`ContextPanel`/`Pane
 - **First activation**: `UieCardHost` creates content when its tab is first active. Thereafter hidden tabs keep the same component and local state, with reactive `uie:active`; do not turn this into destroy-on-every-tab-switch.
 - **Detached windows**: the window `type` is the UIE descriptor id; `useDetachedTabs` adds `sessionId`/`projectPath` on detach and strips them on reattach.
 - **Feature icons** come only from `cards/home/featureCatalog.ts` (`featureIconFor`).
+- **Tab middle-click**: `BrowserTabBar` and `UieStack` close non-pinned tabs on `auxclick` button 1, consume the event on pinned Home, and leave left activation, right detach, and left drag behavior unchanged. The contract is covered by `apps/desktop/src/components/BrowserTabBar.test.ts`.
 
 ## The three modules
+
+### Space canvas foundation (2026-10-06, inspection only)
+
+`UieCanvas` currently renders the three columns/dock, not a free-position viewport. Card `x/y/w/h` and `updateCardGrid` persist grid metadata but are not consumed by that renderer; `repairLayout` clamps x/y to nonnegative integers and requires stack/dock ownership. A spatial branch must extend the model, renderer and repair rules under the same UIE authority. One dispatched user message should create a readable work area: meeting/plan/executors/work widgets get an initial main-line arrangement, then user movement owns the resulting coordinates; later additions append into free space without re-laying existing cards. The top entry strip is an index/preview and click-to-locate surface, never a second copy of the card. `instancePool` stores component definitions/metadata but the render path does not call its hydrate/get/destroy methods; only same-host tab retention is implemented/tested, not cross-container/route remount prevention. Vue Flow core 1.48.2/background are already used by Desktop graph components. The read-only probe also reproduces edit→undo→redo→undo failing at the last step: `commandBus.redo` does not restore the undo record. Source-backed analysis, runnable probe and this round's checks: [spatial canvas foundation](../../.tinadec_dev/research/2026-10-06-spatial-canvas-foundation.zh-CN.md). This is research, not a shipped spatial mode.
 
 ### STREAMING OUTPUT（2026-09-23）
 
@@ -75,7 +80,7 @@ The feature/right column supports **dock splits** — recursive binary split tre
 
 - **Engine core is pure TS and DOM-free.** Do not add Vue/DOM imports to `engine/types/commands/reducer/undoStack/scope/registry/presets/repair/constraints/commandBus/instancePool`.
 - **Dependency direction is Components → Engine (one-way).** Components read `useUie()`/types and dispatch commands; the engine never imports Vue components or `useUie`.
-- **Persistence** (`engine/persistence/`) is part of the Engine module (storage logic, not UI); it stays DOM-free and writes through Electron `layoutStore.cjs` → `userData/uie-layout.json`.
+- **Persistence** (`engine/persistence/`) is part of the Engine module. `layerStore.ts` stays DOM-free; the Electron adapter currently lives in `persistence/types.ts` and reads `window.tinadec.layout`, then writes through main-process `layoutStore.cjs` → `userData/uie-layout.json`. Do not describe that adapter as DOM-free.
 - All layout mutations go through `commandBus.dispatch({ command, source, expectedRevision })`; `ai` source is reserved/rejected.
 - Persistence format is versioned; a breaking snapshot-shape change bumps `snapshot.version` and is handled in `repairLayout`. No legacy-format migration shims are kept (the old PanelType migration was removed 2026-09-27).
 - Vapor: Home UIE's 19 rendering/card SFCs and the three Market cards currently use classic templates; MarketPage is classic too. Do not restore these boundaries without real-renderer verification. Other opted-in primitives stay registered in `apps/desktop/src/vapor/`; keep the registry consistent when adding/renaming components.

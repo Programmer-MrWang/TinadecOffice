@@ -11,7 +11,7 @@ const uie = useUie()
   <main class="shell">
     <div class="top-drag-bar" />
     <AppHeader />
-    <UieCanvas />
+    <slot><UieCanvas /></slot>
   </main>
 </template>
 

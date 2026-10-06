@@ -12,6 +12,8 @@ import {
   Pencil,
   Plus,
   Settings,
+  LayoutGrid,
+  Waypoints,
   Sparkles,
   Store,
   Terminal,
@@ -36,6 +38,7 @@ const props = defineProps<{
   selectedSessionId: string | null
   busy: boolean
   collapsed?: boolean
+  spaceActive?: boolean
   panelStyle?: Record<string, string>
   panelDataAttrs?: Record<string, string>
 }>()
@@ -48,6 +51,7 @@ const emit = defineEmits<{
   'go-settings': []
   'go-market': []
   'go-workbench': []
+  'change-view': [mode: 'flat' | 'space']
   'toggle-collapse': []
   'rename-project': [id: string, name: string]
   'rename-session': [id: string, title: string]
@@ -58,6 +62,17 @@ const emit = defineEmits<{
 }>()
 
 const expandedProjects = ref<Set<string>>(new Set())
+const viewMenu = ref<HTMLDivElement | null>(null)
+const viewMenuStyle = ref({ left: '0px', top: '0px' })
+function openViewMenu(event: MouseEvent) {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  viewMenuStyle.value = { left: `${Math.max(8, Math.min(rect.left, window.innerWidth - 210))}px`, top: `${Math.max(8, rect.top - 116)}px` }
+  viewMenu.value?.togglePopover()
+}
+function changeView(mode: 'flat' | 'space') {
+  viewMenu.value?.hidePopover()
+  emit('change-view', mode)
+}
 
 // ---- Lifecycle management (context menu + inline rename) ----
 interface MenuTarget {
@@ -398,6 +413,17 @@ function openDebugStudio() {
           variant="ghost"
           size="icon"
           class="sidebar-footer-action"
+          :title="t('space.switchView')"
+          :aria-label="t('space.switchView')"
+          aria-haspopup="dialog"
+          @click="openViewMenu"
+        >
+          <Waypoints v-if="spaceActive" :size="16" /><LayoutGrid v-else :size="16" />
+        </UiButton>
+        <UiButton
+          variant="ghost"
+          size="icon"
+          class="sidebar-footer-action"
           :title="t('sidebar.settings')"
           @click="emit('go-settings')"
         >
@@ -423,5 +449,15 @@ function openDebugStudio() {
       @select="handleMenuSelect"
       @close="menuTarget = null"
     />
+    <div ref="viewMenu" popover class="sidebar-view-menu" :style="viewMenuStyle" role="dialog" :aria-label="t('space.switchView')">
+      <button :aria-pressed="!spaceActive" @click="changeView('flat')"><LayoutGrid :size="18" />{{ t('space.flat') }}</button>
+      <button :aria-pressed="!!spaceActive" @click="changeView('space')"><Waypoints :size="18" />{{ t('space.title') }}</button>
+    </div>
   </aside>
 </template>
+
+<style scoped>
+.sidebar-view-menu { position: fixed; inset: auto; margin: 0; width: 200px; padding: 6px; border: 1px solid var(--border-muted); border-radius: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); }
+.sidebar-view-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
+.sidebar-view-menu button:hover, .sidebar-view-menu button[aria-pressed="true"] { background: var(--surface-selected); }
+</style>

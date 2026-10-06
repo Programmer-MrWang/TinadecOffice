@@ -6,6 +6,7 @@ import { UiButton } from '@/components/ui'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 
 const { t } = useI18n()
+withDefaults(defineProps<{ showSearch?: boolean }>(), { showSearch: true })
 
 // There is no main-process maximize event today, so the icon follows the window's
 // outer size: at the screen's working area the window is effectively maximized.
@@ -48,22 +49,23 @@ function closeWindow() {
         `UieShell`, and Code/Library/Market render it directly. Workbench, Settings, Governance and
         Snapshots have their own bars and mount `CommandPaletteButton` themselves.
       -->
-      <CommandPaletteButton />
-      <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" @click="minimizeWindow">
-        <Minus :size="14" />
+      <CommandPaletteButton v-if="showSearch" />
+      <UiButton variant="ghost" size="icon" class="window-btn minimize" :title="t('app.minimize')" :aria-label="t('app.minimize')" @click="minimizeWindow">
+        <Minus :size="14" aria-hidden="true" />
       </UiButton>
       <UiButton
         variant="ghost"
         size="icon"
         class="window-btn maximize"
         :title="maximized ? t('app.restore') : t('app.maximize')"
+        :aria-label="maximized ? t('app.restore') : t('app.maximize')"
         @click="maximizeWindow"
       >
-        <Copy v-if="maximized" :size="11" />
-        <Square v-else :size="12" />
+        <Copy v-if="maximized" :size="11" aria-hidden="true" />
+        <Square v-else :size="12" aria-hidden="true" />
       </UiButton>
-      <UiButton variant="ghost" size="icon" class="window-btn close" :title="t('app.close')" @click="closeWindow">
-        <X :size="14" />
+      <UiButton variant="ghost" size="icon" class="window-btn close" :title="t('app.close')" :aria-label="t('app.close')" @click="closeWindow">
+        <X :size="14" aria-hidden="true" />
       </UiButton>
     </div>
   </header>

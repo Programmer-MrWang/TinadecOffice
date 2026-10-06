@@ -192,4 +192,5 @@ export const codeController = {
   handleRefresh,
   setProject,
   loadApprovals,
+  loadProjects,
 }

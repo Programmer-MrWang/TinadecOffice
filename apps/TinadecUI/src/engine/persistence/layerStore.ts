@@ -10,6 +10,7 @@ import type { LayoutScope } from '../types'
 // ---------------------------------------------------------------------------
 
 export interface LayerStore {
+  resolveSpace(sessionId: string): UieLayoutSnapshot | null
   /** Resolve the effective snapshot for the current page/project. */
   resolveSnapshot(pageId: UiePageId, activeProjectId: string | null): UieLayoutSnapshot | null
   /** Save a snapshot to the current write scope (project-scoped when active). */
@@ -73,6 +74,12 @@ export function createLayerStore(adapter: LayoutAdapter): LayerStore {
   }
 
   function saveSnapshot(snapshot: UieLayoutSnapshot, activeProjectId: string | null): void {
+    if (snapshot.space) {
+      if (snapshot.space.sessionId.startsWith('draft:')) return
+      blob.sessionBySessionId = { ...blob.sessionBySessionId, [snapshot.space.sessionId]: snapshot }
+      scheduleSave()
+      return
+    }
     const scope = writeScopeFor(snapshot.pageId, activeProjectId)
     setSnapshot(scope, snapshot, blob)
     scheduleSave()
@@ -97,7 +104,7 @@ export function createLayerStore(adapter: LayoutAdapter): LayerStore {
     scheduleSave()
   }
 
-  return { resolveSnapshot, saveSnapshot, saveAsGlobal, saveAsPage, resetWorkspace, hydrate, flush }
+  return { resolveSpace: (id) => blob.sessionBySessionId?.[id] ?? null, resolveSnapshot, saveSnapshot, saveAsGlobal, saveAsPage, resetWorkspace, hydrate, flush }
 }
 
 // --- Internal blob accessors ---

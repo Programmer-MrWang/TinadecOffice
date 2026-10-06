@@ -127,6 +127,15 @@ function close(instanceId: string) {
   })
 }
 
+/** Close a non-pinned stack tab with the conventional middle-click gesture. */
+function closeOnAuxClick(event: MouseEvent, instance: PersistedCardInstance) {
+  if (event.button !== 1) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (instance.id === homeInstance.value?.id) return
+  close(instance.id)
+}
+
 function goHome() {
   const home = homeInstance.value
   if (home) activate(home.id)
@@ -335,6 +344,7 @@ onUnmounted(() => {
         :title="inst.title"
         @click="activate(inst.id)"
         @mousedown="startDockDrag($event, inst)"
+        @auxclick="closeOnAuxClick($event, inst)"
       >
         <span class="browser-tab-label">{{ inst.title }}</span>
         <span
@@ -363,6 +373,7 @@ onUnmounted(() => {
         :class="{ active: stack.activeTabId === inst.id }"
         :title="inst.title"
         @click="activate(inst.id)"
+        @auxclick="closeOnAuxClick($event, inst)"
       >
         <span class="browser-tab-label">{{ inst.title }}</span>
         <span

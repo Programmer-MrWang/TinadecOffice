@@ -16,6 +16,9 @@ import type {
 // ---------------------------------------------------------------------------
 
 export type UieCommand =
+  | { type: 'spaceSync'; scope: LayoutScope; seeds: import('./spatial').SpatialSeed[] }
+  | { type: 'spaceMove'; scope: LayoutScope; changes: import('./spatial').SpatialChange[] }
+  | { type: 'spaceViewport'; scope: LayoutScope; viewport: import('./spatial').SpatialLayout['viewport'] }
   | {
       type: 'openCard'
       scope: LayoutScope

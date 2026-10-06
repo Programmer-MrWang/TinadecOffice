@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { UieShell } from '@tinadec/ui'
 import { homeController } from '@/controllers/HomeController'
-import { consumeRequest, pendingConversationId } from '@/lib/pageRequests'
+import { consumeRequest, pendingConversationId, pendingProjectId } from '@/lib/pageRequests'
 import { useUiePage } from '@/lib/uiEngine'
 import { useHomeEntrance } from '@/composables/useHomeEntrance'
+import { useNotifications } from '@/composables/useNotifications'
 
 // The UIE store is a module singleton shared by every UIE route; entering Home
 // switches it back to the home layout (restoring the user's saved home layout).
@@ -33,16 +35,62 @@ const homeExiting = ref(false)
 // Exit duration must match page-transitions.css (@keyframes home-up-exit:
 // 0.2s per column + 0.1s max stagger delay).
 const EXIT_DURATION_MS = 300
+const controllerStarted = ref(false)
+const { t } = useI18n()
+const { notify } = useNotifications()
 
 onMounted(() => {
   homeController.start()
+  controllerStarted.value = true
 })
 
 // A spotlight conversation row hands its id over through the request channel:
 // the palette navigates here, and the selection lands on the one ref the
 // sidebar, the message pane and the loader all already read.
+const requestedProjectId = ref<string | null>(null)
+const requestedConversationId = ref<string | null>(null)
+const refreshingNavigation = ref(false)
+let navigationGeneration = 0
+let refreshedGeneration = -1
+consumeRequest(pendingProjectId, (projectId) => {
+  navigationGeneration++
+  requestedConversationId.value = null
+  requestedProjectId.value = projectId
+})
 consumeRequest(pendingConversationId, (sessionId) => {
-  homeController.setSelectedSession(sessionId)
+  navigationGeneration++
+  requestedProjectId.value = null
+  requestedConversationId.value = sessionId
+})
+watch([requestedProjectId, homeController.projects], () => {
+  const projectId = requestedProjectId.value
+  if (!projectId || !homeController.projects.value.some((project) => project.id === projectId)) return
+  requestedProjectId.value = null
+  homeController.setSelectedProject(projectId)
+}, { immediate: true })
+watch([requestedConversationId, homeController.sessions], () => {
+  const session = homeController.sessions.value.find((item) => item.id === requestedConversationId.value)
+  if (!session) return
+  requestedConversationId.value = null
+  homeController.setSelectedProject(session.project_id ?? null)
+  homeController.setSelectedSession(session.id)
+}, { immediate: true })
+watch([controllerStarted, homeController.busy, requestedProjectId, requestedConversationId, refreshingNavigation], () => {
+  if (!controllerStarted.value || homeController.busy.value || refreshingNavigation.value) return
+  const missingProject = requestedProjectId.value && !homeController.projects.value.some((item) => item.id === requestedProjectId.value)
+  const missingSession = requestedConversationId.value && !homeController.sessions.value.some((item) => item.id === requestedConversationId.value)
+  if (!missingProject && !missingSession) return
+  if (refreshedGeneration !== navigationGeneration) {
+    refreshedGeneration = navigationGeneration
+    refreshingNavigation.value = true
+    void homeController.refreshProjectsAndSessions()
+      .catch(() => undefined)
+      .finally(() => { refreshingNavigation.value = false })
+    return
+  }
+  requestedProjectId.value = null
+  requestedConversationId.value = null
+  notify.error(t('app.loadFailedMessage'), { title: t('app.loadFailed'), key: 'search-navigation' })
 })
 
 // Spatial exit: toggle .home-exiting so the exit keyframes drive the staggered

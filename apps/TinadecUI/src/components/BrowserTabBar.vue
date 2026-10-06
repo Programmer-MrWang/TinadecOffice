@@ -166,6 +166,30 @@ function onTabClick(event: MouseEvent, instanceId: string) {
   emit('activate', instanceId)
 }
 
+/**
+ * Close a feature tab with the conventional middle-click gesture.
+ *
+ * `auxclick` is used instead of `mousedown` so a middle button press never
+ * starts the left-button drag-to-detach path.  Home is pinned and therefore
+ * remains immune to both the close button and this gesture.  Preventing the
+ * browser's default middle-button action also avoids autoscroll in the tab
+ * strip while leaving right-click's detach context action untouched.
+ */
+function onTabAuxClick(event: MouseEvent, instance: PersistedCardInstance) {
+  if (event.button !== 1) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (instance.id === props.homeInstance?.id) return
+  emit('close', instance.id)
+}
+
+/** Pinned Home is never closable, but still consumes middle-click autoscroll. */
+function onHomeAuxClick(event: MouseEvent) {
+  if (event.button !== 1) return
+  event.preventDefault()
+  event.stopPropagation()
+}
+
 onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocPointerDown)
   document.removeEventListener('keydown', onDocKeydown)
@@ -182,6 +206,7 @@ onUnmounted(() => {
       :class="{ active: activeTabId === homeInstance?.id }"
       :title="t('context.homeTitle')"
       @click="emit('home')"
+      @auxclick="onHomeAuxClick"
     >
       <HomeIcon :size="14" />
       <span class="browser-tab-label">{{ t('context.homeTabLabel') }}</span>
@@ -196,6 +221,7 @@ onUnmounted(() => {
       :title="inst.title"
       @click="onTabClick($event, inst.id)"
       @mousedown="onTabMouseDown($event, inst)"
+      @auxclick="onTabAuxClick($event, inst)"
       @contextmenu="onTabContextMenu($event, inst)"
     >
       <component :is="iconFor(inst.descriptorId)" :size="14" class="browser-tab-icon" />

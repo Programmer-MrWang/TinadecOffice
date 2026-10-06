@@ -83,6 +83,19 @@ export function createCommandBus(
     lockedSlots,
   }
 
+  function restoreHistory(saved: UieLayoutSnapshot, command: UieCommand): UieLayoutSnapshot {
+    const next = structuredClone(saved)
+    // Runtime additions and camera moves are not undone by an object edit.
+    if (snapshot.space && saved.space?.sessionId === snapshot.space.sessionId) {
+      next.space = structuredClone(snapshot.space)
+      if (command.type === 'spaceMove') for (const change of command.changes) {
+        const previous = saved.space.items[change.id]
+        if (previous && next.space.items[change.id]) next.space.items[change.id] = structuredClone(previous)
+      }
+    }
+    return next
+  }
+
   function applyEnvelope(
     envelope: UieCommandEnvelope,
     gestureId?: string,
@@ -105,7 +118,7 @@ export function createCommandBus(
       after: result.next,
       gesture: !!gestureId,
     }
-    undoStack.push(record)
+    if (envelope.command.type !== 'spaceSync' && envelope.command.type !== 'spaceViewport') undoStack.push(record)
     snapshot = result.next
     onChanged?.(snapshot, PERSIST)
     return true
@@ -126,7 +139,7 @@ export function createCommandBus(
       const record = undoStack.popUndo()
       if (!record) return undefined
       // Undo = restore the pre-mutation snapshot directly (pure, no replay).
-      snapshot = structuredClone(record.before)
+      snapshot = restoreHistory(record.before, record.redo.command)
       undoStack.pushRedo(record)
       onChanged?.(snapshot, PERSIST)
       return snapshot
@@ -134,7 +147,7 @@ export function createCommandBus(
     redo() {
       const record = undoStack.popRedo()
       if (!record) return undefined
-      snapshot = structuredClone(record.after)
+      snapshot = restoreHistory(record.after, record.redo.command)
       onChanged?.(snapshot, PERSIST)
       return snapshot
     },
