@@ -67,6 +67,9 @@ describe('command bus', () => {
     expect(redone).toBeTruthy()
     expect(redone!.revision).toBe(afterOpen.revision)
     expect(Object.values(redone!.cards).filter((c) => c.descriptorId === 'browser').length).toBe(2)
+    expect(bus.canUndo()).toBe(true)
+    expect(Object.values(bus.undo()!.cards).filter(c => c.descriptorId === 'browser').length).toBe(1)
+    expect(bus.redo()).toBeTruthy()
   })
 
   it('coalesces drag resizes sharing a gestureId into one undo record', () => {

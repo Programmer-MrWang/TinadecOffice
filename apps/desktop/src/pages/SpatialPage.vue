@@ -1,256 +1,212 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
 import { Background } from '@vue-flow/background'
-import { Handle, Position, VueFlow, type Node } from '@vue-flow/core'
-import { Bot, CheckCircle2, Code2, ListTodo, Search, ShieldCheck, TestTube2 } from '@lucide/vue'
+import { VueFlow, useVueFlow, type Node as FlowNode, type NodeChange } from '@vue-flow/core'
+import { NodeResizer } from '@vue-flow/node-resizer'
+import { Bot, ChevronLeft, ChevronRight, GitBranch, ListTodo, Maximize, Minus, Plus, Redo2, ShieldCheck, Undo2 } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import AppHeader from '@/components/AppHeader.vue'
-import AppSidebar from '@/components/AppSidebar.vue'
+import { UieShell, UieCanvas, UieCardHost, type SpatialChange, type SpatialLayout } from '@tinadec/ui'
 import ComposerBar from '@/components/ComposerBar.vue'
-import { homeController } from '@/controllers/HomeController'
-import type { PermissionLevel } from '@/types/mode'
+import SpatialWorkCard from '@/components/spatial/SpatialWorkCard.vue'
+import { UiButton } from '@/components/ui'
+import { homeController as c } from '@/controllers/HomeController'
+import { ensureProductionUie } from '@/lib/uiEngine'
+import { api, type SessionTopologyDto } from '@/api'
+import { projectSpatialObjects } from '@/lib/spatialObjects'
+import { subscribeToSessionEvents } from '@/lib/sessionEventBus'
 
-type SpatialNodeData = {
-  title: string
-  subtitle: string
-  status: string
-  kind: 'meeting' | 'plan' | 'agent' | 'work'
-  progress?: string
-  icon: typeof Bot
-}
-
-type SpatialNode = Node<SpatialNodeData>
-
-const router = useRouter()
 const { t } = useI18n()
-const c = homeController
-const sidebarCollapsed = ref(false)
-const modeVersionId = ref<string | null>(null)
-const permission = ref<PermissionLevel>(c.currentPermission.value)
-const nodes = ref<SpatialNode[]>([])
-const viewportKey = computed(() => `tinadec-space:${c.selectedSessionId.value ?? 'draft'}`)
-
-function makeNodes(): SpatialNode[] {
-  return [
-    {
-      id: 'meeting',
-      type: 'spatial',
-      position: { x: 80, y: 150 },
-      data: { title: '会议智能体', subtitle: '接收用户消息 · 组织工作', status: '等待任务', kind: 'meeting', icon: Bot },
-    },
-    {
-      id: 'plan',
-      type: 'spatial',
-      position: { x: 390, y: 150 },
-      data: { title: '计划', subtitle: 'Todo · 执行顺序', status: '3 项任务', kind: 'plan', progress: '1/3 已完成', icon: ListTodo },
-    },
-    {
-      id: 'agent-code',
-      type: 'spatial',
-      position: { x: 700, y: 78 },
-      data: { title: '代码编辑智能体', subtitle: '编辑 src/App.vue', status: '进行中', kind: 'agent', progress: '写入代码', icon: Code2 },
-    },
-    {
-      id: 'agent-test',
-      type: 'spatial',
-      position: { x: 700, y: 270 },
-      data: { title: '测试智能体', subtitle: '验证前端行为', status: '等待执行', kind: 'agent', progress: '0/4 Tests', icon: TestTube2 },
-    },
-    {
-      id: 'work-git',
-      type: 'spatial',
-      position: { x: 1030, y: 78 },
-      data: { title: '更改', subtitle: 'Git · 当前工作区', status: '2 files changed', kind: 'work', icon: CheckCircle2 },
-    },
-    {
-      id: 'work-approval',
-      type: 'spatial',
-      position: { x: 1030, y: 270 },
-      data: { title: '审批', subtitle: '等待用户裁决', status: '1 项待审查', kind: 'work', icon: ShieldCheck },
-    },
-  ]
+const emit = defineEmits<{ ready: [] }>()
+const uie = ensureProductionUie()
+const ready = ref(false)
+const topology = shallowRef<SessionTopologyDto | null>(null)
+const loadError = ref('')
+const sessionKey = computed(() => c.selectedSessionId.value ?? `draft:${c.selectedProjectId.value ?? 'free'}`)
+const { applyNodeChanges, setViewport, fitBounds, zoomIn, zoomOut } = useVueFlow({ id: 'session-space' })
+let alive = true
+let generation = 0
+let refreshTimer: ReturnType<typeof setTimeout> | undefined
+let unsubscribe: (() => void) | undefined
+const objects = computed(() => projectSpatialObjects({ sessionId: sessionKey.value, messages: c.messages.value,
+  topology: topology.value, orchestration: c.orchestration.value, turns: c.agentTurnActivities.value, streamingReply: c.streamingReply.value }))
+const objectMap = computed(() => Object.fromEntries(objects.value.map(o => [o.id, o])))
+provide('space:objects', objectMap)
+const nodes = computed<FlowNode[]>(() => objects.value.flatMap(object => {
+  const item = uie.snapshot.value.space?.items[object.id]
+  return item ? [{ id: object.id, type: 'work', position: { x: item.x, y: item.y }, width: item.width, height: item.height,
+    dragHandle: '.space-drag-handle', data: {}, connectable: false, deletable: false }] : []
+}))
+function syncObjects() {
+  if (!ready.value || uie.snapshot.value.space?.sessionId !== sessionKey.value) return
+  const seeds = objects.value.filter(o => !uie.snapshot.value.space!.items[o.id]).map(o => ({ id: o.id, groupId: o.groupId }))
+  if (seeds.length) uie.dispatch({ command: { type: 'spaceSync', scope: uie.scope.value, seeds }, source: 'route', expectedRevision: uie.snapshot.value.revision })
 }
+watch(objects, syncObjects)
 
-function restoreNodes() {
-  const base = makeNodes()
+async function loadTopology() {
+  const id = c.selectedSessionId.value
+  const read = ++generation
+  if (!id) { topology.value = null; return }
   try {
-    const raw = localStorage.getItem(viewportKey.value)
-    if (!raw) {
-      nodes.value = base
-      return
-    }
-    const saved = JSON.parse(raw) as Record<string, { x: number; y: number }>
-    for (const node of base) {
-      const position = saved[node.id]
-      if (position) node.position = position
-    }
-    nodes.value = base
-  } catch {
-    nodes.value = base
+    const data = await api.getSessionTopology(id, { include_finished: true, max_runs: 40, max_tasks: 200 })
+    if (!alive || read !== generation || id !== c.selectedSessionId.value) return
+    topology.value = data
+    loadError.value = ''
+  } catch (error) {
+    if (alive && read === generation) loadError.value = error instanceof Error ? error.message : String(error)
   }
 }
-
-function persistNodes() {
-  const positions: Record<string, { x: number; y: number }> = {}
-  for (const node of nodes.value as SpatialNode[]) positions[node.id] = { x: node.position.x, y: node.position.y }
-  localStorage.setItem(viewportKey.value, JSON.stringify(positions))
+function enterSession() {
+  if (!ready.value) return
+  generation++
+  topology.value = null
+  loadError.value = ''
+  uie.showSpace(sessionKey.value)
+  syncObjects()
+  peek.value = null
+  void loadTopology()
+  void nextTick(restoreViewport)
 }
-
-function handleNodesChange(changes: unknown) {
-  const list = changes as Array<{ id: string; type: string; position?: { x: number; y: number } }>
-  let changed = false
-  const current = nodes.value as SpatialNode[]
-  for (const node of current) {
-    const change = list.find((item) => item.id === node.id && item.type === 'position')
-    if (!change?.position) continue
-    changed = true
-    node.position = change.position
-  }
-  if (changed) persistNodes()
-}
-
-function selectSession(id: string) {
-  c.setSelectedSession(id)
-  restoreNodes()
-}
-
-function createSession(projectId: string | null) {
-  void c.createSession(projectId)
-}
-
-onMounted(() => {
+watch(sessionKey, enterSession)
+onMounted(async () => {
   c.start()
-  modeVersionId.value = c.currentSession.value?.mode_version_id ?? null
-  restoreNodes()
+  await uie.ready
+  if (!alive) return
+  ready.value = true
+  enterSession()
+  unsubscribe = subscribeToSessionEvents(event => {
+    if (event.session_id !== c.selectedSessionId.value || refreshTimer) return
+    refreshTimer = setTimeout(() => { refreshTimer = undefined; void loadTopology() }, 800)
+  })
+  await nextTick()
+  emit('ready')
 })
+onBeforeUnmount(() => { alive = false; generation++; unsubscribe?.(); clearTimeout(refreshTimer) })
 
-watch(() => c.selectedSessionId.value, () => {
-  modeVersionId.value = c.currentSession.value?.mode_version_id ?? null
-  restoreNodes()
-})
+function commit(changes: SpatialChange[]) {
+  uie.dispatch({ command: { type: 'spaceMove', scope: uie.scope.value, changes }, source: 'user', expectedRevision: uie.snapshot.value.revision })
+}
+function dragStop(event: { nodes: FlowNode[] }) {
+  commit(event.nodes.map(n => ({ id: n.id, x: n.position.x, y: n.position.y })))
+}
+function camera(viewport: SpatialLayout['viewport']) {
+  if (ready.value) uie.dispatch({ command: { type: 'spaceViewport', scope: uie.scope.value, viewport }, source: 'user', expectedRevision: uie.snapshot.value.revision })
+}
+function restoreViewport() { const v = uie.snapshot.value.space?.viewport; if (v) void setViewport(v) }
+function locate(id: string) {
+  const item = uie.snapshot.value.space?.items[id]
+  if (item) void fitBounds({ x: item.x, y: item.y, width: item.width, height: item.height }, { padding: 0.4 })
+  peek.value = null
+}
+function overview() {
+  const items = objects.value.map(o => uie.snapshot.value.space?.items[o.id]).filter((i): i is NonNullable<typeof i> => !!i)
+  if (!items.length) return
+  const x = Math.min(...items.map(i => i.x)), y = Math.min(...items.map(i => i.y))
+  void fitBounds({ x, y, width: Math.max(...items.map(i => i.x + i.width)) - x, height: Math.max(...items.map(i => i.y + i.height)) - y }, { padding: 0.15 })
+}
+function keyboard(event: KeyboardEvent) {
+  const target = event.target as HTMLElement
+  if (target.closest('input,textarea,[contenteditable=true]') || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'z') return
+  event.preventDefault()
+  if (event.shiftKey) uie.redo(); else uie.undo()
+}
+const entries = [{ kind: 'meeting', key: 'planning', icon: Bot }, { kind: 'plan', key: 'plans', icon: ListTodo }, { kind: 'git', key: 'changes', icon: GitBranch }, { kind: 'approval', key: 'approvals', icon: ShieldCheck }] as const
+const peek = ref<string | null>(null)
+const peekIndex = ref(0)
+const expanded = ref(false)
+const previews = computed(() => objects.value.filter(o => o.kind === peek.value))
+const preview = computed(() => previews.value[Math.min(peekIndex.value, previews.value.length - 1)])
+function showPreview(kind: string) { if (peek.value !== kind) { peekIndex.value = 0; expanded.value = false }; peek.value = kind }
+function leavePreview(event: FocusEvent) { if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) peek.value = null }
 </script>
 
 <template>
-  <main class="spatial-page">
-    <div class="top-drag-bar" />
-    <AppHeader />
-    <div class="spatial-body">
-      <AppSidebar
-        :projects="c.projects.value"
-        :sessions="c.sessions.value"
-        :selected-project-id="c.selectedProjectId.value"
-        :selected-session-id="c.selectedSessionId.value"
-        :busy="c.busy.value"
-        :collapsed="sidebarCollapsed"
-        @select-project="c.setSelectedProject($event)"
-        @select-session="selectSession($event)"
-        @create-session="createSession($event)"
-        @open-project="c.openProject()"
-        @go-market="router.push('/market')"
-        @go-settings="router.push('/settings')"
-        @go-workbench="router.push('/workbench')"
-        @go-space="router.push('/space')"
-        @toggle-collapse="sidebarCollapsed = !sidebarCollapsed"
-        @rename-project="(id, name) => c.renameProject(id, name)"
-        @rename-session="(id, title) => c.renameSession(id, title)"
-        @archive-project="c.archiveProject($event)"
-        @archive-session="c.archiveSession($event)"
-        @trash-project="c.trashProject($event)"
-        @trash-session="c.trashSession($event)"
-      />
-
-      <section class="spatial-stage">
-        <div class="spatial-flow-wrap">
-          <VueFlow
-            :nodes="nodes"
-            :edges="[]"
-            :nodes-connectable="false"
-            :elements-selectable="true"
-            :pan-on-drag="[1]"
-            :zoom-on-scroll="true"
-            :zoom-on-double-click="false"
-            :min-zoom="0.35"
-            :max-zoom="1.8"
-            :fit-view-on-init="false"
-            class="spatial-flow"
-            @nodes-change="handleNodesChange"
-          >
+  <UieShell v-if="ready">
+    <UieCanvas spatial>
+      <div class="space-surface" tabindex="-1" @keydown="keyboard">
+        <div class="space-flow-area">
+          <VueFlow :key="sessionKey" id="session-space" :nodes="nodes" :edges="[]" :apply-default="false"
+            :nodes-connectable="false" :delete-key-code="null" :pan-on-drag="[1]" :pan-on-scroll="true" :zoom-on-scroll="false"
+            :zoom-on-pinch="true" :zoom-on-double-click="false" :min-zoom="0.2" :max-zoom="2" :only-render-visible-elements="false"
+            @nodes-change="(changes: NodeChange[]) => applyNodeChanges(changes)" @node-drag-stop="dragStop"
+            @pane-ready="restoreViewport" @viewport-change-end="camera">
             <Background pattern-color="var(--border-muted)" :gap="24" :size="1" />
-            <template #node-spatial="{ data }">
-              <article class="spatial-node" :class="`is-${data.kind}`">
-                <Handle type="target" :position="Position.Left" :connectable="false" />
-                <header class="spatial-node-head">
-                  <component :is="data.icon" :size="17" aria-hidden="true" />
-                  <strong>{{ data.title }}</strong>
-                </header>
-                <p>{{ data.subtitle }}</p>
-                <footer>
-                  <span>{{ data.status }}</span>
-                  <b v-if="data.progress">{{ data.progress }}</b>
-                </footer>
-                <Handle type="source" :position="Position.Right" :connectable="false" />
-              </article>
+            <template #node-work="{ id, selected }">
+              <NodeResizer :min-width="260" :min-height="220" :max-width="1400" :max-height="1200" :is-visible="selected"
+                @resize-end="({ params }) => commit([{ id, x: params.x, y: params.y, width: params.width, height: params.height }])" />
+              <UieCardHost :instance="{ id, descriptorId: 'spatialWork', title: '', state: { objectId: id } }" :active="true" />
             </template>
           </VueFlow>
-          <div class="spatial-hint">中键拖动画布 · 滚轮缩放 · 拖动控件调整工作区域</div>
+          <div class="space-controls">
+            <UiButton variant="ghost" size="icon" :aria-label="t('space.undo')" :disabled="!uie.canUndo.value" @click="uie.undo()"><Undo2 :size="16" /></UiButton>
+            <UiButton variant="ghost" size="icon" :aria-label="t('space.redo')" :disabled="!uie.canRedo.value" @click="uie.redo()"><Redo2 :size="16" /></UiButton>
+            <UiButton variant="ghost" size="icon" :aria-label="t('space.zoomOut')" @click="zoomOut()"><Minus :size="16" /></UiButton>
+            <UiButton variant="ghost" size="icon" :aria-label="t('space.zoomIn')" @click="zoomIn()"><Plus :size="16" /></UiButton>
+            <UiButton variant="ghost" size="icon" :aria-label="t('space.overview')" @click="overview"><Maximize :size="16" /></UiButton>
+          </div>
+          <div v-if="loadError" class="space-load-error" role="status">{{ loadError }} <button @click="loadTopology">{{ t('space.retry') }}</button></div>
+          <span class="space-navigation-hint">{{ t('space.navigationHint') }}</span>
         </div>
-
-        <div class="spatial-composer">
-          <ComposerBar
-            :hero="false"
-            :busy="c.busy.value || c.working.value"
-            :model-value="c.draft.value"
-            :permission="permission"
-            :projects="c.projects.value"
-            :selected-project-id="c.selectedProjectId.value"
-            :session-id="c.currentSession.value?.id ?? null"
-            :mode-version-id="modeVersionId"
-            :meeting-model-override="c.currentSession.value?.meeting_model_override ?? null"
-            :runs="c.runs.value"
-            :can-stop="Boolean(c.stoppableRunId.value)"
-            @update:model-value="c.updateDraft($event)"
-            @update:permission="permission = $event"
-            @update:mode-version-id="modeVersionId = $event"
-            @submit="c.sendMessage($event)"
-            @stop="c.stopRun()"
-            @create-project="c.openProject()"
-            @select-project="c.setSelectedProject($event)"
-          />
+        <div class="space-composer-dock">
+          <nav class="space-index" :aria-label="t('space.index')" @mouseleave="peek = null" @focusout="leavePreview" @keydown.esc.stop="peek = null">
+            <div v-for="entry in entries" :key="entry.kind" class="space-index-entry">
+              <button class="space-index-button" :aria-expanded="peek === entry.kind" @mouseenter="showPreview(entry.kind)" @focus="showPreview(entry.kind)" @click="showPreview(entry.kind); preview && locate(preview.id)">
+                <component :is="entry.icon" :size="16" />{{ t('space.' + entry.key) }}
+                <span v-if="entry.kind === 'approval' && c.approvals.value.some(a => a.status === 'pending')" class="space-approval-count">{{ c.approvals.value.filter(a => a.status === 'pending').length }}</span>
+              </button>
+              <div v-if="peek === entry.kind && preview" class="space-peek" :class="{ 'space-peek-stacked': previews.length > 1 }">
+                <div v-if="previews.length > 1" class="space-peek-pagination">
+                  <button :disabled="peekIndex <= 0" :aria-label="t('space.previous')" @click="peekIndex--"><ChevronLeft :size="16" /></button>
+                  <span>{{ peekIndex + 1 }} / {{ previews.length }}</span>
+                  <button :disabled="peekIndex >= previews.length - 1" :aria-label="t('space.next')" @click="peekIndex++"><ChevronRight :size="16" /></button>
+                  <button @click="expanded = !expanded">{{ t(expanded ? 'space.collapse' : 'space.expand') }}</button>
+                </div>
+                <div v-if="expanded" class="space-plan-list"><button v-for="item in previews" :key="item.id" @click="locate(item.id)">{{ item.title || t('space.kind.' + item.kind) }} · {{ item.groupId.slice(0, 8) }}</button></div>
+                <div v-else class="space-peek-content" @click="locate(preview.id)"><SpatialWorkCard :object="preview" preview /></div>
+                <button class="space-locate" @click="locate(preview.id)">{{ t('space.locate') }}</button>
+              </div>
+            </div>
+          </nav>
+          <ComposerBar spatial :hero="false" :busy="c.busy.value || c.working.value" :model-value="c.draft.value" :permission="c.currentPermission.value"
+            :projects="c.projects.value" :selected-project-id="c.selectedProjectId.value" :session-id="c.currentSession.value?.id ?? null"
+            :mode-version-id="c.currentSession.value?.mode_version_id ?? null" :meeting-model-override="c.currentSession.value?.meeting_model_override ?? null"
+            :runs="c.runs.value" :can-stop="Boolean(c.stoppableRunId.value)"
+            @update:model-value="c.updateDraft($event)" @update:permission="c.updatePermission($event)" @submit="c.sendMessage($event)"
+            @stop="c.stopRun()" @create-project="c.openProject()" @select-project="c.setSelectedProject($event)">
+            <template #capabilities><span class="space-meeting-label"><Bot :size="14" />{{ t('space.kind.meeting') }}</span></template>
+          </ComposerBar>
         </div>
-      </section>
-    </div>
-  </main>
+      </div>
+    </UieCanvas>
+  </UieShell>
 </template>
 
 <style>
 @import '@vue-flow/core/dist/style.css';
 @import '@vue-flow/core/dist/theme-default.css';
-
-.spatial-page,
-.spatial-body,
-.spatial-stage {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
-
-.spatial-page { position: relative; overflow: hidden; background: var(--bg-app); }
-.spatial-body { display: flex; padding-top: 0; }
-.spatial-stage { position: relative; min-width: 0; }
-.spatial-flow-wrap { position: absolute; inset: 0 0 122px; }
-.spatial-flow { width: 100%; height: 100%; background: var(--bg-app); }
-.spatial-composer { position: absolute; left: 50%; bottom: 18px; z-index: 10; width: min(760px, calc(100% - 40px)); transform: translateX(-50%); }
-.spatial-composer .composer { width: 100%; }
-.spatial-hint { position: absolute; top: 14px; left: 50%; padding: 5px 10px; border-radius: 999px; color: var(--text-tertiary); background: color-mix(in srgb, var(--surface-raised) 84%, transparent); font-size: 11px; pointer-events: none; transform: translateX(-50%); }
-.spatial-node { width: 240px; padding: 14px; border: 1px solid var(--border-card); border-radius: 16px; color: var(--text-primary); background: color-mix(in srgb, var(--surface-raised) 94%, transparent); box-shadow: var(--shadow-card-subtle); cursor: grab; }
-.spatial-node:active { cursor: grabbing; }
-.spatial-node-head { display: flex; align-items: center; gap: 8px; font-size: 14px; }
-.spatial-node p { margin: 12px 0; color: var(--text-secondary); font-size: 12px; }
-.spatial-node footer { display: flex; justify-content: space-between; gap: 10px; color: var(--text-tertiary); font-family: var(--font-mono, monospace); font-size: 11px; }
-.spatial-node footer b { color: var(--accent-primary); font-weight: 500; }
-.spatial-node.is-meeting { border-color: color-mix(in srgb, var(--accent-primary) 55%, var(--border-card)); }
-.spatial-node.is-plan { border-color: color-mix(in srgb, var(--accent-warning) 45%, var(--border-card)); }
-.spatial-node.is-work { border-color: color-mix(in srgb, var(--accent-success) 45%, var(--border-card)); }
-.vue-flow__handle { opacity: 0; }
+@import '@vue-flow/node-resizer/dist/style.css';
+.space-surface { position: relative; height: 100%; min-height: 0; }
+.space-flow-area { position: absolute; inset: 0 0 196px; }
+.space-flow-area .vue-flow__node-work { border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow-card-subtle); }
+.space-flow-area .vue-flow__node-work.selected { outline: 2px solid var(--accent-primary); outline-offset: 3px; }
+.space-controls { position: absolute; top: 8px; right: 12px; display: flex; border-radius: 12px; background: var(--surface-raised); }
+.space-navigation-hint { position: absolute; bottom: 8px; left: 16px; color: var(--text-tertiary); font-size: 11px; pointer-events: none; }
+.space-load-error { position: absolute; left: 16px; top: 8px; max-width: 65%; font-size: 12px; color: var(--text-secondary); background: var(--surface-raised); padding: 8px; border-radius: 8px; }
+.space-composer-dock { position: absolute; bottom: 12px; left: 0; right: 0; width: min(760px, calc(100% - 32px)); margin: auto; z-index: 10; }
+.space-composer-dock .composer { width: 100%; margin: 0; padding: 0; }
+.space-index { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; position: relative; }
+.space-index-entry { position: relative; }
+.space-index-button { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border: 0; border-radius: 10px; color: var(--text-secondary); background: var(--surface-raised); cursor: pointer; font-size: 13px; }
+.space-index-button:hover, .space-index-button:focus-visible { color: var(--text-primary); background: var(--surface-hover); }
+.space-peek { position: absolute; width: 325px; height: 440px; bottom: 100%; left: 50%; transform: translateX(-50%); padding-bottom: 12px; display: flex; flex-direction: column; filter: drop-shadow(0 8px 18px rgb(0 0 0 / 0.13)); }
+.space-peek-content { min-height: 0; flex: 1; cursor: pointer; }
+.space-peek-stacked::before { content: ''; position: absolute; inset: -7px 7px 22px; border-radius: 16px; background: var(--surface-section); border: 1px solid var(--border-muted); z-index: -1; }
+.space-peek-pagination { display: flex; justify-content: space-around; gap: 8px; padding: 8px; background: var(--surface-raised); border-radius: 12px 12px 0 0; font-size: 12px; }
+.space-peek button { color: var(--text-primary); background: var(--surface-raised); border: 0; cursor: pointer; }
+.space-locate { padding: 10px; border-radius: 0 0 12px 12px; font-size: 12px; }
+.space-plan-list { flex: 1; overflow: auto; background: var(--surface-raised); }
+.space-plan-list button { display: block; width: 100%; padding: 12px; text-align: left; }
+.space-approval-count { color: var(--accent-warning); font-size: 12px; }
+.space-meeting-label { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; }
+@media (max-width: 800px) { .space-index-entry { position: static; } .space-index-button { padding: 8px; gap: 4px; } .space-peek { max-width: calc(100vw - 88px); } }
 </style>

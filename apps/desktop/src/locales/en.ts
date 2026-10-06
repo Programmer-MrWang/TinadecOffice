@@ -1,4 +1,13 @@
 export default {
+  space: {
+    title: 'Space', flat: 'Flat', switchView: 'Switch view', index: 'Session overview', planning: 'Planning', plans: 'Plans', changes: 'Changes', approvals: 'Approvals',
+    undo: 'Undo layout change', redo: 'Redo layout change', zoomIn: 'Zoom in', zoomOut: 'Zoom out', overview: 'Show all', retry: 'Retry',
+    previous: 'Previous plan', next: 'Next plan', expand: 'Show all plans', collapse: 'Stack plans', locate: 'Locate on canvas',
+    navigationHint: 'Middle mouse to pan · Ctrl/⌘ + scroll to zoom', waitingMessage: 'Send a message to start working together.', noPlan: 'No plan has been published yet.',
+    noProject: 'No project selected', locateGit: 'Locate the changes card to inspect files and Git history.', noApprovals: 'No approval requests.', progress: '{done} of {total} completed',
+    kind: { meeting: 'Meeting agent', message: 'Your message', plan: 'Task list', task: 'Agent', tool: 'Tool activity', git: 'Version control', approval: 'Approvals' },
+    status: { running: 'Running', planning: 'Planning', queued: 'Queued', pending: 'Pending', in_progress: 'In progress', completed: 'Completed', succeeded: 'Succeeded', failed: 'Failed', cancelled: 'Cancelled', waiting_approval: 'Awaiting approval', awaiting_user: 'Awaiting your decision', approved: 'Approved', rejected: 'Rejected', blocked: 'Blocked', idle: 'Ready' },
+  },
   app: {
     name: 'TinadecOffice',
     connected: 'Connected',

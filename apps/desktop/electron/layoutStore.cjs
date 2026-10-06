@@ -28,7 +28,7 @@ function validateLayoutPayload(payload) {
   if (!payload || typeof payload !== 'object') return 'payload must be an object';
   if (typeof payload.version !== 'number') return 'version must be a number';
   // StorageBlob shape: { version, globalByPage?, pageByPageId?, workspaceByKey? }
-  for (const key of ['globalByPage', 'pageByPageId', 'workspaceByKey']) {
+  for (const key of ['globalByPage', 'pageByPageId', 'workspaceByKey', 'sessionBySessionId']) {
     if (payload[key] !== undefined && (typeof payload[key] !== 'object' || payload[key] === null)) {
       return `${key} must be an object`;
     }
