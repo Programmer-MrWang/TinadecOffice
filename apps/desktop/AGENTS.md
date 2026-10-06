@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-10-06
 **Last Updated By:** 搜索分类滚动指示器移除与右侧标签中键关闭专项（已提交）
-**Last Verified Commit:** b0f92cd（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
+**Last Verified Commit:** 2c40329（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
 **Branch:** main
 
 ### 2026-10-06 标签与分类交互补充
@@ -16,6 +16,8 @@
 `spotlight.ts`覆盖command/project/conversation/model/agent/mode/prompt/tool/setting/resource；prompt读取真实fragment，工具API归一化flat manifest，未提供的source/domain/score不猜测。六配置目录逐来源缓存，查询/关闭abort，5秒截止；tool和workspace content按查询读取。会话标题/项目名覆盖全部授权活跃会话，资源内容限定当前页面项目、100匹配行上限并保留截断提示。Code路由读取CodeController项目，其余页面用Home；结果动作捕获projectId。`pageRequests`沿既有页面选择目标，目录缺ID重读一次、最新请求优先；provider跳转清旧过滤并按实际渠道选择页签。工具风险/来源在已返回manifest中本地过滤，不代表Core支持这些查询参数。
 
 报告 `.tinadec_dev/reports/2026-10-06-search-and-window-chrome.zh-CN.md`；模块APP-RENDERER-F002/103。上述验证限定此专项，不关闭全局取消错误分类/窄宽发送/模块整体审计。
+
+空间工作区基础切片同时存在：`SpatialPage.vue`、`spatialObjects.ts` 与 `SpatialWorkCard.vue` 提供主线工作区及只读对象投影；完整真实派发、自由画布性能和跨路由保活仍待验收。
 
 ### 2026-10-05 市场路由
 
