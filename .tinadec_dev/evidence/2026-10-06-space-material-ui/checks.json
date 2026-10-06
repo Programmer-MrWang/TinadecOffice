@@ -1,0 +1,62 @@
+{
+  "opaque": {
+    "effect": "opaque",
+    "background": "rgb(16, 19, 26)",
+    "filter": "none",
+    "rootBackground": "rgba(0, 0, 0, 0)",
+    "rootFilter": "none",
+    "controlsFilter": "none",
+    "cards": [
+      {
+        "background": "rgb(35, 38, 45)",
+        "filter": "none",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "background": "rgb(35, 38, 45)",
+        "filter": "none",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      }
+    ]
+  },
+  "translucent": {
+    "effect": "translucent",
+    "background": "rgba(16, 19, 26, 0.88)",
+    "filter": "none",
+    "rootBackground": "rgba(0, 0, 0, 0)",
+    "rootFilter": "none",
+    "controlsFilter": "none",
+    "cards": [
+      {
+        "background": "rgba(35, 38, 45, 0.78)",
+        "filter": "none",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "background": "rgba(35, 38, 45, 0.78)",
+        "filter": "none",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      }
+    ]
+  },
+  "blur": {
+    "effect": "blur",
+    "background": "rgba(16, 19, 26, 0.7)",
+    "filter": "blur(4px) saturate(1.05)",
+    "rootBackground": "rgba(0, 0, 0, 0)",
+    "rootFilter": "none",
+    "controlsFilter": "blur(7px) saturate(1.08)",
+    "cards": [
+      {
+        "background": "rgba(35, 38, 45, 0.5)",
+        "filter": "blur(7px) saturate(1.08)",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      },
+      {
+        "background": "rgba(35, 38, 45, 0.5)",
+        "filter": "blur(7px) saturate(1.08)",
+        "parentBackground": "rgba(0, 0, 0, 0)"
+      }
+    ]
+  }
+}

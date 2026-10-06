@@ -34,3 +34,12 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[APP-UIE-ENGINE-001](TODO.md#app-uie-engine-001)。
+
+
+## 2026-10-06 空间模式数据流
+
+`SpatialPage` 读取既有会话消息、拓扑与活动，投影稳定工作对象 ID；UIE 的 `space` 分支只保存 sessionId、对象几何和视口。Vue Flow 的拖动/尺寸/视口事件通过命令总线提交，`layerStore` 写入 `sessionBySessionId`，沿已有 Electron IPC 保存。画布宿主与预览读取同一对象；预览点击只定位。
+
+来源：[空间首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)。完整执行能力组合仍由 [APP-RENDERER-104](../shared-renderer/TODO.md#app-renderer-104) 跟踪。
+
+空间几何追加autoHeight/manualPosition，内容测高通过spaceSync更新自动高度与纵向排列，spaceMove记录手动尺寸/位置；旧布局保留坐标，默认400px高度迁为自适应。

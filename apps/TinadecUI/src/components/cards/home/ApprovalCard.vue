@@ -3,10 +3,12 @@ import ApprovalTab from '@/components/ApprovalTab.vue'
 import { homeController } from '@/controllers/HomeController'
 
 const c = homeController
+defineProps<{ compact?: boolean }>()
 </script>
 
 <template>
   <ApprovalTab
+    :compact="compact"
     :approvals="c.approvals.value"
     :approval-rules="c.approvalRules.value"
     :shell-command="c.shellCommand.value"

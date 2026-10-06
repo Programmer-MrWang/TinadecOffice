@@ -1,10 +1,11 @@
 export default {
   space: {
+    refresh: '刷新', loading: '读取中…', filesChanged: '{count} 个文件更改', currentFile: '当前内容 · 前 500 行',
     title: '空间模式', flat: '平面模式', switchView: '切换显示模式', index: '会话总览', planning: '规划', plans: '计划', changes: '更改', approvals: '审批',
     undo: '撤销布局修改', redo: '重做布局修改', zoomIn: '放大', zoomOut: '缩小', overview: '查看全局', retry: '重试',
-    previous: '上一份计划', next: '下一份计划', expand: '展开全部计划', collapse: '堆叠计划', locate: '定位到画布',
-    navigationHint: '中键移动画布 · Ctrl/⌘ + 滚轮缩放', waitingMessage: '发送消息，开始一起工作。', noPlan: '尚未发布计划。',
-    noProject: '尚未选择项目', locateGit: '定位到更改控件，查看文件与 Git 历史。', noApprovals: '暂无审批请求。', progress: '共 {total} 项 · {done} 已完成',
+    previous: '上一份计划', next: '下一份计划', expand: '展开全部计划', collapse: '堆叠计划',
+    waitingMessage: '发送消息，开始一起工作。', noPlan: '尚未发布计划。',
+    noProject: '尚未选择项目', noApprovals: '暂无审批请求。', progress: '共 {total} 项 · {done} 已完成',
     kind: { meeting: '会议智能体', message: '用户消息', plan: '任务列表', task: '执行智能体', tool: '工具活动', git: '版本控制', approval: '审查项' },
     status: { running: '进行中', planning: '规划中', queued: '排队中', pending: '待开始', in_progress: '进行中', completed: '已完成', succeeded: '已成功', failed: '失败', cancelled: '已取消', waiting_approval: '等待审批', awaiting_user: '等待用户裁决', approved: '已批准', rejected: '已拒绝', blocked: '受阻', idle: '就绪' },
   },

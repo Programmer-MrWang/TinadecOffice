@@ -1,9 +1,18 @@
 # TinadecUI — UI Engineering Suite
 
 **Last Updated:** 2026-10-06
-**Last Updated By:** 右侧 UIE 标签中键关闭交互专项（已提交）
-**Last Verified Commit:** 提交3be8368；BrowserTabBar中键关闭定向3/3，主/分栏/普通标签接入，Home固定标签保护；既有UIE142/142、Desktop UieCardHost2/2、layoutStore7/7，空间画布基础切片已实现，仍未完成真实画布验收。市场历史提交41a6e63的验证见下文及专项报告。
+**Last Updated By:** 会话单会议队列、紧凑纵向拓扑与自然预览交互。
+**Last Verified Commit:** 基线 acb3bd3 + 工作树；UIE148/148、Desktop全量931 passed/14 skipped、类型/构建与Electron紧凑卡片/连线/预览动画/点击定位通过；非真实模型链路验收。
 **Branch:** main
+
+### 2026-10-06 紧凑会议队列与纵向拓扑
+
+会议控件按session唯一，用户消息/待投递消息进入其中队列，不再独立成卡。UIE新卡默认420px宽、内容测高、纵向单列；manualPosition/autoHeight保留手动摆放与尺寸，旧布局保留位置。Vue Flow用真实任务依赖连接，跨节点走侧边。预览随内容收缩，160ms淡入淡出/缩放（减少动态效果时禁用），点击直接定位，删除定位提示按钮。证据 `.tinadec_dev/reports/2026-10-06-space-compact-topology.zh-CN.md`；完整空间执行组合仍进行中。
+
+### Conversation families (2026-10-06)
+
+NavCard renders HomeController.visibleSessions, classified by Core view_mode. A session belongs to flat or space at creation; opening the other view selects its own session. Session geometry remains UIE-owned; classification is not inferred from sessionBySessionId or cached canvas visits. [Evidence](../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md).
+
 
 TinadecUI is the UI-engineering home inside TinadecOffice. Consumers (`apps/desktop`, `apps/web`) import it as `@tinadec/ui` — a registered alias in both packages' `vite.config.ts` and `tsconfig.json` that resolves to `apps/TinadecUI/src/index.ts`. Both consumers also map `@` → `apps/desktop/src`, so TinadecUI files may reference app code via `@/` and it resolves under every consumer. The boundary is a module home + public barrel, not a build-isolated library.
 
@@ -41,9 +50,9 @@ UIE is the **only** layout system. The legacy panel system (`ContextPanel`/`Pane
 
 ## The three modules
 
-### Space canvas foundation (2026-10-06, inspection only)
+### Session space (2026-10-06, first delivery)
 
-`UieCanvas` now carries a spatial layout projection and the Desktop has a `/spatial` foundation route with read-only work objects/cards. It is not yet a complete free-position viewport: cross-container/route remount prevention, real dispatch-driven seeding, performance and full canvas acceptance remain open. One dispatched user message should create a readable work area: meeting/plan/executors/work widgets get an initial main-line arrangement, then user movement owns the resulting coordinates; later additions append into free space without re-laying existing cards. The top entry strip is an index/preview and click-to-locate surface, never a second copy of the card. `instancePool` stores component definitions/metadata but is not the cross-container keep-alive contract. The read-only probe also reproduces edit→undo→redo→undo failing at the last step: `commandBus.redo` does not restore the undo record. Source-backed analysis, runnable probe and this round's checks: [spatial canvas foundation](../../.tinadec_dev/research/2026-10-06-spatial-canvas-foundation.zh-CN.md). This commit contains a foundation slice, not a full spatial-mode acceptance claim.
+Desktop `/space` composes UieShell/UieCanvas with a fixed Composer and Vue Flow. The optional snapshot.space branch stores session geometry; `spaceSync/spaceMove/spaceViewport` use the existing bus, and layerStore persists `sessionBySessionId` without cross-session inheritance. New runtime IDs append without moving existing objects; negative coordinates and user sizes survive repair. Non-history runtime additions and camera changes survive undo. `undoStack.popRedo` now restores the undo record; repeated undo/redo is tested. SpatialWorkCard is the 16th registered descriptor and renders through UieCardHost; its preview shares object identity/read data. `instancePool` still does not guarantee cross-container keep-alive. Full execution toggles/live work surfaces remain open; [implementation and evidence](../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md).
 
 ### STREAMING OUTPUT（2026-09-23）
 

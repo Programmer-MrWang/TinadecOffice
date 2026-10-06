@@ -31,6 +31,8 @@ export interface ProjectDto {
 }
 
 export interface SessionDto {
+  /** Creation-time conversation family. Older servers/rows default to flat. */
+  view_mode?: 'flat' | 'space';
   id: string;
   /** Null for a free conversation created without a workspace (Codex-style). */
   project_id: string | null;
@@ -2845,9 +2847,12 @@ export const api = {
   }),
   listSessions: (projectId?: string, signal?: AbortSignal) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, cache: 'no-store' }),
   // mode_version_id decides which agent holds the conversation. Omitted = the workspace default.
-  createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null) => request<SessionDto>('/api/v1/sessions', {
+  createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null, viewMode: 'flat' | 'space' = 'flat') => request<SessionDto>('/api/v1/sessions', {
     method: 'POST',
-    body: JSON.stringify({ project_id: projectId ?? undefined, title, mode_version_id: modeVersionId ?? undefined })
+    body: JSON.stringify({ project_id: projectId ?? undefined, title, mode_version_id: modeVersionId ?? undefined, ...(viewMode === 'space' ? { view_mode: viewMode } : {}) })
+  }).then(session => {
+    if (viewMode === 'space' && session.view_mode !== 'space') throw new Error('无法创建空间会话：服务尚未支持独立会话类型，请更新服务后重试。')
+    return session
   }),
   migrateSession: (sessionId: string, payload: { target_project_id?: string; project_name?: string; project_path?: string }) => request<SessionDto>(`/api/v1/sessions/${sessionId}/migrate`, {
     method: 'POST',
@@ -2899,10 +2904,10 @@ export const api = {
     request<EnvironmentDto>('/api/v1/environments', { method: 'POST', body: JSON.stringify(body) }),
   updateEnvironment: (environmentId: string, body: EnvironmentUpdateInput) =>
     request<EnvironmentDto>(`/api/v1/environments/${encodeURIComponent(environmentId)}`, { method: 'PATCH', body: JSON.stringify(body) }),
-  getSessionTopology: (sessionId: string, params: SessionTopologyQuery = {}) =>
+  getSessionTopology: (sessionId: string, params: SessionTopologyQuery = {}, signal?: AbortSignal) =>
     request<SessionTopologyDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/topology${querySuffix({
       run_id: params.run_id, include_finished: params.include_finished, max_runs: params.max_runs, max_tasks: params.max_tasks,
-    })}`, { cache: 'no-store' }),
+    })}`, { cache: 'no-store', signal }),
   listToolExecutions: (sessionId: string, params: { run_id?: string; limit?: number } = {}, signal?: AbortSignal) => {
     const search = new URLSearchParams();
     if (params.run_id) search.set('run_id', params.run_id);

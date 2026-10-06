@@ -35,6 +35,36 @@ public sealed class StorageApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task SessionViewMode_IsFrozenAtCreation_AndHistoriesRemainSeparate()
+    {
+        var client = _factory!.CreateClient();
+        var flat = await (await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Flat" })).Content.ReadFromJsonAsync<JsonElement>();
+        var spaceResponse = await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Space", view_mode = "space" });
+        Assert.Equal(HttpStatusCode.Created, spaceResponse.StatusCode);
+        var space = await spaceResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var flatId = flat.GetProperty("id").GetGuid();
+        var spaceId = space.GetProperty("id").GetGuid();
+        Assert.NotEqual(flatId, spaceId);
+        Assert.Equal("flat", flat.GetProperty("view_mode").GetString());
+        Assert.Equal("space", space.GetProperty("view_mode").GetString());
+        await client.PostAsJsonAsync($"/api/v1/sessions/{flatId}/messages", new { content = "Only flat" });
+        Assert.Empty((await client.GetFromJsonAsync<JsonElement[]>($"/api/v1/sessions/{spaceId}/messages"))!);
+        // The update contract cannot convert a conversation to the other family.
+        await client.PatchAsJsonAsync($"/api/v1/sessions/{spaceId}", new { title = "Renamed", view_mode = "flat" });
+        var list = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        Assert.Equal("space", list!.Single(x => x.GetProperty("id").GetGuid() == spaceId).GetProperty("view_mode").GetString());
+        var invalid = await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Invalid", view_mode = "unknown" });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        await using var db = await _factory.Services.GetRequiredService<IDbContextFactory<MemoryDbContext>>().CreateDbContextAsync();
+        Assert.Equal("space", (await db.Sessions.SingleAsync(x => x.Id == spaceId)).ViewMode);
+        var legacy = await db.Sessions.SingleAsync(x => x.Id == flatId);
+        legacy.ViewMode = null;
+        await db.SaveChangesAsync();
+        list = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        Assert.Equal("flat", list!.Single(x => x.GetProperty("id").GetGuid() == flatId).GetProperty("view_mode").GetString());
+    }
+
+    [Fact]
     public async Task ProjectSessionAndMessageContent_AreStoredWithSnakeCaseCompatibility()
     {
         var client = _factory!.CreateClient();

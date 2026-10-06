@@ -1,0 +1,16 @@
+{
+  "session": "01327192-701e-44fa-8169-c7e6b590a0c4",
+  "initialCount": 4,
+  "drag": true,
+  "resize": true,
+  "repeatUndoRedo": true,
+  "panWithFixedComposer": true,
+  "previewIdentity": "meeting:01327192-701e-44fa-8169-c7e6b590a0c4",
+  "locate": true,
+  "diskPersistence": true,
+  "viewMenu": true,
+  "roundTrip": true,
+  "reloadPersistence": true,
+  "exceptions": [],
+  "captureErrors": []
+}

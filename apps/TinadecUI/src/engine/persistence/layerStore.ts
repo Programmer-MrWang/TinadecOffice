@@ -104,7 +104,10 @@ export function createLayerStore(adapter: LayoutAdapter): LayerStore {
     scheduleSave()
   }
 
-  return { resolveSpace: (id) => blob.sessionBySessionId?.[id] ?? null, resolveSnapshot, saveSnapshot, saveAsGlobal, saveAsPage, resetWorkspace, hydrate, flush }
+  return { resolveSpace: (id) => {
+    const saved = blob.sessionBySessionId?.[id]
+    return saved?.pageId === 'home' && saved.space?.sessionId === id ? saved : null
+  }, resolveSnapshot, saveSnapshot, saveAsGlobal, saveAsPage, resetWorkspace, hydrate, flush }
 }
 
 // --- Internal blob accessors ---

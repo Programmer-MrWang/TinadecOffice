@@ -4,6 +4,23 @@ import { app } from './index.js';
 
 const originalFetch = globalThis.fetch;
 
+test('session creation and listing preserve the immutable presentation family', { concurrency: false }, async () => {
+  let sent: Record<string, unknown> | undefined;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === 'POST') {
+      sent = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ id: 'space-session', title: 'Space', view_mode: 'space' }), { status: 201, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify([{ id: 'old-session' }, { id: 'space-session', view_mode: 'space' }]), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  const created = await app.handle(new Request('http://gateway.local/api/v1/sessions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: 'Space', view_mode: 'space' }) }));
+  assert.equal(created.status, 201);
+  assert.equal(sent?.view_mode, 'space');
+  assert.equal((await created.json() as { view_mode: string }).view_mode, 'space');
+  const listed = await (await app.handle(new Request('http://gateway.local/api/v1/sessions'))).json() as { view_mode: string }[];
+  assert.deepEqual(listed.map(s => s.view_mode), ['flat', 'space']);
+});
+
 test('run SSE forwards live answer frames before the upstream completes', { concurrency: false, timeout: 5000 }, async () => {
   const first = 'id: 3\nevent: answer.delta\ndata: {"kind":"answer.delta","delta":"Hello"}\n\n';
   let upstream!: ReadableStreamDefaultController<Uint8Array>;

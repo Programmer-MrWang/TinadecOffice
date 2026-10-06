@@ -7,7 +7,7 @@
 | 待核查 | 74 |
 | 未开始 | 17 |
 | 待方案 | 10 |
-| 进行中 | 0 |
+| 进行中 | 1 |
 | 阻塞 | 0 |
 | 待验收 | 0 |
 | 已完成 | 1 |
@@ -25,6 +25,7 @@
 | [APP-RENDERER-101](../02-modules/app/shared-renderer/TODO.md#app-renderer-101) | 复验 API 包装后的取消错误语义 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-102](../02-modules/app/shared-renderer/TODO.md#app-renderer-102) | 复验窄宽度布局中的发送主操作 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-103](../02-modules/app/shared-renderer/TODO.md#app-renderer-103) | 完成分类搜索浮窗与沉浸式窗口控制专项 | 实现 | 已完成 | P1 | APP-RENDERER |
+| [APP-RENDERER-104](../02-modules/app/shared-renderer/TODO.md#app-renderer-104) | 空间模式：会话画布、工作事实与可组合运行方式 | 实现 | 进行中 | P1 | APP-RENDERER |
 | [APP-SERVICES-102](../02-modules/app/local-services/TODO.md#app-services-102) | 实现并验收 Office 对 Manager 机器注册的受控消费 | 实现 | 未开始 | P1 | APP-SERVICES |
 | [APP-SETTINGS-101](../02-modules/app/settings/TODO.md#app-settings-101) | 验收配置发布到真实供应商与冻结 run 的生效范围 | 验收 | 未开始 | P1 | APP-SETTINGS |
 | [CORE-AGENT-GRAPH-101](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-101) | 将证据全文与检索摘要分离保存 | 实现 | 未开始 | P1 | CORE-AGENT-GRAPH |

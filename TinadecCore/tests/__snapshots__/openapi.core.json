@@ -1444,6 +1444,12 @@
               "null",
               "string"
             ]
+          },
+          "view_mode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "type": "object"

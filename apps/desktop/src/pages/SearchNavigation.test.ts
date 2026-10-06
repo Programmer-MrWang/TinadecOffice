@@ -12,10 +12,10 @@ import {
   requestAgent, requestConversation, requestMode, requestProject, requestPrompt, requestTool, requestWorkspaceFile,
 } from '@/lib/pageRequests'
 
-const mocks = vi.hoisted(() => ({ home: null as any, code: null as any, listAgents: vi.fn(), error: vi.fn() }))
+const mocks = vi.hoisted(() => ({ home: null as any, code: null as any, listAgents: vi.fn(), error: vi.fn(), push: vi.fn() }))
 vi.mock('@/controllers/HomeController', () => ({ get homeController() { return mocks.home } }))
 vi.mock('@/controllers/CodeController', () => ({ get codeController() { return mocks.code } }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }), useRoute: () => ({ query: {}, params: {} }), onBeforeRouteLeave: vi.fn() }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }), useRoute: () => ({ query: {}, params: {} }), onBeforeRouteLeave: vi.fn() }))
 vi.mock('@/lib/uiEngine', () => ({ useUiePage: () => ({ ready: Promise.resolve() }) }))
 vi.mock('@/composables/useHomeEntrance', async () => {
   const { ref } = await import('vue')
@@ -83,6 +83,8 @@ beforeEach(() => {
   mocks.listAgents.mockResolvedValue(['agent-a', 'agent-b'].map(id => ({ id, slug: id, display_name: id, layer: 'execution', role: 'worker', enabled: true, source_kind: 'custom', status: 'published', configured_strategy: {} })))
   mocks.home = { projects: ref([]), sessions: ref([]), busy: ref(false), selectedProjectId: ref(null), selectedSessionId: ref(null) }
   mocks.home.start = vi.fn(() => { mocks.home.busy.value = true })
+  mocks.home.viewMode = ref('flat')
+  mocks.home.setViewMode = vi.fn(mode => { mocks.home.viewMode.value = mode })
   mocks.home.setSelectedProject = vi.fn(id => { mocks.home.selectedProjectId.value = id })
   mocks.home.setSelectedSession = vi.fn(id => { mocks.home.selectedSessionId.value = id })
   mocks.home.refreshProjectsAndSessions = vi.fn(async () => undefined)
@@ -100,6 +102,17 @@ afterEach(() => {
 })
 
 describe('search navigation through the shipping pages', () => {
+  it('opens a space search result in its own view without rendering it in the flat shell', async () => {
+    mocks.home.sessions.value = [{ id: 'space-target', project_id: 'project-a', view_mode: 'space' }]
+    requestConversation('space-target')
+    const wrapper = mount(HomePage, { global: global() })
+    wrappers.push(wrapper)
+    await flushPromises()
+    expect(mocks.home.setViewMode).toHaveBeenCalledWith('space')
+    expect(mocks.home.setSelectedSession).toHaveBeenCalledWith('space-target')
+    expect(mocks.push).toHaveBeenCalledWith('/space')
+    expect(wrapper.findComponent({ name: 'UieShell' }).exists()).toBe(false)
+  })
   it('keeps the requested project after cold initialization and opens a conversation in its owning project', async () => {
     requestProject('project-b')
     wrappers.push(mount(HomePage, { global: global() }))

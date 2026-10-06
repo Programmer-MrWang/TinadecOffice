@@ -1,9 +1,14 @@
 # GATEWAY KNOWLEDGE
 
-**Last Updated:** 2026-10-05
-**Last Updated By:** 本轮架构图源码核对，纠正 Tool Runtime 默认配置、Core 工具传输与 WS 状态
-**Last Verified Commit:** b6115e6 + 工作树；静态核对 src/config.ts 与 src/index.ts，未跑运行验证；长连接验证记录见下文
+**Last Updated:** 2026-10-06
+**Last Updated By:** 平面/空间会话类型隔离与会话内单行发送框。
+**Last Verified Commit:** 基线 acb3bd3 + 工作树；会话类型隔离/单行输入专项：Core定向14/14、Gateway78/78、Desktop全量924 passed/14 skipped及后补定向70/70，类型/构建通过；真实Electron列表筛选/单行输入通过。未跑PostgreSQL、Core全量或真实模型新会话链。
 **Branch:** main
+
+## 2026-10-06 会话类型传输
+
+Session mapper保留Core的view_mode（flat/space），旧响应默认flat；POST附加字段透明转发，Gateway不保存分类。Session外部schema与Desktop生成类型同步更新；创建/列表HTTP转发覆盖，全量78/78。报告：[会话隔离](../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md)。
+
 
 ## 2026-10-05 Gateway 长连接稳定性
 

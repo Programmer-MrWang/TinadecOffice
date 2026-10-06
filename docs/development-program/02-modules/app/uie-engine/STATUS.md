@@ -7,6 +7,7 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | APP-UIE-ENGINE-F001 | UIE 唯一布局权威与纯 TS engine | 源码可见 | 本轮静态核对；未做功能验收 | 布局修改统一走 command bus；具备 revision、undo/redo、约束、修复与持久化协议；本轮未重跑 engine 用例。 | [apps/TinadecUI/src/engine/commandBus.ts](../../../../../apps/TinadecUI/src/engine/commandBus.ts)<br>[apps/TinadecUI/src/engine/constraints.ts](../../../../../apps/TinadecUI/src/engine/constraints.ts)<br>[apps/TinadecUI/src/engine/index.ts](../../../../../apps/TinadecUI/src/engine/index.ts) |
+| APP-UIE-ENGINE-F002 | 会话空间几何、命令、增量排布与布局历史 | 已验收 | UIE147、原生布局7；Electron拖动/尺寸/撤销/往返/刷新 | 几何与业务事实分离；容量和多平台性能尚未验收 | [首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md) |
 
 ## 状态词汇
 

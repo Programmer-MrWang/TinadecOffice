@@ -88,8 +88,10 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         string? conversationNodeKey = null,
         string? conversationTemplateSlug = null,
         CancellationToken cancellationToken = default,
-        Guid? stableSessionId = null)
+        Guid? stableSessionId = null,
+        string viewMode = "flat")
     {
+        if (viewMode is not ("flat" or "space")) throw new ArgumentException("view_mode must be flat or space.", nameof(viewMode));
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var scope = _tenantContext.Current;
         if (projectId.HasValue && !await db.Projects.AnyAsync(x => x.Id == projectId.Value && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active, cancellationToken).ConfigureAwait(false))
@@ -110,6 +112,7 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
             Id = stableSessionId ?? Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId,
             ProjectId = projectId, Title = string.IsNullOrWhiteSpace(title) ? "New session" : title.Trim(),
             ModeVersionId = modeVersionId,
+            ViewMode = viewMode,
             MeetingModelOverrideProviderInstanceId = meetingModelOverride?.ProviderInstanceId,
             MeetingModelOverrideModel = meetingModelOverride?.Model,
             ConversationNodeKey = conversationNodeKey,
@@ -134,6 +137,7 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         {
             if (existing.TenantId != scope.TenantId || existing.WorkspaceId != scope.WorkspaceId
                 || existing.ProjectId != projectId || existing.ModeVersionId != modeVersionId
+                || (existing.ViewMode ?? "flat") != viewMode
                 || existing.ConversationNodeKey != conversationNodeKey || existing.ConversationTemplateSlug != conversationTemplateSlug
                 || existing.LifecycleStatus != LifecycleStatuses.Active)
                 throw new InvalidOperationException("The stable session identifier is already bound to different inputs.");

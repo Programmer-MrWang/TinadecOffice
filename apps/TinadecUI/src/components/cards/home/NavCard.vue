@@ -37,7 +37,7 @@ function toggleCollapse() {
 <template>
   <AppSidebar
     :projects="c.projects.value"
-    :sessions="c.sessions.value"
+    :sessions="c.visibleSessions.value"
     :selected-project-id="c.selectedProjectId.value"
     :selected-session-id="route.path === '/' || route.path === '/space' ? c.selectedSessionId.value : null"
     :space-active="route.path === '/space'"

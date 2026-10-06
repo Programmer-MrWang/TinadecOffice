@@ -1,0 +1,192 @@
+{
+  "initial": {
+    "objects": [
+      {
+        "kind": "meeting",
+        "id": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced"
+      },
+      {
+        "kind": "plan",
+        "id": "tasks:267e4229-7a42-4be9-a347-bac1dea06430"
+      },
+      {
+        "kind": "task",
+        "id": "task:267e4229-7a42-4be9-a347-bac1dea06430:6b84ff3e-a27b-44a9-9e59-f21b084a9812"
+      }
+    ],
+    "cards": [
+      {
+        "id": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced",
+        "height": 176,
+        "nodeHeight": 176,
+        "width": 420,
+        "queue": 1
+      },
+      {
+        "id": "tasks:267e4229-7a42-4be9-a347-bac1dea06430",
+        "height": 143,
+        "nodeHeight": 143,
+        "width": 420,
+        "queue": 0
+      },
+      {
+        "id": "task:267e4229-7a42-4be9-a347-bac1dea06430:6b84ff3e-a27b-44a9-9e59-f21b084a9812",
+        "height": 127,
+        "nodeHeight": 127,
+        "width": 420,
+        "queue": 0
+      }
+    ],
+    "locate": false
+  },
+  "enter": true,
+  "motion": {
+    "duration": "0.16s, 0.16s",
+    "transform": "matrix(0.967859, 0, 0, 0.967859, -210, 4.82109)",
+    "opacity": "0.196485",
+    "animations": 2
+  },
+  "located": {
+    "peek": false,
+    "visible": true
+  },
+  "topology": {
+    "edges": 5,
+    "paths": [
+      {
+        "d": "M209.99997845818015 178.99108168658088L 209.99997845818015,198.99107248642866Q 209.99997845818015,198.99108168658088 209.99998765833237,198.99108168658088L 209.99998765833237,198.99108168658088Q 209.99999685848462,198.99108168658088 209.99999685848462,198.99107248642866L 209.99999685848462,193.00000920015222Q 209.99999685848462,193 210.00000605863684,193L 210.00000605863684,193Q 210.00001525878906,193 210.00001525878906,193.00000920015222L210.00001525878906 213",
+        "stroke": "rgb(150, 158, 179)",
+        "visibility": "visible"
+      },
+      {
+        "d": "M210.00001525878906 444.2142639160156L210.00001525878906 464.2142639160156L210.00001525878906 464.2142639160156L210.00001525878906 459L210.00001525878906 459L210.00001525878906 479",
+        "stroke": "rgb(150, 158, 179)",
+        "visibility": "visible"
+      },
+      {
+        "d": "M210.00001525878906 629.4910888671875L210.00001525878906 649.4910888671875L210.00001525878906 649.4910888671875L210.00001525878906 644L210.00001525878906 644L210.00001525878906 664",
+        "stroke": "rgb(150, 158, 179)",
+        "visibility": "visible"
+      },
+      {
+        "d": "M-3.000021541819853 87.99109604779412L-4.0000215418198515 87.99109604779412L -18.00002154181985,87.99109604779412Q -23.00002154181985,87.99109604779412 -23.00002154181985,92.99109604779412L -23.00002154181985,918.6964326746323Q -23.00002154181985,923.6964326746323 -18.00002154181985,923.6964326746323L-3.000021541819853 923.6964326746323",
+        "stroke": "rgb(150, 158, 179)",
+        "visibility": "visible"
+      },
+      {
+        "d": "M209.99997845818015 998.3928509880515L209.99997845818015 1018.3928509880515L209.99997845818015 1018.3928509880515L209.99997845818015 1013.0000502642463L209.99997845818015 1013.0000502642463L209.99997845818015 1033.0000502642463",
+        "stroke": "rgb(150, 158, 179)",
+        "visibility": "visible"
+      }
+    ],
+    "links": [
+      {
+        "id": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced->tasks:qa-run",
+        "source": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced",
+        "target": "tasks:qa-run",
+        "type": "smoothstep",
+        "selectable": false,
+        "sourceHandle": "flow",
+        "targetHandle": "flow"
+      },
+      {
+        "id": "tasks:qa-run->task:qa-run:qa-build",
+        "source": "tasks:qa-run",
+        "target": "task:qa-run:qa-build",
+        "type": "smoothstep",
+        "selectable": false,
+        "sourceHandle": "flow",
+        "targetHandle": "flow"
+      },
+      {
+        "id": "task:qa-run:qa-build->task:qa-run:qa-test",
+        "source": "task:qa-run:qa-build",
+        "target": "task:qa-run:qa-test",
+        "type": "smoothstep",
+        "selectable": false,
+        "sourceHandle": "flow",
+        "targetHandle": "flow"
+      },
+      {
+        "id": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced->tasks:267e4229-7a42-4be9-a347-bac1dea06430",
+        "source": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced",
+        "target": "tasks:267e4229-7a42-4be9-a347-bac1dea06430",
+        "type": "smoothstep",
+        "selectable": false,
+        "sourceHandle": "branch",
+        "targetHandle": "branch"
+      },
+      {
+        "id": "tasks:267e4229-7a42-4be9-a347-bac1dea06430->task:267e4229-7a42-4be9-a347-bac1dea06430:6b84ff3e-a27b-44a9-9e59-f21b084a9812",
+        "source": "tasks:267e4229-7a42-4be9-a347-bac1dea06430",
+        "target": "task:267e4229-7a42-4be9-a347-bac1dea06430:6b84ff3e-a27b-44a9-9e59-f21b084a9812",
+        "type": "smoothstep",
+        "selectable": false,
+        "sourceHandle": "flow",
+        "targetHandle": "flow"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "meeting:7404cae5-ba35-4f37-8680-a5bf395d4ced",
+        "groupId": "7404cae5-ba35-4f37-8680-a5bf395d4ced",
+        "x": 0,
+        "y": 0,
+        "width": 420,
+        "height": 176,
+        "autoHeight": true,
+        "manualPosition": false
+      },
+      {
+        "id": "tasks:qa-run",
+        "groupId": "qa-run",
+        "x": 0,
+        "y": 216,
+        "width": 420,
+        "height": 226,
+        "autoHeight": true,
+        "manualPosition": false
+      },
+      {
+        "id": "task:qa-run:qa-build",
+        "groupId": "qa-run",
+        "x": 0,
+        "y": 482,
+        "width": 420,
+        "height": 145,
+        "autoHeight": true,
+        "manualPosition": false
+      },
+      {
+        "id": "task:qa-run:qa-test",
+        "groupId": "qa-run",
+        "x": 0,
+        "y": 667,
+        "width": 420,
+        "height": 145,
+        "autoHeight": true,
+        "manualPosition": false
+      },
+      {
+        "id": "tasks:267e4229-7a42-4be9-a347-bac1dea06430",
+        "groupId": "267e4229-7a42-4be9-a347-bac1dea06430",
+        "x": 0,
+        "y": 852,
+        "width": 420,
+        "height": 144,
+        "autoHeight": true,
+        "manualPosition": false
+      },
+      {
+        "id": "task:267e4229-7a42-4be9-a347-bac1dea06430:6b84ff3e-a27b-44a9-9e59-f21b084a9812",
+        "groupId": "267e4229-7a42-4be9-a347-bac1dea06430",
+        "x": 0,
+        "y": 1036,
+        "width": 420,
+        "height": 128,
+        "autoHeight": true,
+        "manualPosition": false
+      }
+    ]
+  }
+}

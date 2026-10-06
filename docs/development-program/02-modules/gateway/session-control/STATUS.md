@@ -7,6 +7,7 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | GW-SESSIONS-F001 | 项目、会话、interaction 与 run 控制薄代理 | 源码可见 | 本轮静态核对；未做功能验收 | interaction 受理返回 JSON receipt，客户端另订 run SSE；业务状态归 Core。 | [TinadecGateway/src/index.ts](../../../../../TinadecGateway/src/index.ts)<br>[TinadecGateway/src/coreClient.ts](../../../../../TinadecGateway/src/coreClient.ts) |
+| GW-SESSIONS-F002 | 会话类型创建转发和列表映射 | 已验收 | Gateway全量78/78 | Gateway不拥有第二份分类状态；需同步部署Core | [报告](../../../../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md) |
 
 ## 状态词汇
 

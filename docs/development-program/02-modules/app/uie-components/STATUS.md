@@ -6,7 +6,8 @@
 
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
-| APP-UIE-COMPONENTS-F001 | UIE 组件、15 卡型与首次激活挂载 | 源码可见 | 本轮静态核对；未做功能验收 | 组件单向依赖 engine；classic/Vapor 是实现边界；最新 Home/Market classic 规避和 ready 修复有历史专项证据，恢复 Vapor 是后续优化选择，不默认算缺功能。 | [apps/TinadecUI/src/components/cards/index.ts](../../../../../apps/TinadecUI/src/components/cards/index.ts)<br>[apps/TinadecUI/src/components/UieCardHost.vue](../../../../../apps/TinadecUI/src/components/UieCardHost.vue)<br>[apps/TinadecUI/src/components/useUie.ts](../../../../../apps/TinadecUI/src/components/useUie.ts) |
+| APP-UIE-COMPONENTS-F001 | UIE 组件、16 卡型与首次激活挂载 | 源码可见 | 本轮静态核对；未做功能验收 | 组件单向依赖 engine；classic/Vapor 是实现边界；最新 Home/Market classic 规避和 ready 修复有历史专项证据，恢复 Vapor 是后续优化选择，不默认算缺功能。 | [apps/TinadecUI/src/components/cards/index.ts](../../../../../apps/TinadecUI/src/components/cards/index.ts)<br>[apps/TinadecUI/src/components/UieCardHost.vue](../../../../../apps/TinadecUI/src/components/UieCardHost.vue)<br>[apps/TinadecUI/src/components/useUie.ts](../../../../../apps/TinadecUI/src/components/useUie.ts) |
+| APP-UIE-COMPONENTS-F002 | 空间卡片宿主与临时预览 | 部分实现 | 真实Electron与定向组件用例 | 已接会议/计划/任务/工具/Git/审批；专用测试、浏览器、Figma实时画面待接入 | [首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md) |
 
 ## 状态词汇
 

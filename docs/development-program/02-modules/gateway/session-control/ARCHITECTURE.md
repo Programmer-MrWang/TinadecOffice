@@ -36,3 +36,8 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[GW-SESSIONS-001](TODO.md#gw-sessions-001)。
+
+
+## 2026-10-06 会话类型
+
+创建请求携带view_mode，Core Memory保存类型，StorageEndpoints投影，Gateway保留字段，HomeController按flat/space筛选与选择。类型固定于创建，历史null值对外为flat；UIE仍只保存布局。证据：[会话隔离报告](../../../../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md)。

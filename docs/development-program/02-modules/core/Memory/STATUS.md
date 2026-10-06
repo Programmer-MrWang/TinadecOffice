@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | CORE-MEMORY-F001 | 会话事实、附件与长期记忆审核 | 源码可见 | 本轮静态核对；未做功能验收 | 保存会话/消息/turn 与附件；长期记忆候选可采纳和撤销。存储存在不代表真实场景与跨租户验收完成。 | [TinadecCore/Memory/MemoryModuleRegistrar.cs](../../../../../TinadecCore/Memory/MemoryModuleRegistrar.cs)<br>[TinadecCore/Memory/ProjectSessionStore.cs](../../../../../TinadecCore/Memory/ProjectSessionStore.cs)<br>[TinadecCore/Memory/MessageAttachmentStore.cs](../../../../../TinadecCore/Memory/MessageAttachmentStore.cs) |
 | CORE-MEMORY-F002 | 已采纳记忆当前按关键词评分检索 | 源码可见 | 本轮静态核对；未做功能验收 | 未接 VectorStore；语义检索是否属于必需产品行为需先决定，不能自动创造实现任务。 | [TinadecCore/Memory/MemoryModuleRegistrar.cs:107](../../../../../TinadecCore/Memory/MemoryModuleRegistrar.cs#L107) |
+| CORE-MEMORY-F003 | 创建时固定平面/空间会话类型 | 已验收 | Core定向14/14（SQLite HTTP） | 历史null投影flat；未验证PostgreSQL | [报告](../../../../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md) |
 
 ## 状态词汇
 

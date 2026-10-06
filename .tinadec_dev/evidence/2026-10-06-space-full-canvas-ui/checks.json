@@ -1,0 +1,16 @@
+{
+  "before": {
+    "bottom": 867.4285926818848,
+    "flowBottom": 867.4285926818848,
+    "hint": false,
+    "x": 296,
+    "y": 837.4285926818848,
+    "hit": true,
+    "composerY": 799.4285888671875,
+    "transform": "translate(152px, -842px) scale(0.85)"
+  },
+  "after": {
+    "transform": "translate(207px, -887px) scale(0.85)",
+    "composerY": 799.4285888671875
+  }
+}

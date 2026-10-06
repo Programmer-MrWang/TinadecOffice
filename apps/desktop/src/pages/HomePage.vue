@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { UieShell } from '@tinadec/ui'
 import { homeController } from '@/controllers/HomeController'
@@ -12,6 +12,8 @@ import { useNotifications } from '@/composables/useNotifications'
 // The UIE store is a module singleton shared by every UIE route; entering Home
 // switches it back to the home layout (restoring the user's saved home layout).
 const uie = useUiePage('home')
+const router = useRouter()
+homeController.setViewMode('flat')
 const emit = defineEmits<{ ready: [] }>()
 const root = ref<HTMLElement | null>(null)
 const { contentReady, phase } = useHomeEntrance(root, uie.ready, () => emit('ready'))
@@ -72,8 +74,10 @@ watch([requestedConversationId, homeController.sessions], () => {
   const session = homeController.sessions.value.find((item) => item.id === requestedConversationId.value)
   if (!session) return
   requestedConversationId.value = null
+  homeController.setViewMode(session.view_mode ?? 'flat')
   homeController.setSelectedProject(session.project_id ?? null)
   homeController.setSelectedSession(session.id)
+  if (session.view_mode === 'space') void router.push('/space')
 }, { immediate: true })
 watch([controllerStarted, homeController.busy, requestedProjectId, requestedConversationId, refreshingNavigation], () => {
   if (!controllerStarted.value || homeController.busy.value || refreshingNavigation.value) return
@@ -112,7 +116,7 @@ onBeforeRouteLeave((_to, _from, next) => {
     class="home-page-container"
     :class="{ 'home-preparing': phase === 'preparing', 'home-entering': phase === 'entering', 'home-exiting': homeExiting }"
   >
-    <UieShell v-if="contentReady" />
+    <UieShell v-if="contentReady && homeController.viewMode.value === 'flat'" />
   </div>
 </template>
 

@@ -2,9 +2,13 @@
 
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-06
-**Last Updated By:** 分类搜索浮窗/沉浸式窗口控制专项登记，补充共享渲染与Desktop桥运行流
-**Last Verified Commit:** 提交3be8368；新增APP-RENDERER-F002/103，整体逐功能审计及原取消/窄宽发送任务仍未完成。Windows窗口/设置专项82/82、Desktop914 passed/14 skipped、native/scripts107/107；最终定向48/48、类型/构建和真实Electron浮窗专项通过。reindex：55模块/98功能/102任务、Core24/24/总图82/82、1823链接/200ID/0错误，重跑哈希一致；原ae97e96图形门禁仅历史证据
+**Last Updated By:** 会话单会议队列、紧凑纵向拓扑与自然预览交互。
+**Last Verified Commit:** 基线 acb3bd3 + 工作树；UIE148/148、Desktop全量931 passed/14 skipped、类型/构建与Electron紧凑卡片/连线/预览动画/点击定位通过；非真实模型链路验收。
 **Branch:** main
+
+### 2026-10-06 紧凑会议队列与纵向拓扑
+
+会议控件按session唯一，用户消息/待投递消息进入其中队列，不再独立成卡。UIE新卡默认420px宽、内容测高、纵向单列；manualPosition/autoHeight保留手动摆放与尺寸，旧布局保留位置。Vue Flow用真实任务依赖连接，跨节点走侧边。预览随内容收缩，160ms淡入淡出/缩放（减少动态效果时禁用），点击直接定位，删除定位提示按钮。证据 `.tinadec_dev/reports/2026-10-06-space-compact-topology.zh-CN.md`；完整空间执行组合仍进行中。
 
 ## Scope
 

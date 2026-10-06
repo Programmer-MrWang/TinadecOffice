@@ -41,6 +41,10 @@ import { useRunStore } from '@/stores/run'
 
 const projects = ref<ProjectDto[]>([])
 const sessions = ref<SessionDto[]>([])
+type SessionView = 'flat' | 'space'
+const viewMode = ref<SessionView>('flat')
+const visibleSessions = computed(() => sessions.value.filter(s => (s.view_mode ?? 'flat') === viewMode.value))
+const lastSessionByView: Record<SessionView, string | null> = { flat: null, space: null }
 const messages = ref<MessageDto[]>([])
 const approvals = ref<ApprovalDto[]>([])
 const approvalRules = ref<ApprovalRuleDto[]>([])
@@ -185,12 +189,12 @@ async function loadSessions() {
     if (read !== sessionListRead || loadAbort.signal.aborted) return
     sessions.value = sessionList
     if (!selectedProjectId.value) {
-      if (selectedSessionId.value && !sessions.value.find((s) => s.id === selectedSessionId.value)) {
+      if (selectedSessionId.value && !visibleSessions.value.find((s) => s.id === selectedSessionId.value)) {
         selectedSessionId.value = null
       }
       return
     }
-    const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
+    const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
     if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
       selectedSessionId.value = projectSessions[0]?.id ?? null
     }
@@ -328,12 +332,13 @@ async function openProject() {
 
 async function createSession(projectId: string | null) {
   const targetProjectId = projectId ?? null
+  const requestedView = viewMode.value
   if (pendingSessionId.value) {
     const existing = sessions.value.find((s) => s.id === pendingSessionId.value)
     // Compare normalized project identity: Core omits project_id for a free
     // conversation, so the value can arrive as null or undefined while the
     // argument is null — a raw === check would miss and create a duplicate.
-    if (existing && (existing.project_id ?? null) === targetProjectId) {
+    if (existing && (existing.view_mode ?? 'flat') === requestedView && (existing.project_id ?? null) === targetProjectId) {
       selectedSessionId.value = pendingSessionId.value
       selectedProjectId.value = targetProjectId
       return
@@ -344,8 +349,9 @@ async function createSession(projectId: string | null) {
     // allowed to arrive after the create and restore the old selected session.
     sessionListRead++
     sessionListAbort?.abort()
-    const session = await api.createSession(projectId, 'Tinadec session')
+    const session = await api.createSession(projectId, 'Tinadec session', null, requestedView)
     sessions.value = [session, ...sessions.value]
+    if (viewMode.value !== requestedView) return
     selectedSessionId.value = session.id
     selectedProjectId.value = projectId ?? null
     pendingSessionId.value = session.id
@@ -366,7 +372,7 @@ async function refreshProjectsAndSessions() {
   // free conversations, so archiving/trashing anything would drop them from the
   // sidebar until a full reload.
   await loadSessions()
-  const projectSessions = sessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
+  const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
@@ -448,37 +454,44 @@ const streamingReply = computed(() =>
 async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; permission_mode?: PermissionLevel }) {
   // Freeze the selected policy before session creation yields to UI changes.
   const requestedPermission = opts?.permission_mode ?? currentPermission.value
+  const requestedView = viewMode.value
+  const requestedSession = selectedSessionId.value
+  const requestedProject = selectedProjectId.value
+  const requestedMode = currentSession.value?.mode_version_id ?? opts?.mode_version_id ?? null
+  const outgoing = attachmentsForSend()
   await run('send message', async () => {
-    let sessionId = selectedSessionId.value
+    let sessionId = requestedSession
     if (!sessionId) {
       // Created in the mode being sent: ChatPanel resets the picker to the new session's own
       // mode, so a session created on the default would flip the picker back after this send.
       sessionListRead++
       sessionListAbort?.abort()
-      const session = await api.createSession(selectedProjectId.value ?? null, 'Tinadec session', opts?.mode_version_id ?? null)
+      const session = await api.createSession(requestedProject ?? null, 'Tinadec session', requestedMode, requestedView)
       sessions.value = [session, ...sessions.value]
-      selectedSessionId.value = session.id
       sessionId = session.id
-      pendingSessionId.value = session.id
+      if (viewMode.value === requestedView && selectedSessionId.value === requestedSession) {
+        selectedSessionId.value = session.id
+        pendingSessionId.value = session.id
+      }
     }
+    const isCurrent = () => selectedSessionId.value === sessionId && viewMode.value === requestedView
+    if (isCurrent() && draft.value.trim() === content.trim()) draft.value = ''
     const snapshotContent = content
-    draft.value = ''
-    invokeError.value = null
+    if (isCurrent()) invokeError.value = null
     const clientMessageId = newId()
     const dispatchMode: DispatchMode = (opts?.dispatch_mode as DispatchMode) ?? getDispatchPref()
-    const modeVersionId = opts?.mode_version_id ?? null
+    const modeVersionId = requestedMode
     const targetRunId = opts?.target_run_id ?? null
     const meetingModelOverride = opts?.meeting_model_override ?? null
     if (dispatchMode === 'insert' && !targetRunId) throw new Error('插入模式需选择目标 run')
     // Taken before the request, not after it: a send that fails must leave the chips
     // alone so the same selection can be retried. Core binds these rows to the message
     // it appends, so the optimistic bubble carries the same projection a reload shows.
-    const outgoing = attachmentsForSend()
     if (dispatchMode === 'insert' && outgoing.attachmentIds.length > 0) {
       throw new Error('转向消息不追加新消息，因此不能携带附件；请把文件作为单独一条消息发送')
     }
     try {
-      messages.value = [...messages.value, { id: `pending-${clientMessageId}`, session_id: sessionId, role: 'user', content: snapshotContent, created_at: new Date().toISOString(), attachments: outgoing.summaries } as MessageDto]
+      if (isCurrent()) messages.value = [...messages.value, { id: `pending-${clientMessageId}`, session_id: sessionId, role: 'user', content: snapshotContent, created_at: new Date().toISOString(), attachments: outgoing.summaries } as MessageDto]
       // new interaction path (snake_case)
       const resp = await api.createInteraction(sessionId, {
         content: snapshotContent,
@@ -494,17 +507,18 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
       // An admitted interaction names its own turn; a queued one names the run it waits behind
       // and no turn — that run's status is not "queued", so it is left alone.
       const waitingBehind = resp.status === 'queued' && !resp.turn_id && Boolean(resp.interaction_id)
-      if (resp.run_id && !waitingBehind) {
+      if (isCurrent() && resp.run_id && !waitingBehind) {
         attachRun(resp.run_id)
         runs.value = [{ id: resp.run_id, status: resp.status || 'planning' }, ...runs.value.filter((run) => run.id !== resp.run_id)]
       }
-      if (waitingBehind || (!resp.run_id && resp.status === 'queued')) {
+      if (isCurrent() && (waitingBehind || (!resp.run_id && resp.status === 'queued'))) {
         queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent, interactionId: waitingBehind ? resp.interaction_id : undefined,
           permission_mode: requestedPermission, mode_version_id: modeVersionId, meeting_model_override: meetingModelOverride,
           ...(outgoing.attachmentIds.length > 0 ? { attachment_ids: outgoing.attachmentIds } : {}) }]
       }
       // optionally still stream via invoke for backwards compat if needed; interaction SSE will arrive via events
     } catch (err) {
+      if (!isCurrent()) throw err
       const msg = err instanceof Error ? err.message : String(err)
       const code = (err as { code?: unknown }).code
       // Main path only: POST /interactions is the single admission contract
@@ -815,6 +829,18 @@ watch(selectedSessionId, () => {
 
 /** Start the controller's data pipeline (idempotent). */
 let started = false
+function setViewMode(next: SessionView) {
+  if (viewMode.value === next) return
+  lastSessionByView[viewMode.value] = selectedSessionId.value
+  sessionListRead++
+  sessionListAbort?.abort()
+  viewMode.value = next
+  draft.value = ''
+  invokeError.value = null
+  const candidates = visibleSessions.value.filter(s => (s.project_id ?? null) === selectedProjectId.value)
+  selectedSessionId.value = candidates.find(s => s.id === lastSessionByView[next])?.id ?? candidates[0]?.id ?? null
+  if (started) void loadSessions()
+}
 function start() {
   if (started) return
   started = true
@@ -824,6 +850,9 @@ function start() {
 }
 
 export const homeController = {
+  viewMode,
+  visibleSessions,
+  setViewMode,
   // Refs (reactive state)
   projects,
   sessions,
@@ -901,5 +930,9 @@ export const homeController = {
   updateDraft: (value: string) => { draft.value = value },
   updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
   setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
-  setSelectedSession: (id: string) => { selectedSessionId.value = id },
+  setSelectedSession: (id: string) => {
+    const session = sessions.value.find(s => s.id === id)
+    if (session && (session.view_mode ?? 'flat') !== viewMode.value) return
+    selectedSessionId.value = id
+  },
 }

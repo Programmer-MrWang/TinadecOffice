@@ -2929,6 +2929,18 @@
           "updated_at": {
             "nullable": true,
             "type": "string"
+          },
+          "view_mode": {
+            "anyOf": [
+              {
+                "const": "flat",
+                "type": "string"
+              },
+              {
+                "const": "space",
+                "type": "string"
+              }
+            ]
           }
         },
         "required": [
@@ -2938,6 +2950,7 @@
           "status",
           "mode",
           "mode_version_id",
+          "view_mode",
           "meeting_model_override",
           "summary",
           "history_revision",

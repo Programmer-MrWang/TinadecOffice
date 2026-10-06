@@ -14,6 +14,7 @@ public sealed class UpdateProjectRequest
 
 public sealed class CreateSessionRequest
 {
+    public string? ViewMode { get; set; }
     public string? ProjectId { get; set; }
     public string? Title { get; set; }
     public Guid? ModeVersionId { get; set; }

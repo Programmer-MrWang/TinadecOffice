@@ -1,9 +1,30 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-06
-**Last Updated By:** 搜索分类滚动指示器移除与右侧标签中键关闭专项（已提交）
-**Last Verified Commit:** 3be8368（版本0.2.1）；分类条无滚动指示器，UIE右侧标签中键关闭定向3/3；既有Desktop全量914 passed/14 skipped、native/scripts107/107、搜索/Settings定向48/48、vue-tsc/vite build及真实Electron浮窗专项通过；未跑模型业务回合或三平台安装包
+**Last Updated By:** 会话单会议队列、紧凑纵向拓扑与自然预览交互。
+**Last Verified Commit:** 基线 acb3bd3 + 工作树；UIE148/148、Desktop全量931 passed/14 skipped、类型/构建与Electron紧凑卡片/连线/预览动画/点击定位通过；非真实模型链路验收。
 **Branch:** main
+
+### 2026-10-06 紧凑会议队列与纵向拓扑
+
+会议控件按session唯一，用户消息/待投递消息进入其中队列，不再独立成卡。UIE新卡默认420px宽、内容测高、纵向单列；manualPosition/autoHeight保留手动摆放与尺寸，旧布局保留位置。Vue Flow用真实任务依赖连接，跨节点走侧边。预览随内容收缩，160ms淡入淡出/缩放（减少动态效果时禁用），点击直接定位，删除定位提示按钮。证据 `.tinadec_dev/reports/2026-10-06-space-compact-topology.zh-CN.md`；完整空间执行组合仍进行中。
+
+### 2026-10-06 画布底部铺满
+
+SpatialPage的space-flow-area改为inset:0，删除196px底部预留和navigationHint。Composer悬浮，dock空白区域pointer-events:none，实际输入与快捷入口恢复auto。实测画布与内容区底边一致，距底30px处中键平移有效，Composer位置不随视角移动；证据 `.tinadec_dev/evidence/2026-10-06-space-full-canvas-ui/checks.json`。
+
+### 2026-10-06 空间材质修复
+
+SpatialPage原先绕过UieStack，未继承data-panel-effect与派生模糊变量，控件退成默认实心。现复用usePanelStyles，空间根只传材质属性/变量，保留透明；发送框沿既有welcome-dialog样式，工作卡/快捷入口自身模糊。VueFlow节点不再叠背景，预览祖先移除filter并把阴影放到表面，避免阻断子级背景采样。证据 `.tinadec_dev/reports/2026-10-06-space-material.zh-CN.md`。
+
+### 2026-10-06 会话类型与输入框
+
+HomeController.viewMode控制visibleSessions和当前选择；sessions保留全目录供搜索，不把过滤副本当业务存储。创建/隐式发送捕获view_mode，跨类型不得复用pending空会话或回写迟到结果。Home/Space壳只渲染所属类型，搜索按会话类型跳转。平面Composer保留原有工具栏、停止/发送按钮和框内排队管理。两类视图都按消息是否为空决定居中/下沉（不按sessionId）；首次消息触发350ms FLIP。只有空间下沉后隐藏工具栏、复用发送/停止操作位。空间画布不预生成会议/计划/Git/审批占位卡；按真实运行、计划/任务、工具与Git更改、会话审批记录投影，四个快捷入口仅随对应对象出现。Core类型需同步部署，旧记录默认flat，不根据曾经访问过画布推断类型。报告：[会话隔离](../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md)。
+
+
+### 2026-10-06 空间模式首批
+
+`SpatialPage.vue` 在 `/space` 复用 UIE 壳/左栏，固定 Composer 在变换外；对象以真实 run/task/message/tool ID 投影，公开回答按 run 归属。四入口预览引用同一对象，点击定位；不能在预览挂第二个有副作用的 Git/审批控制器。useSpatialGit 共享 Git 读取、取消旧项目请求，readFileText 解码实际逐行契约。传统模式选择器在空间隐藏，但自定义执行开关尚未接通，不能声称空间后端模式已完成。UI、样式和证据见 [首批报告](../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)，余项主责 APP-RENDERER-104。
 
 ### 2026-10-06 标签与分类交互补充
 

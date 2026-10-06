@@ -92,6 +92,9 @@ describe('ChatPanel persistent composer', () => {
     expect(wrapper.find('.composer-box').exists()).toBe(true)
     expect(wrapper.find('.conversation').classes()).toContain('composer-hero')
 
+    await wrapper.setProps({ currentSession: { id: 'existing-empty' } as never })
+    expect(wrapper.find('.conversation').classes()).toContain('composer-hero')
+
     // Mark the live element, then send the first message.
     probe(wrapper.find('.composer-box')).probe = 'keep-me'
     await wrapper.setProps({ messages: [msg('m1')] })

@@ -42,6 +42,7 @@ const session = t.Object({
   status: nullableString(),
   mode: nullableString(),
   mode_version_id: nullableString(),
+  view_mode: t.Union([t.Literal('flat'), t.Literal('space')]),
   meeting_model_override: nullableRef('MeetingModelOverride'),
   summary: nullableString(),
   history_revision: nullableInteger(),

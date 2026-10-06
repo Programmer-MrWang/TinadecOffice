@@ -14,7 +14,7 @@
 
 ### TinadecUI / components
 
-Vue组件单向依赖engine。15卡型：nav/chat/homePicker/git/approval/orchestration/organization/events/doctor/browser/agent/terminal/marketFilter/marketCatalog/marketDetail。classic/Vapor是渲染实现细节。
+Vue组件单向依赖engine。16卡型（新增 spatialWork）：nav/chat/homePicker/git/approval/orchestration/organization/events/doctor/browser/agent/terminal/marketFilter/marketCatalog/marketDetail。classic/Vapor是渲染实现细节。
 
 - UieCanvas / Column / Stack
 - CardHost、卡片、响应式 store

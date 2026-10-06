@@ -64,6 +64,8 @@ test('session mapper preserves mode binding fields Core owns', () => {
   assert.ok(legacy);
   assert.equal(legacy.mode_version_id, null);
   assert.equal(legacy.meeting_model_override, null);
+  assert.equal(legacy.view_mode, 'flat');
+  assert.equal(mapSession({ id: 'spatial-session', view_mode: 'space' })?.view_mode, 'space');
 
   // A projectless (free-conversation) session keeps "no project" as null: coercing
   // it to '' would satisfy truthiness checks but fail strict equality against a

@@ -11,6 +11,7 @@ const props = withDefaults(defineProps<{
   approvalRules?: ApprovalRuleDto[]
   shellCommand: string
   busy: boolean
+  compact?: boolean
   selectedSessionId: string | null
 }>(), { approvalRules: () => [] })
 
@@ -33,7 +34,7 @@ const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
 
 <template>
   <section class="panel">
-    <div class="approval-request-box">
+    <div v-if="!compact" class="approval-request-box">
       <div class="approval-request-heading">
         <div>
           <strong>{{ t('approval.commandRequestTitle') }}</strong>
@@ -124,7 +125,7 @@ const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
       <span v-if="pendingApprovals(approvals).length === 0" class="quiet approval-empty">{{ t('context.noApprovals') }}</span>
     </section>
 
-    <details class="approval-section approval-section-collapsed" open>
+    <details v-if="!compact" class="approval-section approval-section-collapsed" open>
       <summary class="approval-section-heading">
         <div><strong>{{ t('approval.allowedTitle') }}</strong><span>{{ t('approval.allowedHint') }}</span></div>
         <span class="approval-count approval-count-allowed">{{ props.approvalRules.length }}</span>

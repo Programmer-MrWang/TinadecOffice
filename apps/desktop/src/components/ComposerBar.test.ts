@@ -105,6 +105,7 @@ function mountComposer(props: Partial<{
   selectedProjectId: string | null
   sessionId: string | null
   hero: boolean
+  spatial: boolean
 }> = {}) {
   return mount(ComposerBar, {
     props: {
@@ -117,6 +118,29 @@ function mountComposer(props: Partial<{
 }
 
 describe('ComposerBar Codex shell contract', () => {
+  it('keeps a docked spatial conversation to plus, input and one send/stop action', async () => {
+    const wrapper = mountComposer({ sessionId: 'session-1', hero: false, spatial: true, modeVersionId: 'frozen-mode' })
+    await flushPromises()
+    expect(wrapper.find('.welcome-dialog-toolbar').exists()).toBe(false)
+    expect(wrapper.find('.mode-selector-trigger').exists()).toBe(false)
+    expect(wrapper.find('.welcome-dialog-plus').exists()).toBe(true)
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    expect(wrapper.findAll('.composer-send-wrapper button')).toHaveLength(1)
+    await wrapper.setProps({ busy: true, canStop: true })
+    expect(wrapper.find('[data-testid="composer-stop"]').exists()).toBe(true)
+    expect(wrapper.findAll('.composer-send-wrapper button')).toHaveLength(1)
+    await wrapper.setProps({ modelValue: 'next message' })
+    expect(wrapper.find('[data-testid="composer-send"]').exists()).toBe(true)
+    expect(wrapper.findAll('.composer-send-wrapper button')).toHaveLength(1)
+    wrapper.unmount()
+  })
+  it('preserves the flat conversation toolbar and separate stop/send controls', async () => {
+    const wrapper = mountComposer({ sessionId: 'flat-1', hero: false, busy: true, canStop: true })
+    await flushPromises()
+    expect(wrapper.find('.welcome-dialog-toolbar').exists()).toBe(true)
+    expect(wrapper.findAll('.composer-send-wrapper button')).toHaveLength(2)
+    wrapper.unmount()
+  })
   it('idle composer reports data-composer-active=false', async () => {
     const wrapper = mountComposer()
     await flushPromises()
@@ -231,7 +255,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
       { id: 'am-draft', display_name: '草稿模式', status: 'draft', latest_published_mode_version_id: null, nodes: [], edges: [] },
       { id: 'am-no-version', display_name: '无版本模式', status: 'published', latest_published_mode_version_id: null, nodes: [], edges: [] },
     ] as never)
-    const wrapper = mountComposer({})
+    const wrapper = mountComposer({ hero: true,})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
@@ -250,7 +274,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
 
   it('lists only follow-default when the workspace has no published mode', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])
-    const wrapper = mountComposer({})
+    const wrapper = mountComposer({ hero: true,})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
@@ -264,7 +288,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
 
   it('degrades to follow-default when the gateway is offline', async () => {
     apiMock.api.listAgentModeTopologies.mockRejectedValue(new Error('offline'))
-    const wrapper = mountComposer({})
+    const wrapper = mountComposer({ hero: true,})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
@@ -278,7 +302,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
 
   it('selecting a mode emits its mode_version_id; follow-default clears it', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY, CONVERSATION_MODE] as never)
-    const wrapper = mountComposer({})
+    const wrapper = mountComposer({ hero: true,})
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
@@ -298,7 +322,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
 
   it('a stale modeVersionId marks the trigger and activates only follow-default', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
-    const wrapper = mountComposer({ modeVersionId: 'mv-gone' })
+    const wrapper = mountComposer({ hero: true, modeVersionId: 'mv-gone' })
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
@@ -312,7 +336,7 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
 
   it('selecting the bound mode highlights it and shows its display name', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
-    const wrapper = mountComposer({ modeVersionId: 'mv-custom-1' })
+    const wrapper = mountComposer({ hero: true, modeVersionId: 'mv-custom-1' })
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()

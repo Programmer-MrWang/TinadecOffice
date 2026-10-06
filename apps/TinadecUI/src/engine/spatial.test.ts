@@ -12,7 +12,8 @@ describe('session space', () => {
     const moved = moveSpace(a, [{ id: 'plan', x: -125.5, y: 63.25 }])
     const next = syncSpace(moved, [{ id: 'meeting', groupId: 'run-a' }, { id: 'code', groupId: 'run-a' }, { id: 'other', groupId: 'run-b' }])
     expect(next.items.plan).toEqual(moved.items.plan)
-    expect(next.items.code.x).toBeGreaterThan(next.items.meeting.x + next.items.meeting.width)
+    expect(next.items.code.x).toBe(next.items.meeting.x)
+    expect(next.items.code.y).toBeGreaterThan(next.items.meeting.y + next.items.meeting.height)
     expect(next.items.other.y).toBeGreaterThan(next.items.meeting.height)
   })
   it('restores negative and fractional world coordinates while rejecting invalid geometry', () => {
@@ -20,6 +21,26 @@ describe('session space', () => {
     expect(repairSpace(JSON.parse(JSON.stringify(source)))?.items.a.x).toBe(-33.5)
     expect(repairSpace({ ...source, items: { invalid: { x: NaN, y: 0 } } })?.items).toEqual({})
     expect(moveSpace(source, [{ id: 'a', x: Infinity, width: -1 }]).items.a).toMatchObject({ x: -33.5, width: 260 })
+  })
+  it('updates claimed message ownership without moving it and avoids cards from other groups', () => {
+    let s = syncSpace(emptySpace('s'), [{ id: 'message', groupId: 'queued' }, { id: 'foreign', groupId: 'other' }])
+    s = moveSpace(s, [{ id: 'message', x: -100, y: 15 }, { id: 'foreign', x: 275, y: 15 }])
+    const next = syncSpace(s, [{ id: 'message', groupId: 'run' }, { id: 'worker', groupId: 'run' }])
+    expect(next.items.message).toMatchObject({ x: -100, y: 15, groupId: 'run' })
+    expect(next.items.worker.y).toBeGreaterThan(next.items.foreign.y + next.items.foreign.height)
+    expect(next.items.foreign).toEqual(s.items.foreign)
+  })
+  it('reflows content growth vertically while preserving manual sizes and positions', () => {
+    const seeds = [{ id: 'a', groupId: 's' }, { id: 'b', groupId: 's' }]
+    const initial = syncSpace(emptySpace('s'), seeds)
+    const grown = syncSpace(initial, [{ ...seeds[0], measuredHeight: 240 }, seeds[1]])
+    expect(grown.items.a.height).toBe(240)
+    expect(grown.items.b.y).toBe(280)
+    const manual = moveSpace(grown, [{ id: 'b', x: 700, y: 40, height: 160 }])
+    const refreshed = syncSpace(manual, [{ ...seeds[0], measuredHeight: 110 }, { ...seeds[1], measuredHeight: 300 }])
+    expect(refreshed.items.b).toEqual(manual.items.b)
+    expect(repairSpace(JSON.parse(JSON.stringify(refreshed)))?.items.b.autoHeight).toBe(false)
+    expect(syncSpace(refreshed, [{ ...seeds[0], measuredHeight: 110 }, seeds[1]])).toBe(refreshed)
   })
   it('preserves canvas data through normal layout repair and session persistence', async () => {
     const snapshot = { ...buildPreset('home', { nextInstanceId: nextTestId }), space: emptySpace('s1') }

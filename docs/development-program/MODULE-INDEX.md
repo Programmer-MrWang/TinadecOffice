@@ -8,15 +8,15 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-DESKTOP | [Desktop / Electron 原生壳](02-modules/app/desktop-shell/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/desktop-shell/TODO.md) |
 | APP-WEB | [Web / 浏览器平台适配](02-modules/app/web/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/web/TODO.md) |
-| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [4项](02-modules/app/shared-renderer/TODO.md) |
+| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [5项](02-modules/app/shared-renderer/TODO.md) |
 | APP-HOME | [Home / 会话、对话与投递](02-modules/app/home/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 0 | [3项](02-modules/app/home/TODO.md) |
 | APP-CODE | [Code / 编程工作台](02-modules/app/code/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/code/TODO.md) |
 | APP-DATA | [Workbench / 治理与数据页面](02-modules/app/data-pages/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/data-pages/TODO.md) |
 | APP-SETTINGS | [Settings / 配置中心](02-modules/app/settings/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/settings/TODO.md) |
 | APP-MARKET | [Market / 市场](02-modules/app/market/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/market/TODO.md) |
 | APP-DEBUG | [Debug Studio / 调试界面](02-modules/app/debug-studio/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/debug-studio/TODO.md) |
-| APP-UIE-ENGINE | [TinadecUI / UIE Engine](02-modules/app/uie-engine/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/app/uie-engine/TODO.md) |
-| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/app/uie-components/TODO.md) |
+| APP-UIE-ENGINE | [TinadecUI / UIE Engine](02-modules/app/uie-engine/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [1项](02-modules/app/uie-engine/TODO.md) |
+| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/app/uie-components/TODO.md) |
 | APP-LOCAL-STATE | [Desktop / 偏好与布局持久化](02-modules/app/local-state/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/local-state/TODO.md) |
 | APP-SERVICES | [Desktop / 本地服务管理](02-modules/app/local-services/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [3项](02-modules/app/local-services/TODO.md) |
 | APP-PACKS | [App / AgentPack 内容与安装体验](02-modules/app/agent-packs/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/agent-packs/TODO.md) |
@@ -36,7 +36,7 @@
 | CORE-MODELS | [Models · 模型与 Harness](02-modules/core/Models/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/core/Models/TODO.md) |
 | CORE-CONTEXT | [Context · 本轮输入与补丁](02-modules/core/Context/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/core/Context/TODO.md) |
 | CORE-PROMPTS | [Prompts · 提示词组装与版本](02-modules/core/Prompts/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/core/Prompts/TODO.md) |
-| CORE-MEMORY | [Memory · 会话与长期记忆](02-modules/core/Memory/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/core/Memory/TODO.md) |
+| CORE-MEMORY | [Memory · 会话与长期记忆](02-modules/core/Memory/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [1项](02-modules/core/Memory/TODO.md) |
 | CORE-SKILLS | [Skills · 市场与集成配置](02-modules/core/Skills/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/core/Skills/TODO.md) |
 | CORE-TOOLS | [Tools · 工具治理与适配](02-modules/core/Tools/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/core/Tools/TODO.md) |
 | CORE-LIFECYCLE | [Lifecycle · 运行事实与恢复](02-modules/core/Lifecycle/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/core/Lifecycle/TODO.md) |
@@ -55,7 +55,7 @@
 | 模块ID | 模块档案 | 初始/当前审计阶段 | 功能条目 | 已验收 | TODO |
 | --- | --- | --- | --- | --- | --- |
 | GW-HTTP | [Gateway / HTTP、认证与上下文](02-modules/gateway/http-auth/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/http-auth/TODO.md) |
-| GW-SESSIONS | [Gateway / 项目、会话与运行控制](02-modules/gateway/session-control/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/session-control/TODO.md) |
+| GW-SESSIONS | [Gateway / 项目、会话与运行控制](02-modules/gateway/session-control/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [2项](02-modules/gateway/session-control/TODO.md) |
 | GW-CONFIG | [Gateway / 配置、市场、治理与组织代理](02-modules/gateway/configuration-organization/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [3项](02-modules/gateway/configuration-organization/TODO.md) |
 | GW-TOOLS | [Gateway / 用户工具传输与可选读面](02-modules/gateway/user-tool-transport/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/gateway/user-tool-transport/TODO.md) |
 | GW-STREAMING | [Gateway / SSE、附件、日志与取消](02-modules/gateway/streaming/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/streaming/TODO.md) |

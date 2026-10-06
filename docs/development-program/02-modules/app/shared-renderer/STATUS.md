@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-RENDERER-F001 | App、路由、API、状态与通知组合层 | 源码可见 | 本轮静态核对；未做功能验收 | 展示 Core 返回事实；Home/Market 页面 ready 控制 splash；连接重试不重挂主页面。 | [apps/desktop/src/App.vue](../../../../../apps/desktop/src/App.vue)<br>[apps/desktop/src/router.ts](../../../../../apps/desktop/src/router.ts)<br>[apps/desktop/src/api.ts](../../../../../apps/desktop/src/api.ts) |
 | APP-RENDERER-F002 | 分类搜索浮窗与沉浸式窗口控制 | 已验收 | 2026-10-06 Windows组件与自动测试专项：窗口/设置82/82；本轮整合911 passed/14 skipped、native/scripts107/107 | 点击搜索直接打开默认760×590自适应浮窗，可选全屏；10类＋全部、分类/结果图标、每组4项预览、展开/收起与文字省略。窗口控制与搜索入口为ghost纯图标，无背景/阴影，保留焦点与no-drag。范围是当前授权目录；会话按标题与项目名匹配，不检索历史消息全文或全磁盘文件名。最终定向48/48、类型/构建和真实Electron浮窗专项通过；模块整体审计未完成，取消错误与窄宽发送任务未关闭。 | [APP-RENDERER-103](TODO.md#app-renderer-103)<br>[CommandPalette.vue](../../../../../apps/desktop/src/components/CommandPalette.vue)<br>[spotlight.ts](../../../../../apps/desktop/src/lib/spotlight.ts)<br>[pageRequests.ts](../../../../../apps/desktop/src/lib/pageRequests.ts)<br>[CommandPalette.test.ts](../../../../../apps/desktop/src/components/CommandPalette.test.ts)<br>[spotlight.test.ts](../../../../../apps/desktop/src/lib/spotlight.test.ts)<br>[AppHeader.test.ts](../../../../../apps/desktop/src/components/AppHeader.test.ts) |
+| APP-RENDERER-F003 | 会话级空间模式与运行事实投影 | 部分实现 | Desktop917/14 skipped、定向组件及Electron专项 | 开关组合执行、完整工作产物与真实模型端到端尚未完成；见APP-RENDERER-104 | [首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md) |
 
 ## 2026-10-06 搜索专项范围
 

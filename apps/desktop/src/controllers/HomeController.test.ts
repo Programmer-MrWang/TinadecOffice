@@ -105,6 +105,76 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+describe('HomeController session families', () => {
+  it('does not recycle a pending empty flat conversation when starting a space conversation', async () => {
+    homeController.setViewMode('flat')
+    homeController.setSelectedProject(null)
+    homeController.sessions.value = []
+    h.createSession.mockResolvedValueOnce({ id: 'pending-flat-family', project_id: null, view_mode: 'flat' })
+    await homeController.createSession(null)
+    homeController.setViewMode('space')
+    h.createSession.mockResolvedValueOnce({ id: 'pending-space-family', project_id: null, view_mode: 'space' })
+    await homeController.createSession(null)
+    expect(h.createSession).toHaveBeenCalledTimes(2)
+    expect(homeController.selectedSessionId.value).toBe('pending-space-family')
+    homeController.setViewMode('flat')
+  })
+  const familySessions = [
+    { id: 'flat-family', project_id: null, title: 'Flat', view_mode: 'flat', mode_version_id: 'fixed-flat' },
+    { id: 'space-family', project_id: null, title: 'Space', view_mode: 'space', mode_version_id: 'fixed-space' },
+  ] as never[]
+  it('switches lists and selection without reusing or reclassifying a conversation', async () => {
+    homeController.setViewMode('flat')
+    homeController.setSelectedProject(null)
+    h.listSessions.mockResolvedValue(familySessions)
+    homeController.sessions.value = familySessions
+    await flushPromises()
+    homeController.setSelectedSession('flat-family')
+    homeController.updateDraft('flat draft')
+    homeController.setViewMode('space')
+    await flushPromises()
+    expect(homeController.selectedSessionId.value).toBe('space-family')
+    expect(homeController.visibleSessions.value.map(s => s.id)).toEqual(['space-family'])
+    expect(homeController.draft.value).toBe('')
+    homeController.setSelectedSession('flat-family')
+    expect(homeController.selectedSessionId.value).toBe('space-family')
+    homeController.setViewMode('flat')
+    expect(homeController.selectedSessionId.value).toBe('flat-family')
+    h.listSessions.mockResolvedValue([])
+  })
+  it('freezes creation family across a mode switch while awaiting the server', async () => {
+    homeController.sessions.value = familySessions
+    homeController.setSelectedProject(null)
+    homeController.setViewMode('space')
+    let finish!: (value: never) => void
+    h.createSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const creating = homeController.createSession(null)
+    homeController.setViewMode('flat')
+    const selected = homeController.selectedSessionId.value
+    finish({ id: 'new-space-family', project_id: null, title: 'Space', view_mode: 'space' } as never)
+    await creating
+    expect(h.createSession).toHaveBeenLastCalledWith(null, 'Tinadec session', null, 'space')
+    expect(homeController.selectedSessionId.value).toBe(selected)
+    expect(homeController.visibleSessions.value.some(s => s.id === 'new-space-family')).toBe(false)
+  })
+  it('uses the conversation mode binding for later sends instead of a new picker value', async () => {
+    homeController.setViewMode('flat')
+    homeController.sessions.value = familySessions
+    homeController.setSelectedSession('flat-family')
+    homeController.updateDraft('next task')
+    await homeController.sendMessage({ mode_version_id: 'different-mode', dispatch_mode: 'parallel' })
+    expect(h.createInteraction.mock.calls.at(-1)?.[1]).toMatchObject({ mode_version_id: 'fixed-flat' })
+  })
+  it('keeps the draft when creating its new conversation fails', async () => {
+    homeController.sessions.value = []
+    homeController.selectedSessionId.value = null
+    homeController.updateDraft('keep my request')
+    h.createSession.mockRejectedValueOnce(new Error('create failed'))
+    await homeController.sendMessage()
+    expect(homeController.draft.value).toBe('keep my request')
+  })
+})
+
 describe('HomeController session read ownership', () => {
   it('cannot restore an old conversation after its read resolves late', async () => {
     let resolve!: (value: never[]) => void

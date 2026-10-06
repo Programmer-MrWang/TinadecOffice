@@ -662,7 +662,7 @@ function confirmSteer(id: string, interrupt = false) {
 
         <div ref="sendTriggerRef" class="composer-send-wrapper">
           <UiButton
-            v-if="busy && canStop"
+            v-if="busy && canStop && (!spatial || !canSend)"
             variant="ghost"
             size="icon"
             class="composer-stop-button"
@@ -674,6 +674,7 @@ function confirmSteer(id: string, interrupt = false) {
             <Square :size="14" />
           </UiButton>
           <UiButton
+            v-if="!spatial || !(busy && canStop && !canSend)"
             variant="ghost"
             size="icon"
             class="welcome-dialog-send"
@@ -688,7 +689,7 @@ function confirmSteer(id: string, interrupt = false) {
         </div>
       </div>
 
-      <div class="welcome-dialog-toolbar">
+      <div v-if="!spatial || hero" class="welcome-dialog-toolbar">
         <div class="toolbar-left">
           <!-- THE one mode selector: the installed packs' published versions. -->
           <ModeSelector

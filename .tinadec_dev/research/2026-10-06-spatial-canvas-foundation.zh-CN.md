@@ -1,5 +1,7 @@
 # 空间模式画布基础核查
 
+> 下文为实施前研究快照；自由画布分支及 redo 修复已在后续实现，当前边界见[首批落地报告](../reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)。
+
 日期：2026-10-06。源码基线：`46731fd`，`main`，核查开始时工作树干净。范围：Vue Flow 官方能力、现有 UIE 和卡片宿主；本轮没有实现空间模式。
 
 关联模块：[APP-UIE-ENGINE](../../docs/development-program/02-modules/app/uie-engine/README.md)、[APP-UIE-COMPONENTS](../../docs/development-program/02-modules/app/uie-components/README.md)、[APP-LOCAL-STATE](../../docs/development-program/02-modules/app/local-state/README.md)、[APP-RENDERER](../../docs/development-program/02-modules/app/shared-renderer/README.md)。这是各模块 001 审计任务的一项研究输入，不代表完整逐功能审计完成，也不另建任务数据库。

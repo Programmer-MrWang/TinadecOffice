@@ -1649,6 +1649,7 @@ export interface components {
       title: string | null;
       trashed_at: string | null;
       updated_at: string | null;
+      view_mode: "flat" | "space";
       [key: string]: unknown;
     };
     SessionList: components["schemas"]["Session"][];

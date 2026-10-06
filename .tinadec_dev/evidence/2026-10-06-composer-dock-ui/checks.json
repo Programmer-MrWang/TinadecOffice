@@ -1,0 +1,58 @@
+{
+  "flat": {
+    "same": true,
+    "from": 404.3750305175781,
+    "during": 404.3750305175781,
+    "to": 758.7589721679688,
+    "animations": [
+      {
+        "frames": [
+          {
+            "offset": null,
+            "easing": "linear",
+            "composite": "auto",
+            "transform": "translateY(-354.384px)",
+            "computedOffset": 0
+          },
+          {
+            "offset": null,
+            "easing": "linear",
+            "composite": "auto",
+            "transform": "translateY(0px)",
+            "computedOffset": 1
+          }
+        ],
+        "duration": 350
+      }
+    ],
+    "toolbar": true
+  },
+  "space": {
+    "same": true,
+    "from": 365.4732360839844,
+    "during": 367.7710266113281,
+    "to": 804.5803833007812,
+    "animations": [
+      {
+        "frames": [
+          {
+            "offset": null,
+            "easing": "linear",
+            "composite": "auto",
+            "transform": "translateY(-439.107px)",
+            "computedOffset": 0
+          },
+          {
+            "offset": null,
+            "easing": "linear",
+            "composite": "auto",
+            "transform": "translateY(0px)",
+            "computedOffset": 1
+          }
+        ],
+        "duration": 350
+      }
+    ],
+    "toolbar": false
+  }
+}

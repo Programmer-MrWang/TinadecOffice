@@ -87,3 +87,15 @@ flowchart TD
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[APP-RENDERER-001](TODO.md#app-renderer-001)。
+
+
+## 2026-10-06 空间模式数据流
+
+`SpatialPage` 读取既有会话消息、拓扑与活动，投影稳定工作对象 ID；UIE 的 `space` 分支只保存 sessionId、对象几何和视口。Vue Flow 的拖动/尺寸/视口事件通过命令总线提交，`layerStore` 写入 `sessionBySessionId`，沿已有 Electron IPC 保存。画布宿主与预览读取同一对象；预览点击只定位。
+
+来源：[空间首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)。完整执行能力组合仍由 [APP-RENDERER-104](../shared-renderer/TODO.md#app-renderer-104) 跟踪。
+
+
+## 2026-10-06 会话类型
+
+创建请求携带view_mode，Core Memory保存类型，StorageEndpoints投影，Gateway保留字段，HomeController按flat/space筛选与选择。类型固定于创建，历史null值对外为flat；UIE仍只保存布局。证据：[会话隔离报告](../../../../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md)。
