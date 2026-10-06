@@ -159,7 +159,7 @@ TinadecOffice/
   <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice&anon=1" alt="Contributors" />
 </a>
 
-与我们一起建设的还有 **Wang Haoyu**：文档与代码对齐、环境修复与 If-Match 修复、界面重写、主题页（PR #22–#25）。
+与我们一起建设的还有 **Wang Haoyu**：文档与代码对齐、环境修复与 If-Match 修复、界面重写、主题页（PR #22–#25，随 #27 压缩合并进主干）。
 
 ## Star 历史
 
