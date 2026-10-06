@@ -159,7 +159,7 @@ TinadecOffice/
   <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice&anon=1" alt="Contributors" />
 </a>
 
-Also building with us — **Wang Haoyu**: docs-vs-code realignment, environment & If-Match fixes, UI rework, and the theme page (PRs #22–#25).
+Also building with us — **Wang Haoyu**: docs-vs-code realignment, environment & If-Match fixes, UI rework, and the theme page (PRs #22–#25, landed on main in the #27 squash merge).
 
 ## Star history
 
