@@ -159,6 +159,17 @@ TinadecOffice/
   <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice&anon=1" alt="Contributors" />
 </a>
 
+The wall above only tracks the mainline. Two kinds of contributors live outside any API's reach — we name them here on purpose:
+
+| Contributor | What they built |
+|-------------|-----------------|
+| **Wang Haoyu** | PRs #22–#25: docs-vs-code realignment, environment & If-Match fixes, UI rework, theme page (branch tracks `Astra` / `Everything-changed`) |
+| **Sisyphus** 🤖 | AI pair-programmer — 2 direct commits on main |
+| **Claude Code** 🤖 | AI pair-programmer — 3 co-authored commits |
+| **traeagent** 🤖 | AI pair-programmer — 1 co-authored commit |
+
+AI pair-programmers earn co-authored (or direct) commits in this repo by design — the wall can't see co-authors, so we won't let it erase them.
+
 ## Star history
 
 <a href="https://star-history.com/#Tinadec/TinadecOffice&Date">

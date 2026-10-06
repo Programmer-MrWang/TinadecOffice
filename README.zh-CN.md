@@ -159,6 +159,17 @@ TinadecOffice/
   <img src="https://contrib.rocks/image?repo=Tinadec/TinadecOffice&anon=1" alt="Contributors" />
 </a>
 
+上面的头像墙只数主干提交。有两类贡献者任何 API 都数不到——我们在这里点名：
+
+| 贡献者 | 做了什么 |
+|--------|----------|
+| **Wang Haoyu** | PR #22–#25：文档与代码对齐、环境修复与 If-Match 修复、界面重写、主题页（`Astra` / `Everything-changed` 分支轨迹） |
+| **Sisyphus（AI）** | AI 结对程序——主干 2 个直接提交 |
+| **Claude Code（AI）** | AI 结对程序——3 个共同作者提交 |
+| **traeagent（AI）** | AI 结对程序——1 个共同作者提交 |
+
+AI 结对程序在本仓库按设计就拿共同作者甚至直接提交——头像墙数不到 co-author，但我们不让它把 AI 的贡献抹掉。
+
 ## Star 历史
 
 <a href="https://star-history.com/#Tinadec/TinadecOffice&Date">
