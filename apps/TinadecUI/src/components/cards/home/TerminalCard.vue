@@ -8,8 +8,9 @@ const c = homeController
 // Card context is provided by UieCardHost; `toValue` also accepts a host that
 // still provides a plain boolean.
 const active = inject<MaybeRefOrGetter<boolean>>('uie:active', false)
+const spaceVisible = inject<MaybeRefOrGetter<boolean>>('space:terminal-visible')
 
-const visible = computed(() => toValue(active) ?? false)
+const visible = computed(() => (toValue(active) ?? false) && (spaceVisible === undefined || toValue(spaceVisible)))
 </script>
 
 <template>

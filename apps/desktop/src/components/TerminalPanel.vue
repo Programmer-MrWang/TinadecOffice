@@ -12,7 +12,7 @@
  * - Auto-fit terminal to panel size
  * - Status indicators (running / exited)
  */
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch, type ComputedRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   Plus,
@@ -40,8 +40,8 @@ const props = defineProps<{
 }>()
 
 const {
-  terminals,
-  activeTerminalId,
+  terminals: allTerminals,
+  activeTerminalId: globalActiveTerminalId,
   availableShells,
   shellsLoaded,
   creationError,
@@ -56,6 +56,16 @@ const {
   clearCreationError,
   isTerminalAvailable,
 } = useTerminal()
+
+// Space exposes only agent terminals established for this session's runs.
+// Filtering a view never kills the underlying terminal or creates a local shell.
+const spaceRuns = inject<ComputedRef<ReadonlySet<string>>>('space:terminal-runs')
+const terminals = computed(() => spaceRuns
+  ? allTerminals.value.filter(instance => instance.sourceKind === 'agent' && instance.runId && spaceRuns.value.has(instance.runId))
+  : allTerminals.value)
+const activeTerminalId = computed(() => spaceRuns
+  ? terminals.value.find(instance => instance.id === globalActiveTerminalId.value)?.id ?? terminals.value[0]?.id ?? null
+  : globalActiveTerminalId.value)
 
 // ---- Shell selector dropdown ----
 const showShellMenu = ref(false)
@@ -77,7 +87,7 @@ const terminalAvailable = computed(() => isTerminalAvailable() || hasTerminals.v
  * Agent terminals are hosted by Core, not by this machine's PTY bridge, so the
  * panel stays usable in the browser build — only "new local terminal" is blocked.
  */
-const localTerminalAvailable = computed(() => isTerminalAvailable())
+const localTerminalAvailable = computed(() => !spaceRuns && isTerminalAvailable())
 
 // ---- Actions ----
 
@@ -85,6 +95,7 @@ const localTerminalAvailable = computed(() => isTerminalAvailable())
  * Create a new terminal with the given shell profile.
  */
 async function handleNewTerminal(shellId?: string): Promise<void> {
+  if (spaceRuns) return
   showShellMenu.value = false
   
   try {
@@ -182,6 +193,7 @@ function handleDocumentClick(event: MouseEvent): void {
 // ---- Keyboard shortcuts ----
 
 function handleKeydown(event: KeyboardEvent): void {
+  if (!shown.value) return
   // Ctrl+Shift+T: New terminal (default shell)
   if (event.ctrlKey && event.shiftKey && event.key === 'T') {
     event.preventDefault()
@@ -234,7 +246,7 @@ const shown = computed(() => props.visible !== false)
 // Create, fit and focus on first show; the guard lives in `fitTerminal`.
 watch(shown, (isShown) => {
   if (!isShown) return
-  if (terminalAvailable.value && terminals.value.length === 0) {
+  if (localTerminalAvailable.value && terminals.value.length === 0) {
     void handleNewTerminal()
     return
   }
@@ -249,7 +261,7 @@ watch(shown, (isShown) => {
 
 // Auto-fit when active terminal changes
 watch(activeTerminalId, (id) => {
-  if (id) {
+  if (id && shown.value) {
     nextTick(() => {
       fitTerminal(id)
       setTimeout(() => focusTerminal(id), 50)
@@ -378,7 +390,7 @@ function setTerminalViewRef(id: string, el: InstanceType<typeof TerminalView> | 
       </div>
 
       <!-- Persistent reason the panel has no shell (a failed create is not a no-op) -->
-      <div v-if="creationError" class="terminal-error" role="alert">
+      <div v-if="!spaceRuns && creationError" class="terminal-error" role="alert">
         <span class="terminal-error-text">
           {{ t('terminal.createFailed') }}：{{ creationError.message }}
         </span>
@@ -400,7 +412,7 @@ function setTerminalViewRef(id: string, el: InstanceType<typeof TerminalView> | 
         <div v-if="!hasTerminals" class="terminal-empty">
           <TerminalSquare :size="32" />
           <p>{{ t('terminal.emptyHint') }}</p>
-          <button class="terminal-empty-btn" @click="handleNewTerminal()">
+          <button v-if="localTerminalAvailable" class="terminal-empty-btn" @click="handleNewTerminal()">
             <Plus :size="14" />
             <span>{{ t('terminal.newTerminal') }}</span>
           </button>

@@ -41,3 +41,7 @@ flowchart LR
 `SpatialPage` 读取既有会话消息、拓扑与活动，投影稳定工作对象 ID；UIE 的 `space` 分支只保存 sessionId、对象几何和视口。Vue Flow 的拖动/尺寸/视口事件通过命令总线提交，`layerStore` 写入 `sessionBySessionId`，沿已有 Electron IPC 保存。画布宿主与预览读取同一对象；预览点击只定位。
 
 来源：[空间首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)。完整执行能力组合仍由 [APP-RENDERER-104](../shared-renderer/TODO.md#app-renderer-104) 跟踪。
+
+## 2026-10-07 目标簇读面
+
+当前SpatialObject分离run/task/instance归属与独立SpatialRelation依赖集合；每run回复独立，未知工具归属保持run级。UIE SpatialSeed提供role/dependencyIds/dependencyUnverified，初次与显式arrangeSpace共享分层安放；compact写入既有空间几何，增量仅安放新ID。详情使用访问后隐藏保留，终端使用原UIE按需右栏宿主并以当前会话run集合过滤，未新增业务store。

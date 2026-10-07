@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import UieColumn from './UieColumn.vue'
 import { useUie } from './useUie'
 
 const uie = useUie()
-const props = defineProps<{ spatial?: boolean }>()
-const slots = computed(() => props.spatial ? ['left'] as const : uie.snapshot.value.columnOrder)
+const props = defineProps<{ spatial?: boolean; spatialPanel?: boolean }>()
+const panelVisited = ref(false)
+watch(() => props.spatialPanel, value => { if (value) panelVisited.value = true }, { immediate: true })
+const slots = computed(() => props.spatial ? panelVisited.value ? ['left', 'right'] as const : ['left'] as const : uie.snapshot.value.columnOrder)
 const spaceLeft = computed(() => uie.geometry.value.columns.left.x + uie.geometry.value.columns.left.width + uie.snapshot.value.gap)
+const spaceRight = computed(() => props.spatialPanel ? uie.geometry.value.columns.right.width + uie.snapshot.value.gap : 8)
 
 const canvasRef = ref<HTMLElement | null>(null)
 let observer: ResizeObserver | null = null
@@ -40,12 +43,13 @@ onBeforeUnmount(() => {
     <UieColumn
       v-for="slotId in slots"
       :key="slotId"
+      v-show="!spatial || slotId !== 'right' || spatialPanel"
       :column="uie.snapshot.value.columns[slotId]"
       :geometry="uie.geometry.value.columns[slotId]"
       :split="uie.geometry.value.splits[slotId]"
       :dock="uie.geometry.value.docks[slotId]"
     />
-    <section v-if="spatial" class="uie-space-stage" :style="{ left: `${spaceLeft}px` }"><slot /></section>
+    <section v-if="spatial" class="uie-space-stage" :style="{ left: `${spaceLeft}px`, right: `${spaceRight}px` }"><slot /></section>
   </div>
 </template>
 

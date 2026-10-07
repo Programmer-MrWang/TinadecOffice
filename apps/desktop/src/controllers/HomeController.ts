@@ -445,9 +445,13 @@ const stoppableRunId = computed(
  * but nothing ever rendered it, so a user saw nothing at all until the entire reply
  * was persisted — which reads as a hung agent.
  */
+const streamingReplies = computed(() => Object.fromEntries(
+  runs.value.filter(run => !['completed', 'failed', 'cancelled'].includes(run.status)
+    && !messages.value.some(message => message.role === 'assistant' && message.run_id === run.id))
+    .map(run => [run.id, streamingText.value.get(run.id) ?? '']),
+))
 const streamingReply = computed(() =>
-  stoppableRunId.value && !messages.value.some((message) => message.role === 'assistant' && message.run_id === stoppableRunId.value)
-    ? streamingText.value.get(stoppableRunId.value) ?? '' : '',
+  stoppableRunId.value ? streamingReplies.value[stoppableRunId.value] ?? '' : '',
 )
 
 
@@ -923,6 +927,7 @@ export const homeController = {
   executeCatalogTool,
   stoppableRunId,
   streamingReply,
+  streamingReplies,
   agentTurnActivities,
   recordApproval,
   loadMessagesAndApprovals,

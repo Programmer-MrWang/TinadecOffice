@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-10-06
-**Last Updated By:** 会话单会议队列、紧凑纵向拓扑与自然预览交互。
-**Last Verified Commit:** 基线 acb3bd3 + 工作树；UIE148/148、Desktop全量931 passed/14 skipped、类型/构建与Electron紧凑卡片/连线/预览动画/点击定位通过；非真实模型链路验收。
+**Last Updated:** 2026-10-07
+**Last Updated By:** 空间目标选择器改用UiSelect，移除原生表单控件。
+**Last Verified Commit:** 283b544 + 工作树；Desktop969 passed/14 skipped、UIE156/156、空间视觉定向18/18、UiSelect定向、类型/构建与Electron三宽度夹具通过；真实模型/终端桥/平台验收未闭合。
 **Branch:** main
+
+### 2026-10-07 空间目标工作簇接手
+
+依据`.tinadec_dev/plans/claude/piped-sparking-alpaca.md`继续第一阶段：新卡compact默认360×160，按run分区和真实依赖稳定分层；旧位置/尺寸保留，更新不移动旧卡，主动整理可撤销。任务与实例/归属与依赖分开，答案按run归位，未知依赖及受影响后继标待核验。详情/终端按需显示并保活，空间终端按当前会话run过滤，隐藏不响应全局终端快捷键。失败保留旧拓扑、文案/窄宽避让与迟到响应回归通过。报告`.tinadec_dev/reports/2026-10-07-space-clusters-handoff.zh-CN.md`；下列10-06单列420px为历史首版行为，当前默认以此条为准，完整APP-RENDERER-104仍进行中。
 
 ### 2026-10-06 紧凑会议队列与纵向拓扑
 

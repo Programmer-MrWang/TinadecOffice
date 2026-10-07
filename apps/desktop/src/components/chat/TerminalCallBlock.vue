@@ -9,7 +9,7 @@
  * panel (replay + follow), where the user has a full-size view and can type to
  * help the agent finish.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -34,6 +34,7 @@ const props = defineProps<{
 
 const { notify } = useNotifications()
 const { openAgentTerminal } = useTerminal()
+const openSpaceTerminal = inject<() => void>('space:open-terminal')
 
 const containerRef = ref<HTMLElement | null>(null)
 const terminalSessionId = ref<string | null>(null)
@@ -183,6 +184,10 @@ function openInPanel() {
     title: props.command?.slice(0, 40) || 'Agent terminal',
     source: panelSource,
   })
+  if (openSpaceTerminal) {
+    openSpaceTerminal()
+    return
+  }
   try {
     const uie = useUie()
     uie.bus.dispatch({

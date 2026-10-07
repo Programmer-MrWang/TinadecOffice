@@ -124,6 +124,29 @@ describe('TerminalCallBlock', () => {
     // Without the backfill this falls back to the "session not established" info notice.
     expect(h.notifyInfo).not.toHaveBeenCalled()
     expect(h.openAgentTerminal).toHaveBeenCalledWith(expect.objectContaining({ terminalSessionId: 'ts-1', runId: 'run-1' }))
+    expect(h.dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      command: expect.objectContaining({ type: 'openCard', descriptorId: 'terminal', slotId: 'right' }),
+    }))
+    wrapper.unmount()
+  })
+
+  it('registers the same terminal before opening the space host, without dispatching the flat layout', async () => {
+    h.events.value = [
+      terminalEvent(1, 'terminal.command', { execution_id: 'exec-1', terminal_session_id: 'ts-space', run_id: 'run-1' }),
+    ]
+    const openSpaceTerminal = vi.fn(() => {
+      expect(h.openAgentTerminal).toHaveBeenCalledWith(expect.objectContaining({ terminalSessionId: 'ts-space', runId: 'run-1' }))
+    })
+    const wrapper = mount(TerminalCallBlock, {
+      props: { executionId: 'exec-1', command: 'npm test', status: 'running' },
+      global: { provide: { 'space:open-terminal': openSpaceTerminal } },
+    })
+    await flushPromises()
+    await wrapper.findAll('button').find((b) => b.text().includes('在功能面板打开'))!.trigger('click')
+    expect(openSpaceTerminal).toHaveBeenCalledOnce()
+    expect(h.dispatch).not.toHaveBeenCalled()
+    expect(h.controlRun).not.toHaveBeenCalled()
+    expect(h.killSession).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 

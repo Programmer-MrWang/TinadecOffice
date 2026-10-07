@@ -1,0 +1,306 @@
+{
+  "900": {
+    "nodes": [
+      {
+        "id": "task:cluster-qa:a",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:b",
+        "groupId": "cluster-qa",
+        "x": 392,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:c",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 583,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      }
+    ],
+    "edges": 2,
+    "titles": [
+      "会话入口",
+      "比较方案并给出设计建议",
+      "调研现有实现",
+      "比较设计方案",
+      "整合设计建议"
+    ],
+    "task": {
+      "left": 300,
+      "right": 571.9149169921875,
+      "top": 581.4508666992188,
+      "bottom": 702.3019485473633,
+      "width": 271.9149169921875,
+      "height": 120.85108184814453
+    },
+    "composer": {
+      "left": 292,
+      "right": 876,
+      "top": 804.5803833007812,
+      "bottom": 855.4286003112793,
+      "width": 584,
+      "height": 50.84821701049805
+    },
+    "surface": {
+      "left": 276,
+      "right": 892,
+      "top": 44.000003814697266,
+      "bottom": 867.4285926818848,
+      "width": 616,
+      "height": 823.4285888671875
+    },
+    "detail": {
+      "card": {
+        "left": 300,
+        "right": 548.3214416503906,
+        "top": 435.6300048828125,
+        "bottom": 545.9950714111328,
+        "width": 248.32144165039062
+      },
+      "panel": {
+        "left": 584.3214721679688,
+        "right": 880.0000610351562,
+        "top": 172.00001525878906,
+        "bottom": 715.4286041259766,
+        "width": 295.6785888671875
+      },
+      "composer": {
+        "left": 292,
+        "right": 876,
+        "top": 804.5803833007812,
+        "bottom": 855.4286003112793,
+        "width": 584
+      },
+      "relations": 2
+    }
+  },
+  "1120": {
+    "nodes": [
+      {
+        "id": "task:cluster-qa:a",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:b",
+        "groupId": "cluster-qa",
+        "x": 392,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:c",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 583,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      }
+    ],
+    "edges": 2,
+    "titles": [
+      "会话入口",
+      "比较方案并给出设计建议",
+      "调研现有实现",
+      "比较设计方案",
+      "整合设计建议"
+    ],
+    "task": {
+      "left": 323.5153503417969,
+      "right": 678.2348022460938,
+      "top": 574.0791015625,
+      "bottom": 731.7321472167969,
+      "width": 354.7194519042969,
+      "height": 157.65304565429688
+    },
+    "composer": {
+      "left": 314,
+      "right": 1074.0000610351562,
+      "top": 804.5803833007812,
+      "bottom": 855.4286003112793,
+      "width": 760.0000610351562,
+      "height": 50.84821701049805
+    },
+    "surface": {
+      "left": 276,
+      "right": 1112.0000610351562,
+      "top": 44.000003814697266,
+      "bottom": 867.4285926818848,
+      "width": 836.0000610351562,
+      "height": 823.4285888671875
+    },
+    "detail": {
+      "card": {
+        "left": 301.3616638183594,
+        "right": 661.3616333007812,
+        "top": 375.83929443359375,
+        "bottom": 535.8392944335938,
+        "width": 359.9999694824219
+      },
+      "panel": {
+        "left": 698.7232666015625,
+        "right": 1100.0000610351562,
+        "top": 172.00001525878906,
+        "bottom": 715.4286041259766,
+        "width": 401.27679443359375
+      },
+      "composer": {
+        "left": 314,
+        "right": 1074.0000610351562,
+        "top": 804.5803833007812,
+        "bottom": 855.4286003112793,
+        "width": 760.0000610351562
+      },
+      "relations": 2
+    }
+  },
+  "1463": {
+    "nodes": [
+      {
+        "id": "task:cluster-qa:a",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:b",
+        "groupId": "cluster-qa",
+        "x": 392,
+        "y": 383,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      },
+      {
+        "id": "task:cluster-qa:c",
+        "groupId": "cluster-qa",
+        "x": 0,
+        "y": 583,
+        "width": 360,
+        "height": 160,
+        "autoHeight": true,
+        "manualPosition": false,
+        "compact": true
+      }
+    ],
+    "edges": 2,
+    "titles": [
+      "会话入口",
+      "比较方案并给出设计建议",
+      "调研现有实现",
+      "比较设计方案",
+      "整合设计建议"
+    ],
+    "task": {
+      "left": 495.2296142578125,
+      "right": 849.9490356445312,
+      "top": 574.0791015625,
+      "bottom": 731.7321472167969,
+      "width": 354.71942138671875,
+      "height": 157.65304565429688
+    },
+    "composer": {
+      "left": 485.71429443359375,
+      "right": 1245.71435546875,
+      "top": 804.5803833007812,
+      "bottom": 855.4286003112793,
+      "width": 760.0000610351562,
+      "height": 50.84821701049805
+    },
+    "surface": {
+      "left": 276,
+      "right": 1455.4285888671875,
+      "top": 44.000003814697266,
+      "bottom": 867.4285926818848,
+      "width": 1179.4285888671875,
+      "height": 823.4285888671875
+    },
+    "detail": {
+      "card": {
+        "left": 458.71429443359375,
+        "right": 818.7143249511719,
+        "top": 375.83929443359375,
+        "bottom": 535.8392944335938,
+        "width": 360.0000305175781
+      },
+      "panel": {
+        "left": 1013.4285888671875,
+        "right": 1443.4286193847656,
+        "top": 172.00001525878906,
+        "bottom": 715.4286041259766,
+        "width": 430.0000305175781
+      },
+      "composer": {
+        "left": 485.71429443359375,
+        "right": 1245.71435546875,
+        "top": 804.5803833007812,
+        "bottom": 855.4286003112793,
+        "width": 760.0000610351562
+      },
+      "relations": 2
+    }
+  },
+  "stability": true,
+  "scale": [
+    {
+      "count": 30,
+      "settleMs": 167.59999999403954,
+      "rendered": 32,
+      "heapBytes": 40890360
+    },
+    {
+      "count": 100,
+      "settleMs": 408.2999999821186,
+      "rendered": 102,
+      "heapBytes": 43183794
+    },
+    {
+      "count": 300,
+      "settleMs": 1220.699999988079,
+      "rendered": 302,
+      "heapBytes": 71399904
+    }
+  ],
+  "exceptions": [
+    "Error: Cannot connect to backend (http://127.0.0.1:48730): signal is aborted without reason\n    at requestResult (http://127.0.0.1:5173/src/api.ts:54:11)\n    at async request (http://127.0.0.1:5173/src/api.ts:73:11)\n    at async Promise.all (index 3)\n    at async loadMessagesAndApprovals (http://127.0.0.1:5173/src/controllers/HomeController.ts:164:18)"
+  ],
+  "captureErrors": []
+}

@@ -99,3 +99,7 @@ flowchart TD
 ## 2026-10-06 会话类型
 
 创建请求携带view_mode，Core Memory保存类型，StorageEndpoints投影，Gateway保留字段，HomeController按flat/space筛选与选择。类型固定于创建，历史null值对外为flat；UIE仍只保存布局。证据：[会话隔离报告](../../../../../.tinadec_dev/reports/2026-10-06-session-view-isolation.zh-CN.md)。
+
+## 2026-10-07 目标簇读面
+
+当前SpatialObject分离run/task/instance归属与独立SpatialRelation依赖集合；每run回复独立，未知工具归属保持run级。UIE SpatialSeed提供role/dependencyIds/dependencyUnverified，初次与显式arrangeSpace共享分层安放；compact写入既有空间几何，增量仅安放新ID。详情使用访问后隐藏保留，终端使用原UIE按需右栏宿主并以当前会话run集合过滤，未新增业务store。
