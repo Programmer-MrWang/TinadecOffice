@@ -457,3 +457,34 @@ describe('session organization requests', () => {
     expect(mirrors).toHaveLength(24)
   })
 })
+
+describe('request cancellation semantics', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('keeps an AbortError instead of reporting a backend connection failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new DOMException('signal is aborted without reason', 'AbortError')
+    }))
+    const controller = new AbortController()
+    controller.abort()
+
+    const error = await api.listSessions(undefined, controller.signal).then(
+      () => null,
+      (reason: unknown) => reason,
+    )
+
+    expect(error).toBeInstanceOf(DOMException)
+    expect((error as Error).name).toBe('AbortError')
+    expect((error as Error).message).not.toContain('Cannot connect to backend')
+  })
+
+  it('still wraps a non-abort fetch failure as a backend connection failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    }))
+
+    await expect(api.listSessions()).rejects.toThrow('Cannot connect to backend')
+  })
+})
