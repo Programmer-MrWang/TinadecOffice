@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using TinadecTools.Runtime.Sandbox;
 using TinadecTools.Tools.FileRW;
 
@@ -95,5 +96,41 @@ public sealed class SandboxRuntimeTests
     {
         SandboxRequestValidator.Validate("git", ["value with spaces", "quote\"value", "semi;colon", "amp&value"], WorkspacePathResolver.WorkspaceRoot, 1);
         SandboxRequestValidator.Validate("git", [], WorkspacePathResolver.WorkspaceRoot, 1_800_000, new Dictionary<string, string> { ["SAFE_NAME"] = "safe" });
+    }
+
+    [Fact]
+    public void ValidateRequest_RejectsRawTailAlongsideArgv()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        // ProcessStartInfo cannot carry both, so whichever side dropped one would run a
+        // different command than the one the human approved.
+        Assert.Throws<ArgumentException>(() => SandboxRequestValidator.Validate(
+            "cmd.exe", ["/c", "dir"], WorkspacePathResolver.WorkspaceRoot, 1,
+            argumentString: "/d /s /c \"dir\""));
+        Assert.Throws<ArgumentException>(() => SandboxRequestValidator.Validate(
+            "cmd.exe", [], WorkspacePathResolver.WorkspaceRoot, 1, argumentString: string.Empty));
+        Assert.Throws<ArgumentException>(() => SandboxRequestValidator.Validate(
+            "cmd.exe", [], WorkspacePathResolver.WorkspaceRoot, 1, argumentString: "evil\0command"));
+
+        // The accepted shape is exactly what the shell tool produces: empty argv, raw tail.
+        SandboxRequestValidator.Validate("cmd.exe", [], WorkspacePathResolver.WorkspaceRoot, 1,
+            argumentString: "/d /s /c \"dir\"");
+    }
+
+    [Fact]
+    public void ApplyCommandLine_PicksOneTransport()
+    {
+        var argvOnly = new SandboxRunnerRequest { Arguments = ["-lc", "echo hi"] };
+        var argvPsi = new ProcessStartInfo();
+        argvOnly.ApplyCommandLine(argvPsi);
+        Assert.Equal(["-lc", "echo hi"], argvPsi.ArgumentList);
+        Assert.Equal(string.Empty, argvPsi.Arguments);
+
+        var tailOnly = new SandboxRunnerRequest { ArgumentString = "/d /s /c \"echo \"hi\"\"" };
+        var tailPsi = new ProcessStartInfo();
+        tailOnly.ApplyCommandLine(tailPsi);
+        Assert.Empty(tailPsi.ArgumentList);
+        Assert.Equal("/d /s /c \"echo \"hi\"\"", tailPsi.Arguments);
     }
 }

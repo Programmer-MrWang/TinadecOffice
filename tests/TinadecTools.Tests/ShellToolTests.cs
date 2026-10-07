@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using TinadecTools.Abstractions;
 using TinadecTools.Runtime.Sandbox;
+using TinadecTools.Runtime.Sandbox.Windows;
 using TinadecTools.Tools.Command;
+using TinadecTools.Tools.FileRW;
 
 namespace TinadecTools.Tests;
 
@@ -25,18 +27,93 @@ public sealed class ShellToolTests
     }
 
     // ── A1: cmd quoting ────────────────────────────────────────────────────────
+    //
+    // The corruption happens where .NET escapes an argv entry and cmd.exe refuses to
+    // unescape it, so only a real cmd.exe can prove the rule. The dispatch-level tests
+    // below run on a fake backend that slices the command string and never spawns a
+    // process — they stayed green while every quoted command arrived as \"hi\".
 
     [Fact]
-    public void ResolveShell_Windows_WrapsCommandWithoutBackslashEscapes()
+    public void ResolveSandboxCommand_Windows_CarriesTheWholeCommandAsRawTail()
     {
         if (!OperatingSystem.IsWindows()) return;
 
-        var (fileName, arguments) = ShellToolRegistration.ResolveShell("echo \"hi\"");
+        var (fileName, arguments, argumentString) = ShellToolRegistration.ResolveSandboxCommand("echo \"hi\"");
 
         Assert.Equal("cmd.exe", fileName);
-        // cmd /d /s /c strips exactly the outer quote pair; inner quotes pass through.
-        Assert.Equal("/d /s /c \"echo \"hi\"\"", arguments);
-        Assert.DoesNotContain("\\\"", arguments);
+        // argv must not keep a second copy of the switch words: ProcessStartInfo refuses
+        // both fields, and two spellings of "/d /s /c" are two sources of truth.
+        Assert.Empty(arguments);
+        Assert.Equal("/d /s /c \"echo \"hi\"\"", argumentString);
+        Assert.DoesNotContain("\\\"", argumentString);
+    }
+
+    [Fact]
+    public void ResolveSandboxCommand_Posix_UsesArgvAndNoRawTail()
+    {
+        if (OperatingSystem.IsWindows()) return;
+
+        var (fileName, arguments, argumentString) = ShellToolRegistration.ResolveSandboxCommand("echo 'hi'");
+
+        Assert.Equal("/bin/bash", fileName);
+        Assert.Equal(["-lc", "echo 'hi'"], arguments);
+        Assert.Null(argumentString);
+    }
+
+    [Fact]
+    public void RealCmd_RawTail_EchosInnerQuotesWithoutBackslashes()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        var response = RunRealCmd("echo \"hi\"");
+
+        Assert.True(response.Success, $"stderr=[{response.Stderr}]");
+        Assert.Contains("\"hi\"", response.Stdout);
+        Assert.DoesNotContain("\\", response.Stdout);
+    }
+
+    // The user-visible failure this test pins: the quoted argument must arrive at git as
+    // ONE argv entry, otherwise the commit subject is corrupted or the command is refused.
+    [Fact]
+    public void RealCmd_QuotedCommitMessage_ReachesGitAsOneArgument()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+
+        using var repo = new TempGitRepo("shell-cmd-quoting");
+        repo.SeedInitialCommit();
+
+        var response = RunRealCmd("git commit --allow-empty -m \"quoted: two words\"", repo.Path);
+
+        Assert.True(response.Success, $"stdout=[{response.Stdout}] stderr=[{response.Stderr}]");
+        Assert.Equal("quoted: two words", repo.CaptureGit("log", "-1", "--format=%s").Trim());
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static SandboxRunnerResponse RunRealCmd(string command, string? workingDirectory = null)
+    {
+        var (executable, arguments, argumentString) = ShellToolRegistration.ResolveSandboxCommand(command);
+        return WindowsSandboxRunner.RunSandboxedProcess(new SandboxRunnerRequest
+        {
+            Executable = executable,
+            Arguments = arguments,
+            ArgumentString = argumentString,
+            WorkingDirectory = workingDirectory ?? FileToolRuntime.WorkspaceRoot,
+            TimeoutMs = 30_000,
+            Environment = WindowsChildEnvironment()
+        });
+    }
+
+    private static Dictionary<string, string> WindowsChildEnvironment()
+    {
+        var systemRoot = Environment.GetEnvironmentVariable("SystemRoot") ?? @"C:\Windows";
+        var temp = Environment.GetEnvironmentVariable("TEMP") ?? systemRoot;
+        return new Dictionary<string, string>
+        {
+            ["SystemRoot"] = systemRoot,
+            ["TEMP"] = temp,
+            ["TMP"] = temp,
+            ["PATH"] = Environment.GetEnvironmentVariable("PATH") ?? string.Empty,
+        };
     }
 
     [Fact]
@@ -195,7 +272,13 @@ public sealed class ShellToolTests
         public Task<SandboxRunnerResponse> ExecuteAsync(SandboxRunnerRequest request, SandboxPermissions permissions,
             bool persistGrants, CancellationToken ct)
         {
-            var command = request.Arguments.LastOrDefault() ?? string.Empty;
+            // Production carries the command as the raw tail, with argv left empty. Read
+            // that first so a dispatch-level test that passes here cannot hide a payload
+            // shape the real backend would never receive.
+            var command = request.ArgumentString ?? request.Arguments.LastOrDefault() ?? string.Empty;
+            command = command.StartsWith("/d /s /c \"", StringComparison.Ordinal) && command.EndsWith('"')
+                ? command["/d /s /c \"".Length..^1]
+                : command;
             if (command.Contains("ping", StringComparison.OrdinalIgnoreCase) || command.Contains("sleep", StringComparison.OrdinalIgnoreCase))
                 return Task.FromResult(new SandboxRunnerResponse { Success = false, TimedOut = true, ExitCode = -1, Error = $"Command timed out after {request.TimeoutMs}ms." });
             if (command.Contains("exit 3", StringComparison.OrdinalIgnoreCase))

@@ -54,20 +54,6 @@ internal static class ShellToolRegistration
             retrySafety: "safe");
     }
 
-    // Internal for tests: the cmd quoting rule is the regression surface.
-    internal static (string FileName, string Arguments) ResolveShell(string command)
-    {
-        if (OperatingSystem.IsWindows())
-            // cmd has no backslash escaping. Under /d /s /c it strips exactly the
-            // outermost quote pair and executes the rest verbatim, so wrapping the
-            // whole command in quotes preserves every inner quote as-is.
-            return ("cmd.exe", $"/d /s /c \"{command}\"");
-        return ("/bin/bash", $"-lc {EscapeSingleQuoted(command)}");
-    }
-
-    private static string EscapeSingleQuoted(string value) =>
-        "'" + value.Replace("'", "'\\''") + "'";
-
     private static async ValueTask<ToolCallResponse<JsonElement>> HandleShellAsync(
         ToolCallRequest<JsonElement> request,
         CancellationToken cancellationToken)
@@ -133,22 +119,23 @@ internal static class ShellToolRegistration
         {
             if (longLived)
             {
-                var (streamFileName, streamArguments) = ResolveSandboxCommand(command);
+                var (streamFileName, streamArguments, streamArgumentString) = ResolveSandboxCommand(command);
                 var streamPermissions = CommandSandboxRuntime.MergeWithPolicy(
                     CommandSandboxRuntime.BuildPermissions(null, null, null));
                 var streamingSandbox = await CommandSandboxRuntime.StartStreamingAsync(
-                    streamFileName, streamArguments, workingDirectory, timeoutMs, streamPermissions, cancellationToken).ConfigureAwait(false);
+                    streamFileName, streamArguments, workingDirectory, timeoutMs, streamPermissions, cancellationToken,
+                    streamArgumentString).ConfigureAwait(false);
                 var streamed = await TerminalSessionRunner.RunSandboxedStreamingAsync(
                     streamingSandbox, workingDirectory, command, request.ToolCallId, cancellationToken).ConfigureAwait(false);
                 return Ok(request.ToolCallId, streamed);
             }
 
-            var (fileName, arguments) = ResolveSandboxCommand(command);
+            var (fileName, arguments, argumentString) = ResolveSandboxCommand(command);
             var permissions = CommandSandboxRuntime.MergeWithPolicy(
                 CommandSandboxRuntime.BuildPermissions(null, null, null));
             var sandbox = await CommandSandboxRuntime.ExecuteSandboxedAsync(
                 fileName, arguments, workingDirectory, stdin: null, timeoutMs, permissions,
-                persistGrants: false, cancellationToken).ConfigureAwait(false);
+                persistGrants: false, cancellationToken, argumentString).ConfigureAwait(false);
             if (sandbox.TimedOut)
                 return Fail(request.ToolCallId, sandbox.Error ?? $"Command timed out after {timeoutMs}ms and was terminated.");
             var result = new ShellToolResult(
@@ -176,11 +163,19 @@ internal static class ShellToolRegistration
         }
     }
 
-    internal static (string FileName, List<string> Arguments) ResolveSandboxCommand(string command)
+    // Internal for tests: the cmd.exe quoting rule is the regression surface.
+    internal static (string FileName, List<string> Arguments, string? ArgumentString) ResolveSandboxCommand(string command)
     {
         if (OperatingSystem.IsWindows())
-            return ("cmd.exe", ["/d", "/s", "/c", command]);
-        return ("/bin/bash", ["-lc", command]);
+            // cmd has no backslash escaping, and .NET escapes ArgumentList entries with
+            // MSVCRT rules (" -> \"), so the command cannot travel as an argv entry
+            // without every quoted argument arriving corrupted. Under /d /s /c cmd
+            // strips exactly the outermost quote pair and runs the rest verbatim, so the
+            // whole command goes as the raw tail instead and inner quotes survive.
+            return ("cmd.exe", [], $"/d /s /c \"{command}\"");
+        // bash takes the command string as one argv entry and parses it itself, which is
+        // already the correct shape; no raw tail is needed or allowed here.
+        return ("/bin/bash", ["-lc", command], null);
     }
 
     private static string? ResolveWorkingDirectory(string? requested)

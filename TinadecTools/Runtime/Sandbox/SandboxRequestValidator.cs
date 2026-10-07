@@ -15,7 +15,8 @@ internal static class SandboxRequestValidator
         IReadOnlyList<string>? arguments,
         string? workingDirectory,
         int timeoutMs,
-        IReadOnlyDictionary<string, string>? environment = null)
+        IReadOnlyDictionary<string, string>? environment = null,
+        string? argumentString = null)
     {
         if (string.IsNullOrWhiteSpace(executable))
             throw new ArgumentException("executable must not be empty.", nameof(executable));
@@ -30,6 +31,22 @@ internal static class SandboxRequestValidator
                 throw new ArgumentException("arguments must not contain null entries.", nameof(arguments));
             if (argument.Contains('\0'))
                 throw new ArgumentException("arguments must not contain NUL.", nameof(arguments));
+        }
+
+        // A raw tail is transported as one string the child parses, so it must be a real
+        // command line and must not be smuggled alongside argv: ProcessStartInfo cannot
+        // carry both, and whichever side dropped one would run a different command than
+        // the one the caller (and the human who approved it) asked for.
+        if (argumentString is not null)
+        {
+            if (argumentString.Length == 0)
+                throw new ArgumentException("argument_string must not be empty when set.", nameof(argumentString));
+            if (argumentString.Contains('\0'))
+                throw new ArgumentException("argument_string must not contain NUL.", nameof(argumentString));
+            if (arguments.Count > 0)
+                throw new ArgumentException("arguments and argument_string are mutually exclusive.", nameof(argumentString));
+            if (!OperatingSystem.IsWindows())
+                throw new ArgumentException("argument_string is a cmd.exe transport; POSIX uses argv.", nameof(argumentString));
         }
 
         if (timeoutMs is < MinTimeoutMs or > MaxTimeoutMs)

@@ -89,7 +89,7 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
                 StandardOutputEncoding = System.Text.Encoding.UTF8,
                 StandardErrorEncoding = System.Text.Encoding.UTF8
             };
-            foreach (var argument in request.Arguments) psi.ArgumentList.Add(argument);
+            request.ApplyCommandLine(psi);
             psi.Environment.Clear();
             foreach (var pair in request.Environment) psi.Environment[pair.Key] = pair.Value;
 

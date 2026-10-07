@@ -62,7 +62,8 @@ internal static class WindowsSandboxRunner
                 request.Arguments,
                 request.WorkingDirectory,
                 request.TimeoutMs,
-                request.Environment);
+                request.Environment,
+                request.ArgumentString);
             if (request.Environment is null)
                 throw new InvalidDataException("Sandbox runner environment is required.");
             var response = RunSandboxedProcess(request);
@@ -80,14 +81,18 @@ internal static class WindowsSandboxRunner
         }
     }
 
-    private static SandboxRunnerResponse RunSandboxedProcess(SandboxRunnerRequest request)
+    // Internal for tests: the cmd.exe quoting rule can only be proven by a real
+    // process, and this is the spawn site production uses. It runs as the current
+    // user with a job object, so no sandbox-account setup is involved.
+    internal static SandboxRunnerResponse RunSandboxedProcess(SandboxRunnerRequest request)
     {
         SandboxRequestValidator.Validate(
             request.Executable,
             request.Arguments,
             request.WorkingDirectory,
             request.TimeoutMs,
-            request.Environment);
+            request.Environment,
+            request.ArgumentString);
         if (request.Environment is null)
             throw new InvalidDataException("Sandbox runner environment is required.");
 
@@ -105,8 +110,7 @@ internal static class WindowsSandboxRunner
             CreateNoWindow = true
         };
 
-        foreach (var arg in request.Arguments)
-            psi.ArgumentList.Add(arg);
+        request.ApplyCommandLine(psi);
 
         psi.Environment.Clear();
         foreach (var kv in request.Environment)

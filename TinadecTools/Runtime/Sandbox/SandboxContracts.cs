@@ -29,10 +29,33 @@ internal sealed class SandboxRunnerRequest
 {
     [JsonPropertyName("executable")] public string Executable { get; set; } = string.Empty;
     [JsonPropertyName("arguments")] public List<string> Arguments { get; set; } = new();
+    /// <summary>
+    /// The whole command line the child parses itself, as one raw tail assigned to
+    /// <see cref="ProcessStartInfo.Arguments"/>. Only cmd.exe needs it: .NET escapes
+    /// <see cref="Arguments"/> with MSVCRT rules (<c>"</c> to <c>\"</c>) and cmd has no
+    /// backslash escaping, so every quoted command is corrupted on the argv path.
+    /// Mutually exclusive with <see cref="Arguments"/>; a POSIX command always uses argv.
+    /// </summary>
+    [JsonPropertyName("argument_string")] public string? ArgumentString { get; set; }
     [JsonPropertyName("working_directory")] public string WorkingDirectory { get; set; } = string.Empty;
     [JsonPropertyName("stdin")] public string? Stdin { get; set; }
     [JsonPropertyName("timeout_ms")] public int TimeoutMs { get; set; } = 30_000;
     [JsonPropertyName("environment")] public Dictionary<string, string>? Environment { get; set; }
+
+    /// <summary>
+    /// The single place that decides argv versus a raw command-line tail.
+    /// <see cref="ProcessStartInfo"/> rejects both being set, so callers must not branch on it themselves.
+    /// </summary>
+    public void ApplyCommandLine(ProcessStartInfo psi)
+    {
+        if (ArgumentString is not null)
+        {
+            psi.Arguments = ArgumentString;
+            return;
+        }
+        foreach (var argument in Arguments)
+            psi.ArgumentList.Add(argument);
+    }
 }
 
 internal sealed class SandboxRunnerResponse
