@@ -1008,6 +1008,64 @@
         },
         "type": "array"
       },
+      "CreateSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_node_key": {
+            "nullable": true,
+            "type": "string"
+          },
+          "meeting_model_override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeetingModelOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode_version_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "permission_mode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "project_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "space_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpaceOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "view_mode": {
+            "anyOf": [
+              {
+                "const": "flat",
+                "type": "string"
+              },
+              {
+                "const": "space",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "type": "object"
+      },
       "EnvironmentDto": {
         "properties": {
           "capacity": {
@@ -2905,10 +2963,35 @@
             "nullable": true,
             "type": "string"
           },
+          "permission_mode": {
+            "type": "string"
+          },
           "project_id": {
             "format": "uuid",
             "nullable": true,
             "type": "string"
+          },
+          "settings_revision": {
+            "anyOf": [
+              {
+                "default": 0,
+                "format": "integer",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "space_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpaceOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "status": {
             "nullable": true,
@@ -2951,6 +3034,9 @@
           "mode",
           "mode_version_id",
           "view_mode",
+          "permission_mode",
+          "space_options",
+          "settings_revision",
           "meeting_model_override",
           "summary",
           "history_revision",
@@ -2958,6 +3044,106 @@
           "updated_at",
           "lifecycle_status",
           "trashed_at"
+        ],
+        "type": "object"
+      },
+      "SessionInteractionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "clear_meeting_model_override": {
+            "type": "boolean"
+          },
+          "client_message_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "dispatch_mode": {
+            "anyOf": [
+              {
+                "const": "queued",
+                "type": "string"
+              },
+              {
+                "const": "parallel",
+                "type": "string"
+              },
+              {
+                "const": "insert",
+                "type": "string"
+              }
+            ]
+          },
+          "expected_context_revision": {
+            "anyOf": [
+              {
+                "default": 0,
+                "format": "integer",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "expected_settings_revision": {
+            "anyOf": [
+              {
+                "default": 0,
+                "format": "integer",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "interrupt": {
+            "type": "boolean"
+          },
+          "meeting_model_override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeetingModelOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode_version_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "permission_mode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "space_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpaceOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_run_id": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_message_id",
+          "dispatch_mode"
         ],
         "type": "object"
       },
@@ -3306,6 +3492,39 @@
           "dependencies",
           "write_scope",
           "result_summary"
+        ],
+        "type": "object"
+      },
+      "SpaceOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "bulletin_board": {
+            "type": "boolean"
+          },
+          "multi_agent": {
+            "type": "boolean"
+          },
+          "plan_first": {
+            "type": "boolean"
+          },
+          "spec_enabled": {
+            "type": "boolean"
+          },
+          "workflow_mode_version_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "worktree": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "plan_first",
+          "spec_enabled",
+          "multi_agent",
+          "workflow_mode_version_id",
+          "bulletin_board",
+          "worktree"
         ],
         "type": "object"
       },
@@ -4754,6 +4973,62 @@
         "required": [
           "expected_revision"
         ],
+        "type": "object"
+      },
+      "UpdateSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "clear_meeting_model_override": {
+            "type": "boolean"
+          },
+          "clear_mode_version": {
+            "type": "boolean"
+          },
+          "expected_settings_revision": {
+            "anyOf": [
+              {
+                "default": 0,
+                "format": "integer",
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "meeting_model_override": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeetingModelOverride"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode_version_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "permission_mode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "space_options": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpaceOptions"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
         "type": "object"
       }
     }
@@ -8719,49 +8994,11 @@
       },
       "post": {
         "operationId": "postApiV1Sessions",
-        "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "project_id": {
-                    "type": "string"
-                  },
-                  "title": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "multipart/form-data": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "project_id": {
-                    "type": "string"
-                  },
-                  "title": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "text/plain": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "project_id": {
-                    "type": "string"
-                  },
-                  "title": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
+                "$ref": "#/components/schemas/CreateSessionRequest"
               }
             }
           },
@@ -8818,10 +9055,29 @@
             }
           }
         ],
-        "responses": {
-          "200": {}
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSessionRequest"
+              }
+            }
+          },
+          "required": true
         },
-        "summary": "Update session title",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Updated session and settings revision."
+          }
+        },
+        "summary": "Update session title and run preferences",
         "tags": [
           "Sessions"
         ]
@@ -9049,6 +9305,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionInteractionRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {}
         },

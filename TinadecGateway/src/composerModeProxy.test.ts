@@ -74,3 +74,16 @@ test('session mapper preserves mode binding fields Core owns', () => {
   assert.ok(projectless);
   assert.equal(projectless.project_id, null);
 });
+
+test('session mapper and interaction transport preserve Core spatial choices and revisions', () => {
+  const options = { plan_first: true, spec_enabled: false, multi_agent: true, workflow_mode_version_id: null, bulletin_board: true, worktree: false };
+  const mapped = mapSession({ id: 'space', view_mode: 'space', space_options: options, settings_revision: 5, permission_mode: 'delegate-reviewer' });
+  assert.deepEqual(mapped?.space_options, options);
+  assert.equal(mapped?.settings_revision, 5);
+  assert.equal(mapped?.permission_mode, 'delegate-reviewer');
+  const body = { dispatch_mode: 'queued', content: 'work', space_options: options, clear_meeting_model_override: true };
+  const validated = validateInteractionBody(body);
+  assert.equal(validated.ok, true);
+  if (validated.ok) assert.deepEqual(validated.value, body);
+  assert.equal(mapSession({ id: 'legacy' })?.space_options, null);
+});

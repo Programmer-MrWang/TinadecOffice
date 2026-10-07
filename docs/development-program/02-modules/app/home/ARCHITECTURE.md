@@ -1,5 +1,9 @@
 # Home / 会话、对话与投递：模块架构
 
+## 输入框命令与运行设置（2026-10-08）
+
+ComposerBar的+、slash和工具栏共用ComposerCommandPanel。HomeController保存配置到Core并持有服务器回执；ChatCard/ChatPanel与SpatialPage读取同一设置。发送捕获选项后进入interaction/队列，Core在准入组合发布资源并冻结，模型和工具不读取后来修改的前端选项。标题和设置写入按会话串行、revision防冲突；异步队列操作保留来源会话。详见[实施记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md)。
+
 模块ID：`APP-HOME` · 基线：2026-10-05，b6115e6 + 当前工作树。
 
 ![模块职责与关联图](architecture.svg)
@@ -34,3 +38,20 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[APP-HOME-001](TODO.md#app-home-001)。
+
+## Markdown 正文局部渲染流（2026-10-07）
+
+以下箭头是已从组件源码核对的渲染与数据顺序，不改变上方模块职责关联图。功能与验收由 [APP-HOME-103](TODO.md#app-home-103) 持有。
+
+```mermaid
+flowchart LR
+  list["MessageList"] -->|"历史assistant正文"| item["MessageItem"]
+  item --> markdown["MarkdownRender"]
+  list -->|"流式预览"| markdown
+  markdown --> parse["整篇Marked解析 / DOMPurify片段"]
+  parse --> prose["连续正文"]
+  parse --> island["UiIslandCard：代码 / 表格 / 引用"]
+  island --> scroll["块内滚动 / 表格列对齐"]
+```
+
+来源：[MessageList.vue](../../../../../apps/desktop/src/components/MessageList.vue)、[MessageItem.vue](../../../../../apps/desktop/src/components/MessageItem.vue)、[MarkdownRender.vue](../../../../../apps/desktop/src/components/MarkdownRender.vue)、[UiIslandCard](../../../../../apps/desktop/src/components/ui/island-card.vue)、[全局样式](../../../../../apps/desktop/src/styles.css)。用户消息仍为文本插值；Core继续拥有持久消息与模型流，Desktop仅负责正文展示。已完成块的HTML不变时，Vue保留其DOM与表格焦点；未完成块继续更新。

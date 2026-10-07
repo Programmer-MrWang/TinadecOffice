@@ -640,7 +640,7 @@ export interface paths {
   "/api/v1/sessions/{sessionId}": {
     /** Permanently delete trashed session */
     delete: operations["deleteApiV1SessionsBySessionId"];
-    /** Update session title */
+    /** Update session title and run preferences */
     patch: operations["patchApiV1SessionsBySessionId"];
   };
   "/api/v1/sessions/{sessionId}/archive": {
@@ -1171,6 +1171,16 @@ export interface components {
       [key: string]: unknown;
     };
     ContextVersionList: components["schemas"]["ContextVersion"][];
+    CreateSessionRequest: {
+      conversation_node_key?: string | null;
+      meeting_model_override?: components["schemas"]["MeetingModelOverride"] | null;
+      mode_version_id?: string | null;
+      permission_mode?: string | null;
+      project_id?: string | null;
+      space_options?: components["schemas"]["SpaceOptions"] | null;
+      title?: string | null;
+      view_mode?: "flat" | "space";
+    };
     EnvironmentDto: {
       /** Format: int32 */
       capacity: number | string;
@@ -1642,8 +1652,11 @@ export interface components {
       meeting_model_override: components["schemas"]["MeetingModelOverride"] | null;
       mode: string | null;
       mode_version_id: string | null;
+      permission_mode: string;
       /** Format: uuid */
       project_id: string | null;
+      settings_revision: string | number;
+      space_options: components["schemas"]["SpaceOptions"] | null;
       status: string | null;
       summary: string | null;
       title: string | null;
@@ -1651,6 +1664,21 @@ export interface components {
       updated_at: string | null;
       view_mode: "flat" | "space";
       [key: string]: unknown;
+    };
+    SessionInteractionRequest: {
+      attachment_ids?: string[];
+      clear_meeting_model_override?: boolean;
+      client_message_id: string;
+      content?: string;
+      dispatch_mode: "queued" | "parallel" | "insert";
+      expected_context_revision?: string | number;
+      expected_settings_revision?: string | number;
+      interrupt?: boolean;
+      meeting_model_override?: components["schemas"]["MeetingModelOverride"] | null;
+      mode_version_id?: string | null;
+      permission_mode?: string | null;
+      space_options?: components["schemas"]["SpaceOptions"] | null;
+      target_run_id?: string | null;
     };
     SessionList: components["schemas"]["Session"][];
     SessionTopologyDto: {
@@ -1744,6 +1772,14 @@ export interface components {
       /** Format: uuid */
       worker_instance_id: string | null;
       write_scope: string[];
+    };
+    SpaceOptions: {
+      bulletin_board: boolean;
+      multi_agent: boolean;
+      plan_first: boolean;
+      spec_enabled: boolean;
+      workflow_mode_version_id: string | null;
+      worktree: boolean;
     };
     SupervisionFinding: {
       category: string;
@@ -2080,6 +2116,16 @@ export interface components {
       allow_cross_workspace_messaging?: boolean;
       /** Format: int64 */
       expected_revision: number | string;
+    };
+    UpdateSessionRequest: {
+      clear_meeting_model_override?: boolean;
+      clear_mode_version?: boolean;
+      expected_settings_revision?: string | number;
+      meeting_model_override?: components["schemas"]["MeetingModelOverride"] | null;
+      mode_version_id?: string | null;
+      permission_mode?: string | null;
+      space_options?: components["schemas"]["SpaceOptions"] | null;
+      title?: string | null;
     };
   };
   responses: never;
@@ -4367,21 +4413,7 @@ export interface operations {
   postApiV1Sessions: {
     requestBody: {
       content: {
-        "application/json": {
-          project_id?: string;
-          title?: string;
-          [key: string]: unknown;
-        };
-        "multipart/form-data": {
-          project_id?: string;
-          title?: string;
-          [key: string]: unknown;
-        };
-        "text/plain": {
-          project_id?: string;
-          title?: string;
-          [key: string]: unknown;
-        };
+        "application/json": components["schemas"]["CreateSessionRequest"];
       };
     };
     responses: {
@@ -4406,16 +4438,24 @@ export interface operations {
       };
     };
   };
-  /** Update session title */
+  /** Update session title and run preferences */
   patchApiV1SessionsBySessionId: {
     parameters: {
       path: {
         sessionId: string;
       };
     };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateSessionRequest"];
+      };
+    };
     responses: {
+      /** @description Updated session and settings revision. */
       200: {
-        content: never;
+        content: {
+          "application/json": components["schemas"]["Session"];
+        };
       };
     };
   };
@@ -4522,6 +4562,11 @@ export interface operations {
     parameters: {
       path: {
         sessionId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SessionInteractionRequest"];
       };
     };
     responses: {

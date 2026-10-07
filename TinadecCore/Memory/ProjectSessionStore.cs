@@ -89,9 +89,12 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         string? conversationTemplateSlug = null,
         CancellationToken cancellationToken = default,
         Guid? stableSessionId = null,
-        string viewMode = "flat")
+        string viewMode = "flat",
+        string? permissionMode = null,
+        SpaceRunOptions? spaceOptions = null)
     {
         if (viewMode is not ("flat" or "space")) throw new ArgumentException("view_mode must be flat or space.", nameof(viewMode));
+        ValidateSessionSettings(viewMode, permissionMode, spaceOptions);
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var scope = _tenantContext.Current;
         if (projectId.HasValue && !await db.Projects.AnyAsync(x => x.Id == projectId.Value && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active, cancellationToken).ConfigureAwait(false))
@@ -113,6 +116,8 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
             ProjectId = projectId, Title = string.IsNullOrWhiteSpace(title) ? "New session" : title.Trim(),
             ModeVersionId = modeVersionId,
             ViewMode = viewMode,
+            PermissionMode = permissionMode ?? "default",
+            SpaceOptionsJson = viewMode == "space" ? JsonSerializer.Serialize(spaceOptions ?? new SpaceRunOptions(), JsonOptions) : null,
             MeetingModelOverrideProviderInstanceId = meetingModelOverride?.ProviderInstanceId,
             MeetingModelOverrideModel = meetingModelOverride?.Model,
             ConversationNodeKey = conversationNodeKey,
@@ -179,21 +184,68 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         Guid sessionId,
         Guid? modeVersionId,
         SessionModelOverride? meetingModelOverride,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? permissionMode = null,
+        SpaceRunOptions? spaceOptions = null,
+        bool clearMeetingModelOverride = false,
+        string? title = null,
+        long? expectedSettingsRevision = null)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
-        var scope = _tenantContext.Current;
-        var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == sessionId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active, cancellationToken).ConfigureAwait(false);
-        if (session is null) return null;
-        if (modeVersionId.HasValue) session.ModeVersionId = modeVersionId;
-        if (meetingModelOverride is not null)
+        var gate = SessionLocks.GetOrAdd(sessionId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            session.MeetingModelOverrideProviderInstanceId = meetingModelOverride.ProviderInstanceId;
-            session.MeetingModelOverrideModel = meetingModelOverride.Model?.Trim();
+            await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+            var scope = _tenantContext.Current;
+            var session = await db.Sessions.SingleOrDefaultAsync(x => x.Id == sessionId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active, cancellationToken).ConfigureAwait(false);
+            if (session is null) return null;
+            ValidateSessionSettings(session.ViewMode ?? "flat", permissionMode, spaceOptions);
+            if (clearMeetingModelOverride && meetingModelOverride is not null)
+                throw new ArgumentException("meeting_model_override and clear_meeting_model_override cannot be combined.");
+            if (expectedSettingsRevision.HasValue && expectedSettingsRevision != session.SettingsRevision)
+                throw new SessionSettingsConflictException(session.SettingsRevision);
+            var previous = (session.ModeVersionId, session.MeetingModelOverrideProviderInstanceId, session.MeetingModelOverrideModel,
+                session.PermissionMode, session.SpaceOptionsJson, session.Title);
+            if (modeVersionId.HasValue) session.ModeVersionId = modeVersionId;
+            if (meetingModelOverride is not null)
+            {
+                session.MeetingModelOverrideProviderInstanceId = meetingModelOverride.ProviderInstanceId;
+                session.MeetingModelOverrideModel = meetingModelOverride.Model?.Trim();
+            }
+            if (clearMeetingModelOverride)
+            {
+                session.MeetingModelOverrideProviderInstanceId = null;
+                session.MeetingModelOverrideModel = null;
+            }
+            if (permissionMode is not null) session.PermissionMode = permissionMode;
+            if (spaceOptions is not null) session.SpaceOptionsJson = JsonSerializer.Serialize(spaceOptions, JsonOptions);
+            if (!string.IsNullOrWhiteSpace(title)) session.Title = title.Trim();
+            if (previous == (session.ModeVersionId, session.MeetingModelOverrideProviderInstanceId, session.MeetingModelOverrideModel,
+                session.PermissionMode, session.SpaceOptionsJson, session.Title)) return session;
+            session.SettingsRevision++;
+            session.UpdatedAt = DateTimeOffset.UtcNow;
+            try { await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false); }
+            catch (DbUpdateConcurrencyException) { throw new SessionSettingsConflictException(); }
+            return session;
         }
-        session.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return session;
+        finally { gate.Release(); }
+    }
+
+    public static SpaceRunOptions? ReadSpaceOptions(SessionRecord session) => session.ViewMode != "space" ? null
+        : session.SpaceOptionsJson is null ? new SpaceRunOptions()
+        : JsonSerializer.Deserialize<SpaceRunOptions>(session.SpaceOptionsJson, JsonOptions) ?? new SpaceRunOptions();
+
+    public static void ValidateSessionSettings(string viewMode, string? permissionMode, SpaceRunOptions? spaceOptions)
+    {
+        if (permissionMode is not null && permissionMode is not ("default" or "ask" or "deny" or "auto-approve" or "full-access"
+            or ApprovalDelegationModes.Conversation or ApprovalDelegationModes.Reviewer or ApprovalDelegationModes.Both))
+            throw new ArgumentException("permission_mode is not a supported permission policy.");
+        if (spaceOptions is not null && viewMode != "space")
+            throw new ArgumentException("space_options are only available in spatial sessions.");
+        if (spaceOptions?.WorkflowModeVersionId == Guid.Empty)
+            throw new ArgumentException("workflow_mode_version_id must reference a published workflow mode.");
+        if (spaceOptions?.WorkflowModeVersionId is not null && !spaceOptions.MultiAgent)
+            throw new ArgumentException("A workflow requires multi_agent to be enabled.");
     }
 
     /// <summary>
@@ -869,15 +921,14 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var scope = _tenantContext.Current;
-        return await db.Sessions.AsNoTracking().Where(x => x.Id == sessionId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active)
-            .Select(x => new SessionReference(
+        var x = await db.Sessions.AsNoTracking().SingleOrDefaultAsync(x => x.Id == sessionId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId && x.LifecycleStatus == LifecycleStatuses.Active, cancellationToken).ConfigureAwait(false);
+        return x is null ? null : new SessionReference(
                 x.Id, x.ProjectId, x.TenantId, x.WorkspaceId, x.ModeVersionId,
                 x.MeetingModelOverrideProviderInstanceId == null
                     ? null
                     : new SessionModelOverride(x.MeetingModelOverrideProviderInstanceId.Value, x.MeetingModelOverrideModel),
                 x.ConversationNodeKey,
-                x.ConversationTemplateSlug))
-            .SingleOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                x.ConversationTemplateSlug, ReadSpaceOptions(x), x.PermissionMode ?? "default", x.ViewMode ?? "flat", x.SettingsRevision);
     }
 
     public async Task<ProjectReference?> FindProjectAsync(Guid projectId, CancellationToken cancellationToken = default)

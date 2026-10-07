@@ -4,13 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { UiButton, UiScrollArea } from '@/components/ui'
-import ModeSelector from './ModeSelector.vue'
-import PermissionSelector from './PermissionSelector.vue'
+import ComposerCommandPanel from './ComposerCommandPanel.vue'
 import type { PermissionLevel } from '@/types/mode'
-import type { MeetingModelOverrideDto, ProjectDto } from '@/api'
+import type { MeetingModelOverrideDto, ProjectDto, SpaceOptionsDto } from '@/api'
 import { homeController } from '@/controllers/HomeController'
 import { getDispatchPref, type DispatchPref } from '@/lib/dispatchPref'
-import { filterSlashCommands, parseSlashCommand, type AppCommand, type CommandHost } from '@/lib/appCommands'
+import { isCommandAvailable, parseSlashCommand, type AppCommand, type CommandHost } from '@/lib/appCommands'
+import { composerSlashQuery, composerSettings, permissionChoices, type ComposerPage } from '@/lib/composerCommands'
+import { defaultSpaceOptions } from '@/lib/composerSettings'
 import { completeMentionToken, filterMentionEntries, parseMentionToken, type MentionToken } from '@/lib/fileMentions'
 import {
   attachFiles,
@@ -44,6 +45,9 @@ const props = defineProps<{
   runs?: Array<{ id: string; status: string }>
   modeVersionId?: string | null
   meetingModelOverride?: MeetingModelOverrideDto | null
+  spaceOptions?: SpaceOptionsDto | null
+  settingsSaving?: boolean
+  settingsError?: string | null
   panelStyle?: Record<string, string>
   panelDataAttrs?: Record<string, string>
   /**
@@ -58,24 +62,38 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'update:permission': [value: PermissionLevel]
   'update:modeVersionId': [value: string | null]
-  'submit': [payload: { dispatch_mode: 'parallel' | 'queued' | 'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }]
-  'welcome-submit': [payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }]
+  'update:meetingModelOverride': [value: MeetingModelOverrideDto | null]
+  'update:spaceOptions': [value: SpaceOptionsDto]
+  'submit': [payload: { dispatch_mode: 'parallel' | 'queued' | 'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; space_options?: SpaceOptionsDto | null }]
+  'welcome-submit': [payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null; meeting_model_override?: MeetingModelOverrideDto | null; space_options?: SpaceOptionsDto | null }]
   'create-project': []
   'select-project': [id: string | null]
   'stop': []
 }>()
 
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const composerBoxRef = ref<HTMLElement | null>(null)
+const commandPanelRef = ref<InstanceType<typeof ComposerCommandPanel> | null>(null)
+const commandPage = ref<ComposerPage>('root')
+const modeLabel = ref(t('chat.followDefault'))
+const modeUnavailable = ref(false)
+const permissionLabel = computed(() => t(permissionChoices.find(choice => choice.value === props.permission)!.label))
+const enabledSpaceLabels = computed(() => props.spatial ? [
+  ...composerSettings.filter(setting => 'toggle' in setting && props.spaceOptions?.[setting.toggle]).map(setting => t(setting.label)),
+  ...(props.spaceOptions?.workflow_mode_version_id ? [t('commandPanel.workflow')] : []),
+] : [])
 const plusTriggerRef = ref<HTMLElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const sendTriggerRef = ref<HTMLElement | null>(null)
 const showPlusMenu = ref(false)
-const plusMenuStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
 const showAskMenu = ref(false)
 const askMenuStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
 const projectTriggerRef = ref<HTMLElement | null>(null)
 const showProjectDropdown = ref(false)
 const projectDropdownStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
+const attachmentPreparing = ref(false)
+const attachmentError = ref<string | null>(null)
+let disposed = false
 
 const queued = homeController.queuedMessages
 const activeRuns = homeController.activeRuns
@@ -105,6 +123,7 @@ const commandHost: CommandHost = {
       target_run_id: null,
       mode_version_id: props.modeVersionId ?? null,
       meeting_model_override: props.meetingModelOverride ?? null,
+      ...(props.spatial ? { space_options: { ...(props.spaceOptions ?? defaultSpaceOptions()) } } : {}),
     })
   },
   // Stop keeps going out over the emit chain instead of calling homeController.stopRun()
@@ -121,24 +140,13 @@ const commandHost: CommandHost = {
   routeName: () => String(router.currentRoute.value.name ?? ''),
 }
 
-const commandIndex = ref(0)
 const commandsDismissed = ref(false)
-const commandSuggestions = computed(() =>
-  commandsDismissed.value
-    ? []
-    : filterSlashCommands(props.modelValue, commandHost),
-)
-watch(() => props.modelValue, () => {
-  commandIndex.value = 0
+const slashQuery = computed(() => commandsDismissed.value ? null : composerSlashQuery(props.modelValue))
+const commandPanelOpen = computed(() => showPlusMenu.value || slashQuery.value !== null)
+watch(() => props.modelValue, (value) => {
   commandsDismissed.value = false
+  if (!showPlusMenu.value && composerSlashQuery(value) !== null) commandPage.value = 'root'
   void refreshMentions()
-})
-
-const commandMenuStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
-watch(commandSuggestions, async (list) => {
-  if (!list.length) return
-  await nextTick()
-  placeMenu(textareaRef.value, commandMenuStyle, { minWidth: 280, estimatedHeight: 116 })
 })
 
 function acceptCommand(command: AppCommand) {
@@ -148,9 +156,44 @@ function acceptCommand(command: AppCommand) {
 }
 
 function runCommand(command: AppCommand, argument: string) {
+  if (!isCommandAvailable(command, commandHost) || props.settingsSaving) return
   commandsDismissed.value = true
+  showPlusMenu.value = false
   command.run(commandHost, argument)
 }
+
+function chooseCommand(command: AppCommand) {
+  if (command.needsArgument) {
+    const parsed = parseSlashCommand(props.modelValue)
+    if (parsed.kind === 'run' && parsed.command.id === command.id) runCommand(command, parsed.argument)
+    else acceptCommand(command)
+    showPlusMenu.value = false
+  } else runCommand(command, '')
+}
+
+function closeCommandPanel() {
+  showPlusMenu.value = false
+  commandsDismissed.value = true
+  void nextTick(() => textareaRef.value?.focus())
+}
+
+function openCommandPanel(page: ComposerPage = 'root') {
+  commandPage.value = page
+  commandsDismissed.value = true
+  showPlusMenu.value = true
+}
+
+function consumeSettingsSlash() {
+  if (composerSlashQuery(props.modelValue) !== null && !commandsDismissed.value) {
+    updateDraft(props.modelValue.replace(/^\/\S*[ \t]?/u, ''))
+    showPlusMenu.value = true
+  }
+}
+
+function changeMode(value: string | null) { consumeSettingsSlash(); emit('update:modeVersionId', value) }
+function changePermission(value: PermissionLevel) { consumeSettingsSlash(); emit('update:permission', value) }
+function changeModel(value: MeetingModelOverrideDto | null) { consumeSettingsSlash(); emit('update:meetingModelOverride', value) }
+function changeSpaceOptions(value: SpaceOptionsDto) { consumeSettingsSlash(); emit('update:spaceOptions', value) }
 
 function updateDraft(value: string) {
   homeController.updateDraft(value)
@@ -168,9 +211,10 @@ function handleCommandEnter(): boolean {
     acceptCommand(parsed.command)
     return true
   }
-  const highlighted = commandSuggestions.value[commandIndex.value]
-  if (highlighted) {
-    acceptCommand(highlighted)
+  if (composerSlashQuery(props.modelValue) !== null) {
+    // Unknown command-like text stays a draft until the explicit send-as-text action.
+    if (!commandPanelOpen.value || showPlusMenu.value) { commandPage.value = 'root'; showPlusMenu.value = false; commandsDismissed.value = false }
+    else commandPanelRef.value?.activate()
     return true
   }
   return false
@@ -293,18 +337,14 @@ function placeMenu(
 }
 
 async function togglePlusMenu() {
-  showPlusMenu.value = !showPlusMenu.value
-  if (showPlusMenu.value) {
-    await nextTick()
-    placeMenu(plusTriggerRef.value, plusMenuStyle)
-  }
+  if (commandPanelOpen.value) closeCommandPanel()
+  else openCommandPanel()
 }
 
 const attachments = pendingAttachments
-// An attachment row is scoped to a session at write time, so the hero box (no session
-// yet) has nowhere to put bytes. The entries stay visible and disabled rather than
-// vanishing, so the menu does not change shape between the two surfaces.
-const canAttach = computed(() => Boolean(props.sessionId))
+// The native picker opens within the user gesture. If necessary, its selection
+// creates a correctly typed draft session before bytes are uploaded.
+const canAttach = computed(() => !attachmentPreparing.value && !props.settingsSaving)
 /**
  * A file with no words is a turn of its own: Core appends it to the transcript and starts no
  * run. So Send unlocks on either half. Only *ready* chips count - an upload still in flight
@@ -313,7 +353,7 @@ const canAttach = computed(() => Boolean(props.sessionId))
 const canSend = computed(() => Boolean(props.modelValue.trim()) || readyAttachmentCount() > 0)
 
 function openFilePicker(accept: string) {
-  showPlusMenu.value = false
+  closeCommandPanel()
   if (!canAttach.value) return
   const input = fileInputRef.value
   if (!input) return
@@ -329,10 +369,20 @@ function pickedFiles(event: Event): AttachableFile[] {
   return Array.from(input.files ?? [])
 }
 
-function onFilesPicked(event: Event) {
+async function onFilesPicked(event: Event) {
   const files = pickedFiles(event)
   if (!files.length) return
-  void attachFiles(files, props.sessionId ?? null)
+  const projectId = props.selectedProjectId
+  const spatial = props.spatial
+  attachmentError.value = null
+  attachmentPreparing.value = true
+  try {
+    const sessionId = props.sessionId ?? await homeController.ensureComposerSession()
+    if (disposed || projectId !== props.selectedProjectId || spatial !== props.spatial || props.sessionId && props.sessionId !== sessionId) return
+    await attachFiles(files, sessionId)
+  } catch (error) {
+    if (!disposed) attachmentError.value = `${t('commandPanel.attachmentError')} ${error instanceof Error ? error.message : String(error)}`
+  } finally { attachmentPreparing.value = false }
 }
 
 function dropAttachment(clientId: string) {
@@ -381,9 +431,6 @@ function openNewProject() {
 
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (!target.closest('.welcome-dialog-plus-wrapper') && !target.closest('.plus-dropdown-portal')) {
-    showPlusMenu.value = false
-  }
   if (!target.closest('.composer-send-wrapper') && !target.closest('.ask-menu')) {
     showAskMenu.value = false
   }
@@ -399,11 +446,14 @@ onMounted(() => {
   void refreshMentions()
 })
 
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
+onUnmounted(() => { disposed = true; document.removeEventListener('click', handleClickOutside) })
 
-function submit(pref?: DispatchPref) {
+function submit(pref?: DispatchPref, asText = false) {
+  if (props.settingsSaving || attachmentPreparing.value) return
+  if (!asText && handleCommandEnter()) return
   const content = props.modelValue.trim()
   if (!content && !canSend.value) return
+  if (commandPanelOpen.value) closeCommandPanel()
   if (props.hero) {
     // Start-page send: full welcome payload, no dispatch menu.
     resetTextareaHeight()
@@ -411,6 +461,8 @@ function submit(pref?: DispatchPref) {
       content,
       permission_mode: props.permission,
       mode_version_id: props.modeVersionId ?? null,
+      meeting_model_override: props.meetingModelOverride ?? null,
+      ...(props.spatial ? { space_options: { ...(props.spaceOptions ?? defaultSpaceOptions()) } } : {}),
     })
     return
   }
@@ -426,10 +478,12 @@ function submit(pref?: DispatchPref) {
     target_run_id: null,
     mode_version_id: props.modeVersionId ?? null,
     meeting_model_override: props.meetingModelOverride ?? null,
+    ...(props.spatial ? { space_options: { ...(props.spaceOptions ?? defaultSpaceOptions()) } } : {}),
   })
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (event.isComposing || event.keyCode === 229) return
   const mentions = mentionSuggestions.value
   if (mentions.length) {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -451,30 +505,9 @@ function handleKeydown(event: KeyboardEvent) {
       return
     }
   }
-  const suggestions = commandSuggestions.value
-  if (suggestions.length) {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault()
-      const delta = event.key === 'ArrowDown' ? 1 : -1
-      commandIndex.value = (commandIndex.value + delta + suggestions.length) % suggestions.length
-      return
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      commandsDismissed.value = true
-      return
-    }
-    if (event.key === 'Tab') {
-      event.preventDefault()
-      acceptCommand(suggestions[commandIndex.value] ?? suggestions[0])
-      return
-    }
-  }
+  if (event.key !== 'Enter' && commandPanelOpen.value && commandPanelRef.value?.keydown(event)) return
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
-    if (suggestions.length || props.modelValue.trimStart().startsWith('/')) {
-      if (handleCommandEnter()) return
-    }
     submit()
   }
 }
@@ -501,7 +534,15 @@ function confirmSteer(id: string, interrupt = false) {
 <template>
   <div class="composer" :class="{ 'composer--hero': hero }">
     <div v-if="invokeError" class="composer-error" role="alert">{{ invokeError }}</div>
+    <div v-if="settingsError && !commandPanelOpen" class="composer-error" role="alert">{{ settingsError }}</div>
+    <div v-if="attachmentError" class="composer-error" role="alert">{{ attachmentError }}</div>
+    <div v-if="meetingModelOverride || enabledSpaceLabels.length" class="composer-settings-summary">
+      <button v-if="meetingModelOverride" @click="openCommandPanel('model')">{{ meetingModelOverride.model || t('commandPanel.model') }}</button>
+      <button v-for="label in enabledSpaceLabels.slice(0, 2)" :key="label" @click="openCommandPanel()">{{ label }}</button>
+      <button v-if="enabledSpaceLabels.length > 2" @click="openCommandPanel()">+{{ enabledSpaceLabels.length - 2 }}</button>
+    </div>
     <div
+      ref="composerBoxRef"
       class="composer-box welcome-dialog"
       :data-composer-active="modelValue.trim() ? 'true' : 'false'"
       :style="panelStyle"
@@ -555,38 +596,13 @@ function confirmSteer(id: string, interrupt = false) {
           <button
             ref="plusTriggerRef"
             class="welcome-dialog-plus"
+            :aria-label="t('composer.commands')"
+            aria-haspopup="dialog"
+            :aria-expanded="commandPanelOpen"
             @click="togglePlusMenu"
           >
             <Plus :size="15" />
           </button>
-          <Teleport to="body">
-            <div
-              v-if="showPlusMenu"
-              class="plus-dropdown-portal"
-              :style="plusMenuStyle"
-            >
-              <button
-                class="plus-menu-item"
-                data-testid="composer-attach-image"
-                :disabled="!canAttach"
-                :title="canAttach ? t('chat.addImage') : t('composer.attachNeedsSession')"
-                @click="openFilePicker('image/*')"
-              >
-                <Image :size="12" />
-                <span>{{ t('chat.addImage') }}</span>
-              </button>
-              <button
-                class="plus-menu-item"
-                data-testid="composer-attach-file"
-                :disabled="!canAttach"
-                :title="canAttach ? t('chat.addFile') : t('composer.attachNeedsSession')"
-                @click="openFilePicker('')"
-              >
-                <FileText :size="12" />
-                <span>{{ t('chat.addFile') }}</span>
-              </button>
-            </div>
-          </Teleport>
           <input
             ref="fileInputRef"
             class="composer-file-input"
@@ -597,32 +613,6 @@ function confirmSteer(id: string, interrupt = false) {
             @change="onFilesPicked"
           />
         </div>
-
-        <Teleport to="body">
-          <ul
-            v-if="commandSuggestions.length"
-            class="composer-commands-portal"
-            :style="commandMenuStyle"
-            data-testid="composer-commands"
-            role="listbox"
-            :aria-label="t('composer.commands')"
-          >
-            <li
-              v-for="(command, index) in commandSuggestions"
-              :key="command.id"
-              role="option"
-              :aria-selected="index === commandIndex"
-              :class="{ 'is-active': index === commandIndex }"
-              :data-testid="`composer-command-${command.id}`"
-              @mouseenter="commandIndex = index"
-              @mousedown.prevent="acceptCommand(command)"
-            >
-              <code class="composer-command-syntax">/{{ command.slash }}{{ command.needsArgument ? ' …' : '' }}</code>
-              <span class="composer-command-label">{{ t(command.labelKey) }}</span>
-              <span v-if="command.hintKey" class="composer-command-hint">{{ t(command.hintKey ?? '') }}</span>
-            </li>
-          </ul>
-        </Teleport>
 
         <Teleport v-if="mentionSuggestions.length" to="body">
           <ul
@@ -679,7 +669,7 @@ function confirmSteer(id: string, interrupt = false) {
             size="icon"
             class="welcome-dialog-send"
             data-testid="composer-send"
-            :disabled="!canSend"
+            :disabled="!canSend || settingsSaving || attachmentPreparing"
             :aria-label="canSend ? t('chat.send') : t('chat.nothingToSend')"
             @click="submit()"
           >
@@ -692,16 +682,15 @@ function confirmSteer(id: string, interrupt = false) {
       <div v-if="!spatial || hero" class="welcome-dialog-toolbar">
         <div class="toolbar-left">
           <!-- THE one mode selector: the installed packs' published versions. -->
-          <ModeSelector
+          <button
             v-if="!spatial"
-            :mode-version-id="modeVersionId ?? null"
-            @update:mode-version-id="emit('update:modeVersionId', $event)"
-          />
+            class="mode-selector-trigger"
+            :title="t('commandPanel.mode')"
+            aria-haspopup="dialog"
+            @click="openCommandPanel('mode')"
+          ><Sparkles :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" /></button>
           <slot v-if="spatial" name="capabilities" />
-          <PermissionSelector
-            :model-value="permission"
-            @update:model-value="emit('update:permission', $event)"
-          />
+          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" @click="openCommandPanel('permission')"><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
           <button
             ref="projectTriggerRef"
             class="project-dropdown-trigger"
@@ -722,6 +711,32 @@ function confirmSteer(id: string, interrupt = false) {
         </div>
       </div>
     </div>
+
+    <ComposerCommandPanel
+      ref="commandPanelRef"
+      :open="commandPanelOpen"
+      :anchor="composerBoxRef"
+      :spatial="spatial"
+      :slash-query="showPlusMenu ? null : slashQuery"
+      :initial-page="commandPage"
+      :can-attach="canAttach"
+      :permission="permission"
+      :mode-version-id="modeVersionId"
+      :meeting-model-override="meetingModelOverride"
+      :space-options="spaceOptions"
+      :settings-saving="settingsSaving"
+      :settings-error="settingsError"
+      :command-host="commandHost"
+      @close="closeCommandPanel"
+      @attach="openFilePicker"
+      @action="chooseCommand"
+      @send-as-text="closeCommandPanel(); submit(undefined, true)"
+      @update:mode-version-id="changeMode"
+      @update:permission="changePermission"
+      @update:meeting-model-override="changeModel"
+      @update:space-options="changeSpaceOptions"
+      @mode-label="(label, unavailable) => { modeLabel = label; modeUnavailable = unavailable }"
+    />
 
     <!-- Docked-only dispatch menu: teleported so the dialog's overflow:hidden never clips it. -->
     <Teleport v-if="!hero" to="body">
@@ -779,6 +794,9 @@ function confirmSteer(id: string, interrupt = false) {
 </template>
 
 <style scoped>
+.composer-settings-summary { display: flex; align-items: center; gap: 6px; padding: 0 8px 6px; flex-wrap: wrap; }
+.composer-settings-summary button { background: var(--surface-section); border: 1px solid var(--border-muted); border-radius: 999px; padding: 3px 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+.composer-settings-summary button:hover { background: var(--surface-hover); }
 .composer-error {
   display: flex;
   align-items: center;

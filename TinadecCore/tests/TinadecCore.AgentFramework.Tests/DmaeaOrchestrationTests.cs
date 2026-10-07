@@ -564,6 +564,7 @@ public sealed class DmaeaOrchestrationTests
             client_message_id = "queued-1",
             permission_mode = "full-access",
             mode_version_id = modeVersionId,
+            space_options = new { plan_first = true, spec_enabled = true, multi_agent = true, workflow_mode_version_id = modeVersionId, bulletin_board = true, worktree = false },
             meeting_model_override = new
             {
                 provider_instance_id = providerInstanceId,
@@ -578,6 +579,7 @@ public sealed class DmaeaOrchestrationTests
         Assert.Equal(modeVersionId, payload.ModeVersionId);
         Assert.Equal(providerInstanceId, payload.MeetingModelOverride?.ProviderInstanceId);
         Assert.Equal("qwen-test", payload.MeetingModelOverride?.Model);
+        Assert.Equal(new SpaceRunOptions(true, true, true, modeVersionId, true, false), payload.SpaceOptions);
     }
 
     // ──────────────────────────────────────────────────────────

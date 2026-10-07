@@ -34,6 +34,45 @@ const meetingModelOverride = t.Object({
   model: nullableString(),
 }, { additionalProperties: true });
 
+const spaceOptions = t.Object({
+  plan_first: t.Boolean(),
+  spec_enabled: t.Boolean(),
+  multi_agent: t.Boolean(),
+  workflow_mode_version_id: nullableString(),
+  bulletin_board: t.Boolean(),
+  worktree: t.Boolean(),
+}, { additionalProperties: false });
+
+const sessionPreferenceProperties = {
+  mode_version_id: t.Optional(nullableString()),
+  meeting_model_override: t.Optional(nullableRef('MeetingModelOverride')),
+  permission_mode: t.Optional(nullableString()),
+  space_options: t.Optional(nullableRef('SpaceOptions')),
+};
+const createSessionRequest = t.Object({
+  ...sessionPreferenceProperties,
+  project_id: t.Optional(nullableString()), title: t.Optional(nullableString()),
+  view_mode: t.Optional(t.Union([t.Literal('flat'), t.Literal('space')])),
+  conversation_node_key: t.Optional(nullableString()),
+}, { additionalProperties: false });
+const updateSessionRequest = t.Object({
+  ...sessionPreferenceProperties,
+  title: t.Optional(nullableString()),
+  clear_mode_version: t.Optional(t.Boolean()),
+  clear_meeting_model_override: t.Optional(t.Boolean()),
+  expected_settings_revision: t.Optional(t.Integer()),
+}, { additionalProperties: false });
+const sessionInteractionRequest = t.Object({
+  ...sessionPreferenceProperties,
+  content: t.Optional(t.String()), client_message_id: t.String(),
+  dispatch_mode: t.Union([t.Literal('queued'), t.Literal('parallel'), t.Literal('insert')]),
+  target_run_id: t.Optional(nullableString()),
+  expected_context_revision: t.Optional(t.Integer()),
+  expected_settings_revision: t.Optional(t.Integer()),
+  clear_meeting_model_override: t.Optional(t.Boolean()),
+  attachment_ids: t.Optional(t.Array(t.String())), interrupt: t.Optional(t.Boolean()),
+}, { additionalProperties: false });
+
 const session = t.Object({
   id: t.String({ format: 'uuid' }),
   // Null for a free-conversation session created without project_id.
@@ -43,6 +82,9 @@ const session = t.Object({
   mode: nullableString(),
   mode_version_id: nullableString(),
   view_mode: t.Union([t.Literal('flat'), t.Literal('space')]),
+  permission_mode: t.String(),
+  space_options: nullableRef('SpaceOptions'),
+  settings_revision: t.Integer(),
   meeting_model_override: nullableRef('MeetingModelOverride'),
   summary: nullableString(),
   history_revision: nullableInteger(),
@@ -389,6 +431,10 @@ const marketInstallationList = t.Object({
 
 export const externalDtoSchemas = {
   MeetingModelOverride: meetingModelOverride,
+  SpaceOptions: spaceOptions,
+  CreateSessionRequest: createSessionRequest,
+  UpdateSessionRequest: updateSessionRequest,
+  SessionInteractionRequest: sessionInteractionRequest,
   Project: project,
   ProjectList: t.Array(componentRef('Project')),
   Session: session,
@@ -432,4 +478,9 @@ export function externalJsonResponse(schemaName: string, description: string) {
       'application/json': { schema: { $ref: `#/components/schemas/${schemaName}` } },
     },
   } as const;
+}
+
+/** Documentation only. Core remains the validator and owner of each preference. */
+export function externalJsonRequest(schemaName: string) {
+  return { required: true, content: { 'application/json': { schema: { $ref: `#/components/schemas/${schemaName}` } } } } as const;
 }

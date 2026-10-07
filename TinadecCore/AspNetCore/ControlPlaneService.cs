@@ -826,6 +826,20 @@ public sealed class ControlPlaneService
     public async Task<IResult> DecideApproval(Guid id, ApprovalDecisionRequestDto input, CancellationToken ct)
     {
         var permission = await _authorization.GetPermissionRequestAsync(id, ct).ConfigureAwait(false);
+        if (IsRunScope(input.Scope))
+        {
+            var spec = permission?.Request.Claim.Resource == "tool://" + CoreVirtualToolPolicy.SpecProposeToolId;
+            if (!spec)
+            {
+                await using var reviewDb = await _lifecycle.CreateDbContextAsync(ct);
+                spec = await (from approval in reviewDb.ApprovalRequests.AsNoTracking()
+                              join execution in reviewDb.ToolExecutions.AsNoTracking() on approval.ExecutionId equals execution.Id
+                              where approval.Id == id && approval.TenantId == Tenant.TenantId && approval.WorkspaceId == Tenant.WorkspaceId
+                                  && execution.ToolId == CoreVirtualToolPolicy.SpecProposeToolId
+                              select approval.Id).AnyAsync(ct);
+            }
+            if (spec) return Results.BadRequest(new { code = "spec_confirmation_scope", message = "Confirm this specification document once. Each subsequent document needs its own review." });
+        }
         if (permission is not null)
         {
             var approve = string.Equals(input.Decision, "approved", StringComparison.OrdinalIgnoreCase)

@@ -103,3 +103,7 @@ flowchart TD
 ## 2026-10-07 目标簇读面
 
 当前SpatialObject分离run/task/instance归属与独立SpatialRelation依赖集合；每run回复独立，未知工具归属保持run级。UIE SpatialSeed提供role/dependencyIds/dependencyUnverified，初次与显式arrangeSpace共享分层安放；compact写入既有空间几何，增量仅安放新ID。详情使用访问后隐藏保留，终端使用原UIE按需右栏宿主并以当前会话run集合过滤，未新增业务store。
+
+## 2026-10-07 可分析布局计算
+
+spatialLayout接收活动卡片、role/dependencyIds，输出位置、rank、SCC/缺引用诊断与边界；spatial.ts负责首建/增量/显式整理到既有命令总线。spatialRouting接收可见矩形与真实依赖，返回正交点列/标签/端口/blocked原因；SpatialPage仅渲染BaseEdge，拖动中读取VueFlow临时几何，结束再由UIE持久化。无新持久store或外部布局库。

@@ -173,7 +173,8 @@ public sealed record ToolInvocationScope(
     string? PermissionMode = null,
     IReadOnlyList<DispatchRosterEntry>? DispatchRoster = null,
     IReadOnlyList<string>? DispatchTargets = null,
-    string? ExecutionRootOverride = null)
+    string? ExecutionRootOverride = null,
+    SpaceRunOptions? SpaceOptions = null)
 {
     /// <summary>The root actually handed to the provider after worktree/environment binding.</summary>
     public string ExecutionRoot => string.IsNullOrWhiteSpace(ExecutionRootOverride) ? WorkspaceRoot : ExecutionRootOverride;

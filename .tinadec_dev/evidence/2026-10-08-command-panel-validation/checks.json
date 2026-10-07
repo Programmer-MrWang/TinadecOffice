@@ -1,0 +1,13 @@
+{
+  "scope": "Local source verification; no external model or full-app end-to-end claim",
+  "desktop": { "command": "npx vitest run --maxWorkers=4", "passed": 1024, "skipped": 14, "failed": 0, "log": "desktop.log" },
+  "native_scripts": { "passed": 107, "failed": 0, "log": "native.log" },
+  "gateway": { "command": "bun test src", "passed": 80, "failed": 0, "log": "gateway.log" },
+  "desktop_build": { "command": "npm run build -w @tinadec/desktop", "includes_vue_tsc": true, "passed": true, "log": "build.log" },
+  "generated_client": { "command": "npm run generate:client -w @tinadec/desktop", "repeat_generation_identical": true, "sha256": "C97FBF1319280A437F69EE9A3B1D279024EF8310B42E3CB9547FEE98636D1108" },
+  "ui_evidence": "../2026-10-07-command-panel-implementation/checks.json",
+  "spec_ui_evidence": "../2026-10-07-command-panel-implementation/spec-checks.json",
+  "core_evidence": "../2026-10-08-command-panel-runtime/",
+  "core_runtime_api": { "passed": 14, "failed": 0, "models": "scripted", "tool_provider": "test double", "trx": "../2026-10-08-command-panel-runtime/runtime-api-final.trx" },
+  "core_affected_unit": { "passed": 89, "failed": 0, "trx": "../2026-10-08-command-panel-runtime/runtime-unit-final.trx" }
+}

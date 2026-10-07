@@ -41,6 +41,8 @@ public static class CoreVirtualToolPolicy
     /// engine, which stores the plan on the task node and emits plan.updated for the UI.
     /// </summary>
     public const string PlanUpdateToolId = "plan_update";
+    public const string SpecProposeToolId = "spec_propose";
+    public static bool IsSpecPropose(string? toolId) => string.Equals(toolId, SpecProposeToolId, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Upper bound on plan_update steps: a longer plan is a task list for the planner, not a working plan.</summary>
     public const int PlanUpdateMaxSteps = 20;
@@ -157,7 +159,7 @@ public static class CoreVirtualToolPolicy
     /// legitimately declared virtual tool is dropped as "the process does not offer it".
     /// </summary>
     public static bool IsCoreVirtual(string? toolId) =>
-        IsCreateWorkspace(toolId) || IsTaskDispatch(toolId) || IsTaskWait(toolId) || IsPlanUpdate(toolId) || IsReadAttachment(toolId)
+        IsCreateWorkspace(toolId) || IsTaskDispatch(toolId) || IsTaskWait(toolId) || IsPlanUpdate(toolId) || IsSpecPropose(toolId) || IsReadAttachment(toolId)
         || IsTinaChat(toolId) || IsOrganization(toolId) || IsGraphView(toolId) || IsRecallEvidence(toolId) || IsEnvironment(toolId);
 
     /// <summary>

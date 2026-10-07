@@ -1,0 +1,187 @@
+{
+  "timestamp": "2026-10-07T17:59:51.022Z",
+  "scope": "Actual command panel SFC, fixture catalogs, actual styles/material; no full-app/runtime verification",
+  "sourceHashes": {
+    "apps/desktop/src/components/ComposerCommandPanel.vue": "91a1ff5981ea1be244bd99bb567ee4e7f7fd40740bcd39deef0a910e536219e9",
+    "apps/desktop/src/components/ComposerBar.vue": "eda0c14cf084102f77eadbcd581e3c6144255697a7a591e385660107aa5400c0",
+    "apps/desktop/src/lib/composerCommands.ts": "30ac95c617fc7bff2c59647b90fb54006ff123ca36c4cbb3ba998ccd0ffc965b",
+    "apps/desktop/src/styles.css": "6fee8c3f102842e9f91b0ef0eef6cd15415e5590ade27053a124ca4df3f6b6c4"
+  },
+  "cases": [
+    {
+      "width": 800,
+      "spatial": false,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 490.00003242492676,
+        "width": 460.0000305175781,
+        "height": 510.0000305175781,
+        "scrollWidth": 459,
+        "clientWidth": 459,
+        "listHeight": 387,
+        "listScrollHeight": 466,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 800,
+      "spatial": true,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 490.00003242492676,
+        "width": 460.0000305175781,
+        "height": 510.0000305175781,
+        "scrollWidth": 459,
+        "clientWidth": 459,
+        "listHeight": 387,
+        "listScrollHeight": 738,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    },
+    {
+      "width": 520,
+      "spatial": false,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 490.00003242492676,
+        "width": 460.0000305175781,
+        "height": 510.0000305175781,
+        "scrollWidth": 459,
+        "clientWidth": 459,
+        "listHeight": 387,
+        "listScrollHeight": 466,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 520,
+      "spatial": true,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 490.00003242492676,
+        "width": 460.0000305175781,
+        "height": 510.0000305175781,
+        "scrollWidth": 459,
+        "clientWidth": 459,
+        "listHeight": 387,
+        "listScrollHeight": 738,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    },
+    {
+      "width": 320,
+      "spatial": false,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 350.00000190734863,
+        "width": 320,
+        "height": 510.0000305175781,
+        "scrollWidth": 319,
+        "clientWidth": 319,
+        "listHeight": 370,
+        "listScrollHeight": 514,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 320,
+      "spatial": true,
+      "metrics": {
+        "top": 151.86607360839844,
+        "bottom": 661.8661041259766,
+        "left": 30.000001907348633,
+        "right": 350.00000190734863,
+        "width": 320,
+        "height": 510.0000305175781,
+        "scrollWidth": 319,
+        "clientWidth": 319,
+        "listHeight": 370,
+        "listScrollHeight": 866,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    }
+  ],
+  "model": {
+    "top": 353.3125305175781,
+    "bottom": 661.8661193847656,
+    "left": 30.000001907348633,
+    "right": 350.00000190734863,
+    "width": 320,
+    "height": 308.5535888671875,
+    "scrollWidth": 319,
+    "clientWidth": 319,
+    "listHeight": 169,
+    "listScrollHeight": 169,
+    "material": "opaque",
+    "backdropFilter": "none",
+    "rows": 3,
+    "switches": 0
+  },
+  "keyboard": {
+    "rows": 1,
+    "on": "true",
+    "closed": true
+  },
+  "narrowViewport": {
+    "top": 8.151785850524902,
+    "bottom": 503.29466915130615,
+    "left": 30.000001907348633,
+    "right": 350.00000190734863,
+    "width": 320,
+    "height": 495.14288330078125,
+    "scrollWidth": 319,
+    "clientWidth": 319,
+    "listHeight": 356,
+    "listScrollHeight": 866,
+    "material": "opaque",
+    "backdropFilter": "none",
+    "rows": 14,
+    "switches": 5,
+    "viewportWidth": 361,
+    "viewportHeight": 601
+  },
+  "blur": {
+    "top": 213.29464721679688,
+    "bottom": 723.294677734375,
+    "left": 30.000001907348633,
+    "right": 490.00003242492676,
+    "width": 460.0000305175781,
+    "height": 510.0000305175781,
+    "scrollWidth": 459,
+    "clientWidth": 459,
+    "listHeight": 387,
+    "listScrollHeight": 738,
+    "material": "blur",
+    "backdropFilter": "blur(12px)",
+    "rows": 14,
+    "switches": 5
+  }
+}

@@ -35,6 +35,17 @@ const CODE_MAP: Record<string, string> = {
 };
 
 const ALLOWED_CODES = new Set([
+  'session_settings_conflict',
+  'space_options_unavailable',
+  'space_options_invalid',
+  'space_base_unavailable',
+  'space_workflow_invalid',
+  'space_options_conflict',
+  'space_worktree_unavailable',
+  'invalid_space_options',
+  'invalid_session_settings',
+  'space_options_frozen',
+  'spec_confirmation_scope',
   'invalid_request',
   'invalid_query',
   'invalid_cursor',

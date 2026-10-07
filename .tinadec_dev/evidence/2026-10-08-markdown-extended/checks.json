@@ -1,0 +1,240 @@
+{
+  "timestamp": "2026-10-07T19:32:57.309Z",
+  "runtime": {
+    "node": "24.18.1",
+    "acorn": "8.16.0",
+    "ada": "3.4.4",
+    "amaro": "1.1.9",
+    "ares": "1.34.6",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "148",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.69.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.4",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.1",
+    "tz": "2025c",
+    "undici": "7.29.0",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.0.245.23-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "43.3.0",
+    "chrome": "150.0.7871.212"
+  },
+  "fixture": "Real MarkdownRender/MarkdownDiagram SFCs bundled from current sources with current stylesheet; mirrored transcript wrappers; no Gateway/Core/model calls.",
+  "sourceHashes": {
+    "apps/desktop/src/components/MarkdownRender.vue": "93fab09cef17a8bcb94793fdb675b1dc4a8811d82ef0a8ea43eee143e9a789d4",
+    "apps/desktop/src/components/MarkdownDiagram.vue": "15bc7d66d6810f05f0fb04a38a20e28b538ecca374aefea0f97fc48470eb3dcc",
+    "apps/desktop/src/components/ui/island-card.vue": "ad909c937dc140861b4350a036930839b2bfacf92d12ddc044fbc5e56712f0ad",
+    "apps/desktop/src/components/MessageItem.vue": "c29464424c687a80b7462239f663d5d2bc08379d7f539b1b7051dcfd7a72acc9",
+    "apps/desktop/src/components/MessageList.vue": "67a4832b19cfb5ef0d85a19b33e509f73e3f565626ba2a830353cf3730987ae1",
+    "apps/desktop/src/styles.css": "b38d00b6146f1181e058e55c15829e5c09b8db3c4cbeab93ee45aef57e91fc20"
+  },
+  "checks": {
+    "basics": {
+      "islands": 3,
+      "materialRoots": 0,
+      "cardRadius": "12px",
+      "prose": true,
+      "tableRegion": true,
+      "codeLanguage": "js",
+      "highlightTokens": 1,
+      "headingId": "md-小节标题",
+      "anchorHref": "#md-小节标题"
+    },
+    "copy": {
+      "label": "复制失败",
+      "classes": "markdown-copy is-failed",
+      "clipboardType": "function",
+      "clipboard": "sentinel"
+    },
+    "maths": {
+      "katex": 2,
+      "mathml": 2,
+      "display": true,
+      "displayOverflow": {
+        "clientWidth": 768,
+        "scrollWidth": 768,
+        "overflowX": "auto"
+      },
+      "viewport": {
+        "clientWidth": 800,
+        "scrollWidth": 800
+      }
+    },
+    "footnotes": {
+      "present": true,
+      "title": "脚注",
+      "backrefLabel": "返回引用 1",
+      "items": 2,
+      "refHref": "#footnote-1",
+      "hashBefore": "",
+      "jump": {
+        "before": 0,
+        "after": 0,
+        "hash": ""
+      }
+    },
+    "callouts": {
+      "count": 5,
+      "kinds": [
+        "is-note",
+        "is-tip",
+        "is-important",
+        "is-warning",
+        "is-caution"
+      ],
+      "titles": [
+        "注意",
+        "自定义标题",
+        "重要",
+        "警告",
+        "危险"
+      ],
+      "bodies": [
+        "一条普通提示。",
+        "小技巧正文。",
+        "重要信息。",
+        "警告信息。",
+        "危险信息。"
+      ],
+      "tinted": true,
+      "plainQuotes": 1
+    },
+    "anchors": {
+      "ids": [
+        "md-小节一",
+        "md-小节一-2"
+      ],
+      "hashBefore": "",
+      "hashAfter": "",
+      "flashed": true
+    },
+    "diagram": {
+      "nodes": 4,
+      "width": 360.0000305175781,
+      "height": 406.0000305175781,
+      "role": "img",
+      "inlineStyleSheets": 1
+    },
+    "diagramFallback": {
+      "note": "图表渲染失败，已改为显示源码。",
+      "source": "not a diagram at all\n",
+      "svg": false
+    },
+    "streaming": {
+      "codePreserved": true,
+      "tablePreserved": true,
+      "focusPreserved": true,
+      "strong": "加粗"
+    },
+    "widths": [
+      {
+        "width": 800,
+        "host": {
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "auto"
+        },
+        "table": {
+          "clientWidth": 767,
+          "scrollWidth": 767,
+          "overflowX": "auto"
+        },
+        "code": {
+          "clientWidth": 767,
+          "scrollWidth": 767,
+          "overflowX": "auto"
+        },
+        "maths": {
+          "clientWidth": 768,
+          "scrollWidth": 768,
+          "overflowX": "auto"
+        }
+      },
+      {
+        "width": 520,
+        "host": {
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "auto"
+        },
+        "table": {
+          "clientWidth": 503,
+          "scrollWidth": 503,
+          "overflowX": "auto"
+        },
+        "code": {
+          "clientWidth": 503,
+          "scrollWidth": 706,
+          "overflowX": "auto"
+        },
+        "maths": {
+          "clientWidth": 504,
+          "scrollWidth": 504,
+          "overflowX": "auto"
+        }
+      },
+      {
+        "width": 320,
+        "host": {
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "auto"
+        },
+        "table": {
+          "clientWidth": 311,
+          "scrollWidth": 311,
+          "overflowX": "auto"
+        },
+        "code": {
+          "clientWidth": 311,
+          "scrollWidth": 702,
+          "overflowX": "auto"
+        },
+        "maths": {
+          "clientWidth": 312,
+          "scrollWidth": 312,
+          "overflowX": "auto"
+        }
+      }
+    ],
+    "lightTheme": {
+      "theme": "light",
+      "background": "rgb(255, 255, 255)",
+      "tokenUsers": 1
+    }
+  },
+  "failures": [
+    "copy writes the raw code to the system clipboard: {\"label\":\"复制失败\",\"classes\":\"markdown-copy is-failed\",\"clipboardType\":\"function\",\"clipboard\":\"sentinel\"}",
+    "copy button reports success: {\"label\":\"复制失败\",\"classes\":\"markdown-copy is-failed\",\"clipboardType\":\"function\",\"clipboard\":\"sentinel\"}"
+  ],
+  "status": "failed"
+}

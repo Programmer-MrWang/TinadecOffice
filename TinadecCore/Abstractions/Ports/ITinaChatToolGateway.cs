@@ -42,6 +42,7 @@ public sealed record TinaChatToolCall(
     /// its own voice.
     /// </summary>
     public Guid? AgentInstanceId { get; init; }
+    public bool BulletinBoardAllowed { get; init; } = true;
 }
 
 /// <summary>

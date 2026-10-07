@@ -34,6 +34,7 @@ const homeMock = vi.hoisted(() => ({
   updateDraft: vi.fn(),
   sendMessage: vi.fn(async () => {}),
   createSession: vi.fn(async () => {}),
+  ensureComposerSession: vi.fn(async () => 'draft-session'),
 }))
 
 const dispatchMock = vi.hoisted(() => ({
@@ -43,6 +44,7 @@ const dispatchMock = vi.hoisted(() => ({
 const apiMock = vi.hoisted(() => ({
   api: {
     listAgentModeTopologies: vi.fn(async () => [] as import('@/api').AgentModeTopologyDto[]),
+    listModelProviders: vi.fn(async () => [] as import('@/api').ModelProviderInstanceDto[]),
     listDirectory: vi.fn(async (_cwd: string, _dir: string) => ({ data: { entries: [] as unknown[] } })),
   },
 }))
@@ -106,6 +108,10 @@ function mountComposer(props: Partial<{
   sessionId: string | null
   hero: boolean
   spatial: boolean
+  meetingModelOverride: import('@/api').MeetingModelOverrideDto | null
+  spaceOptions: import('@/api').SpaceOptionsDto | null
+  settingsSaving: boolean
+  settingsError: string | null
 }> = {}) {
   return mount(ComposerBar, {
     props: {
@@ -202,7 +208,7 @@ describe('ComposerBar hero variant (start page)', () => {
     const emitted = wrapper.emitted('welcome-submit')
     expect(emitted).toHaveLength(1)
     // 六值 agent_mode 已从契约删除：欢迎发送只带内容、权限与（可空的）模式版本。
-    expect(emitted![0]![0]).toEqual({ content: 'hello world', permission_mode: 'default', mode_version_id: null })
+    expect(emitted![0]![0]).toEqual({ content: 'hello world', permission_mode: 'default', mode_version_id: null, meeting_model_override: null })
     expect(wrapper.emitted('submit')).toBeUndefined()
     wrapper.unmount()
     document.body.innerHTML = ''
@@ -320,14 +326,14 @@ describe('ComposerBar mode selector (single source: the published modes)', () =>
     apiMock.api.listAgentModeTopologies.mockResolvedValue([])
   })
 
-  it('a stale modeVersionId marks the trigger and activates only follow-default', async () => {
+  it('a stale modeVersionId marks the trigger without pretending the default is selected', async () => {
     apiMock.api.listAgentModeTopologies.mockResolvedValue([WORKSPACE_TOPOLOGY] as never)
     const wrapper = mountComposer({ hero: true, modeVersionId: 'mv-gone' })
     await flushPromises()
     await wrapper.find('.mode-selector-trigger').trigger('click')
     await flushPromises()
     const active = [...document.querySelectorAll('.mode-selector-item.active')].map(b => b.textContent!.trim())
-    expect(active).toEqual(['chat.followDefault'])
+    expect(active).toEqual([])
     expect(wrapper.find('.mode-selector-stale').exists()).toBe(true)
     wrapper.unmount()
     document.body.innerHTML = ''
@@ -365,7 +371,9 @@ describe('ComposerBar slash commands', () => {
   it('offers commands as soon as the line starts with a slash', async () => {
     const wrapper = mountComposer({ canStop: true, modelValue: '/' })
     await flushPromises()
-    expect(document.querySelectorAll('[data-testid="composer-commands"] li')).toHaveLength(4)
+    expect(document.querySelectorAll('[data-testid="composer-commands"] [data-testid^="composer-command-"]')).toHaveLength(4)
+    expect(document.querySelector('[data-testid="command-panel-model"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="command-panel-mode"]')).not.toBeNull()
     wrapper.unmount()
   })
 
@@ -407,6 +415,253 @@ describe('ComposerBar slash commands', () => {
     await pressEnter(wrapper)
     expect(homeMock.sendMessage).not.toHaveBeenCalled()
     expect(wrapper.emitted('submit')).toBeTruthy()
+    wrapper.unmount()
+  })
+})
+
+describe('ComposerBar unified command panel', () => {
+  const spaceOptions: import('@/api').SpaceOptionsDto = {
+    plan_first: false, spec_enabled: false, multi_agent: false,
+    workflow_mode_version_id: null, bulletin_board: false, worktree: false,
+  }
+  const provider = { id: 'provider-1', display_name: 'Configured provider', enabled: true, connection_kind: 'api-key', model: 'model-a', models: ['model-a', 'model-b'] }
+  function click(selector: string) { (document.querySelector(selector) as HTMLButtonElement).click() }
+  function search(value: string) {
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+  afterEach(() => {
+    vi.clearAllMocks()
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([])
+    apiMock.api.listModelProviders.mockResolvedValue([])
+    document.body.innerHTML = ''
+  })
+
+  it('opens the same command list from plus and slash without replacing a plus-opened draft', async () => {
+    const wrapper = mountComposer({ sessionId: 's1', modelValue: 'keep my draft' })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    const plusRows = [...document.querySelectorAll('.command-panel-row')].map(row => row.getAttribute('data-testid'))
+    expect(plusRows.slice(0, 2)).toEqual(['composer-attach-image', 'composer-attach-file'])
+    expect(wrapper.find('textarea').element.value).toBe('keep my draft')
+    expect(homeMock.updateDraft).not.toHaveBeenCalled()
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await wrapper.setProps({ modelValue: '/' })
+    await flushPromises()
+    expect([...document.querySelectorAll('.command-panel-row')].map(row => row.getAttribute('data-testid'))).toEqual(plusRows)
+    wrapper.unmount()
+  })
+
+  it('searches Chinese and English metadata on either surface and never invents presets', async () => {
+    const wrapper = mountComposer({ modelValue: '/模型' })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="command-panel-model"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="command-panel-mode"]')).toBeNull()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Escape' })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    search('permission')
+    await flushPromises()
+    expect(document.querySelectorAll('.command-panel-row')).toHaveLength(1)
+    expect(document.querySelector('[data-testid="command-panel-permission"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('selects only configured enabled provider models and explicitly resets the override', async () => {
+    apiMock.api.listModelProviders.mockResolvedValue([provider, { ...provider, id: 'disabled', enabled: false, models: ['hidden-model'] }, { ...provider, id: 'empty', model: null, models: [] }] as never)
+    const wrapper = mountComposer({ modelValue: '/model', meetingModelOverride: { provider_instance_id: 'provider-1', model: 'model-a' } })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const labels = [...document.querySelectorAll('.command-panel-row strong')].map(row => row.textContent)
+    expect(labels).toEqual(['chat.followDefault', 'model-a', 'model-b'])
+    click('[data-testid="command-panel-provider-1:model-b"]')
+    await flushPromises()
+    expect(wrapper.emitted('update:meetingModelOverride')?.[0]?.[0]).toEqual({ provider_instance_id: 'provider-1', model: 'model-b' })
+    click('[data-testid="command-panel-default"]')
+    await flushPromises()
+    expect(wrapper.emitted('update:meetingModelOverride')?.[1]?.[0]).toBeNull()
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('ranks an exact /mode command above the /model prefix', async () => {
+    const wrapper = mountComposer({ modelValue: '/mode' })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.mode')
+    wrapper.unmount()
+  })
+
+  it('keeps space toggles open and waits for authoritative props before displaying enabled state', async () => {
+    const wrapper = mountComposer({ spatial: true, spaceOptions, modelValue: '' })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    const plan = document.querySelector('[data-testid="command-panel-plan"]') as HTMLButtonElement
+    expect(document.querySelector('[data-testid="command-panel-mode"]')).toBeNull()
+    expect(document.querySelectorAll('[role="switch"]')).toHaveLength(5)
+    plan.click()
+    await flushPromises()
+    expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, plan_first: true })
+    expect(plan.getAttribute('aria-checked')).toBe('false')
+    expect(document.querySelector('.composer-command-panel')).not.toBeNull()
+    await wrapper.setProps({ spaceOptions: { ...spaceOptions, plan_first: true } })
+    expect(plan.getAttribute('aria-checked')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('offers published workflows with declared edges without silently enabling multi-agent', async () => {
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([
+      { ...CONVERSATION_MODE, edges: [] },
+      { ...WORKSPACE_TOPOLOGY, edges: [{ id: 'edge', source: 'a', target: 'b' }] },
+      { ...WORKSPACE_TOPOLOGY, id: 'draft', display_name: 'Draft', status: 'draft' },
+    ] as never)
+    const wrapper = mountComposer({ spatial: true, spaceOptions, modelValue: '/workflow' })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect([...document.querySelectorAll('.command-panel-row strong')].map(row => row.textContent)).toEqual(['commandPanel.workflowOff', '自建评审流'])
+    click('[data-testid="command-panel-mv-custom-1"]')
+    await flushPromises()
+    expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, workflow_mode_version_id: 'mv-custom-1' })
+    await wrapper.setProps({ settingsError: 'Workflow requires multi_agent.' })
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Workflow requires multi_agent.')
+    expect(wrapper.emitted('update:permission')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('uses editable default-off options immediately for an initial space draft', async () => {
+    const wrapper = mountComposer({ spatial: true, spaceOptions: null })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    expect(document.querySelectorAll('[role="switch"]')).toHaveLength(5)
+    click('[data-testid="command-panel-plan"]')
+    await flushPromises()
+    expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, plan_first: true })
+    expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('false')
+    await wrapper.setProps({ spaceOptions: { ...spaceOptions, plan_first: true } })
+    expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('true')
+    expect(document.querySelector('[data-testid="command-panel-customize-space"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('blocks mutations and both submit paths during settings persistence', async () => {
+    const wrapper = mountComposer({ spatial: true, spaceOptions, modelValue: 'next task', settingsSaving: true })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    expect((document.querySelector('[data-testid="command-panel-plan"]') as HTMLButtonElement).disabled).toBe(true)
+    await wrapper.find('[data-testid="composer-send"]').trigger('click')
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(document.querySelector('.command-panel-footer')?.textContent).toContain('commandPanel.saving')
+    wrapper.unmount()
+  })
+
+  it('ignores IME confirmation and executes slash commands identically from the send button', async () => {
+    const wrapper = mountComposer({ canStop: true, modelValue: '/stop' })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter', isComposing: true })
+    expect(wrapper.emitted('stop')).toBeUndefined()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter', keyCode: 229 })
+    expect(wrapper.emitted('stop')).toBeUndefined()
+    await wrapper.find('[data-testid="composer-send"]').trigger('click')
+    expect(wrapper.emitted('stop')).toHaveLength(1)
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it.each(['/unknown-command', '/unknown-command\nwith content'])('preserves unknown slash text until explicitly sent as an ordinary message: %s', async (modelValue) => {
+    const wrapper = mountComposer({ modelValue })
+    await flushPromises()
+    await wrapper.find('[data-testid="composer-send"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(homeMock.updateDraft).not.toHaveBeenCalled()
+    click('[data-testid="command-panel-send-as-text"]')
+    await flushPromises()
+    expect(wrapper.emitted('submit')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('Escape returns from a subpage then closes, restores textarea focus and keeps the draft', async () => {
+    const wrapper = mount(ComposerBar, { attachTo: document.body, props: { busy: false, permission: 'default', modelValue: 'draft remains' } })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    click('[data-testid="command-panel-model"]')
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('[data-testid="composer-attach-file"]')).not.toBeNull()
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(document.activeElement).toBe(wrapper.find('textarea').element)
+    expect(wrapper.find('textarea').element.value).toBe('draft remains')
+    wrapper.unmount()
+  })
+
+  it('starts a new slash query at the root after closing a preset subpage', async () => {
+    const wrapper = mountComposer({ modelValue: 'draft' })
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.mode')
+    click('.command-panel-close')
+    await flushPromises()
+    await wrapper.setProps({ modelValue: '/model' })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="command-panel-model"]')).not.toBeNull()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.model')
+    await wrapper.setProps({ modelValue: '/permission' })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="command-panel-permission"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('does not activate an unrelated plus-menu row when sending unknown slash text', async () => {
+    const wrapper = mountComposer({ modelValue: '/unknown-command', sessionId: 's1' })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Escape' })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    const filePicker = vi.spyOn(wrapper.find<HTMLInputElement>('[data-testid="composer-file-input"]').element, 'click')
+    await wrapper.find('[data-testid="composer-send"]').trigger('click')
+    await flushPromises()
+    expect(filePicker).not.toHaveBeenCalled()
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(document.querySelector('[data-testid="command-panel-send-as-text"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('captures the same model and copied space configuration in welcome and normal sends', async () => {
+    const model = { provider_instance_id: 'provider-1', model: 'model-a' }
+    const selected = { ...spaceOptions, plan_first: true }
+    const wrapper = mountComposer({ hero: true, spatial: true, modelValue: 'work', meetingModelOverride: model, spaceOptions: selected })
+    await flushPromises()
+    await wrapper.find('[data-testid="composer-send"]').trigger('click')
+    const welcome = wrapper.emitted('welcome-submit')?.[0]?.[0] as Record<string, unknown>
+    expect(welcome.meeting_model_override).toEqual(model)
+    expect(welcome.space_options).toEqual(selected)
+    expect(welcome.space_options).not.toBe(selected)
+    await wrapper.setProps({ hero: false })
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ meeting_model_override: model, space_options: selected })
+    wrapper.unmount()
+  })
+
+  it('shows catalog errors without clearing the current model override', async () => {
+    apiMock.api.listModelProviders.mockRejectedValue(new Error('offline'))
+    const model = { provider_instance_id: 'preserved', model: 'existing-model' }
+    const wrapper = mountComposer({ modelValue: '/model', meetingModelOverride: model })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(document.querySelector('.command-panel-feedback')?.textContent).toContain('commandPanel.catalogError')
+    expect(wrapper.emitted('update:meetingModelOverride')).toBeUndefined()
+    expect(wrapper.props('meetingModelOverride')).toEqual(model)
     wrapper.unmount()
   })
 })
@@ -542,16 +797,20 @@ describe('ComposerBar attachments', () => {
     wrapper.unmount()
   })
 
-  it('refuses to offer a picker before a session exists, and says why', async () => {
+  it('allows attachments before the first message and creates a draft session on selection', async () => {
     const wrapper = mountComposer()
     await flushPromises()
     const input = fileInput(wrapper)
     const clickSpy = vi.spyOn(input, 'click')
     const { file } = await openPlusMenu(wrapper)
-    expect(file.disabled).toBe(true)
-    expect(file.title).toContain('composer.attachNeedsSession')
+    expect(file.disabled).toBe(false)
     file.click()
-    expect(clickSpy).not.toHaveBeenCalled()
+    expect(clickSpy).toHaveBeenCalled()
+    Object.defineProperty(input, 'files', { value: [{ name: 'first.txt', type: 'text/plain', size: 3 }], configurable: true })
+    await wrapper.find('[data-testid="composer-file-input"]').trigger('change')
+    await flushPromises()
+    expect(homeMock.ensureComposerSession).toHaveBeenCalled()
+    expect(attachMock.attachFiles).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ name: 'first.txt' })]), 'draft-session')
     expect(attachMock.reconcileSession).toHaveBeenCalledWith(null)
     wrapper.unmount()
   })

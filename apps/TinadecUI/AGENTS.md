@@ -1,9 +1,17 @@
 # TinadecUI — UI Engineering Suite
 
-**Last Updated:** 2026-10-07
-**Last Updated By:** 空间目标选择器改用UiSelect，移除原生表单控件。
-**Last Verified Commit:** 283b544 + 工作树；Desktop969 passed/14 skipped、UIE156/156、空间视觉定向18/18、UiSelect定向、类型/构建与Electron三宽度夹具通过；真实模型/终端桥/平台验收未闭合。
+**Last Updated:** 2026-10-08
+**Last Updated By:** ChatCard透传统一会话设置与保存状态；保留空间布局专项记录。
+**Last Verified Commit:** 66d103e + 工作树；ChatCard随Desktop类型与组件门禁验证，见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；UIE引擎专项证据仍见下列记录。
 **Branch:** main
+
+### 2026-10-08 ChatCard会话设置
+
+ChatCard向共享ChatPanel传HomeController.composerSettings/settingsSaving/settingsError，设置变化统一回传控制器，welcome-send与普通send用同一类型。卡片层不保存第二份模式/模型/空间开关，也不负责Core配置组合。Composer能力归Desktop、有效状态归Core。
+
+### 2026-10-07 空间布局与路由
+
+UIE新增spatialLayout/spatialRouting纯函数：SCC/最长路径分层、同层中位排序与居中、尺寸驱动统一间距；新增同级先在本层就近找空位，不让手动远端节点吸走新卡。当前投影外历史几何保留但不撑大布局，主动整理可撤销。正交路由基于矩形边界、有限避障与端口方向，正常下游不纵向折返，逆向走侧面；blocked保留事实关系与原因。页面BaseEdge只渲染计算路径，替代默认smoothstep。详见`.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md`；旧空间通过“整理本目标”应用新布局，保持用户坐标稳定。
 
 ### 2026-10-07 空间目标工作簇接手
 

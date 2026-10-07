@@ -14,7 +14,7 @@ using TinadecCore.Persistence;
 
 namespace TinadecCore.Api.Tests;
 
-public sealed class StorageApiTests : IAsyncLifetime
+public sealed partial class StorageApiTests : IAsyncLifetime
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-core-storage-tests", Guid.NewGuid().ToString("N"));
     private StorageFactory? _factory;
@@ -32,6 +32,113 @@ public sealed class StorageApiTests : IAsyncLifetime
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
         if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
         return Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task ComposerSettings_AreDurableScopedAndRevisionChecked()
+    {
+        var client = _factory!.CreateClient();
+        var created = await client.PostAsJsonAsync("/api/v1/sessions", new { view_mode = "space", permission_mode = "ask" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var session = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = session.GetProperty("id").GetGuid();
+        Assert.False(session.GetProperty("space_options").GetProperty("multi_agent").GetBoolean());
+        Assert.Equal(0, session.GetProperty("settings_revision").GetInt64());
+        var updated = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new
+        {
+            permission_mode = "full-access",
+            space_options = new { plan_first = true, multi_agent = true, bulletin_board = true },
+            expected_settings_revision = 0
+        });
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        var body = await updated.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, body.GetProperty("settings_revision").GetInt64());
+        Assert.True(body.GetProperty("space_options").GetProperty("plan_first").GetBoolean());
+        var stale = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { permission_mode = "default", expected_settings_revision = 0 });
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        Assert.Equal("session_settings_conflict", (await stale.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString());
+        var staleSend = await client.PostAsJsonAsync($"/api/v1/sessions/{id}/interactions", new
+        {
+            content = "Must not be admitted with stale choices", expected_settings_revision = 0,
+            space_options = new { plan_first = false }, permission_mode = "default"
+        });
+        Assert.Equal(HttpStatusCode.Conflict, staleSend.StatusCode);
+        Assert.Empty((await client.GetFromJsonAsync<JsonElement[]>($"/api/v1/sessions/{id}/messages"))!);
+        var titleOnly = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { title = "Renamed", expected_settings_revision = 1 });
+        Assert.Equal(HttpStatusCode.OK, titleOnly.StatusCode);
+        var reference = await _factory.Services.GetRequiredService<ISessionLocator>().FindAsync(id);
+        Assert.Equal("full-access", reference!.PermissionMode);
+        Assert.True(reference.SpaceOptions!.PlanFirst);
+        Assert.True(reference.SpaceOptions.MultiAgent);
+        Assert.True(reference.SpaceOptions.BulletinBoard);
+        Assert.Equal(2, reference.SettingsRevision);
+        var fresh = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        Assert.True(fresh!.Single(x => x.GetProperty("id").GetGuid() == id).GetProperty("space_options").GetProperty("plan_first").GetBoolean());
+    }
+
+    [Fact]
+    public async Task ComposerSettings_RejectFlatOptionsAndInvalidUpdatesWithoutPartialWrites()
+    {
+        var client = _factory!.CreateClient();
+        var badCreate = await client.PostAsJsonAsync("/api/v1/sessions", new { space_options = new { plan_first = true } });
+        Assert.Equal(HttpStatusCode.BadRequest, badCreate.StatusCode);
+        var created = await (await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Original" })).Content.ReadFromJsonAsync<JsonElement>();
+        var id = created.GetProperty("id").GetGuid();
+        var badPatch = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { title = "Must not save", space_options = new { plan_first = true } });
+        Assert.Equal(HttpStatusCode.BadRequest, badPatch.StatusCode);
+        var badPermission = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { title = "Also must not save", permission_mode = "anything" });
+        Assert.Equal(HttpStatusCode.BadRequest, badPermission.StatusCode);
+        var badInteraction = await client.PostAsJsonAsync($"/api/v1/sessions/{id}/interactions", new { content = "Do work", space_options = new { plan_first = true } });
+        Assert.Equal(HttpStatusCode.BadRequest, badInteraction.StatusCode);
+        var stored = await _factory.Services.GetRequiredService<ProjectSessionStore>().GetSessionAsync(id);
+        Assert.Equal("Original", stored!.Title);
+        Assert.Equal(0, stored.SettingsRevision);
+        Assert.Null(stored.SpaceOptionsJson);
+        Assert.Empty((await client.GetFromJsonAsync<JsonElement[]>($"/api/v1/sessions/{id}/messages"))!);
+    }
+
+    [Fact]
+    public async Task ComposerSettings_ClearModelIsExplicitAndSpaceUsesOneDefault()
+    {
+        var client = _factory!.CreateClient();
+        var created = await (await client.PostAsJsonAsync("/api/v1/sessions", new { view_mode = "space" })).Content.ReadFromJsonAsync<JsonElement>();
+        var id = created.GetProperty("id").GetGuid();
+        var providerId = Guid.NewGuid();
+        await using (var db = await _factory.Services.GetRequiredService<IDbContextFactory<MemoryDbContext>>().CreateDbContextAsync())
+        {
+            var row = await db.Sessions.SingleAsync(x => x.Id == id);
+            row.MeetingModelOverrideProviderInstanceId = providerId;
+            row.MeetingModelOverrideModel = "previous-model";
+            row.SpaceOptionsJson = null;
+            await db.SaveChangesAsync();
+        }
+        var omitted = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { title = "Renamed" });
+        Assert.Equal(HttpStatusCode.OK, omitted.StatusCode);
+        var reference = await _factory.Services.GetRequiredService<ISessionLocator>().FindAsync(id);
+        Assert.Equal(providerId, reference!.MeetingModelOverride!.ProviderInstanceId);
+        Assert.Equal(new SpaceRunOptions(), reference.SpaceOptions);
+        var clear = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { clear_meeting_model_override = true, permission_mode = "default", expected_settings_revision = 1 });
+        Assert.Equal(HttpStatusCode.OK, clear.StatusCode);
+        reference = await _factory.Services.GetRequiredService<ISessionLocator>().FindAsync(id);
+        Assert.Null(reference!.MeetingModelOverride);
+        Assert.Equal(new SpaceRunOptions(), reference.SpaceOptions);
+        Assert.Equal("default", reference.PermissionMode);
+        var resetMode = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { clear_mode_version = true, expected_settings_revision = reference.SettingsRevision });
+        Assert.Equal(HttpStatusCode.OK, resetMode.StatusCode);
+        Assert.Equal(created.GetProperty("mode_version_id").GetGuid(), (await resetMode.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("mode_version_id").GetGuid());
+    }
+
+    [Fact]
+    public async Task ComposerSettings_ConcurrentChangesWithSameRevisionHaveOneWinner()
+    {
+        var client = _factory!.CreateClient();
+        var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { view_mode = "space" })).Content.ReadFromJsonAsync<JsonElement>();
+        var id = session.GetProperty("id").GetGuid();
+        var responses = await Task.WhenAll(
+            client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { permission_mode = "ask", expected_settings_revision = 0 }),
+            client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { permission_mode = "deny", expected_settings_revision = 0 }));
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.OK);
+        Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Conflict);
     }
 
     [Fact]

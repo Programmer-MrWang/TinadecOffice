@@ -5,7 +5,8 @@ import MessageList from './MessageList.vue'
 import ComposerBar from './ComposerBar.vue'
 import WelcomeScreen from './WelcomeScreen.vue'
 import { useChatResponsiveMode } from '@/composables/useElementSize'
-import type { MessageDto, SessionDto, ProjectDto, OrchestrationSnapshotDto, MeetingModelOverrideDto } from '../api'
+import type { ComposerSubmitOptions, SessionSettingsUpdate, MessageDto, SessionDto, ProjectDto, OrchestrationSnapshotDto } from '../api'
+import type { ComposerSettings } from '@/lib/composerSettings'
 import type { PermissionLevel } from '@/types/mode'
 import type { ThinkingStep, ToolCall, TurnActivity } from '@/composables/useAgentActivity'
 
@@ -21,6 +22,9 @@ const props = defineProps<{
   busy: boolean
   draft: string
   permission: PermissionLevel
+  composerSettings?: ComposerSettings
+  settingsSaving?: boolean
+  settingsError?: string | null
   /** Activity of the most recent run, owned by HomePage. ChatPanel decides
       whether it belongs to the live turn or to the message that answered. */
   thinkingSteps?: ThinkingStep[]
@@ -42,8 +46,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:draft': [value: string]
   'update:permission': [value: PermissionLevel]
-  'send': [payload?: { dispatch_mode: 'parallel'|'queued'|'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }]
-  'welcome-send': [payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }]
+  'update:settings': [value: SessionSettingsUpdate]
+  'send': [payload?: ComposerSubmitOptions]
+  'welcome-send': [payload: ComposerSubmitOptions & { content: string }]
   'create-project': []
   'select-project': [id: string | null]
   'approve': [approvalId: string]
@@ -55,16 +60,11 @@ const emit = defineEmits<{
 // meeting_model_override 原样透传。此前这里把它读成 `payload.meeting_model`（字符串）
 // 再以 `meeting_model` 键 emit，`as never` 压掉了类型错误，HomeController 读
 // `meeting_model_override` 于是永远拿到 undefined —— 会话级会议模型覆写一路被丢。
-function onComposerSubmit(payload: { dispatch_mode: 'parallel'|'queued'|'insert'; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }) {
-  emit('send', {
-    dispatch_mode: payload.dispatch_mode,
-    target_run_id: payload.target_run_id ?? null,
-    mode_version_id: payload.mode_version_id ?? null,
-    meeting_model_override: payload.meeting_model_override ?? null,
-  })
+function onComposerSubmit(payload: ComposerSubmitOptions) {
+  emit('send', payload)
 }
 
-function onWelcomeSubmit(payload: { content: string; permission_mode: PermissionLevel; mode_version_id: string | null }) {
+function onWelcomeSubmit(payload: ComposerSubmitOptions & { content: string }) {
   emit('welcome-send', payload)
 }
 
@@ -109,6 +109,10 @@ const liveTurns = computed(() => props.turnActivities
   : undefined)
 
 const modeVersionId = ref<string | null>(null)
+function selectMode(value: string | null) {
+  modeVersionId.value = value
+  emit('update:settings', value ? { mode_version_id: value } : { clear_mode_version: true })
+}
 watch(
   () => props.currentSession?.id,
   () => {
@@ -187,19 +191,23 @@ function handleReject(approvalId: string) {
     <ComposerBar
       :hero="hero"
       :busy="busy"
+      :can-stop="canStop"
       :model-value="draft"
       :permission="permission"
       :projects="projects"
       :selected-project-id="selectedProjectId"
       :session-id="currentSession?.id ?? null"
-      :mode-version-id="modeVersionId"
-      :meeting-model-override="currentSession?.meeting_model_override ?? null"
+      :mode-version-id="composerSettings ? composerSettings.mode_version_id : modeVersionId"
+      :meeting-model-override="composerSettings ? composerSettings.meeting_model_override : currentSession?.meeting_model_override ?? null"
+      :settings-saving="settingsSaving"
+      :settings-error="settingsError"
       :runs="runsForComposer"
       :panel-style="panelStyle"
       :panel-data-attrs="panelDataAttrs"
       @update:model-value="emit('update:draft', $event)"
       @update:permission="emit('update:permission', $event)"
-      @update:mode-version-id="modeVersionId = $event"
+      @update:mode-version-id="selectMode"
+      @update:meeting-model-override="emit('update:settings', $event ? { meeting_model_override: $event } : { clear_meeting_model_override: true })"
       @welcome-submit="onWelcomeSubmit"
       @submit="onComposerSubmit"
       @stop="emit('stop')"

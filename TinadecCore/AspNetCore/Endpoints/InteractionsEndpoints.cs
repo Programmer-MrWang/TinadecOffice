@@ -22,6 +22,11 @@ public static class InteractionsEndpoints
     /// matches what comparable local-first harnesses cap a message at.
     /// </summary>
     private const int MaxAttachmentsPerMessage = 8;
+    private static readonly JsonSerializerOptions SettingsJson = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow
+    };
 
     public static IEndpointRouteBuilder MapInteractionsEndpoints(this IEndpointRouteBuilder app)
     {
@@ -40,7 +45,7 @@ public static class InteractionsEndpoints
         // admit a run under a mode nobody reads anymore.
         var unknownField = el.EnumerateObject()
             .Select(property => property.Name)
-            .FirstOrDefault(name => name is not ("content" or "client_message_id" or "mode_version_id" or "permission_mode" or "dispatch_mode" or "target_run_id" or "expected_context_revision" or "meeting_model_override" or "attachment_ids" or "interrupt"));
+            .FirstOrDefault(name => name is not ("content" or "client_message_id" or "mode_version_id" or "permission_mode" or "dispatch_mode" or "target_run_id" or "expected_context_revision" or "expected_settings_revision" or "meeting_model_override" or "clear_meeting_model_override" or "space_options" or "attachment_ids" or "interrupt"));
         if (unknownField is not null) return Results.BadRequest(new { code = "unknown_field", message = $"Field '{unknownField}' is not part of the interaction contract." });
         var content = el.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty;
         // Not "content is required" here: a message that carries a file does say something, it
@@ -69,7 +74,7 @@ public static class InteractionsEndpoints
         if (el.TryGetProperty("meeting_model_override", out var overrideElement)
             && overrideElement.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined))
         {
-            try { meetingModelOverride = overrideElement.Deserialize<MeetingModelOverrideDto>(); }
+            try { meetingModelOverride = overrideElement.Deserialize<MeetingModelOverrideDto>(SettingsJson); }
             catch (JsonException) { return Results.BadRequest(new { code = "invalid_model_override", message = "meeting_model_override must be an object." }); }
             if (meetingModelOverride is null || meetingModelOverride.ProviderInstanceId == Guid.Empty)
                 return Results.BadRequest(new { code = "invalid_model_override", message = "meeting_model_override.provider_instance_id is required." });
@@ -87,6 +92,48 @@ public static class InteractionsEndpoints
         // session existence + session's default mode handling
         var session = await sessions.FindAsync(sessionId, ct);
         if (session is null) return Results.NotFound(new { code = "not_found", message = "Session not found" });
+        if (el.TryGetProperty("expected_settings_revision", out var settingsRevisionElement))
+        {
+            if (settingsRevisionElement.ValueKind != JsonValueKind.Number || !settingsRevisionElement.TryGetInt64(out var settingsRevision) || settingsRevision < 0)
+                return Results.BadRequest(new { code = "invalid_request", message = "expected_settings_revision must be a nonnegative integer." });
+            if (settingsRevision != session.SettingsRevision)
+                return Results.Conflict(new { code = "session_settings_conflict", message = "Session settings changed. Refresh before sending this message.", settings_revision = session.SettingsRevision });
+        }
+        var hasExplicitModelOverride = meetingModelOverride is not null;
+        var clearModelOverride = false;
+        if (el.TryGetProperty("clear_meeting_model_override", out var clearOverride))
+        {
+            if (clearOverride.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                return Results.BadRequest(new { code = "invalid_request", message = "clear_meeting_model_override must be a boolean." });
+            clearModelOverride = clearOverride.GetBoolean();
+        }
+        if (clearModelOverride && hasExplicitModelOverride)
+            return Results.BadRequest(new { code = "invalid_model_override", message = "Cannot set and clear meeting_model_override together." });
+        if (!clearModelOverride && meetingModelOverride is null && session.MeetingModelOverride is { } sessionModel)
+            meetingModelOverride = new MeetingModelOverrideDto { ProviderInstanceId = sessionModel.ProviderInstanceId, Model = sessionModel.Model };
+        var permissionMode = session.PermissionMode;
+        if (el.TryGetProperty("permission_mode", out var pm))
+        {
+            if (pm.ValueKind != JsonValueKind.String)
+                return Results.BadRequest(new { code = "invalid_request", message = "permission_mode must be a string." });
+            permissionMode = pm.GetString()!.Trim().ToLowerInvariant();
+        }
+        var spaceOptions = session.SpaceOptions;
+        var hasExplicitSpaceOptions = el.TryGetProperty("space_options", out var optionsElement) && optionsElement.ValueKind != JsonValueKind.Null;
+        if (hasExplicitSpaceOptions)
+        {
+            try { spaceOptions = optionsElement.Deserialize<SpaceRunOptions>(SettingsJson); }
+            catch (JsonException) { return Results.BadRequest(new { code = "invalid_space_options", message = "space_options must contain supported spatial settings." }); }
+            if (spaceOptions is null) return Results.BadRequest(new { code = "invalid_space_options", message = "space_options must be an object." });
+        }
+        try
+        {
+            ProjectSessionStore.ValidateSessionSettings(session.ViewMode, permissionMode, spaceOptions);
+            await StorageEndpoints.ValidateWorkflowAsync(spaceOptions, session.TenantId, session.WorkspaceId, cfgFactory, ct).ConfigureAwait(false);
+        }
+        catch (ArgumentException ex) { return Results.BadRequest(new { code = "invalid_session_settings", message = ex.Message }); }
+        if (dispatchMode == "insert" && hasExplicitSpaceOptions)
+            return Results.Conflict(new { code = "space_options_frozen", message = "Spatial options cannot change an already admitted run. They apply to the next task." });
 
         // An attachment is claimed by the message this interaction appends, so the ids
         // arrive with the send rather than in a second request that could race it.
@@ -219,9 +266,8 @@ public static class InteractionsEndpoints
 
         // Mode identity is the published ModeVersion only. Resolution order:
         // explicit mode_version_id > the session's bound mode version > the
-        // workspace default. The resolved version is persisted onto the session
-        // so the run engine's roster resolver freezes the exact relational mode
-        // the Agent Center edits.
+        // workspace default. This per-message selection is passed to admission;
+        // only the session settings endpoint changes defaults for later messages.
         modeVersionId ??= session.ModeVersionId;
         if (modeVersionId is null)
         {
@@ -255,7 +301,7 @@ public static class InteractionsEndpoints
                 });
         }
 
-        if (dispatchMode == "insert" && meetingModelOverride is not null)
+        if (dispatchMode == "insert" && (hasExplicitModelOverride || clearModelOverride))
             return Results.Conflict(new { code = "model_override_frozen", message = "A model override cannot be changed when inserting into an already frozen run." });
 
         // A session that has said nothing yet takes the conversation identity of the mode its
@@ -290,19 +336,10 @@ public static class InteractionsEndpoints
             await sessions.MigrateConversationIdentityAsync(sessionId, resolvedIdentity!.NodeKey, resolvedIdentity.TemplateSlug, ct).ConfigureAwait(false);
         }
 
-        // Persist the chosen mode_version onto the session so the run engine's roster resolver
-        // reads the same relational mode the center edits — not a per-call event hint.
-        if (modeVersionId.HasValue)
-        {
-            try
-            {
-                await sessions.UpdateSessionModeAsync(sessionId, modeVersionId, null, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                return Results.Json(new { code = "mode_binding_failed", message = $"Failed to bind mode version to session: {ex.Message}" }, statusCode: 503);
-            }
-        }
+        // An interaction owns its submitted snapshot only. Session defaults are
+        // changed by PATCH /sessions, so promoting an older queued message cannot
+        // roll a subsequently selected mode back. Admission freezes this explicit
+        // mode version after the conversation identity checks above.
 
         // dispatch to existing full-duplex engine via coordinator
         // For insert: enqueue steering patch on target run (with context_revision conflict detection)
@@ -353,9 +390,6 @@ public static class InteractionsEndpoints
         // queued / parallel: normal admission via coordinator
         RunSubmission? admission = null;
         string admissionStatus = "queued";
-        var permissionMode = el.TryGetProperty("permission_mode", out var pm) && !string.IsNullOrWhiteSpace(pm.GetString())
-            ? pm.GetString()!.Trim().ToLowerInvariant()
-            : "default";
         var invocationOverride = meetingModelOverride is null
             ? null
             : new SessionModelOverride(meetingModelOverride.ProviderInstanceId, meetingModelOverride.Model);
@@ -376,7 +410,7 @@ public static class InteractionsEndpoints
                 expectedRev,
                 invocationOverride,
                 modeVersionId,
-                QueueBehindActiveRun: dispatchMode == "queued"), ct);
+                QueueBehindActiveRun: dispatchMode == "queued", SpaceOptions: spaceOptions, SessionSettingsCaptured: true), ct);
             admissionStatus = dispatchMode == "parallel" ? "assigned" : "queued";
         }
         catch (RunAdmissionException ex) when (ex.Code is "ACTIVE_RUN_LIMIT" or "SESSION_BUSY" && dispatchMode == "queued")
@@ -419,7 +453,7 @@ public static class InteractionsEndpoints
                         expectedRev,
                         invocationOverride,
                         modeVersionId,
-                        QueueBehindActiveRun: true), ct).ConfigureAwait(false);
+                        QueueBehindActiveRun: true, SpaceOptions: spaceOptions, SessionSettingsCaptured: true), ct).ConfigureAwait(false);
                     admissionStatus = "queued";
                 }
                 catch (RunAdmissionException retry) when (retry.Code is "ACTIVE_RUN_LIMIT" or "SESSION_BUSY")
@@ -468,6 +502,7 @@ public static class InteractionsEndpoints
                     dispatch_mode = dispatchMode,
                     mode_version_id = modeVersionId,
                     permission_mode = permissionMode,
+                    space_options = spaceOptions,
                     meeting_model_override = meetingModelOverride is null
                         ? null
                         : new
@@ -475,7 +510,7 @@ public static class InteractionsEndpoints
                             provider_instance_id = meetingModelOverride.ProviderInstanceId,
                             model = meetingModelOverride.Model
                         }
-                });
+                }, SettingsJson);
                 directive.UpdatedAt = DateTimeOffset.UtcNow;
                 if (replay is null) lifecycleDb.RunDirectives.Add(directive);
                 await lifecycleDb.SaveChangesAsync(ct).ConfigureAwait(false);

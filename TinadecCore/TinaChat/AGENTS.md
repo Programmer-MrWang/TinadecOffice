@@ -1,9 +1,9 @@
 # TinaChat 模块约定
 
-**Last Updated:** 2026-10-01
-**Last Updated By:** Codex 修复 TinaChat 唤醒的 claimed source、fencing、过期回收和来源无上限合并；补模型失败/旧 claim 回归。
-**Last Verified Commit:** 1b1dc98；TinaChat/组织/资源相关 Api 定向 41/41，新增唤醒回归 3/3，执行者点名 wake 组织回归 1/1。完整 API 历史矩阵仍为 588/590，真实模型/PG/多宿主未验收。完整报告见 `../../docs/agent-graph/review-2026-10-01.zh-CN.md`。
-**Branch:** Everything-changed
+**Last Updated:** 2026-10-08
+**Last Updated By:** 空间公告板选项按run冻结并在组织工具入口收窄权限。
+**Last Verified Commit:** 66d103e + 工作树；空间公告板run隔离脚本API验证通过，最终矩阵见 ../../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md。未作真实模型/PG/多宿主验收。
+**Branch:** main
 
 ## 位置与依赖
 
@@ -12,6 +12,8 @@
 本模块仅依赖 Abstractions/Persistence。DTO 放 Contracts，跨模块端口放 Abstractions；真实身份与运行组合放 Runtime，模型理解放 DmaEA，HTTP 放 AspNetCore。不要引用其他业务模块、MAF、Gateway 或 Desktop。
 
 ## 必须保留的规则
+
+- 空间公告板开关是单个run的冻结使用权限，通过已验证工具上下文传入；关闭时组织工具按alias、room GUID、room_id和收件箱来源一致限制，不通过改变session组织成员权限影响其它run。历史公告仍保留，用户查看和必需直接治理通道不因该开关被删除。工具清单、成员权限和冻结run范围共同约束实际调用，前端收起卡片不是权限变更。
 
 - **当前实现欠缺（2026-10-01）**：claimed source、成功 ACK、claim token/期限回收、来源无上限合并和执行者点名→run supplement 已实现并有回归；执行者回复/离线终态策略、治理成员持久上下文与治理执行动词仍待做。`own` topology 的租约/执行成员过滤已接入。见仓库 `docs/agent-graph/review-2026-10-01.zh-CN.md` 与 todo N5/N7/N8。
 

@@ -1,13 +1,21 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-10-07
-**Last Updated By:** 平面对话Markdown渲染能力核查，记录五项已复现的显示缺陷与扩展边界；未修改业务代码。
-**Last Verified Commit:** 131388a + Markdown核查；MessageList/ChatPanel定向18/18、本地真实MarkdownRender SFC与当前CSS的Electron夹具通过；非完整App、真实模型或平台验收，不继承历史全量绿。
+**Last Updated:** 2026-10-08
+**Last Updated By:** Composer统一命令面板、会话配置回执和Spec全文确认。
+**Last Verified Commit:** 66d103e + 工作树；定向与Electron真实组件验证及最终门禁见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
 **Branch:** main
 
-### 2026-10-07 平面对话 Markdown 核查（未修复）
+### 2026-10-08 输入框命令面板
 
-MessageItem仅assistant正文用MarkdownRender，用户正文为文本插值；MessageList流式正文用相同组件。marked18.0.4启用GFM/breaks并经DOMPurify3.4.5消毒。基础格式正常解析；CSS已复现五项缺陷：列表标记none、任务checkbox约226×34px、表格align被统一left覆盖、宽表格无独立滚动、长URL不折行。代码块自身横滚正常；高亮/块级复制、公式、Mermaid、脚注、提示块与标题id未接通。定向18/18；本地SFC＋复刻消息外层＋当前CSS/Tailwind preflight夹具验证320/520/800px，非完整App E2E。报告`.tinadec_dev/reports/2026-10-07-flat-markdown-rendering.zh-CN.md`，证据`.tinadec_dev/evidence/2026-10-07-flat-markdown/`。
+ComposerCommandPanel统一+与/及工具栏子页，Portal显式取usePanelStyles，锚定整个输入框并观察尺寸。图片/文件顶部，模型/发布预设/权限是真实目录；空间直接六选项默认false/null，无兼容切换入口。HomeController为会话选择owner，PATCH串行+revision，标题回执也更新revision；队列操作捕获来源会话与发送选项，全局palette省略覆盖字段以继承当前设置。首发附件先创建含所选配置的草稿会话，准备/上传期间禁止发送。IME/未知slash/按钮与Enter统一；Spec审批显示完整正文且只允许本次确认。不可把UI保存状态当正在运行的配置已改变。详见命令面板实施报告。
+
+### 2026-10-07 平面对话 Markdown 显示修复与内容岛屿
+
+MarkdownRender整篇marked解析→DOMPurify RETURN_DOM_FRAGMENT→可信滚动容器与顶层分块；引用链接、嵌套语义和消毒保留。正文连续，代码/表格/引用用既有UiIslandCard（section/padding none），不新增材质根。列表标记、13px只读checkbox、表格align、块内横滚与长URL折行已修；HTML不变的已完成块不重建，表格可聚焦并保留焦点。MessageItem仅assistant正文用此组件，MessageList流式共用；用户正文仍文本插值。定向41、Markdown5、标准全量979/14 skipped、native107、类型/构建与320/520/800px本地SFC/CSS夹具通过，非完整App E2E/真实模型验收。APP-HOME-103完成；报告`.tinadec_dev/reports/2026-10-07-markdown-islands.zh-CN.md`，证据`.tinadec_dev/evidence/2026-10-07-markdown-islands/`。高亮/复制、公式、Mermaid、脚注、提示块、标题锚点与外链打开另行验收。
+
+### 2026-10-07 空间布局与路由
+
+UIE新增spatialLayout/spatialRouting纯函数：SCC/最长路径分层、同层中位排序与居中、尺寸驱动统一间距；新增同级先在本层就近找空位，不让手动远端节点吸走新卡。当前投影外历史几何保留但不撑大布局，主动整理可撤销。正交路由基于矩形边界、有限避障与端口方向，正常下游不纵向折返，逆向走侧面；blocked保留事实关系与原因。页面BaseEdge只渲染计算路径，替代默认smoothstep。详见`.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md`；旧空间通过“整理本目标”应用新布局，保持用户坐标稳定。
 
 ### 2026-10-07 首页启动自取消请求误报修复
 

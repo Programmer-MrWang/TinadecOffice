@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-10-07T18:37:36.244Z",
+  "scope": "Real ApprovalTab SFC with local document fixture; no actual approval submission",
+  "sourceHash": "ab8d346af50c79d3bc2cff6cb40ea785fdb7d37855911d127e996d151aa62caa",
+  "cases": [
+    {
+      "width": 520,
+      "metrics": {
+        "length": 3000,
+        "exact": true,
+        "selected": 2999,
+        "selectedRange": 3000,
+        "whiteSpace": "pre-wrap",
+        "userSelect": "text",
+        "scrollable": true,
+        "within": true,
+        "autoGrants": 0,
+        "buttons": [
+          "批准此文档",
+          "拒绝此文档"
+        ]
+      }
+    },
+    {
+      "width": 320,
+      "metrics": {
+        "length": 3000,
+        "exact": true,
+        "selected": 2999,
+        "selectedRange": 3000,
+        "whiteSpace": "pre-wrap",
+        "userSelect": "text",
+        "scrollable": true,
+        "within": true,
+        "autoGrants": 0,
+        "buttons": [
+          "批准此文档",
+          "拒绝此文档"
+        ]
+      }
+    }
+  ],
+  "decisions": [
+    [
+      "approved",
+      "once"
+    ],
+    [
+      "rejected",
+      "once"
+    ]
+  ]
+}

@@ -1217,10 +1217,14 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         // that it executes, which is what lets it reuse the checkpointed tool-turn loop
         // (approval parking, failure feedback, loop guard, tool timeline) instead of
         // needing a second, ungoverned execution path.
-        if (string.Equals(graph.Tier, FrozenGraphTiers.SoloDispatch, StringComparison.Ordinal)
+        var prepareSpace = configuration.SpaceOptions is { } spaceOptions
+            && (spaceOptions.SpecEnabled || spaceOptions.Worktree) && !checkpoint.SpacePreparationComplete;
+        if ((string.Equals(graph.Tier, FrozenGraphTiers.SoloDispatch, StringComparison.Ordinal) || prepareSpace)
             && checkpoint.PlanRevision == 0)
         {
-            checkpoint.Tasks = BuildSoloMasterTask(configuration, checkpoint);
+            checkpoint.Tasks = BuildSoloMasterTask(configuration, checkpoint,
+                isWorkflowPreparation: prepareSpace && configuration.SpaceOptions?.WorkflowModeVersionId is not null);
+            checkpoint.Tasks[0].IsSpacePreparation = prepareSpace;
             SyncLanes(checkpoint);
             checkpoint.PlanRevision++;
             checkpoint.Phase = "executing";
@@ -1255,8 +1259,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 }, cancellationToken, soloTask.TaskId).ConfigureAwait(false);
             return checkpoint;
         }
-        var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(Guid.Parse(run.RunId), "context.packed", "Planner context assembled.", new
         {
             evidence_count = context.Evidence.Count,
@@ -1419,6 +1423,14 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 throw new RunAwaitingExternalDecisionException();
             if (checkpoint.Tasks.All(item => item.Status is "completed" or "failed" or "blocked"))
             {
+                if (configuration.SpaceOptions?.WorkflowModeVersionId is not null
+                    && checkpoint.SpacePreparationComplete && checkpoint.Tasks.Any(item => item.IsSpacePreparation))
+                {
+                    checkpoint.Tasks.Clear();
+                    checkpoint.PlanRevision = 0;
+                    checkpoint.Phase = "planning";
+                    return await SaveCheckpointAsync(checkpoint, checkpoint.CheckpointRevision, "space-prepared", cancellationToken).ConfigureAwait(false);
+                }
                 checkpoint.Phase = "reviewing";
                 return await SaveCheckpointAsync(checkpoint, checkpoint.CheckpointRevision, "execution-complete", cancellationToken).ConfigureAwait(false);
             }
@@ -1476,8 +1488,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
 
         // Tool-capable workers are advanced by the single run owner below. Plain
         // model-only workers can still make their first model turn in parallel.
-        var textOnly = ready.Where(task => surfaces.TryGetValue(task.TaskId, out var tools) && tools.Count == 0).ToList();
-        var toolCapable = ready.Where(task => surfaces.TryGetValue(task.TaskId, out var tools) && tools.Count != 0).ToList();
+        var textOnly = ready.Where(task => !task.IsSpacePreparation && surfaces.TryGetValue(task.TaskId, out var tools) && tools.Count == 0).ToList();
+        var toolCapable = ready.Where(task => surfaces.TryGetValue(task.TaskId, out var tools) && (tools.Count != 0 || task.IsSpacePreparation)).ToList();
         var results = await Task.WhenAll(textOnly.Select(task => ExecuteTextTaskAsync(run, configuration, checkpoint, plannerId, task, cancellationToken))).ConfigureAwait(false);
         var contextChanged = await ApplyPendingContextPatchesAsync(run, checkpoint, cancellationToken).ConfigureAwait(false);
         foreach (var result in results)
@@ -1528,6 +1540,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             // shared graph belongs to the run owner, not to a disposable worker snapshot.
             .Where(task => !surfaces[task.TaskId].Any(tool =>
                 CoreVirtualToolPolicy.IsTaskDispatch(tool.ToolId) || CoreVirtualToolPolicy.IsTaskWait(tool.ToolId)))
+            .Where(task => !task.IsSpacePreparation)
             .ToList();
         var serialToolTasks = toolCapable.Except(parallelToolTasks).ToList();
         var usageBeforeParallel = checkpoint.ModelUsage;
@@ -1735,6 +1748,20 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            if (task.IsSpacePreparation)
+            {
+                if (task.ToolTurns.FirstOrDefault(turn => turn.IsSpaceWorktreeProvisioning && turn.ResultJson is not null) is { } failedWorktree
+                    && (failedWorktree.ToolSuccess == false || failedWorktree.DispatchStatus != ToolDispatchStatus.Completed))
+                    return FailedToolTask(checkpoint, task, worker, RunErrorTaxonomy.ToolError, "The requested worktree could not be prepared; task execution stopped.", failedWorktree.ToolId);
+                if (QueueSpaceWorktree(configuration, checkpoint, task))
+                    checkpoint = await SaveCheckpointAsync(checkpoint, checkpoint.CheckpointRevision, "space-worktree-requested", cancellationToken).ConfigureAwait(false);
+                checkpoint.SpacePreparationComplete = SpacePreparationReady(configuration, checkpoint);
+                if (checkpoint.SpacePreparationComplete && configuration.SpaceOptions?.WorkflowModeVersionId is not null)
+                {
+                    var prepared = BuildWorkerStepResult(task, worker.Id, "Spatial preparation completed: confirmed specifications and execution isolation are ready.\nTASK_OUTCOME: completed");
+                    return new ToolTaskExecutionResult(checkpoint, false, new TaskExecutionResult(task.TaskId, worker.Id, "completed", prepared));
+                }
+            }
             // A hard insert that arrived while a tool call ran, or between rounds (todo D2): the calls
             // the model asked for that have not started are not run, and the next turn reads the
             // steering. A call already running was left to finish — its outcome must stay known.
@@ -1745,6 +1772,12 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             // may contain multiple calls, but each call gets its own durable
             // prepare/resume boundary and approval decision.
             var pendingTurn = task.ToolTurns.FirstOrDefault(item => string.IsNullOrWhiteSpace(item.ResultJson));
+            if (pendingTurn is not null && SpaceToolRefusal(configuration, checkpoint, task, pendingTurn) is { } refusal)
+            {
+                checkpoint = await FeedToolFailureBackAsync(run, task, pendingTurn, RunErrorTaxonomy.InvalidToolArguments,
+                    refusal, checkpoint, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
             if (pendingTurn is not null && CoreVirtualToolPolicy.IsTaskWait(pendingTurn.ToolId))
             {
                 // task_wait is executed here, not by the dispatcher: it reads and parks the task
@@ -1971,6 +2004,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 pendingTurn.ResultJson = resultJson;
                 pendingTurn.DispatchStatus = ToolDispatchStatus.Completed;
                 pendingTurn.ToolSuccess = snapshot?.ToolSuccess;
+                if (pendingTurn.ToolSuccess != false)
+                    checkpoint = await RecordSpaceToolResultAsync(run, configuration, checkpoint, task, pendingTurn, cancellationToken).ConfigureAwait(false);
                 if (pendingTurn.ToolSuccess == false)
                 {
                     pendingTurn.ErrorCategory = RunErrorTaxonomy.ToolError;
@@ -2189,6 +2224,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var catalog = _services.GetRequiredService<IFrozenToolManifestCatalog>();
         var authorized = await catalog.ListAuthorizedAsync(
             Guid.Parse(run.RunId), task.TaskId, worker.Id, cancellationToken).ConfigureAwait(false);
+        if (configuration.SpaceOptions is not null)
+            authorized = authorized.Where(entry => !SpaceCompositionPolicy.IsWorktreeManagement(entry.Id)).ToArray();
 
         if (task.RequiredTools.Count == 0)
         {
@@ -2582,13 +2619,14 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         string? closeoutPrompt = null)
     {
         var workerDefinition = GetAssignedWorkerDefinition(configuration, task);
-        var context = await BuildContextAsync(run, configuration, workerDefinition.Id,
-            $"Task: {task.Title}\nDescription: {task.Description}\nSuccess criteria: {string.Join("; ", task.SuccessCriteria)}"
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), workerDefinition.Id,
+            WithSpaceContext(checkpoint, $"Task: {task.Title}\nDescription: {task.Description}\nSuccess criteria: {string.Join("; ", task.SuccessCriteria)}"
                 + (task.WriteScope is { Count: > 0 } scope
                     ? $"\nWrite scope (reserved for you; change files only inside it — changes elsewhere are reported to the reviewer): {string.Join("; ", scope)}"
-                    : string.Empty),
+                    : string.Empty)),
             cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(configuration, workerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var promptConfiguration = SpacePromptConfiguration(configuration, checkpoint);
+        var assembly = await AssemblePromptAsync(promptConfiguration, workerDefinition, context, cancellationToken).ConfigureAwait(false);
         var agent = new AgentDefinition
         {
             Id = worker.Id,
@@ -3097,7 +3135,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         FrozenGraph? graph,
         DurableTaskNode task)
     {
-        if (graph is not { Tier: FrozenGraphTiers.SoloDispatch }) return null;
+        if (graph is null || graph.Tier != FrozenGraphTiers.SoloDispatch && !task.IsSpacePreparation) return null;
         if (string.IsNullOrWhiteSpace(task.WorkerAgentSlug)) return null;
         if (!string.Equals(task.WorkerAgentSlug, graph.ConversationTemplateSlug, StringComparison.OrdinalIgnoreCase)) return null;
         var master = configuration.OperationAgents.SingleOrDefault(agent =>
@@ -3122,16 +3160,17 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
     /// </summary>
     private static List<DurableTaskNode> BuildSoloMasterTask(
         FrozenRunConfigurationV1 configuration,
-        FullDuplexCheckpointV1 checkpoint)
+        FullDuplexCheckpointV1 checkpoint,
+        bool isWorkflowPreparation = false)
     {
         var master = RequiredConversationAgent(configuration);
         var task = new DurableTaskNode
         {
             TaskId = Guid.NewGuid(),
-            TaskKey = "solo",
+            TaskKey = isWorkflowPreparation ? "space-preparation" : "solo",
             Title = checkpoint.UserGoal,
             Description = null,
-            SuccessCriteria = ["The goal is satisfied and the answer reports what what actually happened."],
+            SuccessCriteria = isWorkflowPreparation ? [] : ["The goal is satisfied and the answer reports what what actually happened."],
             Dependencies = [],
             RequiredCapabilities = master.Capabilities.ToList(),
             RequiredTools = [],
@@ -3185,11 +3224,13 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         FrozenRunConfigurationV1 configuration,
         RuntimeAgentDefinition definition,
         ContextPack context,
-        CancellationToken cancellationToken) =>
-        await _promptAssembler.AssembleAsync(new FrozenPromptAssemblyRequest(
+        CancellationToken cancellationToken)
+    {
+        var instructions = definition.SystemPrompt + (configuration.SpaceOptions is { } options ? SpaceCompositionPolicy.Instructions(options) : "");
+        return await _promptAssembler.AssembleAsync(new FrozenPromptAssemblyRequest(
             definition.Id,
             context,
-            definition.SystemPrompt,
+            instructions,
             definition.AgentVersionId,
             definition.VersionContentHash,
             definition.PromptPipelineId,
@@ -3199,6 +3240,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         {
             Workspace = configuration.Workspace
         }, cancellationToken).ConfigureAwait(false);
+    }
 
     private IAgentChatClientFactory CreateModelFactory(
         FrozenRunConfigurationV1 configuration,
@@ -4121,8 +4163,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 ValidateFrozenAgent(supervisorDefinition, "supervisor");
                 var supervisorInstance = await EnsureSupervisorAgentAsync(run, configuration, checkpoint, supervisorDefinition, cancellationToken).ConfigureAwait(false);
                 checkpoint.SupervisorAgentId = supervisorInstance.Id;
-                var context = await BuildContextAsync(run, configuration, supervisorDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-                var assembly = await AssemblePromptAsync(configuration, supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
+                var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), supervisorDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+                var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
                 var supervisor = new SupervisionAgent(CreateModelFactory(configuration, checkpoint, supervisorDefinition,
                     supervisorInstance.Id, supervisorInstance.ParentInstanceId), _logger);
                 verdict = await supervisor.ReviewAsync(checkpoint.UserGoal, plans, results, checkpoint.SupervisionRound, assembly.Instructions, cancellationToken).ConfigureAwait(false);
@@ -4445,8 +4487,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         checkpoint.PlannerAgentId = author.Id;
         var plannerDefinition = RequiredConversationAgent(configuration);
 
-        var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
-        var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         var instructions = SupervisionReplanInstructions(checkpoint, assembly.Instructions, verdict, reviseIndexes);
         // Revise indexes address the pre-replan list, which the merge below
         // replaces: capture the flagged keys now so they can be forced back to
@@ -4589,7 +4631,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         CancellationToken cancellationToken)
     {
         var meetingDefinition = RequiredConversationAgent(configuration);
-        var context = await BuildContextAsync(run, configuration, meetingDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable)
@@ -4598,7 +4640,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 RunErrorTaxonomy.ModelUnavailable,
                 resolution.Error ?? "Chat route is unavailable.");
         }
-        var assembly = await AssemblePromptAsync(configuration, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), meetingDefinition, context, cancellationToken).ConfigureAwait(false);
 
         var targetSummary = "No active target run.";
         if (checkpoint.TargetRunId is { } targetRunId)
@@ -4785,7 +4827,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             }
             await PersistRunEvidenceAsync(runId, run, checkpoint, cancellationToken).ConfigureAwait(false);
             var meetingDefinition = RequiredConversationAgent(configuration);
-            var context = await BuildContextAsync(run, configuration, meetingDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+            var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
             try
             {
                 checkpoint.MeetingResponse = await GenerateMeetingResponseAsync(configuration, checkpoint, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
@@ -5295,7 +5337,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null, streamAnswer: true);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(configuration, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), meetingDefinition, context, cancellationToken).ConfigureAwait(false);
         var escalation = checkpoint.SupervisionDecision == "escalate"
             ? "\n\nIMPORTANT: supervision escalated this run. Explain the unresolved decision clearly and ask the user for direction."
             : string.Empty;
@@ -5762,7 +5804,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             return;
         }
 
-        var context = await BuildContextAsync(run, configuration, match.Agent.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         if (context.EstimatedTokens < configuration.Triggers.ContextTokenThreshold)
         {
             await AppendEventAsync(runId, "context.compaction.skipped", "Compression skipped: context is below the token threshold.", new
@@ -5780,7 +5822,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), match.Agent, context, cancellationToken).ConfigureAwait(false);
         var evidence = string.Join("\n", context.Evidence.Select(item => $"[{item.Source}] {item.Content}"));
         var instructions = assembly.Instructions
             + "\n\nYou are the context compression agent. Compress the session context into a structured summary with these sections: 当前目标 / 关键约束 / 已完成事项 / 待处理事项 / 重要结论 / 风险点. Preserve the current goal and constraints exactly, keep approval conclusions, and never invent new facts.";
@@ -5843,11 +5885,11 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         CancellationToken cancellationToken)
     {
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, configuration, match.Agent.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), match.Agent, context, cancellationToken).ConfigureAwait(false);
         var taskSummary = checkpoint.Tasks.Count == 0
             ? "(no task graph yet)"
             : string.Join("\n", checkpoint.Tasks.Select(item =>
@@ -5954,11 +5996,11 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         }
 
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, configuration, match.Agent.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), match.Agent, context, cancellationToken).ConfigureAwait(false);
         var evidence = string.Join("\n", checkpoint.Tasks.Select(item =>
             $"- [{item.ResultStatus ?? item.Status}] {item.ResultSummary}"));
         var instructions = assembly.Instructions
@@ -6093,11 +6135,11 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         if (!touchedGit) return;
 
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, configuration, match.Agent.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
-        var assembly = await AssemblePromptAsync(configuration, match.Agent, context, cancellationToken).ConfigureAwait(false);
+        var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), match.Agent, context, cancellationToken).ConfigureAwait(false);
         var gitTasks = checkpoint.Tasks
             .Where(task => task.RequiredTools.Any(tool => tool.StartsWith("git_", StringComparison.OrdinalIgnoreCase))
                 || task.ToolTurns.Any(turn => turn.ToolId.StartsWith("git_", StringComparison.OrdinalIgnoreCase)))
@@ -7004,6 +7046,10 @@ internal sealed class FullDuplexCheckpointV1
     /// </summary>
     public bool GraphTierAnnounced { get; set; }
 
+    public bool SpacePreparationComplete { get; set; }
+    public string? SpaceWorktreePath { get; set; }
+    public List<SpaceSpecDocument> SpaceSpecDocuments { get; set; } = [];
+
     /// <summary>
     /// Set when a graph-tier (lane-less) approval expiry parks the run on the
     /// user-review escalation. Unlike a supervision escalation, a stray wake must
@@ -7021,6 +7067,7 @@ internal sealed record RecommendedCapability(string Skill, string Reason, string
 
 internal sealed class DurableTaskNode
 {
+    public bool IsSpacePreparation { get; set; }
     public Guid TaskId { get; init; }
     public string TaskKey { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;

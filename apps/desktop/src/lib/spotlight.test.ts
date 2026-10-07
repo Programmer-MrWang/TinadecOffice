@@ -128,6 +128,7 @@ describe('searchSpotlight', () => {
         id: 's-1',
         project_id: null,
         title: 'pilot launcher seams',
+        permission_mode: 'default', space_options: null, settings_revision: 0,
         status: 'idle',
         created_at: '2026-09-01T00:00:00Z',
         updated_at: '2026-09-10T00:00:00Z',
@@ -246,9 +247,11 @@ describe('searchSpotlight', () => {
 
   it('loads sessions across projects and leaves every matching row available for UI expansion', async () => {
     const cached: SessionDto = {
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       id: 'current', project_id: 'p1', title: 'Current project', status: 'idle', created_at: '', updated_at: '',
     }
     const otherSessions = Array.from({ length: 12 }, (_, index): SessionDto => ({
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       id: `other-${index}`, project_id: 'p2', title: `Other project crossproject42 ${index}`, status: 'idle',
       created_at: '', updated_at: '',
     }))
@@ -279,7 +282,7 @@ describe('searchSpotlight', () => {
 
   it('labels cached conversations as degraded when the all-project session query fails', async () => {
     vi.mocked(api.listSessions).mockRejectedValue(new Error('Sessions unavailable'))
-    const host = hostWith({ sessions: [{ id: 's1', project_id: 'p1', title: 'pilot', status: 'idle', created_at: '', updated_at: '' }] })
+    const host = hostWith({ sessions: [{ id: 's1', project_id: 'p1', title: 'pilot', status: 'idle', created_at: '', updated_at: '', permission_mode: 'default', space_options: null, settings_revision: 0 }] })
     const group = (await searchSpotlight('pilot', host, t, [])).find((row) => row.kind === 'conversation')
     expect(group?.error).toBe('Sessions unavailable')
     expect(group?.items[0]?.id).toBe('conversation.s1')

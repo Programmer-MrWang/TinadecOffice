@@ -82,6 +82,37 @@ internal sealed class FormalModeResolver : IFormalModeResolver
         CancellationToken ct = default) =>
         ResolveRosterAsync(sessionId, modeVersionId, ct);
 
+    public async Task<FormalModeRoster?> ResolveSpaceBaseAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    {
+        var session = await _sessions.FindAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        if (session is null) return null;
+        await using var cfg = await _cfgFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var candidates = await (from mode in cfg.AgentModes.AsNoTracking()
+                                join version in cfg.ModeVersions.AsNoTracking() on mode.Id equals version.AgentModeId
+                                where mode.TenantId == session.TenantId && mode.WorkspaceId == session.WorkspaceId
+                                    && mode.ArchivedAt == null && version.Status == "published"
+                                select new { version.Id, version.Version, mode.Slug, ModeId = mode.Id })
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        // Prefer the user's existing suitable baseline. Otherwise the stable built-in
+        // slug is only a tie-breaker: every candidate must prove the same capability
+        // shape. A translated display name is never a configuration identity.
+        foreach (var candidate in candidates.GroupBy(item => item.ModeId)
+                     .Select(group => group.OrderByDescending(item => item.Version).First())
+                     .OrderByDescending(item => item.Id == session.ModeVersionId)
+                     .ThenByDescending(item => item.Slug == "solo").ThenBy(item => item.Slug, StringComparer.Ordinal))
+        {
+            if (await (from managed in cfg.AgentPackManagedResources.AsNoTracking()
+                       join installation in cfg.AgentPackInstallations.AsNoTracking() on managed.InstallationId equals installation.Id
+                       where managed.LogicalEntityId == candidate.ModeId && installation.Status != "active"
+                       select managed.Id).AnyAsync(cancellationToken).ConfigureAwait(false)) continue;
+            var roster = await ResolveRosterForModeAsync(sessionId, candidate.Id, cancellationToken).ConfigureAwait(false);
+            var root = roster?.Operation.FirstOrDefault(item => item.Id == roster.ConversationTemplateSlug);
+            if (roster is { HasDeclaredEdges: false } && root is { AllowedTools.Count: > 0 }
+                && root.ResourceGrants.Any(grant => grant.Level == "write")) return roster;
+        }
+        return null;
+    }
+
     private async Task<FormalModeRoster?> ResolveRosterAsync(
         Guid sessionId,
         Guid? modeVersionIdOverride,

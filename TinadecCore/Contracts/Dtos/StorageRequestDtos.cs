@@ -19,6 +19,8 @@ public sealed class CreateSessionRequest
     public string? Title { get; set; }
     public Guid? ModeVersionId { get; set; }
     public MeetingModelOverrideDto? MeetingModelOverride { get; set; }
+    public string? PermissionMode { get; set; }
+    public SpaceRunOptionsDto? SpaceOptions { get; set; }
     // ConversationIdentity (additive, optional): the mode node carrying the
     // conversation role. Omitted → resolved from the selected mode's designated
     // conversation node; provided → must satisfy the resolution tiers or the
@@ -31,8 +33,23 @@ public sealed class UpdateSessionRequest
 {
     public string? Title { get; set; }
     public Guid? ModeVersionId { get; set; }
+    public bool ClearModeVersion { get; set; }
     public MeetingModelOverrideDto? MeetingModelOverride { get; set; }
+    public bool ClearMeetingModelOverride { get; set; }
+    public string? PermissionMode { get; set; }
+    public SpaceRunOptionsDto? SpaceOptions { get; set; }
+    public long? ExpectedSettingsRevision { get; set; }
 }
+
+/// <summary>Whole replacement of the current spatial session's choices for future tasks.</summary>
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+public sealed record SpaceRunOptionsDto(
+    bool PlanFirst = false,
+    bool SpecEnabled = false,
+    bool MultiAgent = false,
+    Guid? WorkflowModeVersionId = null,
+    bool BulletinBoard = false,
+    bool Worktree = false);
 
 public sealed class MigrateSessionRequest
 {

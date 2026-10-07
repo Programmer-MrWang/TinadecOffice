@@ -61,7 +61,7 @@ const commandHost: CommandHost = {
   setDraft: (value) => homeController.updateDraft(value),
   send: (text, dispatch) => {
     homeController.updateDraft(text)
-    void homeController.sendMessage({ dispatch_mode: dispatch, target_run_id: null, mode_version_id: null, meeting_model_override: null })
+    void homeController.sendMessage({ dispatch_mode: dispatch, target_run_id: null })
   },
   stopRun: () => { void homeController.stopRun() },
   newSession: () => { void homeController.createSession(homeController.selectedProjectId.value ?? null) },

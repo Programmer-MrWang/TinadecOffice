@@ -23,7 +23,8 @@ public sealed record AgentModelFreezeRequest(
     // therefore receives the session/turn model override. Keyed on the frozen
     // conversation identity; the literal "meeting" slug is only the legacy fallback.
     bool IsConversationRoot,
-    SessionModelOverride? MeetingModelOverride = null);
+    SessionModelOverride? MeetingModelOverride = null,
+    bool UseSessionModelOverride = true);
 
 public sealed record FrozenModelCandidate(
     int Position,

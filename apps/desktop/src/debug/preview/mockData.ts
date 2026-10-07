@@ -267,6 +267,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
   const allSessions: SessionDto[] = [
     {
       id: 'sess-tinadec-1001',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-tinadec-001',
       title: '重构编排引擎的任务图构建逻辑',
       status: 'active',
@@ -275,6 +276,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-tinadec-1002',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-tinadec-001',
       title: '修复 Monaco Diff 编辑器内存泄漏',
       status: 'active',
@@ -283,6 +285,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-tinadec-1003',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-tinadec-001',
       title: '为 Debug Studio 添加预览画廊',
       status: 'idle',
@@ -291,6 +294,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-webapp-2001',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-webapp-002',
       title: '实现用户登录与权限校验',
       status: 'active',
@@ -299,6 +303,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-webapp-2002',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-webapp-002',
       title: '优化首屏加载性能',
       status: 'idle',
@@ -307,6 +312,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-apiserver-3001',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-apiserver-003',
       title: '设计 REST API 限流中间件',
       status: 'active',
@@ -315,6 +321,7 @@ export function mockSessions(projectId?: string): SessionDto[] {
     },
     {
       id: 'sess-apiserver-3002',
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       project_id: 'proj-apiserver-003',
       title: '数据库迁移脚本编写',
       status: 'completed',

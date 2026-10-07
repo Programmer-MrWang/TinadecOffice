@@ -28,3 +28,5 @@
 ## 2026-10-07 目标工作簇专项
 
 第一阶段实现已接手：Desktop969/14 skipped、UIE156、类型/构建和三宽度Electron夹具验证；完整空间模式仍部分实现，真实模型/平台与工具归属证据后续验收。[范围与证据](../../../../../.tinadec_dev/reports/2026-10-07-space-clusters-handoff.zh-CN.md)。
+
+2026-10-07布局与路由计算专项：UIE187/187、Desktop974/14 skipped、类型检查及离线示例通过；既有Electron渲染器无响应，本轮不宣称实际拖动视觉验收。[证据](../../../../../.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md)。

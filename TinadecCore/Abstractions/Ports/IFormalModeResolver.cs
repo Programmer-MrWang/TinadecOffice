@@ -5,6 +5,10 @@ namespace TinadecCore.Abstractions.Ports;
 
 public interface IFormalModeResolver
 {
+    /// <summary>A published, directly executable baseline for a spatial composition.</summary>
+    Task<FormalModeRoster?> ResolveSpaceBaseAsync(Guid sessionId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<FormalModeRoster?>(null);
+
     /// <summary>
     /// Returns the union of effective tools (agent ∩ mode) for the session's mode_version, or null if no formal mode.
     /// Contains "*" if wildcard, empty set if no effective tools (publish warned EMPTY_EFFECTIVE_TOOLS).

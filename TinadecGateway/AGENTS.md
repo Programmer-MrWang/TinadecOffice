@@ -1,9 +1,13 @@
 # GATEWAY KNOWLEDGE
 
-**Last Updated:** 2026-10-06
-**Last Updated By:** 平面/空间会话类型隔离与会话内单行发送框。
-**Last Verified Commit:** 基线 acb3bd3 + 工作树；会话类型隔离/单行输入专项：Core定向14/14、Gateway78/78、Desktop全量924 passed/14 skipped及后补定向70/70，类型/构建通过；真实Electron列表筛选/单行输入通过。未跑PostgreSQL、Core全量或真实模型新会话链。
+**Last Updated:** 2026-10-08
+**Last Updated By:** 会话命令设置、空间选项与修订冲突薄代理。
+**Last Verified Commit:** 66d103e + 工作树；Gateway全量80/80及公开OpenAPI快照通过；其余产品层验收见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md。
 **Branch:** main
+
+## 2026-10-08 输入框设置契约
+
+Session投影含permission_mode、space_options、settings_revision；Create/PATCH/Interactions透传空间选项、明确恢复默认和expected_settings_revision，不存设置也不计算组合。PATCH与列表共用会话映射；外部OpenAPI显式记录请求字段，Desktop生成类型随改动重生成。Core负责创建和配置验证，Gateway不以不完整的body schema裁掉新字段。新增session/space/spec拒绝码进入白名单，避免降级成无意义conflict。实施报告：[命令面板](../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md)。
 
 ## 2026-10-06 会话类型传输
 

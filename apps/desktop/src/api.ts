@@ -41,10 +41,31 @@ export interface SessionDto {
   status: string;
   mode_version_id?: string | null;
   meeting_model_override?: MeetingModelOverrideDto | null;
+  permission_mode: string;
+  space_options: SpaceOptionsDto | null;
+  settings_revision: number;
   created_at: string;
   updated_at: string;
   lifecycle_status?: 'active' | 'archived' | 'trashed';
   trashed_at?: string | null;
+}
+
+/** Persisted by Core and captured with each submitted task, including queued tasks. */
+export type SpaceOptionsDto = components['schemas']['SpaceOptions'];
+
+export interface SessionSettingsUpdate {
+  expected_settings_revision?: number;
+  mode_version_id?: string | null;
+  permission_mode?: string;
+  meeting_model_override?: MeetingModelOverrideDto | null;
+  clear_meeting_model_override?: boolean;
+  clear_mode_version?: boolean;
+  space_options?: SpaceOptionsDto | null;
+}
+
+export interface ComposerSubmitOptions extends SessionSettingsUpdate {
+  dispatch_mode?: DispatchMode;
+  target_run_id?: string | null;
 }
 
 /** Hand-written: the revert endpoint returns a bare object, so no generated type exists. */
@@ -2849,9 +2870,9 @@ export const api = {
   }),
   listSessions: (projectId?: string, signal?: AbortSignal) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, cache: 'no-store' }),
   // mode_version_id decides which agent holds the conversation. Omitted = the workspace default.
-  createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null, viewMode: 'flat' | 'space' = 'flat') => request<SessionDto>('/api/v1/sessions', {
+  createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null, viewMode: 'flat' | 'space' = 'flat', settings?: SessionSettingsUpdate) => request<SessionDto>('/api/v1/sessions', {
     method: 'POST',
-    body: JSON.stringify({ project_id: projectId ?? undefined, title, mode_version_id: modeVersionId ?? undefined, ...(viewMode === 'space' ? { view_mode: viewMode } : {}) })
+    body: JSON.stringify({ project_id: projectId ?? undefined, title, mode_version_id: modeVersionId ?? undefined, ...(viewMode === 'space' ? { view_mode: viewMode } : {}), ...settings })
   }).then(session => {
     if (viewMode === 'space' && session.view_mode !== 'space') throw new Error('无法创建空间会话：服务尚未支持独立会话类型，请更新服务后重试。')
     return session
@@ -2863,6 +2884,9 @@ export const api = {
   updateSessionTitle: (sessionId: string, title: string) => request<SessionDto>(`/api/v1/sessions/${sessionId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title })
+  }),
+  updateSessionSettings: (sessionId: string, settings: SessionSettingsUpdate) => request<SessionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}`, {
+    method: 'PATCH', body: JSON.stringify(settings),
   }),
   listMessages: (sessionId: string, signal?: AbortSignal) => request<MessageDto[]>(`/api/v1/sessions/${sessionId}/messages`, { signal, cache: 'no-store' }),
   postMessage: (sessionId: string, content: string) => request<MessageDto>(`/api/v1/sessions/${sessionId}/messages`, {
@@ -3197,7 +3221,7 @@ export const api = {
     return request<AgentRuntimeInstanceDto[]>(`/api/v1/agent-runtime-instances${qs}`);
   },
   // interactions (queued/insert/parallel)
-  createInteraction: (sessionId: string, body: { content: string; client_message_id: string; mode_version_id?: string | null; permission_mode?: string | null; dispatch_mode: DispatchMode; target_run_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; attachment_ids?: string[]; interrupt?: boolean }) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions`, { method: 'POST', body: JSON.stringify(body) }),
+  createInteraction: (sessionId: string, body: { content: string; client_message_id: string; mode_version_id?: string | null; permission_mode?: string | null; dispatch_mode: DispatchMode; target_run_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; clear_meeting_model_override?: boolean; expected_settings_revision?: number; space_options?: SpaceOptionsDto | null; attachment_ids?: string[]; interrupt?: boolean }) => request<SessionInteractionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions`, { method: 'POST', body: JSON.stringify(body) }),
   reassignInteraction: (sessionId: string, interactionId: string, body: { target_run_id: string }) => request<InteractionActionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions/${encodeURIComponent(interactionId)}/reassign`, { method: 'POST', body: JSON.stringify(body) }),
   cancelInteraction: (sessionId: string, interactionId: string) => request<InteractionActionDto>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions/${encodeURIComponent(interactionId)}/cancel`, { method: 'POST' }),
   // --- Attachments ---

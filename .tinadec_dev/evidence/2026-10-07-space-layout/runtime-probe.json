@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-07",
+  "http5173": 200,
+  "cdpBrowser": "responsive",
+  "mainPage": "?splash=0#/",
+  "rendererCommands": "Runtime.enable, Log.enable, Debugger.enable, Runtime.evaluate, Page.getFrameTree timed out",
+  "devToolsRenderer": "Runtime.evaluate timed out",
+  "conclusion": "No successful Electron visual verification; no proven layout root cause"
+}

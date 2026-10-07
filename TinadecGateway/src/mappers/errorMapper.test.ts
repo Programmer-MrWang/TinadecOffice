@@ -17,6 +17,12 @@ test('framework-authored core rejections keep their own code through the gateway
   const cases: Array<[number, string]> = [
     [400, 'invalid_request'],
     [400, 'invalid_model_parameters'],
+    [400, 'invalid_space_options'],
+    [400, 'invalid_session_settings'],
+    [409, 'session_settings_conflict'],
+    [409, 'space_options_frozen'],
+    [409, 'space_options_conflict'],
+    [409, 'spec_confirmation_scope'],
     // The paged audit reads (/api/v1/model-invocations) reject a malformed filter with these two,
     // and "you passed the wrong thing" must not arrive as a retryable `conflict`.
     [400, 'invalid_query'],

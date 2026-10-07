@@ -1,3 +1,5 @@
+import { layoutSpatialGroup, nearestSpatialSlot, SPACE_LAYOUT, type LayoutPoint, type SpatialPlacement } from './spatialLayout'
+
 /** Session canvas geometry. Business objects remain owned by the runtime. */
 export interface SpatialItem {
   id: string
@@ -17,6 +19,7 @@ export interface SpatialLayout {
   viewport: { x: number; y: number; zoom: number }
 }
 export type SpatialSeed = Pick<SpatialItem, 'id' | 'groupId'> & {
+  groupOrder?: number
   measuredHeight?: number
   role?: 'anchor' | 'task' | 'result' | 'activity' | 'shared'
   dependencyIds?: string[]
@@ -48,72 +51,26 @@ export function repairSpace(raw: unknown): SpatialLayout | undefined {
   return result
 }
 
-/** Stable dependency layers; unresolved nodes stay together, not claimed to all be cyclic. */
-function seedRows(seeds: SpatialSeed[]): SpatialSeed[][] {
-  const sorted = [...seeds].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
-  if (!sorted.some(seed => seed.role)) return sorted.map(seed => [seed])
-  const rows: SpatialSeed[][] = []
-  const append = (layer: SpatialSeed[]) => {
-    for (let i = 0; i < layer.length; i += 3) rows.push(layer.slice(i, i + 3))
-  }
-  append(sorted.filter(seed => seed.role === 'anchor'))
-  let pending = sorted.filter(seed => seed.role === 'task')
-  const placed = new Set<string>()
-  while (pending.length) {
-    const ready = pending.filter(seed => !seed.dependencyUnverified && (seed.dependencyIds ?? []).every(id => placed.has(id)))
-    if (!ready.length) { append(pending); break }
-    append(ready)
-    for (const seed of ready) placed.add(seed.id)
-    pending = pending.filter(seed => !placed.has(seed.id))
-  }
-  append(sorted.filter(seed => seed.role === 'result'))
-  append(sorted.filter(seed => seed.role === 'activity' || !seed.role))
-  append(sorted.filter(seed => seed.role === 'shared'))
-  return rows
+const middle = (values: number[], fallback: number) => {
+  if (!values.length) return fallback
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)]
 }
 
-function groupOrigin(group: SpatialItem[], occupied: SpatialItem[]) {
-  return group.length
-    ? { x: Math.min(...group.map(item => item.x)), y: Math.min(...group.map(item => item.y)) }
-    : { x: 0, y: Math.max(0, ...occupied.map(item => item.y + item.height + 80)) }
+function activeSeeds(items: Record<string, SpatialItem>, seeds: SpatialSeed[]) {
+  return [...new Map(seeds.filter(s => validId(s.id) && validId(s.groupId) && items[s.id]).map(s => [s.id, s])).values()]
 }
 
-/** Include retained geometry without inventing its missing role/dependencies. */
-function groupSeeds(items: SpatialItem[], seeds: SpatialSeed[], groupId: string): SpatialSeed[] {
-  const hints = new Map(seeds.filter(seed => seed.groupId === groupId).map(seed => [seed.id, seed]))
-  return items.filter(item => item.groupId === groupId).map(item => hints.get(item.id) ?? { id: item.id, groupId })
-}
-
-/** Shared initial/explicit layout. Fixed rectangles include inactive and other-group cards. */
-function placeGroup(items: Record<string, SpatialItem>, seeds: SpatialSeed[], fixed: SpatialItem[], origin: { x: number; y: number }): SpatialItem[] {
-  const fixedIds = new Set(fixed.map(item => item.id))
-  const occupied = [...fixed]
-  const placed: SpatialItem[] = []
-  let y = origin.y
-  // ponytail: bounded canvas-sized scans; use a spatial index only if measured large layouts need it.
-  for (const row of seedRows(seeds)) {
-    const peers = row.filter(seed => fixedIds.has(seed.id)).map(seed => items[seed.id])
-    let x = peers.length ? Math.max(origin.x, ...peers.map(item => item.x + item.width + 32)) : origin.x
-    if (peers.length) y = Math.max(y, Math.min(...peers.map(item => item.y)))
-    const additions = row.filter(seed => !fixedIds.has(seed.id)).map(seed => {
-      const item = { ...items[seed.id], x, y }
-      x += item.width + 32
-      return item
-    })
-    // Shift the whole row together so collision avoidance cannot mix dependency layers.
-    while (additions.length) {
-      const overlaps = occupied.filter(other => additions.some(item =>
-        item.x < other.x + other.width + 32 && item.x + item.width + 32 > other.x &&
-        item.y < other.y + other.height + 40 && item.y + item.height + 40 > other.y))
-      if (!overlaps.length) break
-      y = Math.max(...overlaps.map(item => item.y + item.height + 40))
-      for (const item of additions) item.y = y
-    }
-    placed.push(...additions)
-    occupied.push(...additions)
-    y = Math.max(y, ...[...peers, ...additions].map(item => item.y + item.height + 40))
+/** Anchor placement keeps a distant manually moved peer from pulling a whole group away. */
+function groupOrigin(group: SpatialSeed[], items: Record<string, SpatialItem>, plan: SpatialPlacement): LayoutPoint {
+  const anchor = group.find(s => s.role === 'anchor' && items[s.id])
+  if (anchor) return { x: items[anchor.id].x - plan.positions[anchor.id].x, y: items[anchor.id].y - plan.positions[anchor.id].y }
+  const candidates = group.filter(s => items[s.id] && !items[s.id].manualPosition)
+  const placed = candidates.length ? candidates : group.filter(s => items[s.id])
+  return {
+    x: middle(placed.map(s => items[s.id].x - plan.positions[s.id].x), 0),
+    y: middle(placed.map(s => items[s.id].y - plan.positions[s.id].y), 0),
   }
-  return placed
 }
 
 /** Only new IDs are placed. Measurements may change height, never existing coordinates. */
@@ -136,15 +93,50 @@ export function syncSpace(space: SpatialLayout, seeds: SpatialSeed[]): SpatialLa
       changed = true
     }
   }
-  const occupied = Object.values(items).filter(item => !added.has(item.id))
-  const existingGroups = new Set(occupied.map(item => item.groupId))
-  const groups = [...new Set(active.filter(seed => added.has(seed.id)).map(seed => seed.groupId))].sort()
-  for (const groupId of [...groups.filter(id => existingGroups.has(id)), ...groups.filter(id => !existingGroups.has(id))]) {
-    const group = occupied.filter(item => item.groupId === groupId)
-    const automatic = group.filter(item => !item.manualPosition)
-    const placed = placeGroup(items, groupSeeds(Object.values(items), active, groupId), occupied, groupOrigin(automatic.length ? automatic : group, occupied))
-    for (const item of placed) items[item.id] = item
-    occupied.push(...placed)
+  // Retain inactive IDs for restore, but they cannot inflate current layout bounds.
+  const occupied = active.filter(s => !added.has(s.id)).map(s => items[s.id])
+  const groups = [...new Set(active.filter(s => added.has(s.id)).map(s => s.groupId))].sort((a, b) =>
+    Math.min(...active.filter(s => s.groupId === a).map(s => s.groupOrder ?? 1)) - Math.min(...active.filter(s => s.groupId === b).map(s => s.groupOrder ?? 1)) || a.localeCompare(b))
+  for (const groupId of groups) {
+    const group = active.filter(s => s.groupId === groupId)
+    const plan = layoutSpatialGroup(items, group)
+    const existing = group.filter(s => !added.has(s.id))
+    if (!existing.length) {
+      const automatic = occupied.filter(i => !i.manualPosition)
+      const desired = { x: 0, y: Math.max(0, ...automatic.map(i => i.y + i.height + SPACE_LAYOUT.groupGap)) }
+      const bounds: SpatialItem = { id: groupId, groupId, ...desired, width: plan.width, height: plan.height }
+      const origin = nearestSpatialSlot(bounds, occupied, desired)
+      for (const seed of group) {
+        const point = plan.positions[seed.id]
+        items[seed.id] = { ...items[seed.id], x: origin.x + point.x, y: origin.y + point.y }
+        occupied.push(items[seed.id])
+      }
+      continue
+    }
+    const origin = groupOrigin(existing, items, plan)
+    const newcomers = group.filter(s => added.has(s.id)).sort((a, b) => plan.ranks[a.id] - plan.ranks[b.id] || a.id.localeCompare(b.id))
+    for (const seed of newcomers) {
+      const item = items[seed.id], ideal = plan.positions[seed.id]
+      const placed = new Set(occupied.map(i => i.id))
+      const peers = group.filter(s => placed.has(s.id) && !items[s.id].manualPosition && plan.ranks[s.id] === plan.ranks[seed.id]).map(s => items[s.id])
+      const parents = (seed.dependencyIds ?? []).filter(id => placed.has(id) && items[id].groupId === groupId).map(id => items[id])
+      const children = group.filter(s => placed.has(s.id) && s.dependencyIds?.includes(seed.id)).map(s => items[s.id])
+      const neighbors = [...parents, ...children].filter(i => !i.manualPosition)
+      const desired = {
+        x: middle(neighbors.map(i => i.x + i.width / 2 - item.width / 2), middle(peers.map(i => i.x), origin.x + ideal.x)),
+        y: middle(peers.map(i => i.y), origin.y + ideal.y),
+      }
+      const minY = Math.max(-Infinity, ...parents.map(i => i.y + i.height + SPACE_LAYOUT.rankGap))
+      const maxY = Math.min(Infinity, ...children.map(i => i.y - item.height - SPACE_LAYOUT.rankGap))
+      // If old positions leave no legal rank interval, preserve them; route as a
+      // side/feedback connection until the user explicitly arranges this goal.
+      const peerRow = peers.length && desired.y >= minY && desired.y <= maxY
+      const point = peerRow ? nearestSpatialSlot(item, occupied, desired, desired.y, desired.y)
+        : minY <= maxY ? nearestSpatialSlot(item, occupied, desired, minY, maxY)
+        : nearestSpatialSlot(item, occupied, desired)
+      items[seed.id] = { ...item, ...point }
+      occupied.push(items[seed.id])
+    }
   }
   return changed ? { ...space, items } : space
 }
@@ -152,12 +144,15 @@ export function syncSpace(space: SpatialLayout, seeds: SpatialSeed[]): SpatialLa
 /** A single spaceMove applies/undoes these positions, including manually placed group members. */
 export function arrangeSpace(space: SpatialLayout, seeds: SpatialSeed[], groupId: string): SpatialChange[] {
   if (!validId(groupId)) return []
-  const items = Object.values(space.items)
-  const group = items.filter(item => item.groupId === groupId)
+  const active = activeSeeds(space.items, seeds)
+  const group = active.filter(s => s.groupId === groupId)
   if (!group.length) return []
-  const fixed = items.filter(item => item.groupId !== groupId)
-  return placeGroup(space.items, groupSeeds(items, seeds, groupId), fixed, groupOrigin(group, fixed))
-    .map(({ id, x, y }) => ({ id, x, y }))
+  const plan = layoutSpatialGroup(space.items, group)
+  const fixed = active.filter(s => s.groupId !== groupId).map(s => space.items[s.id])
+  const desired = groupOrigin(group, space.items, plan)
+  const bounds: SpatialItem = { id: groupId, groupId, ...desired, width: plan.width, height: plan.height }
+  const origin = nearestSpatialSlot(bounds, fixed, desired)
+  return group.map(({ id }) => ({ id, x: origin.x + plan.positions[id].x, y: origin.y + plan.positions[id].y }))
 }
 
 export function moveSpace(space: SpatialLayout, changes: SpatialChange[]): SpatialLayout {

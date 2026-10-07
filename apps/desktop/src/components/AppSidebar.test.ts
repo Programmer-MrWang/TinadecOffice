@@ -20,6 +20,7 @@ vi.mock('@/composables/useNotifications', () => ({
 
 const project: ProjectDto = { id: 'p-1', name: 'Demo project', path: 'C:/demo', created_at: '2026-08-27T00:00:00Z' }
 const session: SessionDto = {
+  permission_mode: 'default', space_options: null, settings_revision: 0,
   id: 's-1',
   project_id: 'p-1',
   title: 'Demo session',
@@ -149,6 +150,7 @@ describe('AppSidebar lifecycle management', () => {
     // generates one; hiding that title made every fresh free conversation
     // invisible in the sidebar.
     const fresh: SessionDto = {
+      permission_mode: 'default', space_options: null, settings_revision: 0,
       id: 's-free',
       project_id: null,
       title: 'Tinadec session',

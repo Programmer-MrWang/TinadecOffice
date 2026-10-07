@@ -310,6 +310,8 @@ public sealed record WorkerModelTurn(
 /// </summary>
 public sealed class WorkerToolTurn
 {
+    /// <summary>Only the engine's setup path sets this; model-provided call ids are never authority.</summary>
+    public bool IsSpaceWorktreeProvisioning { get; set; }
     public string CallId { get; set; } = string.Empty;
     public string ToolId { get; set; } = string.Empty;
     public string ArgumentsJson { get; set; } = "{}";

@@ -36,7 +36,7 @@ import {
   agentPackOpenApiSchemas,
   agentPackProblemResponse,
 } from './agentPackOpenApi.js';
-import { externalDtoSchemas, externalJsonResponse } from './externalDtoOpenApi.js';
+import { externalDtoSchemas, externalJsonRequest, externalJsonResponse } from './externalDtoOpenApi.js';
 import { registerTinaChatRoutes, tinaChatSchemas } from './tinaChatRoutes.js';
 import { registerOrganizationRoutes, organizationSchemas } from './organizationRoutes.js';
 
@@ -547,18 +547,16 @@ const app = new Elysia()
     const mapped = mapSessions([result.data]);
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return mapped[0] ?? result.data;
-  // project_id is optional by contract: omitting it creates a free-conversation
-  // (projectless) session. Requiring it here rejected the request at the gateway
-  // before Core ever saw it.
-  }, { detail: { summary: 'Create session', tags: ['Sessions'], responses: { 201: externalJsonResponse('Session', 'Created session.') } }, body: t.Object({ project_id: t.Optional(t.String()), title: t.Optional(t.String()) }, { additionalProperties: true }) })
+  // Core owns validation, including projectless sessions and spatial composition.
+  }, { detail: { summary: 'Create session', tags: ['Sessions'], requestBody: externalJsonRequest('CreateSessionRequest'), responses: { 201: externalJsonResponse('Session', 'Created session.') } } })
   .patch('/api/v1/sessions/:sessionId', async ({ params, body, set, request }) => {
     const headers = forwardHeaders(request);
     const result = await proxyJson(`/api/v1/sessions/${params.sessionId}`, { method: 'PATCH', body: body as Record<string, unknown>, headers });
     setStatus(set, result.status);
     if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, `/api/v1/sessions/${params.sessionId}`); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
-    return result.data;
-  }, { detail: { summary: 'Update session title', tags: ['Sessions'] } })
+    return mapSessions([result.data])[0] ?? result.data;
+  }, { detail: { summary: 'Update session title and run preferences', tags: ['Sessions'], requestBody: externalJsonRequest('UpdateSessionRequest'), responses: { 200: externalJsonResponse('Session', 'Updated session and settings revision.') } } })
   .post('/api/v1/sessions/:sessionId/archive', async ({ params, set, request }) => {
     const headers = forwardHeaders(request);
     const path = `/api/v1/sessions/${encodeURIComponent(params.sessionId)}/archive`;
@@ -2007,7 +2005,7 @@ const app = new Elysia()
     if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, `/api/v1/sessions/${params.sessionId}/interactions`); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return result.data;
-  }, { detail: { summary: 'Create session interaction', tags: ['Interactions'] } })
+  }, { detail: { summary: 'Create session interaction', tags: ['Interactions'], requestBody: externalJsonRequest('SessionInteractionRequest') } })
   .post('/api/v1/sessions/:sessionId/interactions/:interactionId/reassign', async ({ params, body, set, request }) => {
     const headers = forwardHeaders(request);
     const result = await proxyJson(`/api/v1/sessions/${params.sessionId}/interactions/${params.interactionId}/reassign`, { method: 'POST', body: body as Record<string, unknown> ?? {}, headers });

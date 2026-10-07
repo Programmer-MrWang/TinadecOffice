@@ -1,0 +1,28 @@
+{
+  "artifactOnly": true,
+  "geometry": {
+    "panelAboveComposer": true,
+    "panelWithinViewport": true,
+    "panel": {
+      "x": 270,
+      "y": 214.5,
+      "width": 620,
+      "height": 496,
+      "top": 214.5,
+      "right": 890,
+      "bottom": 710.5,
+      "left": 270
+    },
+    "input": {
+      "x": 270,
+      "y": 720.5,
+      "width": 620,
+      "height": 84.5,
+      "top": 720.5,
+      "right": 890,
+      "bottom": 805,
+      "left": 270
+    }
+  },
+  "consoleErrors": []
+}

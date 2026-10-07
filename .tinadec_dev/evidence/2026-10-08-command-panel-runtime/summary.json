@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-08",
+  "git_head_at_verification": "5520821d03e4323913fba2c961fd4e4688ed025e",
+  "source_state": "HEAD plus the shared working tree; this agent did not create a commit",
+  "status": "passed",
+  "checks": [
+    {
+      "name": "Core runtime API integration",
+      "trx": "runtime-api-final.trx",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "covers": [
+        "Plan-first allows reads, refuses an early write, and executes the write after a persisted visible plan",
+        "Spec requires three human document decisions in full-access and delegated-approval modes",
+        "Spec approval exposes the complete document and refuses run-wide approval scope",
+        "Spec works without a project and composes with a published workflow",
+        "Workflow planner input contains all three confirmed specification bodies and their confirmed-state instruction",
+        "Workflow without multi-agent collaboration is rejected before any model call",
+        "A captured null conversation-model override does not read a later session override",
+        "Independent worktree setup precedes model work, routes tools to the assigned root, and preserves the directory",
+        "Worktree setup failure performs no task tool call in the original checkout",
+        "Worktree composes with a workflow and the planner receives its actual execution root",
+        "Loss of a real worktree assignment causes the scope resolver to refuse original-root fallback",
+        "Bulletin board restrictions are per run/call, cover aliases and room ids, and retain history",
+        "Run and session orchestration projections use the run's frozen graph",
+        "A per-turn mode snapshot does not overwrite a newer session default"
+      ]
+    },
+    {
+      "name": "Core policy and affected orchestration regression",
+      "trx": "runtime-unit-final.trx",
+      "total": 89,
+      "passed": 89,
+      "failed": 0,
+      "skipped": 0,
+      "suites": [
+        "SpaceCompositionTests",
+        "ApprovalEvidenceProjectorTests",
+        "RunFreezeGateTests",
+        "GraphOrchestrationPhase2Tests",
+        "DmaeaOrchestrationTests"
+      ],
+      "covers": [
+        "Write-before-plan enforcement and disabled-planning behavior",
+        "A model-provided call id cannot impersonate Core's worktree provisioning step",
+        "Specification stage ordering and implementation gating",
+        "Multi-agent tool and spawn-authority narrowing",
+        "Complete Unicode specification review text survives encode/decode within the durable digest budget",
+        "Oversized specifications are refused rather than truncated",
+        "Frozen graph validation, approval evidence, and queue payload parsing"
+      ]
+    }
+  ],
+  "semantics": {
+    "scope": "Session choices apply to future submissions; each queued message carries its submitted choices and each admitted run freezes resolved resources and policies",
+    "flat": "Published presets retain their distinct behavior, including read-only Plan",
+    "space": "All spatial sessions resolve composable options; there is no null-options path back to preset execution",
+    "planning": "Workspace mutations and executor dispatch require a visible plan when plan-first is enabled; read-only investigation and simple answers do not",
+    "specification": "Requirements, design, and tasks are reviewed in order; confirmed content, content hash, revision, and approval execution are durable run facts; the tasks checklist supplies the visible plan",
+    "context": "Confirmed specification bodies and the actual worktree root are passed to initial planning, replanning, workers, supervision, finalization, and operational-role context",
+    "workflow": "Published graph resources constrain dispatch; preparation capabilities come from a compatible published resource with the same conversation-agent version",
+    "worktree": "One Core-provisioned worktree per run, through ordinary tool authorization and approval; no automatic merge or directory removal",
+    "bulletin_board": "Run-local read/post restrictions preserve session history and direct governance channels"
+  },
+  "limits": [
+    "Each specification document is limited to 3000 characters, and its stage/document JSON to 3584 characters, so the complete review fits the existing 4096-character durable digest column",
+    "The specification checklist contains 1 to 20 steps; already confirmed stage content is immutable within that run",
+    "Workflow preparation requires compatible published resources; unavailable or conflicting combinations are refused",
+    "Worktrees start from the existing tool's default HEAD behavior; task completion releases ownership but retains worktree files and does not merge changes",
+    "Integration tests use scripted chat clients and a fake tool provider for execution-root observations, with real Core APIs, persistence, approvals, leases, and temporary Git repositories",
+    "No paid model calls, real-model task-quality evaluation, native worktree creation end-to-end run, or cross-platform installer acceptance was performed"
+  ],
+  "historical_evidence": "runtime-api-before-planner-context.trx records the earlier successful matrix before the planner-context correction; runtime-api-final.trx is authoritative for the final implementation"
+}

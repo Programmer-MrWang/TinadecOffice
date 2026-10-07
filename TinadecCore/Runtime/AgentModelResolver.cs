@@ -152,7 +152,7 @@ internal sealed class AgentModelResolver : IAgentModelResolver
                 strategy = new ModelStrategyDto { Kind = ModelStrategyKinds.Fixed, ProviderInstanceId = meetingOverride.ProviderInstanceId, Model = meetingOverride.Model };
                 source = "turn_override";
             }
-            else
+            else if (request.UseSessionModelOverride)
             {
                 var session = await _sessions.FindAsync(request.SessionId, cancellationToken).ConfigureAwait(false);
                 if (session?.MeetingModelOverride is { } sessionOverride)

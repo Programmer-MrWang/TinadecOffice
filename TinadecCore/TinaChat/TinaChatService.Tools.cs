@@ -33,6 +33,12 @@ public sealed partial class TinaChatService : ITinaChatToolGateway
             return TinaChatToolOutcome.Failed("This run's principal is not an active member of the workspace, so it has no chat identity to act through.");
         try
         {
+            if (!call.BulletinBoardAllowed && OptionalIdentifier(call.Arguments, "conversation_id") is { } boardId)
+            {
+                await using var boardDb = await factory.CreateDbContextAsync(ct);
+                if (await boardDb.Conversations.AsNoTracking().AnyAsync(item => item.Id == boardId && item.Kind == "board", ct))
+                    throw Forbidden("The bulletin board is disabled for this run.");
+            }
             var payload = CoreVirtualToolPolicy.IsOrganization(call.ToolId) ? await OrganizationToolAsync(scope, call, ct) : call.ToolId switch
             {
                 "tina_chat_bind" => await BindAsync(scope, call, ct),
@@ -132,10 +138,12 @@ public sealed partial class TinaChatService : ITinaChatToolGateway
         var actor = await ActorAsync(db, scope, call, ct);
         var after = long.TryParse(Text(call.Arguments, "after_sequence", required: false), out var cursor) && cursor >= 0 ? cursor : 0;
         var page = await ReadInboxAsync(scope, actor.Id, after, ToolPageLimit, ct);
+        var boardIds = call.BulletinBoardAllowed ? new HashSet<Guid>() : (await db.Conversations.AsNoTracking()
+            .Where(item => item.TenantId == scope.TenantId && item.Kind == "board").Select(item => item.Id).ToListAsync(ct)).ToHashSet();
         return new
         {
             speaking_as = actor.Handle,
-            messages = page.Items.Select(x => new
+            messages = page.Items.Where(item => !boardIds.Contains(item.Message.ConversationId)).Select(x => new
             {
                 message_id = x.Message.Id.ToString("N"), conversation_id = x.Message.ConversationId.ToString("N"),
                 sequence = x.Message.Sequence, sender_kind = x.Message.SenderKind, kind = x.Message.Kind,

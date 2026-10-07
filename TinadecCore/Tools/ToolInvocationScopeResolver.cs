@@ -87,7 +87,7 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             throw new UnauthorizedAccessException($"Agent instance is not allowed to invoke '{request.ToolId}'.");
         // WS-4 resource envelope: a non-empty grant list authorizes the workspace
         // root; read/write levels are enforced by the PDP resource_access boundary.
-        if (project is not null && !IsResourceAllowed(authorization.AllowedResources))
+        if (project is not null && !CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && !IsResourceAllowed(authorization.AllowedResources))
             throw new UnauthorizedAccessException("Agent instance holds no workspace resource grant.");
 
         var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(request.RunId.ToString(), cancellationToken).ConfigureAwait(false)
@@ -95,6 +95,7 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
         if (!string.Equals(frozen.ContentHash, run.FrozenConfigurationHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Run frozen configuration hash does not match its durable binding.");
         var frozenManifest = ReadFrozenToolManifest(frozen.Content);
+        var spaceOptions = ReadSpaceOptions(frozen.Content);
         if (frozenManifest.ProtocolVersion != 2 || string.IsNullOrWhiteSpace(frozenManifest.ManifestHash))
         {
             throw new InvalidOperationException("The run does not contain a valid frozen TinadecTools v2 manifest.");
@@ -108,6 +109,10 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             executionTarget = resolved.Target;
         }
         var providerRoot = executionTarget?.RootPath ?? root;
+        if (spaceOptions is { Worktree: true } && !CoreVirtualToolPolicy.IsCoreVirtual(request.ToolId)
+            && request.ToolId is not ("git_worktree_create" or "git_worktree_remove")
+            && executionTarget is not { Kind: "worktree" })
+            throw new InvalidOperationException("This run requires its independent worktree assignment. The original checkout cannot be used as a fallback.");
 
         // A Core-owned virtual tool has no child-process entry to pair against, so the frozen
         // manifest is its only declaration source here too - the same exemption the freezer applies
@@ -157,7 +162,16 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             policy.PermissionMode,
             ReadFrozenDispatchRoster(frozen.Content),
             authorization.AllowedDispatchTargets,
-            executionTarget?.RootPath);
+            executionTarget?.RootPath,
+            spaceOptions);
+    }
+
+    internal static SpaceRunOptions? ReadSpaceOptions(string content)
+    {
+        using var document = JsonDocument.Parse(content);
+        if (!document.RootElement.TryGetProperty("spaceOptions", out var options)) return null;
+        return options.ValueKind == JsonValueKind.Null ? null
+            : options.Deserialize<SpaceRunOptions>(new JsonSerializerOptions(JsonSerializerDefaults.Web));
     }
 
     /// <summary>Reads the frozen dispatch roster (ids + responsibility text); null when absent.</summary>

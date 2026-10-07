@@ -127,7 +127,13 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
             {
                 if (!string.Equals(instance.AgentVersionHash, version.ContentHash, StringComparison.OrdinalIgnoreCase))
                     return [DenyBoundary("agent_version_changed", claim)];
-                var versionRules = AgentVersionRules(version.SnapshotJson, claim);
+                // spec_propose is a Core-owned document review explicitly enabled by
+                // this run's user. It grants no provider action. Only the frozen
+                // conversation identity receives it; published external tool scopes
+                // retain their existing, non-widenable version boundary.
+                var versionRules = IsSpatialSpecReview(frozen.Content, instance, claim)
+                    ? new[] { new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource) }
+                    : AgentVersionRules(version.SnapshotJson, claim);
                 if (versionRules is not null)
                 {
                     // The published immutable version is the authority: a narrow declared
@@ -294,7 +300,17 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
 
     private static bool IsCoreReservedClaim(string resource) =>
         resource.StartsWith("tool://", StringComparison.OrdinalIgnoreCase)
-        && string.Equals(resource[7..], CoreVirtualToolPolicy.CreateWorkspaceToolId, StringComparison.OrdinalIgnoreCase);
+        && (CoreVirtualToolPolicy.IsCreateWorkspace(resource[7..]) || CoreVirtualToolPolicy.IsSpecPropose(resource[7..]));
+
+    private static bool IsSpatialSpecReview(string content, AgentInstanceRecord instance, CapabilityClaim claim)
+    {
+        if (claim.Resource != "tool://" + CoreVirtualToolPolicy.SpecProposeToolId) return false;
+        var frozen = JsonSerializer.Deserialize<FrozenRunConfigurationV1>(content, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        return frozen?.SpaceOptions is { SpecEnabled: true } && frozen.Graph is { } graph
+            && frozen.OperationAgents.Any(agent => agent.Id == graph.ConversationTemplateSlug
+                && agent.AgentVersionId == instance.AgentVersionId
+                && agent.AllowedTools.Contains(CoreVirtualToolPolicy.SpecProposeToolId, StringComparer.OrdinalIgnoreCase));
+    }
 
     private static IReadOnlyList<CapabilityRule> ManifestRules(string content, CapabilityClaim claim)
     {

@@ -85,6 +85,9 @@ public static class StorageEndpoints
             }
             try
             {
+                var spaceOptions = ToSpaceOptions(request.SpaceOptions);
+                ProjectSessionStore.ValidateSessionSettings(request.ViewMode ?? "flat", request.PermissionMode, spaceOptions);
+                await ValidateWorkflowAsync(spaceOptions, tenant.Current.TenantId, tenant.Current.WorkspaceId, cfgFactory, ct).ConfigureAwait(false);
                 Guid? modeVersionId = request.ModeVersionId;
                 string? conversationNodeKey = null;
                 string? conversationTemplateSlug = null;
@@ -133,10 +136,12 @@ public static class StorageEndpoints
                     await modelResolver.PreviewAsync(new ModelResolutionPreviewRequestDto { MeetingModelOverride = requestedOverride }, ct).ConfigureAwait(false);
                     modelOverride = new SessionModelOverride(requestedOverride.ProviderInstanceId, requestedOverride.Model);
                 }
-                var session = await store.CreateSessionAsync(projectId, request.Title, modeVersionId.Value, modelOverride, conversationNodeKey, conversationTemplateSlug, ct, viewMode: request.ViewMode ?? "flat").ConfigureAwait(false);
+                var session = await store.CreateSessionAsync(projectId, request.Title, modeVersionId.Value, modelOverride, conversationNodeKey, conversationTemplateSlug, ct,
+                    viewMode: request.ViewMode ?? "flat", permissionMode: request.PermissionMode, spaceOptions: spaceOptions).ConfigureAwait(false);
                 return Results.Created($"/api/v1/sessions/{session.Id}", await ToSessionEnrichedAsync(session, cfgFactory, ct).ConfigureAwait(false));
             }
             catch (KeyNotFoundException) { return Results.NotFound(new { code = "PROJECT_NOT_FOUND" }); }
+            catch (ArgumentException ex) { return Results.BadRequest(new { code = "INVALID_SESSION", message = ex.Message }); }
             catch (InvalidDataException ex) { return Results.BadRequest(new { code = "invalid_model_override", message = ex.Message }); }
         });
 
@@ -145,43 +150,51 @@ public static class StorageEndpoints
             if (!Guid.TryParse(sessionId, out var id)) return Results.BadRequest(new { code = "INVALID_SESSION_ID" });
             try
             {
-                SessionRecord? session = null;
-                if (!string.IsNullOrWhiteSpace(request.Title))
-                    session = await store.UpdateTitleAsync(id, request.Title!, ct).ConfigureAwait(false);
-                if (request.ModeVersionId.HasValue || request.MeetingModelOverride is not null)
+                var session = await store.GetSessionAsync(id, ct).ConfigureAwait(false);
+                if (session is null) return Results.NotFound(new { code = "SESSION_NOT_FOUND" });
+                var spaceOptions = ToSpaceOptions(request.SpaceOptions);
+                ProjectSessionStore.ValidateSessionSettings(session.ViewMode ?? "flat", request.PermissionMode, spaceOptions);
+                await ValidateWorkflowAsync(spaceOptions, session.TenantId, session.WorkspaceId, cfgFactory, ct).ConfigureAwait(false);
+                if (request.ClearMeetingModelOverride && request.MeetingModelOverride is not null)
+                    return Results.BadRequest(new { code = "invalid_model_override", message = "Cannot set and clear meeting_model_override together." });
+                if (request.ClearModeVersion && request.ModeVersionId is not null)
+                    return Results.BadRequest(new { code = "invalid_mode_version", message = "Cannot set and clear mode_version_id together." });
+                var requestedMode = request.ModeVersionId;
+                if (request.ClearModeVersion)
                 {
-                    session ??= await store.GetSessionAsync(id, ct).ConfigureAwait(false);
-                    if (session is null) return Results.NotFound(new { code = "SESSION_NOT_FOUND" });
-                    if (request.ModeVersionId is { } requestedModeVersionId)
-                    {
-                        await using var cfg = await cfgFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-                        var published = await cfg.ModeVersions.AsNoTracking().AnyAsync(x => x.Id == requestedModeVersionId
-                            && x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId
-                            && x.Status == "published", ct).ConfigureAwait(false);
-                        if (!published) return Results.BadRequest(new { code = "invalid_mode_version", message = "mode_version_id must reference a published Agent Mode version in this workspace." });
-                    }
-                    if (request.MeetingModelOverride is { } requestedOverride)
-                    {
-                        if (requestedOverride.ProviderInstanceId == Guid.Empty)
-                            return Results.BadRequest(new { code = "invalid_model_override", message = "meeting_model_override.provider_instance_id is required." });
-                        await modelResolver.PreviewAsync(new ModelResolutionPreviewRequestDto { MeetingModelOverride = requestedOverride }, ct).ConfigureAwait(false);
-                    }
-                    var modelOverride = request.MeetingModelOverride is null
-                        ? null
-                        : new SessionModelOverride(request.MeetingModelOverride.ProviderInstanceId, request.MeetingModelOverride.Model);
-                    session = await store.UpdateSessionModeAsync(id, request.ModeVersionId, modelOverride, ct).ConfigureAwait(false) ?? session;
-                    if (session is null) return Results.NotFound(new { code = "SESSION_NOT_FOUND" });
-                }
-                else if (session is null)
+                    await using var cfg = await cfgFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+                    requestedMode = await cfg.WorkspaceDefaults.AsNoTracking()
+                        .Where(x => x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId && x.Status == "active" && x.ArchivedAt == null)
+                        .Select(x => x.DefaultModeVersionId).FirstOrDefaultAsync(ct).ConfigureAwait(false);
+                if (requestedMode is null) return Results.Conflict(new { code = "agent_mode_not_configured", message = "No published default mode is configured." });
+            }
+                if (requestedMode is { } requestedModeVersionId)
                 {
-                    // no mode fields and no title change: fetch the session directly
-                    session = await store.GetSessionAsync(id, ct).ConfigureAwait(false);
-                    if (session is null) return Results.NotFound(new { code = "SESSION_NOT_FOUND" });
+                    await using var cfg = await cfgFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+                    var published = await cfg.ModeVersions.AsNoTracking().AnyAsync(x => x.Id == requestedModeVersionId
+                        && x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId
+                        && x.Status == "published", ct).ConfigureAwait(false);
+                    if (!published) return Results.BadRequest(new { code = "invalid_mode_version", message = "mode_version_id must reference a published Agent Mode version in this workspace." });
                 }
+                if (request.MeetingModelOverride is { } requestedOverride)
+                {
+                    if (requestedOverride.ProviderInstanceId == Guid.Empty)
+                        return Results.BadRequest(new { code = "invalid_model_override", message = "meeting_model_override.provider_instance_id is required." });
+                    await modelResolver.PreviewAsync(new ModelResolutionPreviewRequestDto { MeetingModelOverride = requestedOverride }, ct).ConfigureAwait(false);
+                }
+                var modelOverride = request.MeetingModelOverride is null
+                    ? null
+                    : new SessionModelOverride(request.MeetingModelOverride.ProviderInstanceId, request.MeetingModelOverride.Model);
+                session = await store.UpdateSessionModeAsync(id, requestedMode, modelOverride, ct,
+                    permissionMode: request.PermissionMode, spaceOptions: spaceOptions,
+                    clearMeetingModelOverride: request.ClearMeetingModelOverride, title: request.Title,
+                    expectedSettingsRevision: request.ExpectedSettingsRevision).ConfigureAwait(false);
+                if (session is null) return Results.NotFound(new { code = "SESSION_NOT_FOUND" });
                 return Results.Ok(await ToSessionEnrichedAsync(session, cfgFactory, ct).ConfigureAwait(false));
             }
             catch (ArgumentException ex) { return Results.BadRequest(new { code = "INVALID_SESSION", message = ex.Message }); }
             catch (InvalidDataException ex) { return Results.BadRequest(new { code = "invalid_model_override", message = ex.Message }); }
+            catch (SessionSettingsConflictException ex) { return Results.Conflict(new { code = "session_settings_conflict", message = ex.Message, settings_revision = ex.CurrentRevision }); }
         });
 
         app.MapPost("/api/v1/sessions/{sessionId}/migrate", async (string sessionId, MigrateSessionRequest request, ProjectSessionStore store, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct) =>
@@ -415,6 +428,7 @@ public static class StorageEndpoints
         id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status,
         mode_version_id = session.ModeVersionId,
         view_mode = session.ViewMode ?? "flat",
+        permission_mode = session.PermissionMode ?? "default", space_options = ToSpaceOptionsDto(ProjectSessionStore.ReadSpaceOptions(session)), settings_revision = session.SettingsRevision,
         meeting_model_override = ToMeetingModelOverride(session), summary = session.Summary,
         history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt,
         lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt
@@ -438,7 +452,22 @@ public static class StorageEndpoints
             }
         }
         catch { }
-        return new { id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status, view_mode = session.ViewMode ?? "flat", mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
+        return new { id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status, view_mode = session.ViewMode ?? "flat", mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), permission_mode = session.PermissionMode ?? "default", space_options = ToSpaceOptionsDto(ProjectSessionStore.ReadSpaceOptions(session)), settings_revision = session.SettingsRevision, has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
+    }
+
+    internal static SpaceRunOptions? ToSpaceOptions(SpaceRunOptionsDto? options) => options is null ? null
+        : new(options.PlanFirst, options.SpecEnabled, options.MultiAgent, options.WorkflowModeVersionId, options.BulletinBoard, options.Worktree);
+
+    internal static SpaceRunOptionsDto? ToSpaceOptionsDto(SpaceRunOptions? options) => options is null ? null
+        : new(options.PlanFirst, options.SpecEnabled, options.MultiAgent, options.WorkflowModeVersionId, options.BulletinBoard, options.Worktree);
+
+    internal static async Task ValidateWorkflowAsync(SpaceRunOptions? options, Guid tenantId, Guid workspaceId, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct)
+    {
+        if (options?.WorkflowModeVersionId is not { } versionId) return;
+        await using var cfg = await cfgFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var version = await cfg.ModeVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId
+            && x.TenantId == tenantId && x.WorkspaceId == workspaceId && x.Status == "published", ct).ConfigureAwait(false);
+        if (version is null) throw new ArgumentException("workflow_mode_version_id must reference a published mode in this workspace.");
     }
 
     private static object? ToMeetingModelOverride(SessionRecord session) =>

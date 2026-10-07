@@ -5,6 +5,7 @@ import { buildPreset } from './presets'
 import { makeRegistry, nextTestId } from './__testUtils'
 import { createLayerStore } from './persistence/layerStore'
 import { repairLayout } from './repair'
+import { SPACE_LAYOUT } from './spatialLayout'
 
 function expectNoOverlap(space: SpatialLayout) {
   const items = Object.values(space.items)
@@ -31,7 +32,7 @@ describe('session space', () => {
     const next = syncSpace(moved, [{ id: 'meeting', groupId: 'run-a' }, { id: 'code', groupId: 'run-a' }, { id: 'other', groupId: 'run-b' }])
     expect(next.items.plan).toEqual(moved.items.plan)
     expect(next.items.code.x).toBe(next.items.meeting.x)
-    expect(next.items.code.y).toBeGreaterThan(next.items.meeting.y + next.items.meeting.height)
+    expect(Math.abs(next.items.code.y - next.items.meeting.y)).toBeGreaterThanOrEqual(next.items.meeting.height)
     expect(next.items.other.y).toBeGreaterThan(next.items.meeting.height)
   })
   it('restores negative and fractional world coordinates while rejecting invalid geometry', () => {
@@ -43,9 +44,11 @@ describe('session space', () => {
   it('updates claimed message ownership without moving it and avoids cards from other groups', () => {
     let s = syncSpace(emptySpace('s'), [{ id: 'message', groupId: 'queued' }, { id: 'foreign', groupId: 'other' }])
     s = moveSpace(s, [{ id: 'message', x: -100, y: 15 }, { id: 'foreign', x: 275, y: 15 }])
-    const next = syncSpace(s, [{ id: 'message', groupId: 'run' }, { id: 'worker', groupId: 'run' }])
+    const next = syncSpace(s, [{ id: 'message', groupId: 'run' }, { id: 'worker', groupId: 'run' }, { id: 'foreign', groupId: 'other' }])
     expect(next.items.message).toMatchObject({ x: -100, y: 15, groupId: 'run' })
-    expect(next.items.worker.y).toBeGreaterThan(next.items.foreign.y + next.items.foreign.height)
+    const { worker, message, foreign } = next.items
+    for (const other of [message, foreign]) expect(worker.x + worker.width <= other.x || other.x + other.width <= worker.x
+      || worker.y + worker.height <= other.y || other.y + other.height <= worker.y).toBe(true)
     expect(next.items.foreign).toEqual(s.items.foreign)
   })
   it('measures content growth without moving existing cards or overriding manual sizes', () => {
@@ -87,12 +90,12 @@ describe('session space', () => {
     expect(first.items.z.y).toBeGreaterThan(first.items.activity.y + first.items.activity.height)
     expectNoOverlap(first)
   })
-  it('wraps a dependency layer after three columns before starting its successors', () => {
+  it('keeps more than three independent tasks on one rank before their successors', () => {
     const roots: SpatialSeed[] = ['a', 'b', 'c', 'd'].map(id => ({ id, groupId: 'g', role: 'task' }))
     const space = syncSpace(emptySpace('s'), [...roots, { id: 'e', groupId: 'g', role: 'task', dependencyIds: ['a'] }])
     expect(space.items.a.y).toBe(space.items.b.y)
     expect(space.items.b.y).toBe(space.items.c.y)
-    expect(space.items.d.y).toBeGreaterThan(space.items.c.y + space.items.c.height)
+    expect(space.items.d.y).toBe(space.items.c.y)
     expect(space.items.e.y).toBeGreaterThan(space.items.d.y + space.items.d.height)
     expectNoOverlap(space)
   })
@@ -110,11 +113,11 @@ describe('session space', () => {
     for (const [id, item] of Object.entries(space.items)) expect(next.items[id]).toEqual(item)
     expect(next.viewport).toEqual(space.viewport)
     expect(next.items.child.y).toBeGreaterThan(next.items.merge.y + next.items.merge.height)
-    expect(next.items['earlier-group'].y).toBeGreaterThan(Math.max(...Object.values(next.items)
+    expect(next.items['earlier-group'].y).toBeGreaterThan(Math.max(...Object.values(space.items)
       .filter(item => item.groupId === 'run-a').map(item => item.y + item.height)))
     expectNoOverlap(next)
   })
-  it('keeps unknown dependencies and their descendants in the unresolved remainder without looping', () => {
+  it('uses known dependencies even when references are missing, and keeps cycle successors below the cycle', () => {
     const seeds: SpatialSeed[] = [
       { id: 'anchor', groupId: 'g', role: 'anchor' },
       { id: 'a', groupId: 'g', role: 'task', dependencyIds: ['missing', 'foreign'] },
@@ -129,9 +132,10 @@ describe('session space', () => {
     ]
     const space = syncSpace(emptySpace('s'), seeds)
     expect(Object.keys(space.items)).toHaveLength(seeds.length)
-    expect(space.items.a.y).toBeGreaterThan(space.items.b.y + space.items.b.height)
-    expect(space.items.c.y).toBe(space.items.a.y)
-    expect(space.items['cycle-1'].y).toBeGreaterThanOrEqual(space.items.c.y)
+    expect(space.items.a.y).toBe(space.items.b.y)
+    expect(space.items.c.y).toBeGreaterThan(space.items.a.y + space.items.a.height)
+    expect(space.items['cycle-1'].y).toBe(space.items['cycle-2'].y)
+    expect(space.items.downstream.y).toBeGreaterThan(space.items['cycle-1'].y + space.items['cycle-1'].height)
     expect(space.items.result.y).toBeGreaterThan(space.items.self.y + space.items.self.height)
     expect(syncSpace(emptySpace('s'), [...seeds].reverse())).toEqual(space)
     expectNoOverlap(space)
@@ -169,7 +173,7 @@ describe('session space', () => {
       { id: 'foreign', x: -650, y: 160, width: 1200, height: 220 },
     ])
     const before = structuredClone(space)
-    const changes = arrangeSpace(space, [...branchSeeds].reverse(), 'run-a')
+    const changes = arrangeSpace(space, [...seeds].reverse(), 'run-a')
     expect(space).toEqual(before)
     expect(changes).toHaveLength(branchSeeds.length)
     expect(changes.every(change => Object.keys(change).sort().join(',') === 'id,x,y')).toBe(true)
@@ -183,11 +187,78 @@ describe('session space', () => {
       expect(arranged.items[id].autoHeight).toBe(item.autoHeight)
       expect(arranged.items[id].compact).toBe(item.compact)
     }
-    expect(arranged.items.anchor.x).toBe(-600.5)
+    expect(arranged.items.anchor.x + arranged.items.anchor.width / 2).toBe(arranged.items.merge.x + arranged.items.merge.width / 2)
     expect(arranged.items.a.y).toBe(arranged.items.b.y)
     expect(arranged.items.merge.y).toBeGreaterThan(arranged.items.a.y + arranged.items.a.height)
     expectNoOverlap(arranged)
     expect(arrangeSpace(space, branchSeeds, 'absent')).toEqual([])
+  })
+  it('inserts a peer near its automatic siblings instead of following a distant manual peer', () => {
+    const initialSeeds: SpatialSeed[] = ['a', 'b'].map(id => ({ id, groupId: 'g', role: 'task' }))
+    const space = moveSpace(syncSpace(emptySpace('s'), initialSeeds), [{ id: 'b', x: 10000 }])
+    const seeds: SpatialSeed[] = [...initialSeeds, { id: 'c', groupId: 'g', role: 'task' }]
+    const next = syncSpace(space, seeds)
+    expect(next.items.a).toEqual(space.items.a)
+    expect(next.items.b).toEqual(space.items.b)
+    expect(next.items.c.y).toBe(space.items.a.y)
+    expect(Math.abs(next.items.c.x - space.items.a.x)).toBeLessThanOrEqual(space.items.a.width + SPACE_LAYOUT.columnGap)
+    expect(syncSpace(space, [...seeds].reverse())).toEqual(next)
+    expectNoOverlap(next)
+  })
+  it('places a late predecessor above its existing successor without moving any old cards', () => {
+    const roots: SpatialSeed[] = ['a', 'b', 'c'].map(id => ({ id, groupId: 'g', role: 'task' }))
+    const child: SpatialSeed = { id: 'e', groupId: 'g', role: 'task', dependencyIds: ['d'], dependencyUnverified: true }
+    const space = syncSpace(emptySpace('s'), [...roots, child])
+    const next = syncSpace(space, [...roots, { ...child, dependencyUnverified: false }, { id: 'd', groupId: 'g', role: 'task' }])
+    for (const [id, item] of Object.entries(space.items)) expect(next.items[id]).toEqual(item)
+    expect(next.items.d.y + next.items.d.height + SPACE_LAYOUT.rankGap).toBeLessThanOrEqual(next.items.e.y)
+    expectNoOverlap(next)
+  })
+  it('fits a late intermediate task into available dependency space and uses a nearby slot when old ranks leave no room', () => {
+    const base: SpatialSeed[] = [{ id: 'a', groupId: 'g', role: 'task' }, { id: 'c', groupId: 'g', role: 'task', dependencyIds: ['a'] }]
+    const seeds: SpatialSeed[] = [base[0], { ...base[1], dependencyIds: ['b'] }, { id: 'b', groupId: 'g', role: 'task', dependencyIds: ['a'] }]
+    const tight = syncSpace(emptySpace('s'), base)
+    const roomy = moveSpace(tight, [{ id: 'c', y: 800 }])
+    const inserted = syncSpace(roomy, seeds)
+    expect(inserted.items.a).toEqual(roomy.items.a)
+    expect(inserted.items.c).toEqual(roomy.items.c)
+    expect(inserted.items.b.y).toBeGreaterThanOrEqual(roomy.items.a.y + roomy.items.a.height + SPACE_LAYOUT.rankGap)
+    expect(inserted.items.b.y + inserted.items.b.height + SPACE_LAYOUT.rankGap).toBeLessThanOrEqual(roomy.items.c.y)
+    expectNoOverlap(inserted)
+    const beside = syncSpace(tight, seeds)
+    expect(beside.items.a).toEqual(tight.items.a)
+    expect(beside.items.c).toEqual(tight.items.c)
+    expect(Math.abs(beside.items.b.x - tight.items.c.x) + Math.abs(beside.items.b.y - tight.items.c.y))
+      .toBeLessThanOrEqual(tight.items.c.width + SPACE_LAYOUT.columnGap)
+    expectNoOverlap(beside)
+    const arranged = moveSpace(beside, arrangeSpace(beside, seeds, 'g'))
+    expect(arranged.items.b.y).toBeGreaterThan(arranged.items.a.y + arranged.items.a.height)
+    expect(arranged.items.c.y).toBeGreaterThan(arranged.items.b.y + arranged.items.b.height)
+    expectNoOverlap(arranged)
+  })
+  it('retains inactive geometry without letting it enlarge new groups or explicit arrangements', () => {
+    const original = syncSpace(emptySpace('s'), [...branchSeeds, { id: 'retired', groupId: 'run-a', role: 'activity' }])
+    const historical = moveSpace(original, [{ id: 'retired', x: -9000, y: 20000, height: 1200 }])
+    const withoutHistory = { ...historical, items: Object.fromEntries(Object.entries(historical.items).filter(([id]) => id !== 'retired')) }
+    const seeds: SpatialSeed[] = [...branchSeeds, { id: 'new-run', groupId: 'run-b', role: 'anchor' }]
+    const next = syncSpace(historical, seeds)
+    expect(next.items.retired).toEqual(historical.items.retired)
+    expect(next.items['new-run']).toEqual(syncSpace(withoutHistory, seeds).items['new-run'])
+    const changes = arrangeSpace(historical, branchSeeds, 'run-a')
+    expect(changes.some(c => c.id === 'retired')).toBe(false)
+    expect(changes).toEqual(arrangeSpace(withoutHistory, branchSeeds, 'run-a'))
+    expect(moveSpace(historical, changes).items.retired).toEqual(historical.items.retired)
+  })
+  it('arranging is repeatable and independent of seed order without changing dimensions or the camera', () => {
+    const seeds: SpatialSeed[] = [...branchSeeds, { id: 'foreign', groupId: 'other', role: 'shared' }]
+    let space = syncSpace(emptySpace('s'), seeds)
+    space = moveSpace(space, [{ id: 'a', x: 1200, y: -200, width: 510, height: 310 }, { id: 'merge', x: -1300, y: 1600 }])
+    const first = moveSpace(space, arrangeSpace(space, seeds, 'run-a'))
+    const second = moveSpace(first, arrangeSpace(first, [...seeds].reverse(), 'run-a'))
+    expect(second).toEqual(first)
+    expect(first.items.foreign).toEqual(space.items.foreign)
+    expect(first.viewport).toEqual(space.viewport)
+    expectNoOverlap(first)
   })
   it('undoes an arrange with one spaceMove while retaining later runtime tasks, other groups and the camera', () => {
     const seeds: SpatialSeed[] = [...branchSeeds, { id: 'foreign', groupId: 'other', role: 'shared' }]

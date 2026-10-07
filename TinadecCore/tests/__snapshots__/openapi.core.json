@@ -1433,10 +1433,26 @@
               "string"
             ]
           },
+          "permission_mode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "project_id": {
             "type": [
               "null",
               "string"
+            ]
+          },
+          "space_options": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpaceRunOptionsDto"
+              }
             ]
           },
           "title": {
@@ -3973,6 +3989,39 @@
         ],
         "type": "object"
       },
+      "SpaceRunOptionsDto": {
+        "additionalProperties": false,
+        "properties": {
+          "bulletin_board": {
+            "default": false,
+            "type": "boolean"
+          },
+          "multi_agent": {
+            "default": false,
+            "type": "boolean"
+          },
+          "plan_first": {
+            "default": false,
+            "type": "boolean"
+          },
+          "spec_enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "workflow_mode_version_id": {
+            "format": "uuid",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "worktree": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "TerminalStdinRequest": {
         "properties": {
           "data": {
@@ -5221,6 +5270,21 @@
       },
       "UpdateSessionRequest": {
         "properties": {
+          "clear_meeting_model_override": {
+            "type": "boolean"
+          },
+          "clear_mode_version": {
+            "type": "boolean"
+          },
+          "expected_settings_revision": {
+            "format": "int64",
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ]
+          },
           "meeting_model_override": {
             "oneOf": [
               {
@@ -5236,6 +5300,22 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "permission_mode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "space_options": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SpaceRunOptionsDto"
+              }
             ]
           },
           "title": {

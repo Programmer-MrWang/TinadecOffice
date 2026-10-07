@@ -25,6 +25,10 @@ public sealed record SessionReference(
     // Null on sessions created before the columns existed — the freeze gate keeps
     // the legacy literal-meeting semantics for those rows.
     string? ConversationNodeKey = null,
-    string? ConversationTemplateSlug = null);
+    string? ConversationTemplateSlug = null,
+    SpaceRunOptions? SpaceOptions = null,
+    string PermissionMode = "default",
+    string ViewMode = "flat",
+    long SettingsRevision = 0);
 
 public sealed record ProjectReference(Guid ProjectId, Guid TenantId, Guid WorkspaceId, string RootPath);

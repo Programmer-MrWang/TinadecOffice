@@ -1,3 +1,13 @@
+/** Core-owned, per-task spatial orchestration preferences. */
+export interface SpaceOptionsDto {
+  plan_first: boolean;
+  spec_enabled: boolean;
+  multi_agent: boolean;
+  workflow_mode_version_id: string | null;
+  bulletin_board: boolean;
+  worktree: boolean;
+}
+
 /** Session mapper */
 export interface ExternalSessionDto {
   id: string;
@@ -13,6 +23,9 @@ export interface ExternalSessionDto {
   mode: string | null;
   mode_version_id: string | null;
   view_mode: 'flat' | 'space';
+  permission_mode: string;
+  space_options: SpaceOptionsDto | null;
+  settings_revision: number;
   /** ConversationIdentity (DmaEA graph orchestration), frozen at session creation; null on pre-identity rows. */
   conversation_node_key: string | null;
   conversation_template_slug: string | null;
@@ -47,6 +60,9 @@ export function mapSession(core: unknown): ExternalSessionDto | null {
     mode: (core.mode as string) ?? null,
     mode_version_id: (core.mode_version_id as string) ?? (core.modeVersionId as string) ?? null,
     view_mode: (core.view_mode ?? core.viewMode) === 'space' ? 'space' : 'flat',
+    permission_mode: typeof core.permission_mode === 'string' ? core.permission_mode : 'default',
+    space_options: isRecord(core.space_options) ? core.space_options as unknown as SpaceOptionsDto : null,
+    settings_revision: typeof core.settings_revision === 'number' ? core.settings_revision : 0,
     conversation_node_key: (core.conversation_node_key as string) ?? (core.conversationNodeKey as string) ?? null,
     conversation_template_slug: (core.conversation_template_slug as string) ?? (core.conversationTemplateSlug as string) ?? null,
     meeting_model_override: override && typeof override.provider_instance_id === 'string'

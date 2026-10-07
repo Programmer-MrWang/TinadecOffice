@@ -91,8 +91,8 @@ export function reconcileSession(sessionId: string | null) {
  *
  * Without a session there is nothing to upload against: Core scopes an attachment to
  * `(tenant, workspace, session)` at write time, and a deferred upload would have to
- * keep the bytes alive across a session change. The composer disables the entry point
- * instead of silently discarding a pick.
+ * keep the bytes alive across a session change. The composer creates its draft
+ * session before calling this function and abandons a pick if its context changed.
  */
 export function attachFiles(
   files: readonly AttachableFile[],

@@ -26,6 +26,8 @@ vi.mock('@/controllers/HomeController', async () => {
     orchestration: ref<OrchestrationSnapshotDto | null>(null), agentTurnActivities: ref<Record<string, TurnActivity>>({}),
     streamingReply: ref(''), streamingReplies: ref<Record<string, string>>({}), stoppableRunId: ref<string | null>('r1'),
     draft: ref(''), shellCommand: ref(''), currentPermission: ref('ask'), busy: ref(false), working: ref(false),
+    composerSettings: ref({ mode_version_id: null, meeting_model_override: null, permission_mode: 'default', space_options: null }),
+    settingsSaving: ref(false), settingsError: ref(null), updateComposerSettings: vi.fn(),
     setViewMode: vi.fn(), start: vi.fn(),
   } }
 })
@@ -69,6 +71,7 @@ vi.mock('@tinadec/ui', async () => ({
   UieCanvas: (await import('../../../TinadecUI/src/components/UieCanvas.vue')).default,
   UieCardHost: (await import('../../../TinadecUI/src/components/UieCardHost.vue')).default,
   arrangeSpace: (await import('../../../TinadecUI/src/engine/spatial')).arrangeSpace,
+  routeSpatialEdges: (await import('../../../TinadecUI/src/engine/spatialRouting')).routeSpatialEdges,
 }))
 // Preserve actual UieCardHost activation/reuse; skip tab chrome and drag sensors.
 vi.mock('../../../TinadecUI/src/components/UieColumn.vue', async () => {
@@ -84,8 +87,8 @@ vi.mock('../../../TinadecUI/src/components/UieColumn.vue', async () => {
   }) }
 })
 vi.mock('@vue-flow/core', () => ({
-  MarkerType: { ArrowClosed: 'arrowclosed' }, Position: { Top: 'top', Bottom: 'bottom' },
-  Handle: { template: '<span />' },
+  MarkerType: { ArrowClosed: 'arrowclosed' }, Position: { Top: 'top', Bottom: 'bottom', Left: 'left', Right: 'right' },
+  Handle: { template: '<span />' }, BaseEdge: { template: '<path />' },
   useVueFlow: () => ({ setViewport: mocks.setViewport, applyNodeChanges: mocks.applyNodeChanges,
     updateNodeInternals: mocks.updateNodeInternals, zoomIn: vi.fn(), zoomOut: vi.fn() }),
   VueFlow: {

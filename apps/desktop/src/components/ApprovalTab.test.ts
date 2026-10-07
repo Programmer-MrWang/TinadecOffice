@@ -11,6 +11,7 @@ vi.mock('vue-i18n', () => ({
 function mountRows(approvals: ApprovalDto[], approvalRules: ApprovalRuleDto[] = []) {
   return mount(ApprovalTab, {
     props: { approvals, approvalRules, shellCommand: '', busy: false, selectedSessionId: 's1' },
+    global: { stubs: { ApprovalGateStatus: true } },
   })
 }
 
@@ -112,5 +113,76 @@ describe('ApprovalTab decision evidence', () => {
     expect(scope).toBe('run')
     wrapper.unmount()
     document.body.innerHTML = ''
+  })
+})
+
+describe('ApprovalTab specification confirmation', () => {
+  function proposal(stage: string, document: string, kind = 'permission'): ApprovalDto {
+    return { ...park, id: 'spec-1', kind, tool_id: 'spec_propose', command: null, cwd: null, resource_path: null, arguments: JSON.stringify({ stage, document }) }
+  }
+
+  it('shows the entire 3000-character document immediately, preserving whitespace and the final text', () => {
+    const prefix = '  # Requirements\n\n<script>not executable</script>\n'
+    const suffix = '\n\nFinal requirement: preserve this exact ending.  \n'
+    const document = prefix + '完整需求与验收条件。\n'.repeat(300).slice(0, 3000 - prefix.length - suffix.length) + suffix
+    expect(document).toHaveLength(3000)
+    const wrapper = mountRows([proposal('requirements', document)])
+    const rendered = wrapper.get('[data-testid="approval-spec-document"]')
+    expect(rendered.element.textContent).toBe(document)
+    expect(rendered.attributes('tabindex')).toBe('0')
+    expect(rendered.element.closest('details')).toBeNull()
+    expect(wrapper.find('.approval-evidence-details').exists()).toBe(false)
+    expect(wrapper.find('.approval-arguments').exists()).toBe(false)
+    expect(wrapper.find('script').exists()).toBe(false)
+    expect(wrapper.find('.approval-spec-title').text()).toBe('approval.specRequirements')
+    wrapper.unmount()
+  })
+
+  it.each([
+    ['requirements', 'approval.specRequirements'],
+    ['design', 'approval.specDesign'],
+    ['tasks', 'approval.specTasks'],
+  ])('localizes the %s stage and restricts its decision to the current document', async (stage, label) => {
+    const approval = proposal(stage, `# ${stage}\nComplete document.`)
+    const wrapper = mountRows([approval])
+    expect(wrapper.find('.approval-spec-title').text()).toBe(label)
+    expect(wrapper.find('.approval-row .always').exists()).toBe(false)
+    expect(wrapper.find('.approval-row .approval-rule-request-button').exists()).toBe(false)
+    expect(wrapper.find('.approval-row').findAll('button')).toHaveLength(2)
+    await wrapper.get('.approve').trigger('click')
+    await wrapper.get('.reject').trigger('click')
+    expect(wrapper.emitted('decide-approval')).toEqual([
+      [approval, 'approved', 'once'],
+      [approval, 'rejected', 'once'],
+    ])
+    expect(wrapper.emitted('create-approval-rule')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('keeps an ordinary permission grant available beside document-specific approval', async () => {
+    const wrapper = mountRows([proposal('tasks', 'A task list'), park])
+    expect(wrapper.findAll('.always')).toHaveLength(1)
+    await wrapper.get('.always').trigger('click')
+    expect(wrapper.emitted('decide-approval')?.[0]).toEqual([park, 'approved', 'run'])
+    wrapper.unmount()
+  })
+
+  it('does not offer delegated tool approval for a specification document', () => {
+    const wrapper = mountRows([proposal('design', 'The current design.', 'tool')])
+    expect(wrapper.find('approval-gate-status-stub').exists()).toBe(false)
+    expect(wrapper.find('.always').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it.each(['{"stage":"design","document":', '{"stage":"design"}', '{"stage":"unknown","document":"Do work"}', '{"stage":"tasks","document":"  "}'])('prevents approval when complete document evidence is unreadable: %s', async (argumentsValue) => {
+    const approval = { ...proposal('design', 'Draft'), arguments: argumentsValue }
+    const wrapper = mountRows([approval])
+    expect(wrapper.find('[role="alert"]').text()).toBe('approval.specDocumentUnavailable')
+    expect(wrapper.get('.approve').attributes('disabled')).toBeDefined()
+    await wrapper.get('.approve').trigger('click')
+    expect(wrapper.emitted('decide-approval')).toBeUndefined()
+    await wrapper.get('.reject').trigger('click')
+    expect(wrapper.emitted('decide-approval')?.[0]).toEqual([approval, 'rejected', 'once'])
+    wrapper.unmount()
   })
 })

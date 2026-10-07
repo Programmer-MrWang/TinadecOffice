@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue'
 import { Background } from '@vue-flow/background'
-import { Handle, MarkerType, Position, VueFlow, useVueFlow, type Node as FlowNode, type NodeChange } from '@vue-flow/core'
+import { BaseEdge, Handle, MarkerType, Position, VueFlow, useVueFlow, type Node as FlowNode, type NodeChange } from '@vue-flow/core'
 import { NodeResizer } from '@vue-flow/node-resizer'
 import { Bot, ChevronLeft, ChevronRight, GitBranch, ListTodo, Maximize, Minus, Plus, Redo2, ShieldCheck, Undo2, X } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import { UieShell, UieCanvas, UieCardHost, arrangeSpace, type SpatialChange, type SpatialLayout, type SpatialSeed } from '@tinadec/ui'
+import { UieShell, UieCanvas, UieCardHost, arrangeSpace, routeSpatialEdges, type SpatialChange, type SpatialLayout, type SpatialSeed } from '@tinadec/ui'
 import ComposerBar from '@/components/ComposerBar.vue'
 import SpatialWorkCard from '@/components/spatial/SpatialWorkCard.vue'
 import { UiButton, UiCheckbox, UiSelect } from '@/components/ui'
@@ -52,7 +52,7 @@ const projectPath = computed(() => c.currentSession.value
   ? c.projects.value.find(p => p.id === c.currentSession.value?.project_id)?.path ?? '' : c.currentProject.value?.path ?? '')
 const git = useSpatialGit(projectPath)
 provide('space:git', git)
-const { applyNodeChanges, updateNodeInternals, setViewport, zoomIn, zoomOut } = useVueFlow({ id: 'session-space' })
+const { applyNodeChanges, updateNodeInternals, getNodes, setViewport, zoomIn, zoomOut } = useVueFlow({ id: 'session-space' })
 let alive = true
 let generation = 0
 let topologyAbort: AbortController | undefined
@@ -106,9 +106,9 @@ provide('space:open-terminal', () => {
 watch(runs, value => {
   if (!focusedRun.value && value.length) focusedRun.value = value.find(o => o.runId === c.stoppableRunId.value)?.runId ?? value[0].runId ?? '*'
 })
-const measuredHeights = new Map<string, number>()
+const measuredHeights = reactive(new Map<string, number>())
 const seeds = computed<SpatialSeed[]>(() => objects.value.map(o => ({
-  id: o.id, groupId: o.groupId, measuredHeight: measuredHeights.get(o.id), dependencyIds: o.dependencyIds,
+  id: o.id, groupId: o.groupId, groupOrder: o.kind === 'meeting' ? 0 : o.runId ? 1 : 2, measuredHeight: measuredHeights.get(o.id), dependencyIds: o.dependencyIds,
   dependencyUnverified: o.dependencyUnverified,
   role: o.kind === 'run' || o.kind === 'meeting' ? 'anchor' : o.kind === 'task' ? 'task' : o.kind === 'result' ? 'result' : o.runId ? 'activity' : 'shared',
 })))
@@ -129,11 +129,23 @@ const nodes = computed<FlowNode[]>((previous) => {
   // rectangle around its child cards: each work card already owns its material.
   return work
 })
-const edges = computed(() => showDependencies.value ? relations.value.filter(r => visibleIds.value.has(r.source) && visibleIds.value.has(r.target)).map(r => ({
-  ...r, type: 'smoothstep', sourceHandle: 'flow', targetHandle: 'flow', selectable: true,
-  label: t('space.cluster.requires'), markerEnd: MarkerType.ArrowClosed,
-  labelStyle: { fill: 'var(--text-secondary)', fontSize: 12 }, labelBgStyle: { fill: 'var(--surface-raised)' },
-})) : [])
+const routes = computed(() => {
+  if (!showDependencies.value) return []
+  const liveNodes = new Map((gesturing.value ? getNodes?.value ?? [] : []).map(node => [node.id, node]))
+  const items = visibleObjects.value.flatMap(object => {
+    const item = uie.snapshot.value.space?.items[object.id]
+    if (!item) return []
+    const live = liveNodes.get(object.id)
+    return [{ ...item, ...(gesturing.value && live ? { ...live.position, width: live.dimensions.width || item.width, height: live.dimensions.height || item.height } : {}) }]
+  })
+  return routeSpatialEdges(items, relations.value.filter(r => visibleIds.value.has(r.source) && visibleIds.value.has(r.target)))
+})
+const routeMap = computed(() => Object.fromEntries(routes.value.map(route => [route.id, route])))
+const edges = computed(() => routes.value.filter(route => route.kind !== 'blocked').map(route => ({
+  id: route.id, source: route.source, target: route.target,
+  type: 'spatial', sourceHandle: route.sourceSide, targetHandle: route.targetSide, selectable: true,
+  data: { route }, label: t('space.cluster.requires'), markerEnd: MarkerType.ArrowClosed,
+})))
 provide('space:measure', (id: string, height: number) => {
   const rounded = Math.ceil(height)
   if (gesturing.value || compact.value[id] || measuredHeights.get(id) === rounded) return
@@ -311,11 +323,18 @@ function leavePreview(event: FocusEvent) { if (!(event.currentTarget as HTMLElem
             :zoom-on-pinch="true" :zoom-on-double-click="false" :min-zoom="0.2" :max-zoom="2" :only-render-visible-elements="false"
             @nodes-change="(changes: NodeChange[]) => applyNodeChanges(changes)" @node-drag-start="gesturing = true" @node-drag-stop="dragStop"
             @edge-click="({ edge }) => openDetails(edge.target)" @pane-ready="restoreViewport" @viewport-change-end="camera">
+            <template #edge-spatial="edge">
+              <BaseEdge :id="edge.id" :path="edge.data.route.path" :marker-end="edge.markerEnd"
+                :label="edge.label" :label-x="edge.data.route.labelX || 0.001" :label-y="edge.data.route.labelY || 0.001"
+                :label-style="{ fill: 'var(--text-secondary)', fontSize: 12 }"
+                :label-bg-style="{ fill: 'var(--surface-raised)' }" />
+            </template>
             <Background pattern-color="var(--border-muted)" :gap="24" :size="1" />
-            <template #node-cluster="{ data }"><div class="space-cluster-label">{{ data.title }} <small>{{ data.runId.slice(0, 8) }}</small></div></template>
             <template #node-work="{ id, selected }">
-              <Handle id="flow" type="target" :position="Position.Top" />
-              <Handle id="flow" type="source" :position="Position.Bottom" />
+              <template v-for="side in [Position.Top, Position.Bottom, Position.Left, Position.Right]" :key="side">
+                <Handle :id="side" type="target" :position="side" />
+                <Handle :id="side" type="source" :position="side" />
+              </template>
               <NodeResizer :min-width="320" :min-height="160" :max-width="1400" :max-height="1200" :is-visible="selected"
                 @resize-start="gesturing = true" @resize-end="({ params }) => resizeStop(id, params)" />
               <UieCardHost :instance="{ id, descriptorId: 'spatialWork', title: '', state: { objectId: id } }" :active="visibleIds.has(id)" />
@@ -332,7 +351,7 @@ function leavePreview(event: FocusEvent) { if (!(event.currentTarget as HTMLElem
               >
                 <template #default="{ select, selectedValue }">
                   <button type="button" class="space-select-option" :class="{ 'space-select-option-active': selectedValue === '*' }" @click="select('*')">{{ t('space.cluster.allGoals') }}</button>
-                  <button v-for="run in runs" :key="run.id" type="button" class="space-select-option" :class="{ 'space-select-option-active': selectedValue === run.runId }" @click="select(run.runId)">
+                  <button v-for="run in runs" :key="run.id" type="button" class="space-select-option" :class="{ 'space-select-option-active': selectedValue === run.runId }" @click="run.runId && select(run.runId)">
                     <span>{{ run.title || t('space.kind.run') }}</span><small>{{ statusText(run.status) }}</small>
                   </button>
                 </template>
@@ -380,6 +399,7 @@ function leavePreview(event: FocusEvent) { if (!(event.currentTarget as HTMLElem
                 <span>{{ t('space.cluster.requires') }} →</span>
                 <button type="button" @click="locate(relation.target)">{{ titleOf(relation.target) }}</button>
                 <small>{{ t('space.cluster.source') }}: {{ relation.sourceField }}</small>
+                <small v-if="routeMap[relation.id]?.kind === 'blocked'">{{ t('space.cluster.routeBlocked') }}</small>
               </div>
               <p v-if="!related.length">{{ t('space.cluster.noRelations') }}</p>
               <small>{{ selectedObject.runId || sessionKey }}<br />{{ selectedObject.taskId || selectedObject.id }}</small>
@@ -409,7 +429,10 @@ function leavePreview(event: FocusEvent) { if (!(event.currentTarget as HTMLElem
           </nav>
           <ComposerBar spatial :hero="hero" :busy="c.busy.value || c.working.value" :model-value="c.draft.value" :permission="c.currentPermission.value"
             :projects="c.projects.value" :selected-project-id="c.selectedProjectId.value" :session-id="c.currentSession.value?.id ?? null"
-            :mode-version-id="c.currentSession.value?.mode_version_id ?? null" :meeting-model-override="c.currentSession.value?.meeting_model_override ?? null"
+            :mode-version-id="c.composerSettings.value.mode_version_id" :meeting-model-override="c.composerSettings.value.meeting_model_override"
+            :space-options="c.composerSettings.value.space_options" :settings-saving="c.settingsSaving.value" :settings-error="c.settingsError.value"
+            @update:space-options="c.updateComposerSettings({ space_options: $event })"
+            @update:meeting-model-override="c.updateComposerSettings($event ? { meeting_model_override: $event } : { clear_meeting_model_override: true })"
             :runs="c.runs.value" :can-stop="Boolean(c.stoppableRunId.value)"
             @update:model-value="c.updateDraft($event)" @update:permission="c.updatePermission($event)" @submit="c.sendMessage($event)" @welcome-submit="c.handleWelcomeSend($event)"
             @stop="c.stopRun()" @create-project="c.openProject()" @select-project="c.setSelectedProject($event)">

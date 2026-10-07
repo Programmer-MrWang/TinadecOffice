@@ -225,8 +225,6 @@ describe('CommandPalette', () => {
     expect(homeMock.sendMessage).toHaveBeenCalledWith({
       dispatch_mode: 'queued',
       target_run_id: null,
-      mode_version_id: null,
-      meeting_model_override: null,
     })
     wrapper.unmount()
   })

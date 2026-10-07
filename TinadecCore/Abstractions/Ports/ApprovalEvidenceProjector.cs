@@ -25,6 +25,17 @@ public static class ApprovalEvidenceProjector
 {
     /// <summary>Hard ceiling on the projected payload, matching the durable summary column budget.</summary>
     public const int MaximumDigestLength = 4096;
+    public const int MaximumSpecificationDocumentLength = 3000;
+
+    /// <summary>A specification is approved only when its entire document fits the review payload.</summary>
+    public static string? SpecificationArguments(string stage, string document)
+    {
+        if (string.IsNullOrWhiteSpace(document) || document.Length > MaximumSpecificationDocumentLength) return null;
+        var result = JsonSerializer.Serialize(new { stage, document }, Readable);
+        // Reserve room for Encode's summary and metadata in the 4096-character
+        // durable digest column. Unicode is stored as Unicode, not \u escapes.
+        return result.Length <= MaximumDigestLength - 512 ? result : null;
+    }
 
     private const int MaximumScalarLength = 240;
     private const int MaximumArrayItems = 8;
@@ -92,6 +103,13 @@ public static class ApprovalEvidenceProjector
                     : "{\"[unparsed parameters]\":\"" + DescribeBlob(parametersJson) + "\"}";
                 return new ApprovalEvidence(opaque, Name(toolId, null), null, null, null);
             }
+
+            if (CoreVirtualToolPolicy.IsSpecPropose(toolId)
+                && root.TryGetProperty("stage", out var stageValue) && stageValue.ValueKind == JsonValueKind.String
+                && root.TryGetProperty("document", out var documentValue) && documentValue.ValueKind == JsonValueKind.String
+                && SpecificationArguments(stageValue.GetString()!, documentValue.GetString()!) is { } specification)
+                return new ApprovalEvidence(specification, $"Confirm {stageValue.GetString()} specification", null, null, null)
+                    { CompleteSpecification = true };
 
             var builder = new StringBuilder("{");
             string? command = null;
@@ -211,7 +229,8 @@ public static class ApprovalEvidenceProjector
             ["path"] = evidence.ResourcePath,
             ["arguments"] = ParseOrOpaque(evidence.Arguments),
         };
-        return payload.ToJsonString();
+        if (evidence.CompleteSpecification) payload["complete_specification"] = true;
+        return evidence.CompleteSpecification ? payload.ToJsonString(Readable) : payload.ToJsonString();
     }
 
     /// <summary>
@@ -235,12 +254,13 @@ public static class ApprovalEvidenceProjector
                 return false;
             }
 
+            var completeSpecification = payload["complete_specification"] is JsonValue flag && flag.TryGetValue<bool>(out var complete) && complete;
             evidence = new ApprovalEvidence(
-                payload["arguments"]?.ToJsonString() ?? "{}",
+                (completeSpecification ? payload["arguments"]?.ToJsonString(Readable) : payload["arguments"]?.ToJsonString()) ?? "{}",
                 payload["summary"]?.GetValue<string>() ?? string.Empty,
                 payload["command"]?.GetValue<string>(),
                 payload["cwd"]?.GetValue<string>(),
-                payload["path"]?.GetValue<string>());
+                payload["path"]?.GetValue<string>()) { CompleteSpecification = completeSpecification };
             return true;
         }
         catch (JsonException)
@@ -383,4 +403,7 @@ public sealed record ApprovalEvidence(
     string Summary,
     string? Command,
     string? WorkingDirectory,
-    string? ResourcePath);
+    string? ResourcePath)
+{
+    public bool CompleteSpecification { get; init; }
+}

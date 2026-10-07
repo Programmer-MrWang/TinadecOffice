@@ -86,7 +86,7 @@ export const PROVIDER_TOOL_IDS = [
 
 /**
  * Tools Core executes itself, so they never appear in the provider manifest.
- * Mirrors `CoreVirtualToolPolicy` (`create_workspace`, `task_dispatch`, `task_wait`, `plan_update`,
+ * Mirrors `CoreVirtualToolPolicy` (`create_workspace`, `task_dispatch`, `task_wait`, `plan_update`, `spec_propose`,
  * `read_attachment`, the nine `tina_chat_*` ids, the seven `org_*` organization tools,
  * `graph_view`, `recall_evidence` and the three `environment_*` steward tools) — and `toolPresentation.test.ts` now proves the
  * copy by parsing that file, so a Core virtual tool cannot arrive here as an unknown id.
@@ -97,6 +97,7 @@ export const CORE_VIRTUAL_TOOL_IDS = [
   'task_dispatch',
   'task_wait',
   'plan_update',
+  'spec_propose',
   'tina_chat_bind',
   'tina_chat_search_people',
   'tina_chat_list_rooms',
@@ -171,6 +172,7 @@ const KIND_BY_ID: Record<string, ToolKind> = {
   task_dispatch: 'orchestration',
   task_wait: 'orchestration',
   plan_update: 'orchestration',
+  spec_propose: 'orchestration',
   graph_view: 'orchestration',
   recall_evidence: 'search',
   environment_list: 'orchestration',

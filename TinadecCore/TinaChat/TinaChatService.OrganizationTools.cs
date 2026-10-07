@@ -45,15 +45,24 @@ public sealed partial class TinaChatService
                 throw Forbidden("This run's principal does not own the session's organization.");
             organizationId = org.Id;
             actorId = binding.ParticipantId;
+            if (!call.BulletinBoardAllowed)
+            {
+                var room = Text(call.Arguments, "room", required: false, max: 64);
+                if (room.Length == 0) room = Text(call.Arguments, "room_id", required: false, max: 64);
+                if (room.Equals("board", StringComparison.OrdinalIgnoreCase)
+                    || (Guid.TryParse(room, out var roomId) && await db.Conversations.AsNoTracking()
+                        .AnyAsync(item => item.Id == roomId && item.OrganizationId == org.Id && item.Kind == "board", ct)))
+                    throw Forbidden("The bulletin board is disabled for this run. Direct messages and governance reports remain available.");
+            }
         }
-        return await RunOrganizationToolAsync(scope, organizationId, actorId, call.ToolId, call.Arguments, ToolKey(call), ct);
+        return await RunOrganizationToolAsync(scope, organizationId, actorId, call.ToolId, call.Arguments, ToolKey(call), ct, call.BulletinBoardAllowed);
     }
 
     private async Task<object> RunOrganizationToolAsync(TenantContext scope, Guid organizationId, Guid actorId, string toolId,
-        JsonElement? args, string key, CancellationToken ct) => toolId.Trim().ToLowerInvariant() switch
+        JsonElement? args, string key, CancellationToken ct, bool bulletinBoardAllowed = true) => toolId.Trim().ToLowerInvariant() switch
     {
         "org_directory" => await DirectoryToolAsync(organizationId, actorId, args, ct),
-        "org_read" => await ReadToolAsync(organizationId, actorId, args, ct),
+        "org_read" => await ReadToolAsync(organizationId, actorId, args, ct, bulletinBoardAllowed),
         "org_send" => await SendOrganizationToolAsync(scope, organizationId, actorId, args, key, ct),
         "org_report" => await ReportToolAsync(scope, organizationId, actorId, args, key, ct),
         "org_decide_report" => await DecideReportToolAsync(scope, organizationId, actorId, args, ct),
@@ -111,7 +120,7 @@ public sealed partial class TinaChatService
         };
     }
 
-    private async Task<object> ReadToolAsync(Guid organizationId, Guid actorId, JsonElement? args, CancellationToken ct)
+    private async Task<object> ReadToolAsync(Guid organizationId, Guid actorId, JsonElement? args, CancellationToken ct, bool bulletinBoardAllowed = true)
     {
         await using var db = await factory.CreateDbContextAsync(ct);
         var (org, actor) = await LoadMemberAsync(db, organizationId, actorId, ct);
@@ -121,7 +130,7 @@ public sealed partial class TinaChatService
         if (after < 0) throw Invalid("after_sequence must not be negative.");
         var kinds = List(args, "kinds", max: 3).Select(x => x.ToLowerInvariant()).ToArray();
         if (string.Equals(roomArg, "inbox", StringComparison.OrdinalIgnoreCase))
-            return await InboxToolAsync(db, org, actor, after, kinds, ct);
+            return await InboxToolAsync(db, org, actor, after, kinds, ct, bulletinBoardAllowed);
 
         ChatConversation conversation;
         if (with.Length > 0)
@@ -160,13 +169,14 @@ public sealed partial class TinaChatService
         };
     }
 
-    private async Task<object> InboxToolAsync(TinaChatDbContext db, ChatOrganization org, ChatParticipant actor, long after, string[] kinds, CancellationToken ct)
+    private async Task<object> InboxToolAsync(TinaChatDbContext db, ChatOrganization org, ChatParticipant actor, long after, string[] kinds, CancellationToken ct, bool bulletinBoardAllowed = true)
     {
         var query = from audience in db.Audiences.AsNoTracking()
                     join message in db.Messages.AsNoTracking() on audience.MessageId equals message.Id
                     join conversation in db.Conversations.AsNoTracking() on message.ConversationId equals conversation.Id
                     where audience.ParticipantId == actor.Id && audience.CanReadOriginal && audience.Id > after
                         && conversation.OrganizationId == org.Id && message.SenderId != actor.Id
+                        && (bulletinBoardAllowed || conversation.Kind != "board")
                     orderby audience.Id
                     select new { AudienceId = audience.Id, Message = message };
         var rows = await query.Take(OrganizationPageLimit).ToArrayAsync(ct);

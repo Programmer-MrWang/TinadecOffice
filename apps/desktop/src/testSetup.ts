@@ -24,6 +24,12 @@ function createMemoryStorage(): Storage {
   } as Storage
 }
 
+// Component fixtures use the same standards mode as the app's <!doctype html>.
+// Browser-dependent renderers (including the math renderer) reject quirks mode.
+if (typeof document !== 'undefined' && !document.doctype) {
+  document.insertBefore(document.implementation.createDocumentType('html', '', ''), document.documentElement)
+}
+
 const target = typeof window === 'undefined' ? globalThis : (window as unknown as Record<string, unknown>)
 if (!('localStorage' in target) || target.localStorage == null) {
   Object.defineProperty(target, 'localStorage', {

@@ -1114,7 +1114,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 ExpectedContextRevision: null,
                 MeetingModelOverride: payload.MeetingModelOverride,
                 ModeVersionId: payload.ModeVersionId,
-                QueueBehindActiveRun: true), cancellationToken).ConfigureAwait(false);
+                QueueBehindActiveRun: true, SpaceOptions: payload.SpaceOptions,
+                SessionSettingsCaptured: true), cancellationToken).ConfigureAwait(false);
             await AppendEventAsync(runId, "interaction.queued_executed",
                 "A queued interaction was admitted as its own run once this run finished.",
                 new { directive_id = directive.Id, released_run_id = submission.RunId, existing = submission.Existing }, cancellationToken).ConfigureAwait(false);
@@ -1155,7 +1156,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         string? ClientMessageId,
         string? PermissionMode,
         Guid? ModeVersionId,
-        SessionModelOverride? MeetingModelOverride);
+        SessionModelOverride? MeetingModelOverride,
+        SpaceRunOptions? SpaceOptions);
 
     internal static QueuedInteractionPayload? ParseQueuedInteractionPayload(string payloadJson)
     {
@@ -1196,12 +1198,17 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                     : null;
                 meetingModelOverride = new SessionModelOverride(providerInstanceId, model);
             }
+            SpaceRunOptions? spaceOptions = null;
+            if (root.TryGetProperty("space_options", out var optionsValue) && optionsValue.ValueKind != JsonValueKind.Null)
+                spaceOptions = optionsValue.Deserialize<SpaceRunOptions>(new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                    { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower, UnmappedMemberHandling = System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow });
             return new QueuedInteractionPayload(
                 content,
                 clientMessageId,
                 permissionMode,
                 modeVersionId,
-                meetingModelOverride);
+                meetingModelOverride,
+                spaceOptions);
         }
         catch (JsonException)
         {

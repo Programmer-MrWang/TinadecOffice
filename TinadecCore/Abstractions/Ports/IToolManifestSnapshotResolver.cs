@@ -41,6 +41,9 @@ public sealed record ToolManifestSnapshotRequest(
     IReadOnlyList<string>? SpawnableToolIds = null,
     Guid? ModeVersionId = null)
 {
+    public SpaceRunOptions? SpaceOptions { get; init; }
+    public IReadOnlyList<string> CompositionToolIds { get; init; } = [];
+
     /// <summary>
     /// Preserves the pre-ModeVersionId constructor signature for already compiled
     /// host integrations. New admission code should pass the explicit frozen mode.

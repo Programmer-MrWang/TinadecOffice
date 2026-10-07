@@ -13,6 +13,18 @@ namespace TinadecCore.DmaEA;
 /// </summary>
 public interface IAgentRuntimeConfigurationResolver
 {
+    Task<FrozenRunConfigurationV1> ResolveSubmissionAsync(FullDuplexInvocation invocation, CancellationToken cancellationToken = default) =>
+        invocation.SpaceOptions is { } options
+            ? ResolveSpaceAsync(invocation.SessionId, options, invocation.PermissionMode, invocation.MeetingModelOverride, cancellationToken)
+            : invocation.ModeVersionId is { } mode
+                ? ResolveForModeAsync(invocation.SessionId, mode, invocation.PermissionMode, invocation.MeetingModelOverride, cancellationToken)
+                : ResolveAsync(invocation.SessionId, invocation.PermissionMode, invocation.MeetingModelOverride, cancellationToken);
+
+    Task<FrozenRunConfigurationV1> ResolveSpaceAsync(
+        Guid sessionId, SpaceRunOptions options, string? permissionMode,
+        SessionModelOverride? meetingModelOverride = null, CancellationToken cancellationToken = default) =>
+        throw new RunAdmissionException("space_options_unavailable", "Spatial composition is unavailable in this host.");
+
     Task<FrozenRunConfigurationV1> ResolveAsync(
         Guid sessionId,
         string? permissionMode,
@@ -56,6 +68,11 @@ public sealed record FrozenRunConfigurationV1(
     IReadOnlyList<RunConfigurationBinding> Bindings,
     string ToolManifestHash = "")
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SpaceRunOptions? SpaceOptions { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? SpacePreparationToolIds { get; init; }
+
     /// <summary>
     /// The v2 tool declarations authorized at admission.  This is a content
     /// snapshot, not a live registry reference; workers must derive declarations
@@ -270,6 +287,16 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         CancellationToken cancellationToken = default) =>
         ResolveCoreAsync(sessionId, modeVersionIdOverride: null, permissionMode, meetingModelOverride, cancellationToken);
 
+    public Task<FrozenRunConfigurationV1> ResolveSpaceAsync(
+        Guid sessionId, SpaceRunOptions options, string? permissionMode,
+        SessionModelOverride? meetingModelOverride = null, CancellationToken cancellationToken = default) =>
+        ResolveCoreAsync(sessionId, options.WorkflowModeVersionId, permissionMode, meetingModelOverride, cancellationToken, options);
+
+    public Task<FrozenRunConfigurationV1> ResolveSubmissionAsync(FullDuplexInvocation invocation, CancellationToken cancellationToken = default) =>
+        ResolveCoreAsync(invocation.SessionId, invocation.SpaceOptions?.WorkflowModeVersionId ?? invocation.ModeVersionId,
+            invocation.PermissionMode, invocation.MeetingModelOverride, cancellationToken, invocation.SpaceOptions,
+            useSessionModelOverride: !invocation.SessionSettingsCaptured);
+
     public Task<FrozenRunConfigurationV1> ResolveForModeAsync(
         Guid sessionId,
         Guid modeVersionId,
@@ -283,10 +310,16 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         Guid? modeVersionIdOverride,
         string? permissionMode,
         SessionModelOverride? meetingModelOverride,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SpaceRunOptions? spaceOptions = null,
+        bool useSessionModelOverride = true)
     {
         var session = await _sessions.FindAsync(sessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Session was not found.");
+        if (spaceOptions is not null && session.ViewMode != "space")
+            throw new RunAdmissionException("space_options_invalid", "Spatial options apply only to a spatial session.");
+        if (session.ViewMode == "space") spaceOptions ??= session.SpaceOptions ?? new SpaceRunOptions();
+        if (spaceOptions?.WorkflowModeVersionId is { } workflowId) modeVersionIdOverride = workflowId;
         var modeVersionId = modeVersionIdOverride ?? session.ModeVersionId;
         if (modeVersionId is null)
             throw new RunAdmissionException("agent_mode_not_configured", "A published default Agent Mode must be configured before creating a run.");
@@ -307,12 +340,35 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             // makes it visible to lifecycle audit without inventing a mutable record.
             new("agent_runtime_baseline", DeterministicGuid(snapshot.ContentHash), DeterministicGuid(snapshot.ContentHash + ":" + snapshot.Version), snapshot.ContentHash)
         };
-        var relational = await _formal.ResolveRosterForModeAsync(sessionId, modeVersionId.Value, cancellationToken).ConfigureAwait(false)
+        var relational = spaceOptions is { WorkflowModeVersionId: null }
+            ? await _formal.ResolveSpaceBaseAsync(sessionId, cancellationToken).ConfigureAwait(false)
+                ?? throw new RunAdmissionException("space_base_unavailable", "Publish a directly executable mode with a writable conversation identity before using spatial composition.")
+            : await _formal.ResolveRosterForModeAsync(sessionId, modeVersionId.Value, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException($"Agent mode version '{modeVersionId}' could not be resolved.");
+        modeVersionId = relational.ModeVersionId;
+        SpaceCompositionPolicy.Validate(spaceOptions, relational, workspace);
         var operation = relational.Operation.Select(ToRuntimeAgentDefinition).ToArray();
         var execution = relational.Execution.Select(ToRuntimeAgentDefinition).ToArray();
-        operation = (await FreezeModelPlansAsync(operation, sessionId, modeVersionId.Value, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
-        execution = (await FreezeModelPlansAsync(execution, sessionId, modeVersionId.Value, session.ConversationTemplateSlug, meetingModelOverride, cancellationToken).ConfigureAwait(false)).ToArray();
+        string[] preparationTools = [];
+        if (spaceOptions is { WorkflowModeVersionId: not null } && (spaceOptions.SpecEnabled || spaceOptions.Worktree))
+        {
+            var preparation = await _formal.ResolveSpaceBaseAsync(sessionId, cancellationToken).ConfigureAwait(false)
+                ?? throw new RunAdmissionException("space_base_unavailable", "The workflow requires a published direct-execution resource for its preparation phase.");
+            var source = preparation.Operation.Single(item => item.Id == preparation.ConversationTemplateSlug);
+            var root = operation.Single(item => item.Id == relational.ConversationTemplateSlug);
+            if (root.AgentVersionId != source.AgentVersionId)
+                throw new RunAdmissionException("space_options_conflict", "Workflow preparation must use the same published conversation agent version as its direct-execution resource.");
+            preparationTools = source.AllowedTools.Where(tool =>
+                spaceOptions.Worktree && tool == "git_worktree_create" || spaceOptions.SpecEnabled && SpaceCompositionPolicy.PreparationReadTools.Contains(tool)).ToArray();
+            if (spaceOptions.Worktree && !preparationTools.Contains("git_worktree_create"))
+                throw new RunAdmissionException("space_worktree_unavailable", "The published preparation resource does not grant worktree creation.");
+            operation = operation.Select(agent => agent.AgentVersionId == root.AgentVersionId
+                ? agent with { AllowedTools = agent.AllowedTools.Concat(preparationTools).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+                    ResourceGrants = agent.ResourceGrants.Concat(source.ResourceGrants).Distinct().ToArray() } : agent).ToArray();
+            bindings.Add(new RunConfigurationBinding("space_preparation_mode_version", preparation.AgentModeId, preparation.ModeVersionId, preparation.TopologyHash ?? ""));
+        }
+        operation = (await FreezeModelPlansAsync(operation, sessionId, modeVersionId.Value, relational.ConversationTemplateSlug, meetingModelOverride, cancellationToken, useSessionModelOverride).ConfigureAwait(false)).ToArray();
+        execution = (await FreezeModelPlansAsync(execution, sessionId, modeVersionId.Value, relational.ConversationTemplateSlug, meetingModelOverride, cancellationToken, useSessionModelOverride).ConfigureAwait(false)).ToArray();
 
         // Workspace baseline: a bound workspace gives every agent that holds a
         // provider tool face the whole-root read level, so read-only work never
@@ -380,6 +436,13 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             snapshot.Orchestration.LanesEnabled);
 
         var runtimeProfileId = relational.RuntimeProfileId;
+        if (spaceOptions is not null)
+        {
+            operation = SpaceCompositionPolicy.Narrow(operation, spaceOptions);
+            execution = SpaceCompositionPolicy.Narrow(execution, spaceOptions);
+            graph = SpaceCompositionPolicy.Narrow(graph, operation, spaceOptions);
+            runtimeProfileId += ":space:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(spaceOptions)))).ToLowerInvariant()[..16];
+        }
         bindings.Add(new RunConfigurationBinding("agent_mode_version", relational.AgentModeId, relational.ModeVersionId, relational.TopologyHash ?? ""));
         foreach (var agent in relational.Operation.Concat(relational.Execution))
         {
@@ -418,7 +481,9 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             Triggers = snapshot.Triggers,
             Orchestration = snapshot.Orchestration,
             Graph = graph,
-            Workspace = workspace
+            Workspace = workspace,
+            SpaceOptions = spaceOptions,
+            SpacePreparationToolIds = preparationTools.Length == 0 ? null : preparationTools
         };
         return frozen;
     }
@@ -458,7 +523,8 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         Guid modeVersionId,
         string? conversationTemplateSlug,
         SessionModelOverride? meetingModelOverride,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool useSessionModelOverride = true)
     {
         var result = new List<RuntimeAgentDefinition>(definitions.Count);
         foreach (var definition in definitions)
@@ -469,7 +535,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
                 sessionId, modeVersionId, definitionId, versionId, definition.Id,
                 definition.ModelStrategyJson, definition.ModelStrategySource,
                 IsConversationRoot(definition, conversationTemplateSlug),
-                meetingModelOverride), cancellationToken).ConfigureAwait(false);
+                meetingModelOverride, useSessionModelOverride), cancellationToken).ConfigureAwait(false);
             result.Add(definition with { ModelPlan = plan });
         }
         return result;

@@ -60,13 +60,13 @@ public sealed class OrganizationTests : IAsyncLifetime
 
     private long _call;
 
-    private async Task<(bool Ok, JsonElement Result, string? Error)> ToolAsync(Guid instance, string toolId, object arguments)
+    private async Task<(bool Ok, JsonElement Result, string? Error)> ToolAsync(Guid instance, string toolId, object arguments, bool bulletinBoardAllowed = true)
     {
         var scope = Scope();
         var outcome = await _factory.Services.GetRequiredService<ITinaChatToolGateway>().ExecuteAsync(new TinaChatToolCall(
             scope.TenantId, scope.WorkspaceId, scope.PrincipalId, _session, _run, Interlocked.Increment(ref _call), toolId,
             JsonSerializer.SerializeToElement(arguments))
-        { AgentInstanceId = instance });
+        { AgentInstanceId = instance, BulletinBoardAllowed = bulletinBoardAllowed });
         return (outcome.IsSuccess, JsonDocument.Parse(outcome.ResultJson).RootElement.Clone(), outcome.Error);
     }
 
@@ -156,6 +156,27 @@ public sealed class OrganizationTests : IAsyncLifetime
         await using var db = await _factory.Services.GetRequiredService<IDbContextFactory<TinaChatDbContext>>().CreateDbContextAsync();
         var id = Guid.Parse(message.GetProperty("message_id").GetString()!);
         Assert.Equal(1, await db.Audiences.CountAsync(x => x.MessageId == id));
+    }
+
+    [Fact]
+    public async Task SpatialBoardRestriction_IsPerCall_CoversAliasesIdsAndInbox_AndKeepsHistory()
+    {
+        var (a, b, _, _) = await CastAsync();
+        var notice = await ToolAsync(a, "org_send", new { room = "board", content = "A board notice" });
+        Assert.True(notice.Ok, notice.Error);
+        await using var db = await _factory.Services.GetRequiredService<IDbContextFactory<TinaChatDbContext>>().CreateDbContextAsync();
+        var board = await db.Conversations.SingleAsync(room => room.Kind == "board");
+        foreach (var room in new[] { "board", board.Id.ToString("N") })
+        {
+            Assert.False((await ToolAsync(a, "org_read", new { room }, bulletinBoardAllowed: false)).Ok);
+            Assert.False((await ToolAsync(a, "org_send", new { room, content = "Blocked" }, bulletinBoardAllowed: false)).Ok);
+        }
+        var inbox = await ToolAsync(b, "org_read", new { room = "inbox" }, bulletinBoardAllowed: false);
+        Assert.True(inbox.Ok, inbox.Error);
+        Assert.Empty(inbox.Result.GetProperty("messages").EnumerateArray());
+        Assert.True((await ToolAsync(b, "org_read", new { room = "plan" }, bulletinBoardAllowed: false)).Ok);
+        var enabled = await ToolAsync(b, "org_read", new { room = "board" });
+        Assert.Single(enabled.Result.GetProperty("messages").EnumerateArray());
     }
 
     [Fact]

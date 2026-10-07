@@ -21,6 +21,28 @@ test('session creation and listing preserve the immutable presentation family', 
   assert.deepEqual(listed.map(s => s.view_mode), ['flat', 'space']);
 });
 
+test('composer settings and admission preserve options, reset flags and revision conflicts', { concurrency: false }, async () => {
+  const options = { plan_first: true, spec_enabled: false, multi_agent: false, workflow_mode_version_id: null, bulletin_board: false, worktree: true };
+  const requests: Array<{ url: string; body: unknown }> = [];
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requests.push({ url: String(input), body: JSON.parse(String(init?.body)) });
+    return new Response(JSON.stringify({ id: 'space', view_mode: 'space', space_options: options, permission_mode: 'default', settings_revision: 2 }), { headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+  const patch = { space_options: options, clear_meeting_model_override: true, clear_mode_version: true, expected_settings_revision: 1 };
+  const saved = await app.handle(new Request('http://gateway.local/api/v1/sessions/space', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }));
+  assert.equal(saved.status, 200);
+  assert.deepEqual(requests[0]?.body, patch);
+  assert.deepEqual((await saved.json() as { space_options: unknown }).space_options, options);
+  const submission = { content: 'work', client_message_id: 'client-1', dispatch_mode: 'queued', space_options: options, clear_meeting_model_override: true, expected_settings_revision: 2 };
+  const admitted = await app.handle(new Request('http://gateway.local/api/v1/sessions/space/interactions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(submission) }));
+  assert.equal(admitted.status, 200);
+  assert.deepEqual(requests[1]?.body, submission);
+  globalThis.fetch = (async () => new Response(JSON.stringify({ code: 'session_settings_conflict', detail: 'Settings changed in another window.' }), { status: 409, headers: { 'content-type': 'application/problem+json' } })) as typeof fetch;
+  const conflict = await app.handle(new Request('http://gateway.local/api/v1/sessions/space', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }));
+  assert.equal(conflict.status, 409);
+  assert.equal((await conflict.json() as { code: string }).code, 'session_settings_conflict');
+});
+
 test('run SSE forwards live answer frames before the upstream completes', { concurrency: false, timeout: 5000 }, async () => {
   const first = 'id: 3\nevent: answer.delta\ndata: {"kind":"answer.delta","delta":"Hello"}\n\n';
   let upstream!: ReadableStreamDefaultController<Uint8Array>;

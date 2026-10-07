@@ -40,7 +40,9 @@ public sealed record FullDuplexInvocation(
     bool QueueBehindActiveRun = false,
     Guid? ParentRunId = null,
     Guid? ParentTaskId = null,
-    string RunKind = "root");
+    string RunKind = "root",
+    SpaceRunOptions? SpaceOptions = null,
+    bool SessionSettingsCaptured = false);
 
 public sealed record RunSubmission(
     Guid RunId,
@@ -121,6 +123,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
             if (!string.Equals(invocation.Content, chatInput.Content, StringComparison.Ordinal)
                 || invocation.ClientMessageId != chatInput.ClientMessageId || invocation.TargetRunId.HasValue
                 || invocation.MeetingModelOverride is not null
+                || invocation.SpaceOptions is not null
                 || (invocation.ModeVersionId.HasValue && invocation.ModeVersionId != chatInput.ModeVersionId)
                 || (invocation.PermissionMode is not null && invocation.PermissionMode != "ask"))
                 throw new TinaChatException(403, "tina_chat_input_locked", "This isolated execution session accepts only its authorized intent handoff. Use the chat to propose a new intent revision.");
@@ -321,7 +324,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
         // Spawnable worker templates (graph tiers) contribute their tool scope too — a
         // free-form director mode has an empty execution roster, so without this the
         // manifest would authorize nothing for its spawned workers.
-        var definitions = configuration.ExecutionAgents.ToArray();
+        var definitions = configuration.ExecutionAgents.Concat(configuration.OperationAgents).ToArray();
         var spawnable = configuration.Graph?.SpawnableTemplates ?? [];
         var allowedToolIds = definitions
             .SelectMany(agent => agent.AllowedTools)
@@ -340,7 +343,8 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
                     allowedToolIds,
                     allowAll,
                     SpawnableToolIds: spawnable.SelectMany(template => template.ToolCeiling).ToList(),
-                    ModeVersionId: configuration.ModeVersionId), cancellationToken).ConfigureAwait(false);
+                    ModeVersionId: configuration.ModeVersionId)
+                { SpaceOptions = configuration.SpaceOptions, CompositionToolIds = configuration.SpacePreparationToolIds ?? [] }, cancellationToken).ConfigureAwait(false);
             if (snapshot.ProtocolVersion != 2 || string.IsNullOrWhiteSpace(snapshot.ManifestHash))
             {
                 throw new ToolManifestSnapshotException(
@@ -822,6 +826,19 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
 
     private async Task VerifyRequestedModeAsync(FullDuplexInvocation invocation, RunState run, CancellationToken cancellationToken)
     {
+        if (invocation.SpaceOptions is { } spaceOptions)
+        {
+            // An idempotent retry compares the submitted choices with the actual
+            // admitted document, never with a newly published baseline or route.
+            var stored = await _lifecycle.GetFrozenRunConfigurationAsync(run.RunId, cancellationToken).ConfigureAwait(false)
+                ?? throw new RunAdmissionException("frozen_configuration_missing", "The admitted run has no frozen configuration.");
+            var frozen = JsonSerializer.Deserialize<FrozenRunConfigurationV1>(stored.Content, FrozenRunConfigurationV1.JsonOptions)
+                ?? throw new RunAdmissionException("frozen_configuration_missing", "The admitted run configuration could not be read.");
+            if (frozen.SpaceOptions != spaceOptions
+                || !string.Equals(frozen.PermissionMode, AgentRuntimeConfigurationResolver.NormalizePermissionMode(invocation.PermissionMode), StringComparison.Ordinal))
+                throw new RunAdmissionException("IDEMPOTENCY_KEY_REUSE", "The client message id was already used with different spatial settings.");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(invocation.PermissionMode)) return;
         var requested = await ResolveConfigurationAsync(invocation, cancellationToken).ConfigureAwait(false);
         if (!ModeMatches(requested, run))
@@ -833,18 +850,7 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
     private Task<FrozenRunConfigurationV1> ResolveConfigurationAsync(
         FullDuplexInvocation invocation,
         CancellationToken cancellationToken) =>
-        invocation.ModeVersionId is { } modeVersionId
-            ? _configurationResolver.ResolveForModeAsync(
-                invocation.SessionId,
-                modeVersionId,
-                invocation.PermissionMode,
-                invocation.MeetingModelOverride,
-                cancellationToken)
-            : _configurationResolver.ResolveAsync(
-                invocation.SessionId,
-                invocation.PermissionMode,
-                invocation.MeetingModelOverride,
-                cancellationToken);
+        _configurationResolver.ResolveSubmissionAsync(invocation, cancellationToken);
 
     private static bool ModeMatches(FrozenRunConfigurationV1 configuration, RunState run) =>
         string.Equals(configuration.PermissionMode, run.PermissionMode, StringComparison.OrdinalIgnoreCase)

@@ -323,6 +323,9 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         var execution = await db.ToolExecutions.SingleOrDefaultAsync(x => x.Id == executionId
             && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
         if (execution is null || !execution.RequiresApproval || execution.ApprovalId is not { } approvalId) return null;
+        // Spec is an explicit user-requested document review. Execution permissions,
+        // standing grants and delegated judges cannot approve document content.
+        if (CoreVirtualToolPolicy.IsSpecPropose(execution.ToolId)) return null;
         var approval = await db.ApprovalRequests.SingleOrDefaultAsync(x => x.Id == approvalId
             && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false);
         if (approval is null || approval.Status != "pending") return null;
@@ -1224,6 +1227,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
         var row = await db.ApprovalRequests.SingleOrDefaultAsync(x => x.Id == approvalId
             && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Approval was not found.");
+        if (decidedByPrincipalId == Guid.Empty && row.ExecutionId is { } specExecutionId
+            && await db.ToolExecutions.AsNoTracking().AnyAsync(item => item.Id == specExecutionId
+                && item.ToolId == CoreVirtualToolPolicy.SpecProposeToolId, cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("Specification documents require the user's own confirmation.");
         if (row.ExpiresAt <= now && row.Status == "pending")
         {
             var expired = await db.ApprovalRequests.Where(x => x.Id == approvalId
@@ -1389,9 +1396,10 @@ public sealed class ToolApprovalCoordinator : IToolApprovalCoordinator, IToolExe
 
     private static void ValidatePrepareRequest(ToolExecutionPrepareRequest request)
     {
-        // The Core-owned create_workspace virtual tool is the single legal call
-        // without a project: it is the bridge that gives a free conversation one.
-        var projectlessVirtualTool = CoreVirtualToolPolicy.IsProjectlessCreateWorkspace(request.ProjectId, request.ToolId);
+        // Workspace creation and an explicitly requested specification review
+        // are Core-owned human decisions that do not require a project root.
+        var projectlessVirtualTool = CoreVirtualToolPolicy.IsProjectlessCreateWorkspace(request.ProjectId, request.ToolId)
+            || CoreVirtualToolPolicy.IsProjectlessScope(request.ProjectId) && CoreVirtualToolPolicy.IsSpecPropose(request.ToolId);
         if (request.TenantId == Guid.Empty || request.WorkspaceId == Guid.Empty
             || (request.ProjectId == Guid.Empty && !projectlessVirtualTool)
             || request.SessionId == Guid.Empty || request.RunId == Guid.Empty || request.TaskId == Guid.Empty || request.AgentInstanceId == Guid.Empty)

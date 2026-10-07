@@ -69,6 +69,8 @@ public sealed class MemoryDbContext : DbContext
             entity.Property(x => x.HistoryRevision).HasColumnName("history_revision");
             entity.Property(x => x.ModeVersionId).HasColumnName("mode_version_id");
             entity.Property(x => x.ViewMode).HasColumnName("view_mode").HasMaxLength(16);
+            entity.Property(x => x.PermissionMode).HasMaxLength(32);
+            entity.Property(x => x.SettingsRevision).IsConcurrencyToken();
             entity.Property(x => x.MeetingModelOverrideProviderInstanceId).HasColumnName("meeting_model_override_provider_instance_id");
             entity.Property(x => x.MeetingModelOverrideModel).HasColumnName("meeting_model_override_model");
             entity.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -169,6 +171,9 @@ public sealed class SessionRecord
 {
     // Immutable presentation family. Existing database rows are null (= flat).
     public string? ViewMode { get; set; }
+    public string? PermissionMode { get; set; }
+    public string? SpaceOptionsJson { get; set; }
+    public long SettingsRevision { get; set; }
     public Guid Id { get; set; }
     public Guid TenantId { get; set; }
     public Guid WorkspaceId { get; set; }

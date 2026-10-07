@@ -18,7 +18,7 @@ import {
 } from '@/api'
 import { basenameFromPath } from '@/format'
 import { getDispatchPref } from '@/lib/dispatchPref'
-import { attachmentsForSend, readyAttachmentCount, settleSentAttachments } from '@/lib/pendingAttachments'
+import { attachmentsForSend, pendingAttachments, readyAttachmentCount, settleSentAttachments } from '@/lib/pendingAttachments'
 import { followSession, subscribeToSessionEvents } from '@/lib/sessionEventBus'
 import { isAbortError } from '@/lib/isAbortError'
 import { useAgentActivity } from '@/composables/useAgentActivity'
@@ -26,7 +26,8 @@ import { projectRunReply } from '@/lib/runReply'
 import { useNotifications } from '@/composables/useNotifications'
 import type { PermissionLevel } from '@/types/mode'
 // generated client is canonical; api.ts stays as compat alias (see bottom of api.ts)
-import type { DispatchMode, MeetingModelOverrideDto } from '@/api'
+import type { ComposerSubmitOptions, DispatchMode, MeetingModelOverrideDto, SessionSettingsUpdate, SpaceOptionsDto } from '@/api'
+import { applyComposerSettings, copyComposerSettings, defaultSpaceOptions, newComposerSettings, type ComposerSettings } from '@/lib/composerSettings'
 import { userToolActionIdempotencyKey, userToolActionToApproval } from '@/userToolAction'
 import { createRunStream, type RunStreamHandle } from '@/lib/runStream'
 import { generatedApi } from '@/generated/client'
@@ -72,14 +73,17 @@ const busy = ref(false)
 let suppressProjectSessionsReload = false
 // 模式身份只剩「已发布的 ModeVersion」：六值 agent_mode 词表已从契约删除，
 // 因此不再有本地存储的"当前模式"——选择跟着会话走（session.mode_version_id）。
-const currentPermission = ref<PermissionLevel>('default')
+const newSessionSettings = ref<Record<SessionView, ComposerSettings>>({ flat: newComposerSettings('flat'), space: newComposerSettings('space') })
+const settingsWrites = new Map<string, Promise<boolean>>()
+const settingsPending = ref<Record<string, number>>({})
+const settingsErrors = ref<Record<string, string | null>>({})
 const runs = ref<Array<{ id: string; status: string }>>([])
 /**
  * Messages waiting in the session's queue. `interactionId` is set when Core holds the message
  * (queued delivery never runs beside an unfinished run); the card then leaves when Core admits,
  * rejects or dequeues it, and acting on it takes it out of Core's queue first.
  */
-const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string; permission_mode?: PermissionLevel; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; attachment_ids?: string[] }>>([])
+const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string; permission_mode?: PermissionLevel; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; clear_meeting_model_override?: boolean; space_options?: SpaceOptionsDto | null; attachment_ids?: string[] }>>([])
 const runStreams = new Map<string, RunStreamHandle>()
 const runText = new Map<string, string>()
 const provisionalReplies = new Set<string>()
@@ -98,6 +102,110 @@ const currentProject = computed(() => projects.value.find((p) => p.id === select
 // 词表以共享 12 态为准，不再使用自造的 running/ready/pending/queued）。
 const activeRuns = computed(() => runs.value.filter((r) => !['completed', 'failed', 'cancelled', 'awaiting_user'].includes(r.status)))
 const currentSession = computed(() => sessions.value.find((s) => s.id === selectedSessionId.value) ?? null)
+function settingsFor(session: SessionDto | null, view: SessionView): ComposerSettings {
+  return session ? {
+    mode_version_id: session.mode_version_id ?? null,
+    permission_mode: (session.permission_mode ?? 'default') as PermissionLevel,
+    meeting_model_override: session.meeting_model_override ?? null,
+    space_options: view === 'space' ? session.space_options ?? defaultSpaceOptions() : null,
+  } : newSessionSettings.value[view]
+}
+const composerSettings = computed(() => settingsFor(currentSession.value, viewMode.value))
+const currentPermission = computed(() => composerSettings.value.permission_mode)
+const settingsKey = computed(() => selectedSessionId.value ?? `draft:${viewMode.value}`)
+const settingsSaving = computed(() => (settingsPending.value[settingsKey.value] ?? 0) > 0)
+const settingsError = computed(() => settingsErrors.value[settingsKey.value] ?? null)
+
+function acceptSessionReceipt(updated: SessionDto) {
+  sessions.value = sessions.value.map(session => session.id !== updated.id || updated.settings_revision < session.settings_revision
+    ? session : { ...session, ...updated })
+}
+
+async function saveSessionTitle(sessionId: string, title: string): Promise<void> {
+  const previous = settingsWrites.get(sessionId)
+  const request = (async () => {
+    if (previous) await previous
+    acceptSessionReceipt(await api.updateSessionTitle(sessionId, title))
+  })()
+  // A naming failure does not invalidate the task's chosen runtime settings.
+  const settled = request.then(() => true, () => true)
+  settingsWrites.set(sessionId, settled)
+  try { await request } finally { if (settingsWrites.get(sessionId) === settled) settingsWrites.delete(sessionId) }
+}
+
+/** Serial writes keep rapid selections ordered; revisions protect against other windows. */
+async function updateComposerSettings(patch: SessionSettingsUpdate): Promise<boolean> {
+  const sessionId = selectedSessionId.value
+  const view = viewMode.value
+  const key = sessionId ?? `draft:${view}`
+  const frozenPatch: SessionSettingsUpdate = {
+    ...patch,
+    ...(patch.space_options ? { space_options: { ...patch.space_options } } : {}),
+    ...(patch.meeting_model_override ? { meeting_model_override: { ...patch.meeting_model_override } } : {}),
+  }
+  settingsErrors.value = { ...settingsErrors.value, [key]: null }
+  if (!sessionId) {
+    newSessionSettings.value = { ...newSessionSettings.value, [view]: applyComposerSettings(newSessionSettings.value[view], frozenPatch) }
+    return true
+  }
+  settingsPending.value = { ...settingsPending.value, [key]: (settingsPending.value[key] ?? 0) + 1 }
+  const previous = settingsWrites.get(sessionId)
+  const writing = (async () => {
+    if (previous) await previous
+    try {
+      const session = sessions.value.find(s => s.id === sessionId)
+      sessionListRead++
+      sessionListAbort?.abort()
+      const updated = await api.updateSessionSettings(sessionId, { ...frozenPatch, expected_settings_revision: session?.settings_revision ?? 0 })
+      acceptSessionReceipt(updated)
+      settingsErrors.value = { ...settingsErrors.value, [key]: null }
+      return true
+    } catch (error) {
+      settingsErrors.value = { ...settingsErrors.value, [key]: error instanceof Error ? error.message : String(error) }
+      if ((error as { code?: string }).code === 'session_settings_conflict') {
+        try {
+          const latest = (await api.listSessions()).find(s => s.id === sessionId)
+          if (latest) sessions.value = sessions.value.map(s => s.id === sessionId ? latest : s)
+        } catch { /* Preserve the original actionable save error. */ }
+      }
+      return false
+    } finally {
+      settingsPending.value = { ...settingsPending.value, [key]: Math.max(0, (settingsPending.value[key] ?? 1) - 1) }
+    }
+  })()
+  settingsWrites.set(sessionId, writing)
+  const result = await writing
+  if (settingsWrites.get(sessionId) === writing) settingsWrites.delete(sessionId)
+  return result
+}
+
+let composerSessionCreation: { view: SessionView; projectId: string | null; promise: Promise<string> } | null = null
+/** Attachments can create a draft session before the first message without losing its settings. */
+async function ensureComposerSession(): Promise<string> {
+  if (selectedSessionId.value) return selectedSessionId.value
+  const view = viewMode.value
+  const projectId = selectedProjectId.value
+  if (composerSessionCreation?.view === view && composerSessionCreation.projectId === projectId) return composerSessionCreation.promise
+  const settings = copyComposerSettings(composerSettings.value)
+  const key = `draft:${view}`
+  settingsPending.value = { ...settingsPending.value, [key]: (settingsPending.value[key] ?? 0) + 1 }
+  const promise = (async () => {
+    sessionListRead++
+    sessionListAbort?.abort()
+    const session = await api.createSession(projectId, 'Tinadec session', settings.mode_version_id, view, settings)
+    sessions.value = [session, ...sessions.value.filter(s => s.id !== session.id)]
+    if (viewMode.value === view && selectedProjectId.value === projectId && !selectedSessionId.value) {
+      selectedSessionId.value = session.id
+      pendingSessionId.value = session.id
+    }
+    return session.id
+  })()
+  composerSessionCreation = { view, projectId, promise }
+  try { return await promise } finally {
+    settingsPending.value = { ...settingsPending.value, [key]: Math.max(0, (settingsPending.value[key] ?? 1) - 1) }
+    if (composerSessionCreation?.promise === promise) composerSessionCreation = null
+  }
+}
 const recentEvents = computed(() => events.value.slice(-8).reverse())
 
 const sessionIdRef = computed(() => currentSession.value?.id ?? null)
@@ -396,8 +504,7 @@ async function renameSession(sessionId: string, title: string) {
   const trimmed = title.trim()
   if (!trimmed) return
   await run('rename session', async () => {
-    await api.updateSessionTitle(sessionId, trimmed)
-    sessions.value = sessions.value.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s))
+    await saveSessionTitle(sessionId, trimmed)
   })
 }
 
@@ -460,14 +567,32 @@ const streamingReply = computed(() =>
 )
 
 
-async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; permission_mode?: PermissionLevel }) {
+async function handleSend(content: string, opts?: ComposerSubmitOptions) {
   // Freeze the selected policy before session creation yields to UI changes.
-  const requestedPermission = opts?.permission_mode ?? currentPermission.value
   const requestedView = viewMode.value
   const requestedSession = selectedSessionId.value
   const requestedProject = selectedProjectId.value
-  const requestedMode = currentSession.value?.mode_version_id ?? opts?.mode_version_id ?? null
+  const preparingSession = !requestedSession && composerSessionCreation?.view === requestedView && composerSessionCreation.projectId === requestedProject
+    ? composerSessionCreation.promise : null
+  if (preparingSession) {
+    invokeError.value = '附件会话正在准备，请稍候再发送。'
+    return
+  }
+  if (pendingAttachments.value.some(attachment => attachment.status === 'uploading')) {
+    invokeError.value = '附件正在上传，请稍候再发送。'
+    return
+  }
+  const pendingSettings = requestedSession ? settingsWrites.get(requestedSession) : null
   const outgoing = attachmentsForSend()
+  if (pendingSettings && !await pendingSettings) return
+  if (pendingSettings && (selectedSessionId.value !== requestedSession || viewMode.value !== requestedView || selectedProjectId.value !== requestedProject)) return
+  const settings = copyComposerSettings(settingsFor(sessions.value.find(s => s.id === requestedSession) ?? null, requestedView))
+  const selected = applyComposerSettings(settings, opts ?? {})
+  const requestedPermission = selected.permission_mode
+  const requestedMode = selected.mode_version_id
+  const requestedModel = selected.meeting_model_override
+  const requestedSpace = requestedView === 'space' ? selected.space_options : null
+  let requestedSettingsRevision = sessions.value.find(s => s.id === requestedSession)?.settings_revision
   await run('send message', async () => {
     let sessionId = requestedSession
     if (!sessionId) {
@@ -475,9 +600,13 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
       // mode, so a session created on the default would flip the picker back after this send.
       sessionListRead++
       sessionListAbort?.abort()
-      const session = await api.createSession(requestedProject ?? null, 'Tinadec session', requestedMode, requestedView)
+      const session = await api.createSession(requestedProject ?? null, 'Tinadec session', requestedMode, requestedView, {
+        permission_mode: requestedPermission, meeting_model_override: requestedModel,
+        ...(requestedSpace ? { space_options: requestedSpace } : {}),
+      })
       sessions.value = [session, ...sessions.value]
       sessionId = session.id
+      requestedSettingsRevision = session.settings_revision
       if (viewMode.value === requestedView && selectedSessionId.value === requestedSession) {
         selectedSessionId.value = session.id
         pendingSessionId.value = session.id
@@ -491,7 +620,7 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     const dispatchMode: DispatchMode = (opts?.dispatch_mode as DispatchMode) ?? getDispatchPref()
     const modeVersionId = requestedMode
     const targetRunId = opts?.target_run_id ?? null
-    const meetingModelOverride = opts?.meeting_model_override ?? null
+    const meetingModelOverride = requestedModel
     if (dispatchMode === 'insert' && !targetRunId) throw new Error('插入模式需选择目标 run')
     // Taken before the request, not after it: a send that fails must leave the chips
     // alone so the same selection can be retried. Core binds these rows to the message
@@ -509,7 +638,12 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
         permission_mode: requestedPermission,
         dispatch_mode: dispatchMode,
         target_run_id: targetRunId,
-        meeting_model_override: meetingModelOverride,
+        ...(dispatchMode !== 'insert' ? {
+          ...(requestedSettingsRevision !== undefined ? { expected_settings_revision: requestedSettingsRevision } : {}),
+          meeting_model_override: meetingModelOverride,
+          clear_meeting_model_override: meetingModelOverride === null,
+          ...(requestedSpace ? { space_options: requestedSpace } : {}),
+        } : {}),
         ...(outgoing.attachmentIds.length > 0 ? { attachment_ids: outgoing.attachmentIds } : {}),
       })
       settleSentAttachments(outgoing)
@@ -523,13 +657,22 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
       if (isCurrent() && (waitingBehind || (!resp.run_id && resp.status === 'queued'))) {
         queuedMessages.value = [...queuedMessages.value, { id: clientMessageId, content: snapshotContent, interactionId: waitingBehind ? resp.interaction_id : undefined,
           permission_mode: requestedPermission, mode_version_id: modeVersionId, meeting_model_override: meetingModelOverride,
+          clear_meeting_model_override: meetingModelOverride === null, space_options: requestedSpace,
           ...(outgoing.attachmentIds.length > 0 ? { attachment_ids: outgoing.attachmentIds } : {}) }]
       }
-      // optionally still stream via invoke for backwards compat if needed; interaction SSE will arrive via events
     } catch (err) {
       if (!isCurrent()) throw err
       const msg = err instanceof Error ? err.message : String(err)
       const code = (err as { code?: unknown }).code
+      if (code === 'session_settings_conflict') {
+        // Admission rejected this snapshot; keep the user's request for an explicit retry.
+        if (!draft.value.trim()) draft.value = snapshotContent
+        messages.value = messages.value.filter(message => message.id !== `pending-${clientMessageId}`)
+        try {
+          const latest = (await api.listSessions()).find(s => s.id === sessionId)
+          if (latest) sessions.value = sessions.value.map(s => s.id === sessionId ? latest : s)
+        } catch { /* The conflict remains actionable even if the refresh fails. */ }
+      }
       // Main path only: POST /interactions is the single admission contract
       // (docs/app-core-ui.md §4.1). The legacy invoke-stream / POST messages
       // fallbacks were removed so failures surface visibly instead of
@@ -548,9 +691,7 @@ async function handleSend(content: string, opts?: { dispatch_mode?: DispatchMode
     if (pendingSessionId.value === sessionId) {
       const title = generateTitle(snapshotContent, outgoing.summaries.map((row) => row.file_name))
       try {
-        await api.updateSessionTitle(sessionId, title)
-        const idx = sessions.value.findIndex((s) => s.id === sessionId)
-        if (idx !== -1) sessions.value[idx] = { ...sessions.value[idx], title }
+        await saveSessionTitle(sessionId, title)
       } catch {
         const idx = sessions.value.findIndex((s) => s.id === sessionId)
         if (idx !== -1) sessions.value[idx] = { ...sessions.value[idx], title }
@@ -600,10 +741,10 @@ function forgetQueued(id: string) {
  * Takes a message Core holds out of its queue. False when it already left (admitted or decided):
  * then acting on it again would send the same words twice.
  */
-async function dequeue(item: { interactionId?: string }): Promise<boolean> {
-  if (!item.interactionId || !selectedSessionId.value) return true
+async function dequeue(item: { interactionId?: string }, sessionId: string): Promise<boolean> {
+  if (!item.interactionId) return true
   try {
-    await api.cancelInteraction(selectedSessionId.value, item.interactionId)
+    await api.cancelInteraction(sessionId, item.interactionId)
     return true
   } catch (err) {
     const status = (err as { status?: number }).status
@@ -613,15 +754,17 @@ async function dequeue(item: { interactionId?: string }): Promise<boolean> {
 }
 
 async function dismissQueued(id: string) {
+  const sessionId = selectedSessionId.value
   const item = queuedMessages.value.find((q) => q.id === id)
-  if (!item) return
-  if (await dequeue(item)) forgetQueued(id)
+  if (!item || !sessionId) return
+  if (await dequeue(item, sessionId) && selectedSessionId.value === sessionId) forgetQueued(id)
 }
 
 async function editQueued(id: string) {
+  const sessionId = selectedSessionId.value
   const item = queuedMessages.value.find((q) => q.id === id)
-  if (!item) return
-  if (!(await dequeue(item))) return
+  if (!item || !sessionId) return
+  if (!(await dequeue(item, sessionId)) || selectedSessionId.value !== sessionId) return
   draft.value = item.content
   forgetQueued(id)
 }
@@ -632,13 +775,14 @@ async function editQueued(id: string) {
  * steering apply at its next step.
  */
 async function steerQueued(id: string, targetRunId: string, interrupt = false) {
-  if (!selectedSessionId.value) return
+  const sessionId = selectedSessionId.value
+  if (!sessionId) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
-  if (!(await dequeue(item))) return
+  if (!(await dequeue(item, sessionId))) return
   let sent = false
   await run('steer message', async () => {
-    await api.createInteraction(selectedSessionId.value!, {
+    await api.createInteraction(sessionId, {
       content: item.content,
       client_message_id: newId(),
       mode_version_id: null,
@@ -648,17 +792,19 @@ async function steerQueued(id: string, targetRunId: string, interrupt = false) {
     })
     sent = true
   })
-  if (sent) forgetQueued(id)
+  if (sent && selectedSessionId.value === sessionId) forgetQueued(id)
 }
 
 async function promoteQueued(id: string) {
-  if (!selectedSessionId.value) return
+  const sessionId = selectedSessionId.value
+  const permission = currentPermission.value
+  if (!sessionId) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
-  if (!(await dequeue(item))) return
+  if (!(await dequeue(item, sessionId))) return
   let sent = false
   await run('promote message', async () => {
-    await api.createInteraction(selectedSessionId.value!, {
+    await api.createInteraction(sessionId, {
       content: item.content,
       // A message Core already holds keeps its id, so running it now reuses the words the user
       // already sent instead of posting them a second time.
@@ -666,13 +812,15 @@ async function promoteQueued(id: string) {
       mode_version_id: item.mode_version_id ?? null,
       dispatch_mode: 'parallel',
       target_run_id: null,
-      permission_mode: item.permission_mode ?? currentPermission.value,
+      permission_mode: item.permission_mode ?? permission,
       meeting_model_override: item.meeting_model_override ?? null,
+      ...(item.clear_meeting_model_override ? { clear_meeting_model_override: true } : {}),
+      ...(item.space_options ? { space_options: { ...item.space_options } } : {}),
       ...(item.attachment_ids?.length ? { attachment_ids: item.attachment_ids } : {}),
     })
     sent = true
   })
-  if (sent) forgetQueued(id)
+  if (sent && selectedSessionId.value === sessionId) forgetQueued(id)
 }
 
 async function requestShellApproval() {
@@ -886,6 +1034,11 @@ export const homeController = {
   shellCommand,
   busy,
   currentPermission,
+  composerSettings,
+  settingsSaving,
+  settingsError,
+  updateComposerSettings,
+  ensureComposerSession,
   currentProject,
   currentSession,
   agentActivity,
@@ -915,14 +1068,14 @@ export const homeController = {
   editQueued,
   steerQueued,
   promoteQueued,
-  sendMessage: async (opts?: { dispatch_mode?: DispatchMode; target_run_id?: string | null; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null }) => {
+  sendMessage: async (opts?: ComposerSubmitOptions) => {
     const content = draft.value.trim()
     // Empty is sendable when a finished upload is there to speak for the turn; Core appends
     // it as a message and starts no run. Same rule the Send button reads, from the same owner.
     if (!content && readyAttachmentCount() === 0) return
     await handleSend(content, opts)
   },
-  handleWelcomeSend: (payload: { content: string; permission_mode: PermissionLevel; mode_version_id?: string | null }) => handleSend(payload.content, payload),
+  handleWelcomeSend: (payload: ComposerSubmitOptions & { content: string }) => handleSend(payload.content, payload),
   editAndResend,
   requestShellApproval,
   decideApproval,
@@ -939,7 +1092,7 @@ export const homeController = {
   loadMessagesAndApprovals,
   refreshProjectsAndSessions,
   updateDraft: (value: string) => { draft.value = value },
-  updatePermission: (value: PermissionLevel) => { currentPermission.value = value },
+  updatePermission: (value: PermissionLevel) => updateComposerSettings({ permission_mode: value }),
   setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
   setSelectedSession: (id: string) => {
     const session = sessions.value.find(s => s.id === id)

@@ -2915,6 +2915,7 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         public int PlannerCalls;
         private readonly object _instructionsGate = new();
         private readonly List<string> _plannerInstructions = [];
+        public List<string> PlannerPrompts { get; } = [];
         /// <summary>Every planner turn's instructions, in order — the retry-hint
         /// contract (attempt 2 carries the first attempt's failure back to the
         /// model) is observable only here.</summary>
@@ -3057,7 +3058,11 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
                 || instructions?.Contains("规划层", StringComparison.Ordinal) == true
                 || prompt.Contains("规划", StringComparison.Ordinal) && !prompt.Contains("执行证据", StringComparison.Ordinal))
             {
-                lock (_instructionsGate) _plannerInstructions.Add(instructions ?? string.Empty);
+                lock (_instructionsGate)
+                {
+                    _plannerInstructions.Add(instructions ?? string.Empty);
+                    PlannerPrompts.Add(prompt);
+                }
                 Interlocked.Increment(ref PlannerCalls);
                 // Serve queued follow-ups only AFTER the first planner call (mirror
                 // ScriptedChatClient's PlannerCalls > 0 gate), so WhenPlanner is the

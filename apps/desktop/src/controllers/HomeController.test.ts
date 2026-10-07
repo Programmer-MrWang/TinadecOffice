@@ -20,7 +20,8 @@ const h = vi.hoisted(() => ({
   connectEvents: vi.fn(() => ({ close: vi.fn(), disconnect: vi.fn() })),
   createInteraction: vi.fn(async (_sessionId: string, _body: Record<string, unknown>) => ({ run_id: null, status: 'accepted' })),
   cancelInteraction: vi.fn(async () => ({ status: 'cancelled' })),
-  updateSessionTitle: vi.fn(async () => ({ id: 'session-1' })),
+  updateSessionTitle: vi.fn(async (id: string, title: string) => ({ id, title })),
+  updateSessionSettings: vi.fn(async (id: string, settings: Record<string, unknown>) => ({ id, ...settings, settings_revision: Number(settings.expected_settings_revision ?? 0) + 1 })),
   notifyError: vi.fn(),
   bannerError: vi.fn(),
   dismissByKey: vi.fn(),
@@ -46,6 +47,7 @@ const attach = vi.hoisted(() => {
 })
 
 vi.mock('@/lib/pendingAttachments', () => ({
+  pendingAttachments: { value: [] },
   attachmentsForSend: attach.forSend,
   readyAttachmentCount: attach.readyCount,
   settleSentAttachments: attach.settle,
@@ -69,6 +71,7 @@ vi.mock('@/api', () => ({
     createInteraction: h.createInteraction,
     cancelInteraction: h.cancelInteraction,
     updateSessionTitle: h.updateSessionTitle,
+    updateSessionSettings: h.updateSessionSettings,
   },
   createUserToolActionForPath: h.createUserToolActionForPath,
 }))
@@ -165,13 +168,13 @@ describe('HomeController session families', () => {
     expect(homeController.selectedSessionId.value).toBe(selected)
     expect(homeController.visibleSessions.value.some(s => s.id === 'new-space-family')).toBe(false)
   })
-  it('uses the conversation mode binding for later sends instead of a new picker value', async () => {
+  it('honors an explicitly selected preset for later sends instead of the old session binding', async () => {
     homeController.setViewMode('flat')
     homeController.sessions.value = familySessions
     homeController.setSelectedSession('flat-family')
     homeController.updateDraft('next task')
     await homeController.sendMessage({ mode_version_id: 'different-mode', dispatch_mode: 'parallel' })
-    expect(h.createInteraction.mock.calls.at(-1)?.[1]).toMatchObject({ mode_version_id: 'fixed-flat' })
+    expect(h.createInteraction.mock.calls.at(-1)?.[1]).toMatchObject({ mode_version_id: 'different-mode' })
   })
   it('keeps the draft when creating its new conversation fails', async () => {
     homeController.sessions.value = []
@@ -458,7 +461,7 @@ describe('HomeController.sendMessage attachment hand-off', () => {
  * takes it out of that queue first — sending it again without that would post the words twice.
  */
 describe('HomeController queued messages Core holds', () => {
-  async function queuedBehind(modeVersionId?: string, modelOverride?: { provider_instance_id: string; model: string }): Promise<void> {
+  async function queuedBehind(modeVersionId?: string, modelOverride?: { provider_instance_id: string; model: string }, permissionMode = 'default'): Promise<void> {
     homeController.projects.value = []
     homeController.setSelectedProject(null)
     await flushPromises()
@@ -466,7 +469,7 @@ describe('HomeController queued messages Core holds', () => {
     homeController.updateDraft('完成后再跑一遍测试')
     await flushPromises()
     h.createInteraction.mockResolvedValueOnce({ interaction_id: 'directive-1', run_id: 'run-busy', status: 'queued', reason: 'busy' } as never)
-    await homeController.sendMessage({ dispatch_mode: 'queued', mode_version_id: modeVersionId, meeting_model_override: modelOverride })
+    await homeController.sendMessage({ dispatch_mode: 'queued', mode_version_id: modeVersionId, meeting_model_override: modelOverride, permission_mode: permissionMode })
     await flushPromises()
   }
 
@@ -503,9 +506,26 @@ describe('HomeController queued messages Core holds', () => {
     expect(homeController.queuedMessages.value).toEqual([])
   })
 
+  it.each(['promote', 'steer', 'edit'] as const)('keeps the source session when %s waits while the user changes sessions', async action => {
+    await queuedBehind('source-mode', { provider_instance_id: 'source-provider', model: 'source-model' }, 'full-access')
+    const card = homeController.queuedMessages.value[0]!
+    let finish!: (value: { status: string }) => void
+    h.cancelInteraction.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    h.createInteraction.mockClear()
+    const pending = action === 'promote' ? homeController.promoteQueued(card.id)
+      : action === 'steer' ? homeController.steerQueued(card.id, 'source-run') : homeController.editQueued(card.id)
+    homeController.selectedSessionId.value = 'another-session'
+    homeController.updateDraft('another session draft')
+    await flushPromises()
+    finish({ status: 'cancelled' })
+    await pending
+    expect(homeController.draft.value).toBe('another session draft')
+    if (action === 'edit') expect(h.createInteraction).not.toHaveBeenCalled()
+    else expect(h.createInteraction.mock.calls[0]?.[0]).toBe('session-q')
+  })
+
   it('keeps the queued policy and model choice even after the composer changes', async () => {
-    homeController.updatePermission('full-access')
-    await queuedBehind('mode-team', { provider_instance_id: 'provider-one', model: 'm' })
+    await queuedBehind('mode-team', { provider_instance_id: 'provider-one', model: 'm' }, 'full-access')
     const card = homeController.queuedMessages.value[0]!
     homeController.updatePermission('default')
     h.createInteraction.mockClear()
@@ -547,6 +567,136 @@ describe('HomeController queued messages Core holds', () => {
     expect(soft).not.toHaveProperty('interrupt')
     expect(homeController.queuedMessages.value).toEqual([])
     h.createInteraction.mockReset()
+  })
+})
+
+describe('HomeController composer settings', () => {
+  const space = { plan_first: true, spec_enabled: false, multi_agent: true, workflow_mode_version_id: null, bulletin_board: false, worktree: false }
+  async function selectSettingsSession(view: 'flat' | 'space' = 'flat') {
+    homeController.setViewMode(view)
+    homeController.setSelectedProject(null)
+    await flushPromises()
+    homeController.sessions.value = [
+      { id: 'settings-a', view_mode: view, permission_mode: 'default', settings_revision: 3, mode_version_id: 'preset-old', meeting_model_override: null, space_options: view === 'space' ? { ...space } : null },
+      { id: 'settings-b', view_mode: view, permission_mode: 'default', settings_revision: 0, mode_version_id: 'preset-other', meeting_model_override: null, space_options: null },
+    ] as never
+    homeController.setSelectedSession('settings-a')
+    await flushPromises()
+  }
+
+  it('uses the revision returned by automatic naming on the second turn', async () => {
+    homeController.setViewMode('flat')
+    homeController.setSelectedProject(null)
+    await flushPromises()
+    homeController.sessions.value = []
+    homeController.selectedSessionId.value = null
+    h.createSession.mockResolvedValueOnce({ id: 'named-session', view_mode: 'flat', settings_revision: 0, permission_mode: 'default', space_options: null } as never)
+    h.updateSessionTitle.mockResolvedValueOnce({ id: 'named-session', title: 'first task', settings_revision: 1 } as never)
+    homeController.updateDraft('first task')
+    await homeController.sendMessage({ dispatch_mode: 'parallel' })
+    homeController.updateDraft('second task')
+    await homeController.sendMessage({ dispatch_mode: 'parallel' })
+    expect(h.createInteraction.mock.calls.at(-1)?.[1]).toMatchObject({ content: 'second task', expected_settings_revision: 1 })
+  })
+
+  it('persists to the originating session and never leaks its permission into another session', async () => {
+    await selectSettingsSession()
+    let finish!: (value: never) => void
+    h.updateSessionSettings.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const saving = homeController.updatePermission('full-access')
+    expect(homeController.settingsSaving.value).toBe(true)
+    expect(homeController.currentPermission.value).toBe('default')
+    homeController.setSelectedSession('settings-b')
+    finish({ id: 'settings-a', permission_mode: 'full-access', settings_revision: 4 } as never)
+    await saving
+    expect(homeController.currentPermission.value).toBe('default')
+    expect(homeController.settingsSaving.value).toBe(false)
+    homeController.setSelectedSession('settings-a')
+    expect(homeController.currentPermission.value).toBe('full-access')
+    expect(h.updateSessionSettings).toHaveBeenLastCalledWith('settings-a', { permission_mode: 'full-access', expected_settings_revision: 3 })
+  })
+
+  it('serializes quick changes against successive server revisions', async () => {
+    await selectSettingsSession()
+    let finish!: (value: never) => void
+    h.updateSessionSettings.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const first = homeController.updateComposerSettings({ mode_version_id: 'preset-new' })
+    const second = homeController.updateComposerSettings({ permission_mode: 'auto-approve' })
+    expect(h.updateSessionSettings).toHaveBeenCalledTimes(1)
+    finish({ id: 'settings-a', mode_version_id: 'preset-new', settings_revision: 4 } as never)
+    await Promise.all([first, second])
+    expect(h.updateSessionSettings.mock.calls[1]?.[1]).toEqual({ permission_mode: 'auto-approve', expected_settings_revision: 4 })
+    expect(homeController.composerSettings.value.mode_version_id).toBe('preset-new')
+    expect(homeController.currentPermission.value).toBe('auto-approve')
+  })
+
+  it('retains effective settings and draft when saving fails, and waits for a pending save before sending', async () => {
+    await selectSettingsSession()
+    homeController.updateDraft('keep this task')
+    let fail!: (error: Error) => void
+    h.updateSessionSettings.mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject }))
+    const saving = homeController.updateComposerSettings({ mode_version_id: 'invalid-preset' })
+    const sending = homeController.sendMessage({ dispatch_mode: 'parallel' })
+    fail(new Error('Preset is unavailable'))
+    expect(await saving).toBe(false)
+    await sending
+    expect(h.createInteraction).not.toHaveBeenCalled()
+    expect(homeController.composerSettings.value.mode_version_id).toBe('preset-old')
+    expect(homeController.settingsError.value).toBe('Preset is unavailable')
+    expect(homeController.draft.value).toBe('keep this task')
+  })
+
+  it('does not read another session attachments after waiting for a settings save', async () => {
+    await selectSettingsSession()
+    homeController.updateDraft('source request')
+    let finish!: (value: never) => void
+    h.updateSessionSettings.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const saving = homeController.updateComposerSettings({ mode_version_id: 'preset-new' })
+    const sending = homeController.sendMessage({ dispatch_mode: 'parallel' })
+    homeController.setSelectedSession('settings-b')
+    homeController.updateDraft('other request')
+    finish({ id: 'settings-a', mode_version_id: 'preset-new', settings_revision: 4 } as never)
+    await saving
+    await sending
+    expect(h.createInteraction).not.toHaveBeenCalled()
+    expect(homeController.draft.value).toBe('other request')
+  })
+
+  it('captures spatial options and explicit default model when a message enters the queue', async () => {
+    await selectSettingsSession('space')
+    homeController.updateDraft('do the planned work')
+    h.createInteraction.mockResolvedValueOnce({ interaction_id: 'settings-queued', run_id: 'busy-settings', status: 'queued' } as never)
+    await homeController.sendMessage({ dispatch_mode: 'queued' })
+    const queued = homeController.queuedMessages.value[0]!
+    await homeController.updateComposerSettings({ space_options: { ...space, plan_first: false }, meeting_model_override: { provider_instance_id: 'new-provider', model: 'later-model' } })
+    h.createInteraction.mockClear()
+    await homeController.promoteQueued(queued.id)
+    expect(h.createInteraction.mock.calls[0]?.[1]).toMatchObject({ space_options: space, clear_meeting_model_override: true, meeting_model_override: null })
+    homeController.setViewMode('flat')
+  })
+
+  it('creates one draft session for first attachments with the selected model and spatial options', async () => {
+    homeController.setViewMode('space')
+    homeController.setSelectedProject(null)
+    await flushPromises()
+    homeController.sessions.value = []
+    homeController.selectedSessionId.value = null
+    await homeController.updateComposerSettings({ permission_mode: 'default', space_options: space, meeting_model_override: { provider_instance_id: 'first-provider', model: 'first-model' } })
+    homeController.updateDraft('draft with a file')
+    let finish!: (value: never) => void
+    h.createSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const first = homeController.ensureComposerSession()
+    const second = homeController.ensureComposerSession()
+    expect(h.createSession).toHaveBeenCalledTimes(1)
+    await homeController.sendMessage({ dispatch_mode: 'parallel' })
+    expect(h.createInteraction).not.toHaveBeenCalled()
+    expect(h.createSession).toHaveBeenCalledTimes(1)
+    expect(h.createSession.mock.calls[0]?.[4]).toMatchObject({ space_options: space, meeting_model_override: { provider_instance_id: 'first-provider', model: 'first-model' } })
+    finish({ id: 'attachment-draft', view_mode: 'space', space_options: space } as never)
+    expect(await first).toBe('attachment-draft')
+    expect(await second).toBe('attachment-draft')
+    expect(homeController.draft.value).toBe('draft with a file')
+    homeController.setViewMode('flat')
   })
 })
 

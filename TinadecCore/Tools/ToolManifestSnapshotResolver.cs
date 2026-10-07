@@ -139,6 +139,17 @@ public sealed class ToolManifestSnapshotResolver : IToolManifestSnapshotResolver
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
 
+        if (request.SpaceOptions is { SpecEnabled: true })
+        {
+            formalEffective ??= requested.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            formalEffective.Add(CoreVirtualToolPolicy.SpecProposeToolId);
+        }
+        if (request.SpaceOptions is not null && request.CompositionToolIds.Count > 0)
+        {
+            formalEffective ??= requested.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            formalEffective.UnionWith(request.CompositionToolIds);
+        }
+
         var byId = manifest.Tools.ToDictionary(item => item.Id, StringComparer.OrdinalIgnoreCase);
         var available = manifest.Tools.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -235,6 +246,7 @@ public sealed class ToolManifestSnapshotResolver : IToolManifestSnapshotResolver
         : CoreVirtualToolPolicy.IsTaskDispatch(toolId) ? CoreTaskDispatchTool.ManifestEntry()
         : CoreVirtualToolPolicy.IsTaskWait(toolId) ? CoreTaskWaitTool.ManifestEntry()
         : CoreVirtualToolPolicy.IsPlanUpdate(toolId) ? CoreTaskPlanTool.ManifestEntry()
+        : CoreVirtualToolPolicy.IsSpecPropose(toolId) ? CoreSpecProposalTool.ManifestEntry()
         : CoreVirtualToolPolicy.IsReadAttachment(toolId) ? CoreAttachmentReadTool.ManifestEntry()
         : TinaChatVirtualTools.ManifestEntry(toolId)
         ?? OrganizationVirtualTools.ManifestEntry(toolId)

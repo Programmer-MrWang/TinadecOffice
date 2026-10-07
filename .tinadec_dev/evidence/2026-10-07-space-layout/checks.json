@@ -1,0 +1,375 @@
+{
+  "layout": {
+    "positions": {
+      "A": {
+        "x": 0,
+        "y": 0
+      },
+      "B": {
+        "x": 408,
+        "y": 0
+      },
+      "C": {
+        "x": 816,
+        "y": 0
+      },
+      "D": {
+        "x": 1224,
+        "y": 0
+      },
+      "E": {
+        "x": 408,
+        "y": 224
+      },
+      "F": {
+        "x": 816,
+        "y": 224
+      },
+      "G": {
+        "x": 612,
+        "y": 448
+      },
+      "H": {
+        "x": 612,
+        "y": 672
+      }
+    },
+    "ranks": {
+      "A": 0,
+      "B": 0,
+      "C": 0,
+      "D": 0,
+      "E": 1,
+      "F": 1,
+      "G": 2,
+      "H": 3
+    },
+    "width": 1584,
+    "height": 832,
+    "missing": [],
+    "cycles": []
+  },
+  "items": [
+    {
+      "id": "A",
+      "groupId": "example",
+      "x": 0,
+      "y": 0,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "B",
+      "groupId": "example",
+      "x": 408,
+      "y": 0,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "C",
+      "groupId": "example",
+      "x": 816,
+      "y": 0,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "D",
+      "groupId": "example",
+      "x": 1224,
+      "y": 0,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "E",
+      "groupId": "example",
+      "x": 408,
+      "y": 224,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "F",
+      "groupId": "example",
+      "x": 816,
+      "y": 224,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "G",
+      "groupId": "example",
+      "x": 612,
+      "y": 448,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    },
+    {
+      "id": "H",
+      "groupId": "example",
+      "x": 612,
+      "y": 672,
+      "width": 360,
+      "height": 160,
+      "autoHeight": true,
+      "manualPosition": false,
+      "compact": true
+    }
+  ],
+  "routes": [
+    {
+      "id": "A->E",
+      "source": "A",
+      "target": "E",
+      "points": [
+        {
+          "x": 180,
+          "y": 160
+        },
+        {
+          "x": 180,
+          "y": 192
+        },
+        {
+          "x": 588,
+          "y": 192
+        },
+        {
+          "x": 588,
+          "y": 224
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 180 160 L 180 192 L 588 192 L 588 224",
+      "labelX": 384,
+      "labelY": 192,
+      "kind": "forward"
+    },
+    {
+      "id": "A->H",
+      "source": "A",
+      "target": "H",
+      "points": [
+        {
+          "x": 180,
+          "y": 160
+        },
+        {
+          "x": 180,
+          "y": 620
+        },
+        {
+          "x": 792,
+          "y": 620
+        },
+        {
+          "x": 792,
+          "y": 672
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 180 160 L 180 620 L 792 620 L 792 672",
+      "labelX": 486,
+      "labelY": 620,
+      "kind": "forward"
+    },
+    {
+      "id": "B->E",
+      "source": "B",
+      "target": "E",
+      "points": [
+        {
+          "x": 588,
+          "y": 160
+        },
+        {
+          "x": 588,
+          "y": 224
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 588 160 L 588 224",
+      "labelX": 588,
+      "labelY": 192,
+      "kind": "forward"
+    },
+    {
+      "id": "C->F",
+      "source": "C",
+      "target": "F",
+      "points": [
+        {
+          "x": 996,
+          "y": 160
+        },
+        {
+          "x": 996,
+          "y": 224
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 996 160 L 996 224",
+      "labelX": 996,
+      "labelY": 192,
+      "kind": "forward"
+    },
+    {
+      "id": "D->F",
+      "source": "D",
+      "target": "F",
+      "points": [
+        {
+          "x": 1404,
+          "y": 160
+        },
+        {
+          "x": 1404,
+          "y": 186
+        },
+        {
+          "x": 996,
+          "y": 186
+        },
+        {
+          "x": 996,
+          "y": 224
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 1404 160 L 1404 186 L 996 186 L 996 224",
+      "labelX": 1200,
+      "labelY": 186,
+      "kind": "forward"
+    },
+    {
+      "id": "E->G",
+      "source": "E",
+      "target": "G",
+      "points": [
+        {
+          "x": 588,
+          "y": 384
+        },
+        {
+          "x": 588,
+          "y": 416
+        },
+        {
+          "x": 792,
+          "y": 416
+        },
+        {
+          "x": 792,
+          "y": 448
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 588 384 L 588 416 L 792 416 L 792 448",
+      "labelX": 690,
+      "labelY": 416,
+      "kind": "forward"
+    },
+    {
+      "id": "F->G",
+      "source": "F",
+      "target": "G",
+      "points": [
+        {
+          "x": 996,
+          "y": 384
+        },
+        {
+          "x": 996,
+          "y": 410
+        },
+        {
+          "x": 792,
+          "y": 410
+        },
+        {
+          "x": 792,
+          "y": 448
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 996 384 L 996 410 L 792 410 L 792 448",
+      "labelX": 894,
+      "labelY": 410,
+      "kind": "forward"
+    },
+    {
+      "id": "G->H",
+      "source": "G",
+      "target": "H",
+      "points": [
+        {
+          "x": 792,
+          "y": 608
+        },
+        {
+          "x": 792,
+          "y": 672
+        }
+      ],
+      "sourceSide": "bottom",
+      "targetSide": "top",
+      "path": "M 792 608 L 792 672",
+      "labelX": 792,
+      "labelY": 640,
+      "kind": "forward"
+    }
+  ],
+  "metrics": [
+    {
+      "nodes": 100,
+      "edges": 90,
+      "routeMs": [
+        21.34,
+        22.58,
+        10.82
+      ],
+      "blocked": 0
+    },
+    {
+      "nodes": 300,
+      "edges": 290,
+      "routeMs": [
+        44.76,
+        61.95,
+        39.79
+      ],
+      "blocked": 0
+    }
+  ],
+  "scope": "Pure algorithm fixture, not browser/model execution"
+}

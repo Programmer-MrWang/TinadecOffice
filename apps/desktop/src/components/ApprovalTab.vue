@@ -18,7 +18,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'request-approval': []
   'create-approval-rule': [input: CreateApprovalRuleInput]
-  /** `scope: 'run'` is "always allow this tool for this session". */
+  /** `scope: 'run'` grants this tool for the current run; document decisions stay once-only. */
   'decide-approval': [approval: ApprovalDto, decision: 'approved' | 'rejected', scope?: 'once' | 'run']
   'revoke-approval-rule': [rule: ApprovalRuleDto]
   'update:shellCommand': [value: string]
@@ -30,6 +30,33 @@ const historyApprovals = (approvals: ApprovalDto[]) => approvals.filter((a) => a
 const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
   ? `${rule.tool_id} · ${rule.pattern ?? ''}`
   : rule.tool_id
+
+const isSpecProposal = (approval: ApprovalDto) => approval.tool_id === 'spec_propose'
+type SpecStage = 'requirements' | 'design' | 'tasks'
+function specProposal(approval: ApprovalDto): { stage: SpecStage; document: string } | null {
+  if (!isSpecProposal(approval) || !approval.arguments) return null
+  try {
+    const proposal = JSON.parse(approval.arguments) as Record<string, unknown> | null
+    if (!proposal || !['requirements', 'design', 'tasks'].includes(String(proposal.stage)) || typeof proposal.document !== 'string' || !proposal.document.trim()) return null
+    // Core freezes the complete document into this approval's evidence. Keep every
+    // character: approving an excerpt could authorize content the person never saw.
+    return { stage: proposal.stage as SpecStage, document: proposal.document }
+  } catch { return null }
+}
+function specStageLabel(approval: ApprovalDto): string {
+  switch (specProposal(approval)?.stage) {
+    case 'requirements': return t('approval.specRequirements')
+    case 'design': return t('approval.specDesign')
+    case 'tasks': return t('approval.specTasks')
+    default: return t('approval.specDocument')
+  }
+}
+function decideCurrent(approval: ApprovalDto, decision: 'approved' | 'rejected') {
+  if (isSpecProposal(approval)) {
+    if (decision === 'approved' && !specProposal(approval)) return
+    emit('decide-approval', approval, decision, 'once')
+  } else emit('decide-approval', approval, decision)
+}
 </script>
 
 <template>
@@ -75,15 +102,20 @@ const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
         <div><strong>{{ t('approval.pendingTitle') }}</strong><span>{{ t('approval.pendingHint') }}</span></div>
         <span class="approval-count approval-count-pending">{{ pendingApprovals(approvals).length }}</span>
       </header>
-      <article v-for="approval in pendingApprovals(approvals)" :key="approval.id" class="approval-row approval-row-pending">
+      <article v-for="approval in pendingApprovals(approvals)" :key="approval.id" class="approval-row approval-row-pending" :class="{ 'approval-row--spec': isSpecProposal(approval) }">
       <div class="approval-facts">
         <div class="approval-head">
-          <strong>{{ approval.kind }}</strong>
-          <code v-if="approval.tool_id" class="approval-tool">{{ approval.tool_id }}</code>
+          <strong>{{ isSpecProposal(approval) ? t('approval.specConfirmation') : approval.kind }}</strong>
+          <code v-if="approval.tool_id && !isSpecProposal(approval)" class="approval-tool">{{ approval.tool_id }}</code>
           <span v-if="approval.risk" class="approval-risk" :data-risk="approval.risk">{{ approval.risk }}</span>
         </div>
-        <p class="approval-summary">{{ approval.summary }}</p>
-        <details class="approval-evidence-details">
+        <p class="approval-summary">{{ isSpecProposal(approval) ? t('approval.specConfirmationHint') : approval.summary }}</p>
+        <section v-if="isSpecProposal(approval)" class="approval-spec" :aria-labelledby="`spec-document-${approval.id}`">
+          <h3 :id="`spec-document-${approval.id}`" class="approval-spec-title">{{ specStageLabel(approval) }}</h3>
+          <pre v-if="specProposal(approval)" class="approval-spec-document" tabindex="0" :aria-label="specStageLabel(approval)" data-testid="approval-spec-document">{{ specProposal(approval)!.document }}</pre>
+          <p v-else class="approval-spec-unavailable" role="alert">{{ t('approval.specDocumentUnavailable') }}</p>
+        </section>
+        <details v-else class="approval-evidence-details">
           <summary><ChevronDown :size="13" />{{ t('approval.viewEvidence') }}</summary>
           <!-- The three facts a decision actually turns on: command, location and target. -->
           <p v-if="approval.command" class="approval-command">
@@ -101,24 +133,24 @@ const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
           </p>
         </details>
         <!-- Only the approval layer is ever delegated; a policy park always waits for the person. -->
-        <ApprovalGateStatus v-if="approval.kind === 'tool'" :approval-id="approval.id" />
+        <ApprovalGateStatus v-if="approval.kind === 'tool' && !isSpecProposal(approval)" :approval-id="approval.id" />
       </div>
       <div class="approval-actions">
         <!-- "Always allow for this session": one tool, this run. Only offered for a
              policy park, whose escalation is a tool id the scope can name exactly. -->
         <button
-          v-if="approval.kind === 'permission'"
+          v-if="approval.kind === 'permission' && !isSpecProposal(approval)"
           class="approval-action-button always"
           :title="t('approval.alwaysAllow')"
           @click="emit('decide-approval', approval, 'approved', 'run')"
         >
           <InfinityIcon :size="14" /><span>{{ t('approval.alwaysAllow') }}</span>
         </button>
-        <button class="approval-action-button approve" :title="t('approval.approve')" @click="emit('decide-approval', approval, 'approved')">
-          <Check :size="14" /><span>{{ t('approval.approve') }}</span>
+        <button class="approval-action-button approve" :disabled="isSpecProposal(approval) && !specProposal(approval)" :title="isSpecProposal(approval) ? t('approval.approveDocument') : t('approval.approve')" @click="decideCurrent(approval, 'approved')">
+          <Check :size="14" /><span>{{ isSpecProposal(approval) ? t('approval.approveDocument') : t('approval.approve') }}</span>
         </button>
-        <button class="approval-action-button reject" :title="t('approval.reject')" @click="emit('decide-approval', approval, 'rejected')">
-          <ShieldX :size="14" /><span>{{ t('approval.reject') }}</span>
+        <button class="approval-action-button reject" :title="isSpecProposal(approval) ? t('approval.rejectDocument') : t('approval.reject')" @click="decideCurrent(approval, 'rejected')">
+          <ShieldX :size="14" /><span>{{ isSpecProposal(approval) ? t('approval.rejectDocument') : t('approval.reject') }}</span>
         </button>
       </div>
       </article>
@@ -157,3 +189,13 @@ const ruleLabel = (rule: ApprovalRuleDto) => rule.kind === 'command_prefix'
     </details>
   </section>
 </template>
+
+<style scoped>
+.approval-row--spec { grid-template-columns: minmax(0, 1fr); }
+.approval-row--spec .approval-actions { justify-content: flex-end; }
+.approval-spec { min-width: 0; margin-top: 10px; }
+.approval-spec-title { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--text-primary); }
+.approval-spec-document { margin: 0; max-height: 360px; overflow: auto; overscroll-behavior: contain; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; padding: 12px; border-radius: 8px; background: var(--surface-raised); color: var(--text-primary); font: inherit; font-size: 12px; line-height: 1.6; user-select: text; }
+.approval-spec-document:focus-visible { outline: 2px solid var(--text-muted); outline-offset: -2px; }
+.approval-spec-unavailable { margin: 6px 0; color: var(--accent-danger); font-size: 12px; white-space: normal; overflow: visible; }
+</style>

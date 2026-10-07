@@ -128,6 +128,14 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
                 new ToolInvocationScopeRequest(runId, taskId, agentId, request.ToolId), cancellationToken).ConfigureAwait(false);
             var descriptor = await FindV2ToolAsync(scope, request.ToolId, cancellationToken).ConfigureAwait(false);
             if (descriptor.Entry is null) return Blocked(descriptor.Error!);
+            if (scope.SpaceOptions is { MultiAgent: false } && CoreVirtualToolPolicy.IsTaskDispatch(request.ToolId))
+                return Blocked("Executor dispatch is disabled for this frozen spatial run.");
+            if (scope.SpaceOptions is { Worktree: false } && request.ToolId is "git_worktree_create" or "git_worktree_remove")
+                return Blocked("Independent worktree isolation is disabled for this frozen spatial run.");
+            if (CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && scope.SpaceOptions is not { SpecEnabled: true })
+                return Blocked("Specification review was not enabled for this run.");
+            if (CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && CoreSpecProposalTool.Validate(request.Params) is { } specError)
+                return Blocked(specError);
 
             var parametersJson = request.Params is { } parameters ? parameters.GetRawText() : "{}";
             if (!IsObjectOrNull(parametersJson)) return Blocked("Tool parameters must be a JSON object or null.");
@@ -793,6 +801,9 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
             return await ExecuteTaskDispatchToolAsync(scope, wire, cancellationToken).ConfigureAwait(false);
         }
 
+        if (CoreVirtualToolPolicy.IsSpecPropose(wire.ToolId))
+            return new ToolWireResponseDto { CallId = wire.ToolCallId, IsSuccess = true, Result = wire.Params };
+
         if (CoreVirtualToolPolicy.IsTaskWait(wire.ToolId) || CoreVirtualToolPolicy.IsPlanUpdate(wire.ToolId))
         {
             // The run engine executes task_wait and plan_update against the task graph it owns;
@@ -1055,7 +1066,8 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
             wire.ToolCallId, wire.ToolId, wire.Params)
         {
             // Organization tools act as the member this instance was enrolled as.
-            AgentInstanceId = scope.AgentInstanceId
+            AgentInstanceId = scope.AgentInstanceId,
+            BulletinBoardAllowed = scope.SpaceOptions?.BulletinBoard ?? true,
         }, cancellationToken).ConfigureAwait(false);
         if (!outcome.IsSuccess)
             return new ToolWireResponseDto { CallId = wire.ToolCallId, IsSuccess = false, Error = outcome.Error ?? "The chat tool call failed." };
