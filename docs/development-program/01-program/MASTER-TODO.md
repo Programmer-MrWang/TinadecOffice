@@ -10,7 +10,7 @@
 | 进行中 | 1 |
 | 阻塞 | 0 |
 | 待验收 | 0 |
-| 已完成 | 3 |
+| 已完成 | 4 |
 | 不做 | 0 |
 | 已被替代 | 0 |
 
@@ -24,6 +24,7 @@
 | [APP-HOME-102](../02-modules/app/home/TODO.md#app-home-102) | 复验首次会话欢迎页附件可用性 | 核查 | 待核查 | P1 | APP-HOME |
 | [APP-HOME-103](../02-modules/app/home/TODO.md#app-home-103) | 修复 Markdown 显示并应用岛屿卡片视觉 | 实现 | 已完成 | P1 | APP-HOME |
 | [APP-HOME-104](../02-modules/app/home/TODO.md#app-home-104) | 统一输入框命令面板与会话运行设置 | 实现 | 已完成 | P1 | APP-HOME |
+| [APP-HOME-105](../02-modules/app/home/TODO.md#app-home-105) | 对话流 Markdown 扩展语法与卡片细节 | 实现 | 已完成 | P1 | APP-HOME |
 | [APP-RENDERER-101](../02-modules/app/shared-renderer/TODO.md#app-renderer-101) | 复验 API 包装后的取消错误语义 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-102](../02-modules/app/shared-renderer/TODO.md#app-renderer-102) | 复验窄宽度布局中的发送主操作 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-103](../02-modules/app/shared-renderer/TODO.md#app-renderer-103) | 完成分类搜索浮窗与沉浸式窗口控制专项 | 实现 | 已完成 | P1 | APP-RENDERER |

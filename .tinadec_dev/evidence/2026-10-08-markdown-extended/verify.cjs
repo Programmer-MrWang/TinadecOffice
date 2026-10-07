@@ -86,8 +86,10 @@ app.whenReady().then(async () => {
       'apps/desktop/src/styles.css',
     ]) result.sourceHashes[file] = crypto.createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex');
 
+    // Shown but parked off-screen: Chromium refuses a clipboard write while the
+    // document has no focus, and a hidden window never gets focus.
     win = new BrowserWindow({
-      width: 1000, height: 780, show: false,
+      width: 1000, height: 780, x: -2400, y: 0, show: true,
       webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, webSecurity: false, backgroundThrottling: false },
     });
     win.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(true));
@@ -116,6 +118,8 @@ app.whenReady().then(async () => {
     };
 
     await win.loadFile(path.join(outputDir, 'index.html'));
+    win.show();
+    win.focus();
     const bootUntil = Date.now() + 60000;
     while (Date.now() < bootUntil && !await evaluate('!!window.qaReady')) {
       const error = await evaluate('window.qaError');
@@ -167,6 +171,11 @@ app.whenReady().then(async () => {
     await shot('basics-dark');
 
     // ---- clipboard round trip ---------------------------------------------
+    // Diagnostic: records whether the async clipboard itself is usable here.
+    result.checks.clipboardProbe = await evaluateAsUser(`(async()=>{
+      try { await navigator.clipboard.writeText('probe'); return { ok: true, focused: document.hasFocus() }; }
+      catch (error) { return { ok: false, name: error.name, message: error.message, focused: document.hasFocus() }; }
+    })()`);
     clipboard.writeText('sentinel');
     result.checks.copy = await evaluateAsUser(`(async()=>{
       const button=document.querySelector('.markdown-copy');
@@ -175,7 +184,8 @@ app.whenReady().then(async () => {
       return { label: button.textContent.trim(), classes: button.className, clipboardType: typeof navigator.clipboard?.writeText };
     })()`);
     result.checks.copy.clipboard = clipboard.readText();
-    expect('copy writes the raw code to the system clipboard', result.checks.copy.clipboard === 'const answer = 42;\n', result.checks.copy);
+    // The OS clipboard normalises newlines on Windows, so compare with them normalised.
+    expect('copy writes the raw code to the system clipboard', result.checks.copy.clipboard.replace(/\r\n/g, '\n') === 'const answer = 42;\n', result.checks.copy);
     expect('copy button reports success', result.checks.copy.classes.includes('is-copied'), result.checks.copy);
 
     // ---- maths -------------------------------------------------------------

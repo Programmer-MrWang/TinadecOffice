@@ -2,13 +2,13 @@
 
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-08
-**Last Updated By:** APP-HOME-104统一命令面板与APP-RENDERER-104空间组合执行；保留已有Markdown/空间专项。
-**Last Verified Commit:** 66d103e + 工作树；命令面板分层验证与边界见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md，不将脚本模型/本地SFC验证写成真实外部模型或平台验收。
+**Last Updated By:** APP-HOME-105 Markdown扩展语法与卡片收口；同一工作树保留APP-HOME-104统一命令面板与APP-RENDERER-104空间组合执行。
+**Last Verified Commit:** 66d103e + 工作树；Markdown批次：Desktop全量1028 passed/14 skipped、类型检查与Electron真实剪贴板/MathML/Mermaid/三宽度夹具passed、生产vite build本轮未取证，见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板分层验证与边界见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md，不将脚本模型/本地SFC验证写成真实外部模型或平台验收。
 **Branch:** main
 
-### 2026-10-08 命令面板实施
+### 2026-10-08 Markdown 扩展语法与卡片收口
 
-新增APP-HOME-F005/104，关联APP-RENDERER-104。用户要求统一新契约，不做旧空间执行方式兼容；UI、Core会话配置与运行组合共用同一用户选项。任务验收留在模块TODO，证据在共享报告与evidence，不另建状态库。完整空间工作画面/外部模型/平台等后续目标不因本次命令功能完成而整体勾选。
+新增APP-HOME-105（关联APP-HOME-F004）完成扩展语法：代码高亮与块级复制、KaTeX 公式、脚注、分类型提示块、标题锚点与 Mermaid 图表。表格/代码/引用/提示块/图表共用既有 UiIslandCard，行内代码与卡片细节按同级项目（OpenCodeUI / openchamber / hermes-agent）收敛。按用户要求不拆层：解析、分块、高亮与块级行为都在 MarkdownRender.vue，样式在 styles.css，只新增异步的 MarkdownDiagram.vue。锚点点击在组件内滚动且不改写 URL hash（应用是 hash 路由）。命令面板批次已占用 APP-HOME-104，本批改号为 105。边界：外链打开按用户决定不做；Mermaid 未 Worker 化、性能未压测；生产 vite build 本轮未取证。证据与验收留在模块TODO/STATUS、共享报告与 evidence，不另建状态库。
 
 ### 2026-10-07 Markdown 内容岛屿
 
@@ -16,7 +16,7 @@ APP-HOME-F004/103完成本地正文显示专项：正文连续，代码/表格/�
 
 ### 2026-10-07 空间布局与路由
 
-UIE新增spatialLayout/spatialRouting纯函数：SCC/最长路径分层、同层中位排序与居中、尺寸驱动统一间距；新增同级先在本层就近找空位，不让手动远端节点吸走新卡。当前投影外历史几何保留但不撑大布局，主动整理可撤销。正交路由基于矩形边界、有限避障与端口方向，正常下游不纵向折返，逆向走侧面；blocked保留事实关系与原因。页面BaseEdge只渲染计算路径，替代默认smoothstep。详见`.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md`；旧空间通过“整理本目标”应用新布局，保持用户坐标稳定。
+UIE新增spatialLayout/spatialRouting纯函数：SCC/最长路径分层、同层中位排序与居中、尺寸驱动统一间距；新增同级先在本层就近找空位，不让手动远端节点吸走新卡。当前投影外历史几何保留但不撑大布局，主动整理可撤销。正交路由基于矩形边界、有限避障与端口方向，正常下游不纵向折返，逆向走侧面；blocked保留事实关系与原因。页面BaseEdge只渲染计算路径，替代默认smoothstep。详见`.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md`；旧空间通过"整理本目标"应用新布局，保持用户坐标稳定。
 
 ### 2026-10-07 空间目标工作簇接手
 
@@ -34,14 +34,14 @@ UIE新增spatialLayout/spatialRouting纯函数：SCC/最长路径分层、同层
 
 - 模块TODO.md是任务唯一编辑位置，STATUS.md是功能状态唯一编辑位置；全局MASTER-TODO/STATUS/MODULE-INDEX由reindex生成，勿手改后期待保留。
 - modules.json只维护目录/ID/节点归属；禁止生成器覆盖手写模块档案。reindex只刷新派生汇总并验证链接、稳定ID和Core24工程覆盖。
-- reindex的总STATUS验证边界描述初始建档与后续专项的不同范围，不能硬编码“当前没有已验收/已完成”而否定模块更新。
+- reindex的总STATUS验证边界描述初始建档与后续专项的不同范围，不能硬编码"当前没有已验收/已完成"而否定模块更新。
 - 每个Feature/Task有长期稳定ID。删除、合并或不做的条目保留替代/决策指针；同一功能缺口由一个主责模块持有，其它模块交叉引用。
 - 区分源码可见、历史验证、本轮验证；只有与目标范围匹配的证据才能标已验收/已完成。禁止用测试数量或目录存在推算完成百分比。
 - 未跑测试写待验收，不写未实现；平台限制先记范围边界，不默认开发所有可选能力。
 - 任务进入实施前写清问题、目标、触及范围、实际依赖和验收条件。目标与当前行为分开；用户明确授权范围沿会话持续生效，不增设推断审批流程。
 - 修改代码后同步受影响模块图、功能状态、任务和证据；跨模块契约变化同步相关模块档案与根AGENTS。
 - Mermaid中的无向线是职责关联；有向运行/编译关系必须有源码依据。总图子节点是导航，不应当作独立服务。
-- 历史todo/review只作为需求来源，引用必须带文件及章节。N9在两个历史文件中含义不同；不要只写“N9”。
+- 历史todo/review只作为需求来源，引用必须带文件及章节。N9在两个历史文件中含义不同；不要只写"N9"。
 - tests/Tinadec.Contracts.Tests是不可构建的遗留需求证据，不是活动验证入口（该目录README及活动sln可核）。
 
 ## Initial scope

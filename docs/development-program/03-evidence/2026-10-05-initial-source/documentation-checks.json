@@ -10,10 +10,10 @@
     "actual": 82
   },
   "featureCount": 105,
-  "taskCount": 105,
+  "taskCount": 106,
   "markdownFiles": 239,
-  "checkedLinks": 1867,
-  "uniqueIdCount": 210,
+  "checkedLinks": 1869,
+  "uniqueIdCount": 211,
   "errors": [],
   "scope": "documentation/source checks only; no product tests rerun"
 }

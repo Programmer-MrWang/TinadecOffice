@@ -55,6 +55,38 @@
 - [x] 后续流式文字更新不重建已完成代码/表格块，表格可键盘聚焦。
 - [x] 组件回归、类型/构建与本地Electron视觉证据通过；真实模型/平台验收边界明确。
 
+<a id="app-home-105"></a>
+
+### APP-HOME-105 对话流 Markdown 扩展语法与卡片细节
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-HOME
+- 前置依赖：无；复用现有 MarkdownRender、UiIslandCard 与主题 token；新增 highlight.js、katex、marked-katex-extension、marked-footnote、mermaid
+- 关联功能：APP-HOME-F004
+- 完成证据：[扩展语法报告](../../../../../.tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md)；Electron 夹具 passed（真实剪贴板、MathML、Mermaid、三宽度）、定向 23 项、Desktop 全量 1028 passed/14 skipped、类型检查通过；生产 vite build 本轮未取得证据
+
+**问题与目标**
+
+上一轮把正文分块为内容岛屿，但代码无高亮与复制、表格卡片细节不足，公式/脚注/提示块/标题锚点/Mermaid 均未接通。用户要求视觉观感优先且不为此拆分多层：全部逻辑收在 `MarkdownRender.vue`，样式集中在 `styles.css`，仅图表新增一个异步子组件。
+
+**验收条件**
+
+- [x] 代码岛有语言标签与悬停/聚焦显现的复制按钮，复制真实写入系统剪贴板，失败在按钮上回报。
+- [x] 高亮按需注册语言并记忆化，流式重解析不重复计算；未知语言静默退化为纯文本。
+- [x] 行内与块级公式渲染，display 公式自带横向滚动；MathML 分支与内联 style 在消毒后保留。
+- [x] 脚注渲染且脚注区标题、返回引用读屏文案本地化。
+- [x] `> [!NOTE/TIP/IMPORTANT/WARNING/CAUTION]` 渲染为分类型提示块（支持自定义标题），普通引用不受影响。
+- [x] 标题得到 md- 前缀去重 id 与锚点；点击在组件内滚动并标记落点，不改写 URL hash。
+- [x] Mermaid 懒加载、跟随主题重绘，解析失败回退显示源码；超长图表不交给 mermaid。
+- [x] 表格容器满宽、表头加深、行 hover、末行去边；三宽度下正文视口无横向溢出，表格/代码/公式在卡片内滚动。
+- [x] 流式更新不重建已完成代码块 DOM 与表格滚动容器（含焦点）；亮暗主题与强调色跟随。
+
+**边界**
+
+外链打开（`will-navigate`/`openExternal`）按用户本轮决定不做；Mermaid 未 Worker 化，性能未压测；生产构建证据缺失见报告第 4 节。
+
 <a id="app-home-001"></a>
 
 ### APP-HOME-001 完成 Home / 会话、对话与投递 的逐功能审计与模块图精化

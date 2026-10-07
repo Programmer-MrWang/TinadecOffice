@@ -311,13 +311,16 @@ function resetFeedback() {
 }
 
 /**
- * Electron loads the built page from disk, where the async clipboard may be
- * unavailable; the legacy path keeps the copy button working there too.
+ * Electron loads the built page from disk, and the async clipboard also refuses
+ * to write while the window is not focused. Both cases fall back to the legacy
+ * path rather than telling the user the copy failed.
  */
 async function writeClipboard(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return
+    try {
+      await navigator.clipboard.writeText(text)
+      return
+    } catch { /* fall through to the legacy path */ }
   }
   const area = document.createElement('textarea')
   area.value = text

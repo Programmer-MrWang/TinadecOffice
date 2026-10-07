@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-07T19:32:57.309Z",
+  "timestamp": "2026-10-07T19:40:32.133Z",
   "runtime": {
     "node": "24.18.1",
     "acorn": "8.16.0",
@@ -35,7 +35,7 @@
   },
   "fixture": "Real MarkdownRender/MarkdownDiagram SFCs bundled from current sources with current stylesheet; mirrored transcript wrappers; no Gateway/Core/model calls.",
   "sourceHashes": {
-    "apps/desktop/src/components/MarkdownRender.vue": "93fab09cef17a8bcb94793fdb675b1dc4a8811d82ef0a8ea43eee143e9a789d4",
+    "apps/desktop/src/components/MarkdownRender.vue": "17ba4a9877e13c1df4cb0e4f39eef6df3d2bb44eac2c0573f6100dc389615648",
     "apps/desktop/src/components/MarkdownDiagram.vue": "15bc7d66d6810f05f0fb04a38a20e28b538ecca374aefea0f97fc48470eb3dcc",
     "apps/desktop/src/components/ui/island-card.vue": "ad909c937dc140861b4350a036930839b2bfacf92d12ddc044fbc5e56712f0ad",
     "apps/desktop/src/components/MessageItem.vue": "c29464424c687a80b7462239f663d5d2bc08379d7f539b1b7051dcfd7a72acc9",
@@ -54,11 +54,15 @@
       "headingId": "md-小节标题",
       "anchorHref": "#md-小节标题"
     },
+    "clipboardProbe": {
+      "ok": true,
+      "focused": true
+    },
     "copy": {
-      "label": "复制失败",
-      "classes": "markdown-copy is-failed",
+      "label": "已复制",
+      "classes": "markdown-copy is-copied",
       "clipboardType": "function",
-      "clipboard": "sentinel"
+      "clipboard": "const answer = 42;\r\n"
     },
     "maths": {
       "katex": 2,
@@ -232,9 +236,6 @@
       "tokenUsers": 1
     }
   },
-  "failures": [
-    "copy writes the raw code to the system clipboard: {\"label\":\"复制失败\",\"classes\":\"markdown-copy is-failed\",\"clipboardType\":\"function\",\"clipboard\":\"sentinel\"}",
-    "copy button reports success: {\"label\":\"复制失败\",\"classes\":\"markdown-copy is-failed\",\"clipboardType\":\"function\",\"clipboard\":\"sentinel\"}"
-  ],
-  "status": "failed"
+  "failures": [],
+  "status": "passed"
 }
