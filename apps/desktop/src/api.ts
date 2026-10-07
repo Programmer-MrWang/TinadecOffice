@@ -3,6 +3,7 @@ import { CORE_EVENT_TYPES } from '@/events/coreEventTypes'
 import type { components } from '@/generated/schema'
 import type { MessageAttachmentDto, MessageDto, SseChunk } from '@/generated/client'
 import { createRunStream, runStreamDelta, type RunStreamHandle } from '@/lib/runStream'
+import { isAbortError } from '@/lib/isAbortError'
 
 export type { MessageDto }
 
@@ -2550,6 +2551,7 @@ async function requestResult<T>(path: string, init?: RequestInit): Promise<JsonR
       }
     });
   } catch (err) {
+    if (isAbortError(err)) throw err
     // fetch() itself failed (network error, CORS blocked, etc.)
     const msg = err instanceof Error ? err.message : 'Network request failed';
     throw new Error(`Cannot connect to backend (${gatewayUrl}): ${msg}`);

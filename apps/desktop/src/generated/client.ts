@@ -7,6 +7,7 @@
  * not part of the JSON OpenAPI surface.
  */
 import type { components } from './schema'
+import { isAbortError } from '../lib/isAbortError'
 
 type Schemas = components['schemas']
 
@@ -101,6 +102,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.body ? { 'content-type': 'application/json' } : {}), ...(init?.headers ?? {}) } })
   } catch (e) {
+    if (isAbortError(e)) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
   }
   const text = await res.text()
@@ -120,6 +122,7 @@ async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { e
   try {
     res = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.body ? { 'content-type': 'application/json' } : {}), ...(init?.headers ?? {}) } })
   } catch (e) {
+    if (isAbortError(e)) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
   }
   const text = await res.text()

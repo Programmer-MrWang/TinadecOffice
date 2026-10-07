@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-07
-**Last Updated By:** 空间目标选择器改用UiSelect，移除原生表单控件。
-**Last Verified Commit:** 283b544 + 工作树；Desktop969 passed/14 skipped、UIE156/156、空间视觉定向18/18、UiSelect定向、类型/构建与Electron三宽度夹具通过；真实模型/终端桥/平台验收未闭合。
+**Last Updated By:** 首页启动自取消请求导致「Cannot connect to backend … signal is aborted without reason」误报修复；AbortError 不再被包装成连接失败。
+**Last Verified Commit:** 3e9fac7 + 工作树；本轮定向 Desktop 52/52（api/HomeController/agentPackClient）、真实 Electron 冷启动每次重载 1 次 /api/v1/sessions 且 200/0 取消/无横幅；同一工作树全量 967 passed/14 skipped，SpatialPage.test.ts 因本机 node_modules 缺 `@vue-flow/node-resizer` 整档失败、`vue-tsc` 同因 3 处报错（均与本修复无关）；真实模型/终端桥/平台验收未闭合。
 **Branch:** main
+
+### 2026-10-07 首页启动自取消请求误报修复
+
+`HomeController.loadInitial()` 写入首个 `selectedProjectId` 会触发 `watch(selectedProjectId)` 里的 `loadSessions()`，在微任务里 abort 掉自己刚发出的首个 `GET /api/v1/sessions`；请求层旧行为把这次取消包装成 `Cannot connect to backend (http://127.0.0.1:48730): signal is aborted without reason`，首屏因此常驻「加载失败」横幅，点「重试」后（值未变、watch 不再触发）才恢复。修复分两层：新增 `src/lib/isAbortError.ts` 统一识别取消（`DOMException` 与 `Error` 的 `name === 'AbortError'`）；`api.ts:requestResult` 与 `generated/client.ts` 的 `req`/`reqWithEtag` 在包装为连接失败前放行取消。`loadInitial` 用 `suppressProjectSessionsReload` 抑制这次自取消，捕获取消时静默返回；真实网络失败仍照常出横幅并保留「重试」。验证：定向 52/52，真实 Electron 冷启动探针每次重载只发 1 次 `/api/v1/sessions`（200、无取消、无横幅），反向注入真实 `TypeError` 仍产出 `home-load` 错误项。证据 `.tinadec_dev/evidence/2026-10-07-home-boot-abort-banner/`，报告 `.tinadec_dev/reports/2026-10-07-home-boot-abort-banner.zh-CN.md`。
 
 ### 2026-10-07 空间目标工作簇接手
 
@@ -372,6 +376,8 @@ apps/TinadecUI/        # TinadecUI — UI engineering suite; import as '@tinadec
 - Composer dispatch affordances stay out of the send box: no persistent 并行/排队/插入 buttons. Dispatch intent is expressed after sending (queued card actions) or in Settings→General (`dispatchPref.ts` is the single owner of the `tinadec.enter_pref` key — never read/write it elsewhere).
 - Normal user chat goes through Core's `POST /api/v1/sessions/{id}/interactions` contract (output is read back via `GET /api/v1/runs/{runId}/stream`); `invoke-stream` is retired and returns 404. Never `POST /messages` and then invoke the same content: the invocation owns idempotent user-message creation.
 - A local `AbortController` only stops the renderer's SSE reader; it is not a run cancellation. Pause, resume, cancel, target changes, approval resumption, mode changes, context versions, agent lineage, and memory/agent-candidate review must be requested through Gateway/Core and displayed from their durable projections.
+- Request wrappers must preserve cancellation identity: `api.ts:requestResult` and `generated/client.ts` (`req`/`reqWithEtag`) call `src/lib/isAbortError.ts` before rewriting a failed `fetch` into `Cannot connect to backend (...)`. A cancelled request is not a backend outage, and re-wrapping it as an `Error` hides that from every caller's abort handling.
+- `HomeController.loadInitial()` owns the first roster read: while it assigns `selectedProjectId` and awaits `loadSessions()`, `suppressProjectSessionsReload` keeps the `selectedProjectId` watcher from starting a second read that aborts the first. Do not remove the guard without replacing it with equivalent single-flight semantics for the roster.
 - Full prompt bodies, long-term-memory writes, agent spawning, tool authorization, approval consumption, and state revisions remain Core responsibilities. Desktop may show progress, candidate evidence, and control affordances but must not synthesize durable state or promote a candidate locally.
 - Gateway URLs must use HTTP or HTTPS and contain no credentials, query, or fragment. Keep all renderer requests on `window.tinadec.gatewayUrl()` / `api.gatewayUrl`; do not add localhost request bypasses.
 - Model Center composes versioned provider templates/instances/routes/readiness directly through Gateway and renders Core suppliers, API/local connections, configured models, CLI runtimes, and ACP runtimes. `providerTemplates.ts` may only supply presentation metadata such as translations, icons, colors, and placeholders. `runtimeCenterView.ts` must carry `revision` through **every** provider projection (`apiConnectionProvider`, `cliRuntimeProvider`, and the CLI/ACP rows in `aggregateModelCenterOverview`) — it is the `If-Match` token `saveModelProvider`/`saveModelRoute` send, and dropping it makes Core answer `428 precondition_required`. `loadModelCenter` must also assign `routes.value` from the fetched rows: the Routes tab, the route editor, and `setDefaultChatModel` all read that ref, so a shadowing local leaves them permanently empty. Both are pinned by `runtimeCenterView.test.ts` (`carries the provider revision through...`) and `SettingsPage.smoke.test.ts` (`assigns the routes ref from loadModelCenter...`).

@@ -1,0 +1,156 @@
+{
+  "sessionsRequests": [
+    {
+      "url": "/api/v1/sessions",
+      "at": 559,
+      "abortAt": null,
+      "status": 200,
+      "err": null,
+      "stack": [
+        "at w.fetch (<anonymous>:24:19)",
+        "at requestResult (src/api.ts:45:22)",
+        "at request (src/api.ts:75:17)",
+        "at Object.listSessions (src/api.ts:241:40)",
+        "at loadSessions (src/controllers/HomeController.ts:131:35)",
+        "at loadInitial (src/controllers/HomeController.ts:105:13)"
+      ]
+    }
+  ],
+  "abortedCount": 0,
+  "bridgeWrap": {
+    "applied": false,
+    "frozen": true,
+    "error": null
+  },
+  "bannerEpisodes": [],
+  "statusBroadcasts": [],
+  "otherApiErrors": [],
+  "consoleEvents": [
+    {
+      "type": "warning",
+      "text": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Disabled webSecurity) font-weight: bold; This renderer process has \"webSecurity\" disabled. This\n  exposes users of this app to severe security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (allowRunningInsecureContent) font-weight: bold; This renderer process has \"allowRunningInsecureContent\"\n  enabled. This exposes users of this app to severe security risks.\n\n  \nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Disabled webSecurity) font-weight: bold; This renderer process has \"webSecurity\" disabled. This\n  exposes users of this app to severe security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (allowRunningInsecureContent) font-weight: bold; This renderer process has \"allowRunningInsecureContent\"\n  enabled. This exposes users of this app to severe security risks.\n\n  \nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Disabled webSecurity) font-weight: bold; This renderer process has \"webSecurity\" disabled. This\n  exposes users of this app to severe security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (allowRunningInsecureContent) font-weight: bold; This renderer process has \"allowRunningInsecureContent\"\n  enabled. This exposes users of this app to severe security risks.\n\n  \nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "type": "warning",
+      "text": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    }
+  ],
+  "netFailures": [
+    {
+      "sent": "/api/v1/health",
+      "ts": 1791356048770
+    },
+    {
+      "sent": "/api/v1/agent-packs/install-preview",
+      "ts": 1791356048828
+    },
+    {
+      "sent": "/api/v1/projects",
+      "ts": 1791356049005
+    },
+    {
+      "sent": "/api/v1/doctor",
+      "ts": 1791356049005
+    },
+    {
+      "sent": "/api/v1/readiness",
+      "ts": 1791356049005
+    },
+    {
+      "sent": "/api/v1/events",
+      "ts": 1791356049005
+    },
+    {
+      "sent": "/api/v1/agent-modes",
+      "ts": 1791356049070
+    },
+    {
+      "sent": "/api/v1/sessions",
+      "ts": 1791356049123
+    },
+    {
+      "sent": "/api/v1/agent-modes",
+      "ts": 1791356049123
+    },
+    {
+      "sent": "/api/v1/health",
+      "ts": 1791356055138
+    },
+    {
+      "sent": "/api/v1/health",
+      "ts": 1791356060760
+    },
+    {
+      "sent": "/api/v1/agent-packs/install-preview",
+      "ts": 1791356060801
+    },
+    {
+      "sent": "/api/v1/projects",
+      "ts": 1791356061010
+    },
+    {
+      "sent": "/api/v1/doctor",
+      "ts": 1791356061010
+    },
+    {
+      "sent": "/api/v1/readiness",
+      "ts": 1791356061010
+    },
+    {
+      "sent": "/api/v1/events",
+      "ts": 1791356061014
+    },
+    {
+      "sent": "/api/v1/agent-modes",
+      "ts": 1791356061082
+    },
+    {
+      "sent": "/api/v1/sessions",
+      "ts": 1791356061136
+    },
+    {
+      "sent": "/api/v1/agent-modes",
+      "ts": 1791356061136
+    }
+  ]
+}

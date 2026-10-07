@@ -20,6 +20,7 @@ import { basenameFromPath } from '@/format'
 import { getDispatchPref } from '@/lib/dispatchPref'
 import { attachmentsForSend, readyAttachmentCount, settleSentAttachments } from '@/lib/pendingAttachments'
 import { followSession, subscribeToSessionEvents } from '@/lib/sessionEventBus'
+import { isAbortError } from '@/lib/isAbortError'
 import { useAgentActivity } from '@/composables/useAgentActivity'
 import { projectRunReply } from '@/lib/runReply'
 import { useNotifications } from '@/composables/useNotifications'
@@ -66,6 +67,9 @@ const modelName = ref('')
 const modelApiKey = ref('')
 const shellCommand = ref('npm test')
 const busy = ref(false)
+// loadInitial owns the first roster read. The selectedProjectId watcher must not
+// start a second read and abort that first one before the initial load can finish.
+let suppressProjectSessionsReload = false
 // 模式身份只剩「已发布的 ModeVersion」：六值 agent_mode 词表已从契约删除，
 // 因此不再有本地存储的"当前模式"——选择跟着会话走（session.mode_version_id）。
 const currentPermission = ref<PermissionLevel>('default')
@@ -149,10 +153,16 @@ async function loadInitial() {
     const routeData = items.find((item) => item.id === 'model_route')?.data
     if (routeData?.model) modelName.value = routeData.model
     if (routeData?.base_url) modelBaseUrl.value = routeData.base_url
-    selectedProjectId.value = projectList[0]?.id ?? null
-    await loadSessions()
+    suppressProjectSessionsReload = true
+    try {
+      selectedProjectId.value = projectList[0]?.id ?? null
+      await loadSessions()
+    } finally {
+      suppressProjectSessionsReload = false
+    }
     dismissByKey('home-load')
   } catch (err) {
+    if (isAbortError(err)) return
     banner.error({
       key: 'home-load',
       title: '加载失败',
@@ -167,11 +177,6 @@ async function loadInitial() {
 
 let sessionListRead = 0
 let sessionListAbort: AbortController | null = null
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError'
-    || error instanceof Error && error.name === 'AbortError'
-}
 
 async function loadSessions() {
   // Unfiltered listing covers both project-bound sessions and free conversations
@@ -810,6 +815,7 @@ async function handleSessionEvent(event: EventEnvelope) {
 }
 
 watch(selectedProjectId, () => {
+  if (suppressProjectSessionsReload) return
   void loadSessions()
 })
 

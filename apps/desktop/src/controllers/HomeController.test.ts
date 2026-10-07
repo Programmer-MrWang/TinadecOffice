@@ -5,6 +5,9 @@ import { flushPromises } from '@vue/test-utils'
 
 const h = vi.hoisted(() => ({
   createUserToolActionForPath: vi.fn(),
+  listProjects: vi.fn(async () => []),
+  doctor: vi.fn(async () => null),
+  readiness: vi.fn(async () => ({ items: [] })),
   listSessions: vi.fn(async () => []),
   createSession: vi.fn(),
   listMessages: vi.fn(async () => []),
@@ -19,6 +22,8 @@ const h = vi.hoisted(() => ({
   cancelInteraction: vi.fn(async () => ({ status: 'cancelled' })),
   updateSessionTitle: vi.fn(async () => ({ id: 'session-1' })),
   notifyError: vi.fn(),
+  bannerError: vi.fn(),
+  dismissByKey: vi.fn(),
 }))
 
 // The strip's own behaviour is pinned in pendingAttachments.test.ts; here it is only
@@ -48,6 +53,9 @@ vi.mock('@/lib/pendingAttachments', () => ({
 
 vi.mock('@/api', () => ({
   api: {
+    listProjects: h.listProjects,
+    doctor: h.doctor,
+    readiness: h.readiness,
     listSessions: h.listSessions,
     createSession: h.createSession,
     listMessages: h.listMessages,
@@ -68,8 +76,8 @@ vi.mock('@/api', () => ({
 vi.mock('@/composables/useNotifications', () => ({
   useNotifications: () => ({
     notify: { error: h.notifyError, info: vi.fn() },
-    banner: { error: vi.fn() },
-    dismissByKey: vi.fn(),
+    banner: { error: h.bannerError },
+    dismissByKey: h.dismissByKey,
   }),
 }))
 
@@ -539,5 +547,36 @@ describe('HomeController queued messages Core holds', () => {
     expect(soft).not.toHaveProperty('interrupt')
     expect(homeController.queuedMessages.value).toEqual([])
     h.createInteraction.mockReset()
+  })
+})
+
+describe('HomeController initial load', () => {
+  it('does not let the project watcher abort the initial session roster read', async () => {
+    let resolveRoster!: (value: never[]) => void
+    let rosterSignal!: AbortSignal
+    h.listProjects.mockResolvedValueOnce([{
+      id: 'project-1',
+      name: 'demo',
+      path: 'C:/workspace/demo',
+      created_at: '2026-10-07T00:00:00Z',
+    }] as never[])
+    h.doctor.mockResolvedValueOnce(null)
+    h.readiness.mockResolvedValueOnce({ items: [] } as never)
+    h.listSessions.mockImplementationOnce((_projectId?: string, signal?: AbortSignal) => {
+      rosterSignal = signal!
+      return new Promise<never[]>((resolve) => { resolveRoster = resolve })
+    })
+
+    homeController.start()
+    await flushPromises()
+
+    expect(h.listSessions).toHaveBeenCalledTimes(1)
+    expect(rosterSignal.aborted).toBe(false)
+
+    resolveRoster([])
+    await flushPromises()
+
+    expect(h.bannerError).not.toHaveBeenCalled()
+    expect(h.dismissByKey).toHaveBeenCalledWith('home-load')
   })
 })

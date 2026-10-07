@@ -38,3 +38,29 @@ describe('generated agent pack client', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ preview_id: 'preview-1', envelope: graphSeedPackEnvelope })
   })
 })
+
+describe('generated client cancellation semantics', () => {
+  it('keeps an AbortError from req', async () => {
+    const abortError = Object.assign(new Error('signal is aborted without reason'), { name: 'AbortError' })
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw abortError
+    }))
+
+    const error = await generatedApi.listProjects().catch((reason: unknown) => reason)
+
+    expect(error).toBe(abortError)
+    expect((error as Error).message).not.toContain('Cannot connect to backend')
+  })
+
+  it('keeps an AbortError from reqWithEtag', async () => {
+    const abortError = new DOMException('signal is aborted without reason', 'AbortError')
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw abortError
+    }))
+
+    const error = await generatedApi.getAgentPack('pack-1').catch((reason: unknown) => reason)
+
+    expect(error).toBe(abortError)
+    expect((error as Error).message).not.toContain('Cannot connect to backend')
+  })
+})
