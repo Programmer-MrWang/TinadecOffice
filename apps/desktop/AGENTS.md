@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-07
-**Last Updated By:** 首页启动自取消请求导致「Cannot connect to backend … signal is aborted without reason」误报修复；AbortError 不再被包装成连接失败。
-**Last Verified Commit:** 3e9fac7 + 工作树；本轮定向 Desktop 52/52（api/HomeController/agentPackClient）、真实 Electron 冷启动每次重载 1 次 /api/v1/sessions 且 200/0 取消/无横幅；同一工作树全量 967 passed/14 skipped，SpatialPage.test.ts 因本机 node_modules 缺 `@vue-flow/node-resizer` 整档失败、`vue-tsc` 同因 3 处报错（均与本修复无关）；真实模型/终端桥/平台验收未闭合。
+**Last Updated By:** 平面对话Markdown渲染能力核查，记录五项已复现的显示缺陷与扩展边界；未修改业务代码。
+**Last Verified Commit:** 131388a + Markdown核查；MessageList/ChatPanel定向18/18、本地真实MarkdownRender SFC与当前CSS的Electron夹具通过；非完整App、真实模型或平台验收，不继承历史全量绿。
 **Branch:** main
+
+### 2026-10-07 平面对话 Markdown 核查（未修复）
+
+MessageItem仅assistant正文用MarkdownRender，用户正文为文本插值；MessageList流式正文用相同组件。marked18.0.4启用GFM/breaks并经DOMPurify3.4.5消毒。基础格式正常解析；CSS已复现五项缺陷：列表标记none、任务checkbox约226×34px、表格align被统一left覆盖、宽表格无独立滚动、长URL不折行。代码块自身横滚正常；高亮/块级复制、公式、Mermaid、脚注、提示块与标题id未接通。定向18/18；本地SFC＋复刻消息外层＋当前CSS/Tailwind preflight夹具验证320/520/800px，非完整App E2E。报告`.tinadec_dev/reports/2026-10-07-flat-markdown-rendering.zh-CN.md`，证据`.tinadec_dev/evidence/2026-10-07-flat-markdown/`。
 
 ### 2026-10-07 首页启动自取消请求误报修复
 

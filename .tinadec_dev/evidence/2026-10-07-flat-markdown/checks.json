@@ -1,0 +1,594 @@
+{
+  "timestamp": "2026-10-07T11:09:52.679Z",
+  "runtime": {
+    "node": "24.18.1",
+    "acorn": "8.16.0",
+    "ada": "3.4.4",
+    "amaro": "1.1.9",
+    "ares": "1.34.6",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.2",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "148",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.69.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "0.0.0",
+    "simdjson": "4.6.4",
+    "simdutf": "7.7.0",
+    "sqlite": "3.53.1",
+    "tz": "2025c",
+    "undici": "7.29.0",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "15.0.245.23-electron.0",
+    "zlib": "1.3.2.1-motley",
+    "zstd": "1.6.0",
+    "electron": "43.3.0",
+    "chrome": "150.0.7871.212"
+  },
+  "fixture": "Real MarkdownRender SFC; mirrored transcript wrappers; current source styles and Tailwind preflight. No full-app/model/network acceptance.",
+  "sourceHashes": {
+    "apps/desktop/src/components/MarkdownRender.vue": "c01fa56dc141066c0d629f66159770e45ee3bcd815d8547ab491b4c7bcbe804c",
+    "apps/desktop/src/components/MessageItem.vue": "c29464424c687a80b7462239f663d5d2bc08379d7f539b1b7051dcfd7a72acc9",
+    "apps/desktop/src/components/MessageList.vue": "67a4832b19cfb5ef0d85a19b33e509f73e3f565626ba2a830353cf3730987ae1",
+    "apps/desktop/src/styles.css": "829923efccefd2361ac547ee9d80fa304033f7cbea629b97a7de1b983e6de226"
+  },
+  "basics": {
+    "html": "<h1>一级标题</h1>\n<h2>二级标题</h2>\n<h3>三级标题</h3>\n<h4>四级标题</h4>\n<h5>五级标题</h5>\n<h6>六级标题</h6>\n<p><strong>加粗</strong>、<em>斜体</em>、<del>删除线</del>、<code>inline code</code><br>第一行<br>第二行</p>\n<blockquote>\n<p>引用</p>\n</blockquote>\n<ul>\n<li>项目甲</li>\n<li>项目乙<ul>\n<li>嵌套项目</li>\n</ul>\n</li>\n</ul>\n<ol start=\"3\">\n<li>第三项</li>\n<li>第四项</li>\n</ol>\n<ul>\n<li><input checked=\"\" disabled=\"\" type=\"checkbox\"> 已完成</li>\n<li><input disabled=\"\" type=\"checkbox\"> 待处理</li>\n</ul>\n<hr>\n<table>\n<thead>\n<tr>\n<th align=\"left\">左</th>\n<th align=\"center\">中</th>\n<th align=\"right\">右</th>\n</tr>\n</thead>\n<tbody><tr>\n<td align=\"left\">A</td>\n<td align=\"center\">B</td>\n<td align=\"right\">C</td>\n</tr>\n</tbody></table>\n<p><a href=\"https://example.invalid/markdown-qa\">链接</a> 和 <a href=\"https://example.invalid/automatic\">https://example.invalid/automatic</a></p>\n<p><a href=\"https://example.invalid/reference\">引用链接</a></p>\n",
+    "headings": 6,
+    "strong": true,
+    "em": true,
+    "del": true,
+    "inlineCode": true,
+    "hardBreaks": 2,
+    "quote": true,
+    "table": true,
+    "hr": true,
+    "links": 3,
+    "checkboxes": [
+      {
+        "type": "checkbox",
+        "checked": true,
+        "disabled": true,
+        "width": 225.9732208251953,
+        "height": 34,
+        "computedWidth": "225.973px",
+        "computedHeight": "34px"
+      },
+      {
+        "type": "checkbox",
+        "checked": false,
+        "disabled": true,
+        "width": 225.9732208251953,
+        "height": 34,
+        "computedWidth": "225.973px",
+        "computedHeight": "34px"
+      }
+    ],
+    "metrics": {
+      "host": {
+        "width": 800.0000610351562,
+        "clientWidth": 800,
+        "scrollWidth": 800,
+        "overflowX": "clip"
+      },
+      "viewport": {
+        "width": 800.0000610351562,
+        "clientWidth": 800,
+        "scrollWidth": 800,
+        "overflowX": "auto"
+      },
+      "body": {
+        "width": 245.9732208251953,
+        "clientWidth": 246,
+        "scrollWidth": 246,
+        "overflowX": "visible"
+      },
+      "table": {
+        "width": 245.9732208251953,
+        "clientWidth": 246,
+        "scrollWidth": 246,
+        "overflowX": "visible"
+      },
+      "pre": null,
+      "lists": [
+        {
+          "tag": "UL",
+          "listStyle": "none",
+          "start": null
+        },
+        {
+          "tag": "UL",
+          "listStyle": "none",
+          "start": null
+        },
+        {
+          "tag": "OL",
+          "listStyle": "none",
+          "start": "3"
+        },
+        {
+          "tag": "UL",
+          "listStyle": "none",
+          "start": null
+        }
+      ],
+      "cellAlignment": [
+        {
+          "align": "left",
+          "computed": "left"
+        },
+        {
+          "align": "center",
+          "computed": "left"
+        },
+        {
+          "align": "right",
+          "computed": "left"
+        }
+      ]
+    }
+  },
+  "lightTheme": {
+    "theme": "light",
+    "background": "rgb(255, 255, 255)",
+    "text": "rgb(31, 35, 40)"
+  },
+  "layout": [
+    {
+      "case": "table",
+      "width": 800,
+      "metrics": {
+        "host": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 1331,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 768.0000610351562,
+          "clientWidth": 768,
+          "scrollWidth": 1315,
+          "overflowX": "visible"
+        },
+        "table": {
+          "width": 1315.4375,
+          "clientWidth": 1315,
+          "scrollWidth": 1315,
+          "overflowX": "visible"
+        },
+        "pre": null,
+        "lists": [],
+        "cellAlignment": [
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          }
+        ]
+      }
+    },
+    {
+      "case": "table",
+      "width": 520,
+      "metrics": {
+        "host": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 1226,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 504.0000305175781,
+          "clientWidth": 504,
+          "scrollWidth": 1218,
+          "overflowX": "visible"
+        },
+        "table": {
+          "width": 1218.259033203125,
+          "clientWidth": 1218,
+          "scrollWidth": 1218,
+          "overflowX": "visible"
+        },
+        "pre": null,
+        "lists": [],
+        "cellAlignment": [
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          }
+        ]
+      }
+    },
+    {
+      "case": "table",
+      "width": 320,
+      "metrics": {
+        "host": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 1173,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 312,
+          "clientWidth": 312,
+          "scrollWidth": 1169,
+          "overflowX": "visible"
+        },
+        "table": {
+          "width": 1169.384033203125,
+          "clientWidth": 1169,
+          "scrollWidth": 1169,
+          "overflowX": "visible"
+        },
+        "pre": null,
+        "lists": [],
+        "cellAlignment": [
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          },
+          {
+            "align": null,
+            "computed": "left"
+          }
+        ]
+      }
+    },
+    {
+      "case": "code",
+      "width": 800,
+      "metrics": {
+        "host": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 768.0000610351562,
+          "clientWidth": 768,
+          "scrollWidth": 768,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": {
+          "width": 768.0000610351562,
+          "clientWidth": 767,
+          "scrollWidth": 1332,
+          "overflowX": "auto"
+        },
+        "lists": [],
+        "cellAlignment": []
+      }
+    },
+    {
+      "case": "code",
+      "width": 520,
+      "metrics": {
+        "host": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 504.0000305175781,
+          "clientWidth": 504,
+          "scrollWidth": 504,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": {
+          "width": 504.0000305175781,
+          "clientWidth": 503,
+          "scrollWidth": 1324,
+          "overflowX": "auto"
+        },
+        "lists": [],
+        "cellAlignment": []
+      }
+    },
+    {
+      "case": "code",
+      "width": 320,
+      "metrics": {
+        "host": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 312,
+          "clientWidth": 312,
+          "scrollWidth": 312,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": {
+          "width": 312,
+          "clientWidth": 311,
+          "scrollWidth": 1320,
+          "overflowX": "auto"
+        },
+        "lists": [],
+        "cellAlignment": []
+      }
+    },
+    {
+      "case": "long-link",
+      "width": 800,
+      "metrics": {
+        "host": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 800,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 800.0000610351562,
+          "clientWidth": 800,
+          "scrollWidth": 2491,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 768.0000610351562,
+          "clientWidth": 768,
+          "scrollWidth": 2475,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": null,
+        "lists": [],
+        "cellAlignment": []
+      }
+    },
+    {
+      "case": "long-link",
+      "width": 520,
+      "metrics": {
+        "host": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 520,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 520,
+          "clientWidth": 520,
+          "scrollWidth": 2483,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 504.0000305175781,
+          "clientWidth": 504,
+          "scrollWidth": 2475,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": null,
+        "lists": [],
+        "cellAlignment": []
+      }
+    },
+    {
+      "case": "long-link",
+      "width": 320,
+      "metrics": {
+        "host": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 320,
+          "overflowX": "clip"
+        },
+        "viewport": {
+          "width": 320,
+          "clientWidth": 320,
+          "scrollWidth": 2479,
+          "overflowX": "auto"
+        },
+        "body": {
+          "width": 312,
+          "clientWidth": 312,
+          "scrollWidth": 2475,
+          "overflowX": "visible"
+        },
+        "table": null,
+        "pre": null,
+        "lists": [],
+        "cellAlignment": []
+      }
+    }
+  ],
+  "code": {
+    "className": "language-javascript",
+    "tokenElements": 0,
+    "text": "const total = 1 + 2;\n",
+    "buttons": 0
+  },
+  "extended": {
+    "html": "<h1>扩展语法</h1>\n<p>行内公式 $a^2+b^2=c^2$</p>\n<p>$$<br>\\frac{1}{2}<br>$$</p>\n<pre><code class=\"language-mermaid\">graph TD\n  A --&gt; B\n</code></pre>\n<p>正文脚注<a href=\"%E8%84%9A%E6%B3%A8%E6%96%87%E6%9C%AC\">^1</a></p>\n<blockquote>\n<p>[!NOTE]<br>提示文本</p>\n</blockquote>\n<p><a href=\"#%E6%89%A9%E5%B1%95%E8%AF%AD%E6%B3%95\">跳到标题</a></p>\n<details><summary>HTML 折叠内容</summary>普通 HTML 正文</details>\n",
+    "mathElements": 0,
+    "mermaidCode": true,
+    "diagramElements": 0,
+    "footnoteElements": 0,
+    "headingId": "",
+    "rawHtmlDetails": true,
+    "scripts": 0
+  },
+  "image": {
+    "alt": "本地图像",
+    "naturalWidth": 1000,
+    "width": 311.96429443359375,
+    "bodyWidth": 312
+  },
+  "streaming": {
+    "strong": true,
+    "unfinishedCode": "const answer =\n",
+    "finished": {
+      "text": "const answer = 42;\n",
+      "replacedCodeNode": true
+    }
+  },
+  "performance": [
+    {
+      "chars": 1125,
+      "updateMs": [
+        6,
+        8.400000005960464,
+        6.5999999940395355,
+        7.800000011920929,
+        6
+      ]
+    },
+    {
+      "chars": 5625,
+      "updateMs": [
+        17.700000017881393,
+        17,
+        27.5,
+        16.299999982118607,
+        16
+      ]
+    },
+    {
+      "chars": 11250,
+      "updateMs": [
+        35.89999997615814,
+        28.400000005960464,
+        31.900000005960464,
+        28.400000005960464,
+        40.5
+      ]
+    }
+  ],
+  "preventedNavigations": [
+    "https://example.invalid/markdown-qa"
+  ],
+  "blockedApiRequests": [],
+  "errors": []
+}
