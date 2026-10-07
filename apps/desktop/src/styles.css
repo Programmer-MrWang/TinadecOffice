@@ -2914,6 +2914,8 @@ margin-top: 4px;
   font-weight: 600;
   line-height: 1.3;
   color: var(--text-primary);
+  /* Keeps an in-page jump from landing the heading against the viewport edge. */
+  scroll-margin-top: 12px;
 }
 
 .markdown-body h1 { font-size: 17px; }
@@ -2922,6 +2924,97 @@ margin-top: 4px;
 .markdown-body h4 { font-size: 13px; }
 .markdown-body h5 { font-size: 13px; }
 .markdown-body h6 { font-size: 12px; }
+
+/* Heading anchor: quiet until the heading is hovered or the link is focused, and
+   a short flash marks where an in-page jump landed. */
+.markdown-anchor {
+  margin-left: 6px;
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.markdown-body h1:hover .markdown-anchor,
+.markdown-body h2:hover .markdown-anchor,
+.markdown-body h3:hover .markdown-anchor,
+.markdown-body h4:hover .markdown-anchor,
+.markdown-body h5:hover .markdown-anchor,
+.markdown-body h6:hover .markdown-anchor,
+.markdown-anchor:focus-visible { opacity: 0.7; }
+
+.markdown-anchor:hover {
+  color: var(--accent-primary);
+  opacity: 1;
+}
+
+.markdown-body .is-anchor-target {
+  border-radius: 4px;
+  animation: markdown-anchor-flash 0.9s ease;
+}
+
+@keyframes markdown-anchor-flash {
+  from { background: var(--accent-soft); }
+  to { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markdown-anchor { transition: none; }
+  .markdown-body .is-anchor-target { animation: none; background: var(--accent-soft); }
+}
+
+/* Footnotes and maths. KaTeX ships spans with inline styles; the display form gets
+   its own scroll container so a wide formula cannot widen the conversation. */
+.markdown-body .footnotes {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-muted);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+.markdown-body .footnotes ol { padding-left: 18px; }
+.markdown-body .footnotes li { margin: 2px 0; }
+.markdown-body .footnotes p { margin: 0 0 4px; }
+
+.markdown-body .katex { font-size: 1.05em; }
+
+.markdown-body .katex-display {
+  margin: 8px 0;
+  padding: 2px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Callouts. The card keeps its neutral border and shadow; the type is carried by
+   the coloured heading and a tint of the accent inside the card body. */
+.markdown-callout.is-note { --callout-accent: var(--accent-info); }
+.markdown-callout.is-tip { --callout-accent: var(--accent-success); }
+.markdown-callout.is-important { --callout-accent: var(--accent-recovery); }
+.markdown-callout.is-warning { --callout-accent: var(--accent-warning); }
+.markdown-callout.is-caution { --callout-accent: var(--accent-danger); }
+
+.markdown-callout-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 12px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--callout-accent, var(--text-primary));
+}
+
+.markdown-body .markdown-callout .markdown-island-content {
+  background: color-mix(in srgb, var(--callout-accent, transparent) 8%, transparent);
+}
+
+.markdown-body .markdown-callout-body {
+  margin: 0;
+  padding: 6px 12px 10px;
+  border-left: 0;
+}
 
 .markdown-body ul,
 .markdown-body ol {

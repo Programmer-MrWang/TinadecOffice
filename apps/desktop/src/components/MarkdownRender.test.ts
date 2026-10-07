@@ -18,6 +18,16 @@ function render(content: string) {
             markdownCopy: 'Copy code',
             markdownCopied: 'Copied',
             markdownCopyFailed: 'Copy failed',
+            markdownAnchor: 'Jump to this heading',
+            markdownFootnotes: 'Footnotes',
+            markdownBackReference: 'Back to reference {n}',
+            callout: {
+              note: 'Note',
+              tip: 'Tip',
+              important: 'Important',
+              warning: 'Warning',
+              caution: 'Caution',
+            },
           },
         },
       },
@@ -127,6 +137,64 @@ describe('Markdown content islands', () => {
     expect(wrapper.get('.markdown-copy').classes()).toContain('is-failed')
     expect(wrapper.get('.markdown-copy').text()).toContain('Copy failed')
     expect(wrapper.get('pre code').text()).toBe('const answer = 42;')
+    wrapper.unmount()
+  })
+})
+
+describe('Markdown extended syntax', () => {
+  it('renders inline and display maths that survive sanitizing', () => {
+    const wrapper = render('行内 $a^2+b^2=c^2$ 结束。\n\n$$\n\\frac{1}{2}\n$$')
+    // happy-dom does not parse MathML, so the real Chromium check for the
+    // <math> branches lives in the Electron fixture; here the KaTeX output itself
+    // is asserted, including the display wrapper.
+    expect(wrapper.findAll('.katex').length).toBeGreaterThanOrEqual(2)
+    expect(wrapper.find('.katex-display').exists()).toBe(true)
+    expect(wrapper.find('.katex-display .katex').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('localises footnote labels and keeps the reference reachable', () => {
+    const wrapper = render('脚注[^1]。\n\n[^1]: 脚注正文。')
+    const section = wrapper.get('.footnotes')
+    expect(section.text()).toContain('脚注正文。')
+    expect(section.get('h2').text()).toBe('Footnotes')
+    expect(wrapper.get('a[data-footnote-ref]').attributes('href')).toBe('#footnote-1')
+    expect(section.get('a[data-footnote-backref]').attributes('aria-label')).toBe('Back to reference 1')
+    wrapper.unmount()
+  })
+
+  it('turns alert quotes into typed callouts and leaves ordinary quotes alone', () => {
+    const wrapper = render('> [!WARNING]\n> 注意磁盘空间\n\n> [!NOTE] 自定义标题\n> 正文\n\n> 普通引用')
+    const callouts = wrapper.findAll('.markdown-callout')
+    expect(callouts).toHaveLength(2)
+    expect(callouts[0]!.classes()).toContain('is-warning')
+    expect(callouts[0]!.get('.markdown-callout-head').text()).toBe('Warning')
+    expect(callouts[0]!.get('.markdown-callout-body').text()).toBe('注意磁盘空间')
+    expect(callouts[1]!.get('.markdown-callout-head').text()).toBe('自定义标题')
+    expect(wrapper.findAll('.markdown-island').length).toBe(3)
+    expect(wrapper.find('.markdown-island:not(.markdown-callout) blockquote').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('gives headings a prefixed, de-duplicated id and a hover anchor', () => {
+    const wrapper = render('## 标题一\n\n## 标题一\n\n## 标题二')
+    const headings = wrapper.findAll('h2')
+    expect(headings.map(heading => heading.attributes('id'))).toEqual(['md-标题一', 'md-标题一-2', 'md-标题二'])
+    const anchor = headings[0]!.get('.markdown-anchor')
+    expect(anchor.attributes('href')).toBe('#md-标题一')
+    expect(anchor.attributes('aria-label')).toBe('Jump to this heading')
+    wrapper.unmount()
+  })
+
+  it('scrolls to an in-page anchor without touching the router hash', async () => {
+    const scrollIntoView = vi.fn()
+    Element.prototype.scrollIntoView = scrollIntoView
+    const wrapper = render('## 标题\n\n正文')
+    const hash = window.location.hash
+    await wrapper.get('.markdown-anchor').trigger('click')
+    expect(scrollIntoView).toHaveBeenCalled()
+    expect(window.location.hash).toBe(hash)
+    expect(wrapper.get('h2').classes()).toContain('is-anchor-target')
     wrapper.unmount()
   })
 })

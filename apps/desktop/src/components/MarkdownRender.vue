@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Check, Copy } from '@lucide/vue'
-import { marked } from 'marked'
+import { Check, Copy, Info, Lightbulb, MessageSquareWarning, OctagonAlert, TriangleAlert } from '@lucide/vue'
+import { Marked } from 'marked'
+import markedFootnote from 'marked-footnote'
+import markedKatex from 'marked-katex-extension'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js/lib/core'
 import bash from 'highlight.js/lib/languages/bash'
@@ -25,6 +27,7 @@ import sql from 'highlight.js/lib/languages/sql'
 import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
+import 'katex/dist/katex.min.css'
 import UiIslandCard from './ui/island-card.vue'
 
 const props = defineProps<{
@@ -34,17 +37,34 @@ const props = defineProps<{
 const { t } = useI18n()
 
 /**
- * A reply is continuous prose plus island cards: code, tables and quotes each
- * reuse the shared card instead of inventing a second surface. Only code carries
- * a header, because only code has something to copy.
+ * A reply is continuous prose plus island cards: code, tables, quotes and
+ * callouts each reuse the shared card instead of inventing a second surface.
  */
+type CalloutKind = 'note' | 'tip' | 'important' | 'warning' | 'caution'
+
 type MarkdownBlock =
   | { kind: 'prose'; html: string }
   | { kind: 'island'; html: string }
   | { kind: 'code'; html: string; code: string; language: string | null }
+  | { kind: 'callout'; callout: CalloutKind; title: string; html: string }
+
+const CALLOUT_ICONS: Record<CalloutKind, Component> = {
+  note: Info,
+  tip: Lightbulb,
+  important: MessageSquareWarning,
+  warning: TriangleAlert,
+  caution: OctagonAlert,
+}
+
+/** GitHub-style alert marker: `> [!NOTE]`, with an optional title on the same line. */
+const CALLOUT_MARKER = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/i
 
 /** Fences whose "language" says nothing useful keep the header free of a label. */
 const UNLABELLED_LANGUAGES = new Set(['text', 'txt', 'plain', 'plaintext', 'none', ''])
+
+const marked = new Marked()
+marked.use(markedKatex({ throwOnError: false, strict: 'ignore' }))
+marked.use(markedFootnote())
 
 const languageModules: Array<[string, unknown]> = [
   ['bash', bash],
@@ -109,6 +129,60 @@ function outerHtml(node: ChildNode): string {
   return (node as Element).outerHTML
 }
 
+function plainText(html: string): string {
+  const holder = document.createElement('div')
+  holder.innerHTML = html
+  return (holder.textContent ?? '').trim()
+}
+
+function slugify(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[\s\u3000]+/gu, '-')
+    .replace(/[^\p{L}\p{N}-]+/gu, '')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 64)
+}
+
+/**
+ * Headings get a `md-` prefixed id plus a hover anchor. The prefix keeps a
+ * heading called "app" from colliding with the application root element, and the
+ * click is intercepted in this component because the app routes on the URL hash.
+ */
+function applyHeadingAnchors(fragment: DocumentFragment, label: string): void {
+  const taken = new Map<string, number>()
+  let index = 0
+  fragment.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(heading => {
+    index += 1
+    const base = slugify(heading.textContent ?? '') || `section-${index}`
+    const seen = taken.get(base) ?? 0
+    taken.set(base, seen + 1)
+    const id = `md-${base}${seen === 0 ? '' : `-${seen + 1}`}`
+    heading.id = id
+    const anchor = document.createElement('a')
+    anchor.className = 'markdown-anchor'
+    anchor.setAttribute('href', `#${id}`)
+    anchor.setAttribute('aria-label', label)
+    anchor.setAttribute('title', label)
+    anchor.textContent = '#'
+    heading.appendChild(anchor)
+  })
+}
+
+/** Footnote labels come from the plugin in English; the section and backrefs are localised here. */
+function localizeFootnotes(fragment: DocumentFragment): void {
+  const section = fragment.querySelector('.footnotes')
+  if (!section) return
+  const heading = section.querySelector('h2, .sr-only')
+  if (heading) heading.textContent = t('chat.markdownFootnotes')
+  section.querySelectorAll('a[data-footnote-backref]').forEach(anchor => {
+    const index = anchor.closest('li')?.id.match(/(\d+)$/)?.[1] ?? '1'
+    anchor.setAttribute('aria-label', t('chat.markdownBackReference', { n: index }))
+  })
+}
+
 function fenceLanguage(code: Element): string | null {
   const match = /(?:^|\s)language-([^\s]+)/i.exec(code.className)
   return match?.[1] ? match[1].toLowerCase() : null
@@ -124,15 +198,39 @@ function codeBlock(pre: Element): MarkdownBlock | null {
   return { kind: 'code', html: pre.outerHTML, code: text, language }
 }
 
+function calloutBlock(quote: Element): MarkdownBlock | null {
+  const paragraph = quote.firstElementChild
+  if (!paragraph || paragraph.tagName.toLowerCase() !== 'p') return null
+  const inner = paragraph.innerHTML
+  const lineBreak = inner.search(/<br\s*\/?>|\n/i)
+  const firstLine = lineBreak === -1 ? inner : inner.slice(0, lineBreak)
+  const marker = CALLOUT_MARKER.exec(firstLine)
+  if (!marker) return null
+  const callout = marker[1]!.toLowerCase() as CalloutKind
+  const customTitle = plainText(marker[2] ?? '')
+  const rest = lineBreak === -1 ? '' : inner.slice(lineBreak).replace(/^<br\s*\/?>/i, '')
+  if (plainText(rest)) paragraph.innerHTML = rest
+  else paragraph.remove()
+  quote.classList.add('markdown-callout-body')
+  return {
+    kind: 'callout',
+    callout,
+    title: customTitle || t(`chat.callout.${callout}`),
+    html: quote.outerHTML,
+  }
+}
+
 const blocks = computed<MarkdownBlock[]>(() => {
   const raw = marked.parse(props.content, {
     breaks: true,
     gfm: true,
     async: false,
   }) as string
-  // Sanitize the complete document first so reference links and nested Markdown
-  // retain their meaning. Only trusted layout wrappers are added afterwards.
+  // Sanitize the complete document first so reference links, footnotes and nested
+  // Markdown retain their meaning. Only trusted wrappers are added afterwards.
   const fragment = DOMPurify.sanitize(raw, { RETURN_DOM_FRAGMENT: true })
+  applyHeadingAnchors(fragment, t('chat.markdownAnchor'))
+  localizeFootnotes(fragment)
   for (const table of fragment.querySelectorAll('table')) {
     const scroll = document.createElement('div')
     scroll.className = 'markdown-table-scroll'
@@ -152,11 +250,48 @@ const blocks = computed<MarkdownBlock[]>(() => {
       blocks.push(codeBlock(element) ?? { kind: 'prose', html: outerHtml(node) })
       continue
     }
-    const island = tag === 'blockquote' || Boolean(element?.classList.contains('markdown-table-scroll'))
+    if (tag === 'blockquote') {
+      blocks.push(calloutBlock(element!) ?? { kind: 'island', html: outerHtml(node) })
+      continue
+    }
+    const island = Boolean(element?.classList.contains('markdown-table-scroll'))
     blocks.push({ kind: island ? 'island' : 'prose', html: outerHtml(node) })
   }
   return blocks
 })
+
+const bodyRef = ref<HTMLElement | null>(null)
+let anchorTimer: ReturnType<typeof setTimeout> | null = null
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+}
+
+function flashAnchor(target: Element) {
+  target.classList.add('is-anchor-target')
+  if (anchorTimer) clearTimeout(anchorTimer)
+  anchorTimer = setTimeout(() => target.classList.remove('is-anchor-target'), 900)
+}
+
+/**
+ * In-page anchors are handled here: this app routes on the URL hash, so letting
+ * the browser jump would navigate the router instead of scrolling the reply.
+ * Footnote references and heading anchors both arrive through this path.
+ */
+function onAnchorClick(event: MouseEvent) {
+  const anchor = (event.target as HTMLElement | null)?.closest?.('a[href^="#"]') as HTMLAnchorElement | null
+  if (!anchor || event.defaultPrevented) return
+  // Modified clicks keep their default so the link can be opened or copied.
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  const id = decodeURIComponent((anchor.getAttribute('href') ?? '').slice(1))
+  if (!id) return
+  const quoted = id.replace(/["\\]/g, '\\$&')
+  const target = bodyRef.value?.querySelector(`[id="${quoted}"]`) ?? document.getElementById(id)
+  if (!target) return
+  event.preventDefault()
+  target.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+  flashAnchor(target)
+}
 
 const copiedIndex = ref<number | null>(null)
 const failedIndex = ref<number | null>(null)
@@ -207,11 +342,12 @@ async function copyCode(block: Extract<MarkdownBlock, { kind: 'code' }>, index: 
 
 onBeforeUnmount(() => {
   if (feedbackTimer) clearTimeout(feedbackTimer)
+  if (anchorTimer) clearTimeout(anchorTimer)
 })
 </script>
 
 <template>
-  <div class="markdown-body">
+  <div ref="bodyRef" class="markdown-body" @click="onAnchorClick">
     <template v-for="(block, index) in blocks" :key="index">
       <UiIslandCard v-if="block.kind === 'code'" class="markdown-island markdown-code" padding="none">
         <div class="markdown-code-header">
@@ -228,6 +364,18 @@ onBeforeUnmount(() => {
             <Copy v-else :size="12" aria-hidden="true" />
             <span>{{ copiedIndex === index ? t('chat.markdownCopied') : failedIndex === index ? t('chat.markdownCopyFailed') : t('chat.markdownCopy') }}</span>
           </button>
+        </div>
+        <div class="markdown-island-content" v-html="block.html" />
+      </UiIslandCard>
+      <UiIslandCard
+        v-else-if="block.kind === 'callout'"
+        class="markdown-island markdown-callout"
+        :class="`is-${block.callout}`"
+        padding="none"
+      >
+        <div class="markdown-callout-head">
+          <component :is="CALLOUT_ICONS[block.callout]" :size="14" aria-hidden="true" />
+          <span class="markdown-callout-title" v-html="block.title" />
         </div>
         <div class="markdown-island-content" v-html="block.html" />
       </UiIslandCard>
