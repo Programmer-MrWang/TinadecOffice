@@ -148,6 +148,54 @@ public sealed class GitRemoteMutationToolsTests
     }
 
     [Fact]
+    public async Task PullAsync_StillAcceptsAnOrdinaryUpstreamPull()
+    {
+        using var repo = new TempGitRepo("git-remote");
+        repo.SeedInitialCommit();
+        string bare = NewBareRemote("git-remote-bare");
+        repo.RunGit("remote", "add", "origin", bare);
+        repo.RunGit("push", "-u", "origin", "main");
+
+        var result = await GitRemoteMutationTools.PullAsync(new GitRemoteMutationArgs
+        {
+            RepositoryPath = repo,
+            ConfirmPull = "ok"
+        }, CancellationToken.None);
+
+        Assert.True(result.Success, result.Error);
+        Assert.False(result.Changed);
+    }
+
+    [Fact]
+    public async Task PullAsync_RefusesABranchArgumentThatIsAGitOption()
+    {
+        using var repo = new TempGitRepo("git-remote");
+        repo.SeedInitialCommit();
+        string bare = NewBareRemote("git-remote-bare");
+        repo.RunGit("remote", "add", "origin", bare);
+        repo.RunGit("push", "-u", "origin", "main");
+
+        // git pull <remote> <branch> hands a leading-dash argument to fetch, where
+        // --upload-pack names a local program to exec. whoami exits on its own, so
+        // running it leaves nothing but its fingerprint in git's own error text.
+        var injection = OperatingSystem.IsWindows()
+            ? "--upload-pack=C:/Windows/System32/whoami.exe"
+            : "--upload-pack=/usr/bin/false";
+
+        var result = await GitRemoteMutationTools.PullAsync(new GitRemoteMutationArgs
+        {
+            RepositoryPath = repo,
+            Remote = "origin",
+            Branch = injection,
+            ConfirmPull = "ok"
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Contains("Invalid branch name", result.Error ?? string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain("Could not read from remote repository", result.Error ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Mutations_RequireConfirmFields()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() => GitRemoteMutationTools.FetchAsync(new GitRemoteMutationArgs { Remote = "x" }, CancellationToken.None).AsTask());

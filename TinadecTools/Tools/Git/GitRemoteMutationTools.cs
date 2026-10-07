@@ -94,7 +94,7 @@ internal static class GitRemoteMutationTools
         return new GitRemoteMutationResult { Success = true, Action = "push", Remote = remote, Branch = branch, Changed = true, SetUpstream = string.IsNullOrWhiteSpace(status.Upstream), Output = JoinOutput(execution), Status = after };
     }
 
-    [ToolFunction("git_pull", RequiresApproval = true, ConfirmationFields = ["confirm_pull"], Description = "Pull the current branch from a remote (default origin). Refused on a detached HEAD or with uncommitted changes - commit or discard first. confirm_pull must be a short non-empty note naming the remote and branch. The user still approves the call. repository_path must be an absolute path inside the workspace and point at a git worktree.")]
+    [ToolFunction("git_pull", RequiresApproval = true, ConfirmationFields = ["confirm_pull"], Description = "Pull the current branch from a remote (default origin). Refused on a detached HEAD or with uncommitted changes - commit or discard first. branch must name a real branch; a value that starts with - is refused before git runs, because git pull would otherwise read it as one of its own options. confirm_pull must be a short non-empty note naming the remote and branch. The user still approves the call. repository_path must be an absolute path inside the workspace and point at a git worktree.")]
     public static async ValueTask<GitRemoteMutationResult> PullAsync(GitRemoteMutationArgs args, CancellationToken ct)
     {
         ToolConfirmations.Require(args.ConfirmPull, nameof(args.ConfirmPull));
@@ -109,6 +109,13 @@ internal static class GitRemoteMutationTools
         if ((remote is null) != (branch is null)) throw new InvalidOperationException("remote and branch must be provided together.");
         if (remote is not null && !await RemoteExistsAsync(repo, remote, ct).ConfigureAwait(false)) return Failure("pull", $"Remote '{remote}' is not configured.");
         if (remote is null && string.IsNullOrWhiteSpace(status.Upstream)) return Failure("pull", "No upstream branch is configured.");
+        // git pull forwards a leading-dash argument to git fetch, where --upload-pack
+        // names a local program to exec, so the branch is validated before argv.
+        if (branch is not null)
+        {
+            var valid = await GitCli.RunAsync(repo, ["check-ref-format", "--branch", branch], cancellationToken: ct).ConfigureAwait(false);
+            if (!valid.Ok) return Failure("pull", $"Invalid branch name '{branch}'.", remote, branch);
+        }
         var command = new List<string> { "-c", "credential.interactive=never", "pull", "--ff-only" };
         if (remote is not null) command.AddRange([remote, branch!]);
         var execution = await GitCli.RunAsync(repo, command, cancellationToken: ct, timeoutMs: 60_000).ConfigureAwait(false);
