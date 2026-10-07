@@ -1,9 +1,19 @@
 // @vitest-environment happy-dom
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import MarkdownRender from './MarkdownRender.vue'
 import UiIslandCard from './ui/island-card.vue'
+
+// The real mermaid bundle is heavy and needs a full browser; the diagram itself is
+// covered by MarkdownDiagram.test.ts and the Electron fixture.
+vi.mock('mermaid', () => ({
+  default: {
+    initialize: vi.fn(),
+    parse: vi.fn(async () => true),
+    render: vi.fn(async () => ({ svg: '<svg data-testid="diagram"></svg>' })),
+  },
+}))
 
 function render(content: string) {
   return mount(MarkdownRender, {
@@ -21,6 +31,8 @@ function render(content: string) {
             markdownAnchor: 'Jump to this heading',
             markdownFootnotes: 'Footnotes',
             markdownBackReference: 'Back to reference {n}',
+            markdownDiagram: 'Diagram',
+            markdownDiagramError: 'Diagram failed',
             callout: {
               note: 'Note',
               tip: 'Tip',
@@ -110,12 +122,15 @@ describe('Markdown content islands', () => {
   })
 
   it('highlights fenced code, labels its language and keeps unlabelled fences quiet', () => {
-    const wrapper = render('```js\nconst answer = 42;\n```\n\n```text\nplain\n```')
+    const wrapper = render('```js\nconst answer = 42;\n```\n\n```text\nplain\n```\n\n```foobar\nvalue\n```')
     const cards = wrapper.findAll('.markdown-code')
-    expect(cards).toHaveLength(2)
+    expect(cards).toHaveLength(3)
     expect(cards[0]!.get('.markdown-code-lang').text()).toBe('js')
     expect(cards[0]!.findAll('.hljs-keyword').length).toBeGreaterThan(0)
     expect(cards[1]!.get('.markdown-code-lang').text()).toBe('')
+    expect(cards[1]!.get('pre code').text()).toBe('plain')
+    // A fence naming a language we do not ship still renders, just unhighlighted.
+    expect(cards[2]!.get('pre code').text()).toBe('value')
     wrapper.unmount()
   })
 
@@ -183,6 +198,14 @@ describe('Markdown extended syntax', () => {
     const anchor = headings[0]!.get('.markdown-anchor')
     expect(anchor.attributes('href')).toBe('#md-标题一')
     expect(anchor.attributes('aria-label')).toBe('Jump to this heading')
+    wrapper.unmount()
+  })
+
+  it('renders a mermaid fence as a diagram island instead of a code block', async () => {
+    const wrapper = render('```mermaid\ngraph TD\n  A --> B\n```')
+    await flushPromises()
+    expect(wrapper.get('.markdown-diagram').find('.markdown-diagram-svg svg').exists()).toBe(true)
+    expect(wrapper.find('.markdown-code').exists()).toBe(false)
     wrapper.unmount()
   })
 

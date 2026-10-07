@@ -239,6 +239,8 @@ export default {
     markdownAnchor: '跳转到本节标题',
     markdownFootnotes: '脚注',
     markdownBackReference: '返回引用 {n}',
+    markdownDiagram: '图表',
+    markdownDiagramError: '图表渲染失败，已改为显示源码。',
     callout: {
       note: '注意',
       tip: '提示',

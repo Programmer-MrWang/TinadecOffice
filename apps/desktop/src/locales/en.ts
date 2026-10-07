@@ -241,6 +241,8 @@ export default {
     markdownAnchor: 'Jump to this heading',
     markdownFootnotes: 'Footnotes',
     markdownBackReference: 'Back to reference {n}',
+    markdownDiagram: 'Diagram',
+    markdownDiagramError: 'This diagram could not be rendered, showing its source instead.',
     callout: {
       note: 'Note',
       tip: 'Tip',

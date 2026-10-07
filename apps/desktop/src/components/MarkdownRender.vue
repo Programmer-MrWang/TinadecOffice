@@ -28,6 +28,7 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import 'katex/dist/katex.min.css'
+import MarkdownDiagram from './MarkdownDiagram.vue'
 import UiIslandCard from './ui/island-card.vue'
 
 const props = defineProps<{
@@ -47,6 +48,7 @@ type MarkdownBlock =
   | { kind: 'island'; html: string }
   | { kind: 'code'; html: string; code: string; language: string | null }
   | { kind: 'callout'; callout: CalloutKind; title: string; html: string }
+  | { kind: 'diagram'; code: string }
 
 const CALLOUT_ICONS: Record<CalloutKind, Component> = {
   note: Info,
@@ -102,10 +104,12 @@ function highlightCode(code: string, language: string | null): string {
   const key = `${language ?? ''}\u0000${code}`
   const cached = highlightCache.get(key)
   if (cached !== undefined) return cached
-  const resolved = language ? hljs.getLanguage(language) : undefined
+  // `getLanguage` probes the alias table without logging; `highlight` warns and
+  // throws on an unknown alias, so a fence like ```foobar degrades quietly.
+  const known = language ? hljs.getLanguage(language) : undefined
   let value: string
   try {
-    value = hljs.highlight(code, { language: resolved?.name ?? 'plaintext', ignoreIllegals: true }).value
+    value = hljs.highlight(code, { language: known ? language! : 'plaintext', ignoreIllegals: true }).value
   } catch {
     value = hljs.highlight(code, { language: 'plaintext', ignoreIllegals: true }).value
   }
@@ -193,6 +197,7 @@ function codeBlock(pre: Element): MarkdownBlock | null {
   if (!code) return null
   const language = fenceLanguage(code)
   const text = code.textContent ?? ''
+  if (language === 'mermaid') return { kind: 'diagram', code: text }
   code.classList.add('hljs')
   code.innerHTML = highlightCode(text, language)
   return { kind: 'code', html: pre.outerHTML, code: text, language }
@@ -378,6 +383,9 @@ onBeforeUnmount(() => {
           <span class="markdown-callout-title" v-html="block.title" />
         </div>
         <div class="markdown-island-content" v-html="block.html" />
+      </UiIslandCard>
+      <UiIslandCard v-else-if="block.kind === 'diagram'" class="markdown-island markdown-diagram" padding="none">
+        <MarkdownDiagram :code="block.code" />
       </UiIslandCard>
       <UiIslandCard v-else-if="block.kind === 'island'" class="markdown-island" padding="none">
         <div class="markdown-island-content" v-html="block.html" />

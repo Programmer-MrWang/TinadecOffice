@@ -3016,6 +3016,37 @@ margin-top: 4px;
   border-left: 0;
 }
 
+/* Mermaid diagrams: the rendered SVG is centred in the card, scrolls sideways when
+   the graph is wider than the conversation, and falls back to its own source. */
+.markdown-diagram-svg {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.markdown-diagram-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-diagram-fallback {
+  margin: 0;
+  padding: 12px;
+  background: transparent;
+  border: 0;
+}
+
+.markdown-diagram-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0 12px 10px;
+  color: var(--accent-warning);
+  font-size: 11px;
+}
+
 .markdown-body ul,
 .markdown-body ol {
   margin: 6px 0;
