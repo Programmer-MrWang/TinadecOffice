@@ -234,6 +234,7 @@ export default {
     stopRun: 'Stop the running agent',
     toolEvidence: 'Tool activity for this turn',
     attachments: 'Files sent with this message',
+    markdownTable: 'Markdown table',
     copy: 'Copy message',
     copied: 'Copied',
     edit: 'Edit and resend',

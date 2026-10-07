@@ -2857,20 +2857,47 @@ margin-top: 4px;
   line-height: 1.5;
   color: var(--text-primary);
   max-width: 100%;
+  min-width: 0;
+  width: 100%;
 }
 
 .markdown-body {
   font-size: 13px;
   line-height: 1.55;
   color: var(--text-primary);
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
-.markdown-body :first-child {
+.markdown-body > * + * {
+  margin-top: 10px;
+}
+
+.markdown-body > :first-child,
+.markdown-prose > :first-child,
+.markdown-island-content > :first-child {
   margin-top: 0;
 }
 
-.markdown-body :last-child {
+.markdown-body > :last-child,
+.markdown-prose > :last-child,
+.markdown-island-content > :last-child {
   margin-bottom: 0;
+}
+
+.markdown-island {
+  max-width: 100%;
+}
+
+.markdown-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown-table-scroll:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
 }
 
 .markdown-body p {
@@ -2906,22 +2933,48 @@ margin-top: 4px;
   margin: 2px 0;
 }
 
+.markdown-body ul { list-style-type: disc; }
+.markdown-body ol { list-style-type: decimal; }
+.markdown-body ul ul { list-style-type: circle; }
+
+.markdown-body li:has(> input[type="checkbox"]),
+.markdown-body li:has(> p > input[type="checkbox"]) {
+  list-style-type: none;
+}
+
+.markdown-body input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  margin: 0 6px 0 0;
+  padding: 0;
+  vertical-align: -2px;
+  accent-color: var(--accent-primary);
+}
+
 .markdown-body code {
   padding: 1px 5px;
   font-family: 'Geist Mono', ui-monospace, monospace;
   font-size: 12px;
-  background: var(--bg-secondary);
-  border-radius: 3px;
+  background: var(--surface-section);
+  border-radius: 4px;
   color: var(--text-primary);
 }
 
 .markdown-body pre {
   margin: 8px 0;
   padding: 10px 12px;
-  background: var(--bg-secondary);
-  border-radius: 5px;
-  border: 1px solid var(--border-muted);
+  background: var(--surface-section);
+  border-radius: 8px;
   overflow-x: auto;
+  overflow-wrap: normal;
+  max-width: 100%;
+}
+
+.markdown-island-content > pre {
+  margin: 0;
+  padding: 12px;
+  background: transparent;
+  border-radius: 0;
 }
 
 .markdown-body pre code {
@@ -2936,14 +2989,19 @@ margin-top: 4px;
   margin: 8px 0;
   padding: 6px 12px;
   border-left: 2px solid var(--accent-primary);
-  background: var(--bg-secondary);
-  border-radius: 0 4px 4px 0;
   color: var(--text-secondary);
 }
 
-.markdown-body blockquote p {
+.markdown-island-content > blockquote {
   margin: 0;
+  padding: 10px 12px;
 }
+
+.markdown-body blockquote p {
+  margin: 0 0 8px;
+}
+
+.markdown-body blockquote > :last-child { margin-bottom: 0; }
 
 .markdown-body a {
   color: var(--accent-primary);
@@ -2956,25 +3014,40 @@ margin-top: 4px;
 
 .markdown-body table {
   width: 100%;
-  margin: 8px 0;
+  /* Fills the wrapping card so the header band reaches both rounded corners. */
+  min-width: 100%;
+  margin: 0;
   border-collapse: collapse;
   font-size: 12px;
+  overflow-wrap: normal;
 }
 
 .markdown-body th,
 .markdown-body td {
-  padding: 5px 9px;
-  border: 1px solid var(--border-muted);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-muted);
   text-align: left;
 }
 
+.markdown-body [align="center"] { text-align: center; }
+.markdown-body [align="right"] { text-align: right; }
+
+.markdown-body tr:last-child td { border-bottom: 0; }
+
 .markdown-body th {
-  background: var(--bg-secondary);
+  background: var(--surface-chrome);
+  border-bottom-color: var(--border-default);
   font-weight: 600;
 }
 
 .markdown-body tr:nth-child(even) {
-  background: var(--bg-secondary);
+  background: var(--surface-section);
+}
+
+/* Row highlight sits after the zebra rule on purpose: same specificity, so the
+   later declaration is the one that wins on the alternating rows. */
+.markdown-body tbody tr:hover {
+  background: var(--surface-hover);
 }
 
 .markdown-body hr {
@@ -2986,6 +3059,7 @@ margin-top: 4px;
 .markdown-body img {
   max-width: 100%;
   border-radius: 4px;
+  height: auto;
 }
 
 .user-message-row {

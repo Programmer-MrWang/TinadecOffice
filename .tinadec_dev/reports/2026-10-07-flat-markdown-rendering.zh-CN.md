@@ -1,5 +1,7 @@
 # 平面对话 Markdown 渲染能力核查
 
+> 此文保留修复前的源码与实测事实。五项显示缺陷已于同日修复，并应用内容岛屿设计；当前行为与验收见[修复报告](2026-10-07-markdown-islands.zh-CN.md)。扩展语法仍不在该修复范围。
+
 日期：2026-10-07。源码基线：`main / 131388a` + 工作树，具体渲染文件 SHA-256 见 [checks.json](../evidence/2026-10-07-flat-markdown/checks.json)。归属：[APP-HOME / APP-HOME-001](../../docs/development-program/02-modules/app/home/TODO.md#app-home-001)、[APP-RENDERER / APP-RENDERER-001](../../docs/development-program/02-modules/app/shared-renderer/TODO.md#app-renderer-001)。本轮是能力分析，未修改业务代码，也未关闭上述模块审计任务。
 
 **结论：AI 回复可以解析和显示基础 Markdown / GFM，但存在五项可复现的样式缺陷，不能将当前状态描述为完整、正常的 Markdown 渲染体验。** 代码高亮、数学公式、Mermaid、脚注、提示块和标题锚点也尚未实现。

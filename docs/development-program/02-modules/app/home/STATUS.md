@@ -9,6 +9,7 @@
 | APP-HOME-F001 | 项目、会话、附件及 queued/parallel/insert 消息投递协调 | 源码可见 | 本轮静态核对；未做功能验收 | 发送前记录权限；队列晋升保留模式、模型、权限和附件。本轮仅静态核对源码，未运行业务测试或产品验收。 | [apps/desktop/src/controllers/HomeController.ts](../../../../../apps/desktop/src/controllers/HomeController.ts) |
 | APP-HOME-F002 | 按 run 归属的活动、首轮 live block、审批与监督裁决入口 | 源码可见 | 本轮静态核对；未做功能验收 | 界面实现存在，真实并行与三个监督决策本轮未验收。 | [apps/desktop/src/controllers/HomeController.ts](../../../../../apps/desktop/src/controllers/HomeController.ts)<br>[apps/desktop/src/components/chat/LiveTurnBlock.vue](../../../../../apps/desktop/src/components/chat/LiveTurnBlock.vue) |
 | APP-HOME-F003 | Home 初始布局就绪与 splash 入场同步 | 源码可见 | 本轮静态核对；未做功能验收 | 最新修复已有历史专项验证；本轮未重跑，不重复登记为未修缺陷。 | [apps/desktop/src/pages/HomePage.vue](../../../../../apps/desktop/src/pages/HomePage.vue)<br>[apps/desktop/src/App.vue](../../../../../apps/desktop/src/App.vue)<br>[docs/home-entry-motion-2026-10-05.zh-CN.md](../../../../home-entry-motion-2026-10-05.zh-CN.md) |
+| APP-HOME-F004 | AI历史/流式正文的Markdown显示与岛屿卡片 | 已验收 | 2026-10-07：Desktop979/14 skipped、native/scripts107、类型/构建、三宽度本地Electron SFC夹具 | 五项显示问题已修，代码/表格/引用复用UiIslandCard；非真实模型或完整App E2E，扩展语法另行验收。 | [APP-HOME-103](TODO.md#app-home-103)<br>[修复报告](../../../../../.tinadec_dev/reports/2026-10-07-markdown-islands.zh-CN.md) |
 
 ## 状态词汇
 
