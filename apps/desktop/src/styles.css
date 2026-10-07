@@ -2985,6 +2985,97 @@ margin-top: 4px;
   line-height: 1.45;
 }
 
+/* Code island header: the language label and the copy action. The action stays
+   invisible until the card is hovered or the button itself is focused, so a
+   reply with several blocks does not read as a wall of buttons. */
+.markdown-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  padding: 3px 6px 3px 12px;
+  border-bottom: 1px solid var(--border-muted);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.markdown-code-lang {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: lowercase;
+}
+
+.markdown-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.markdown-code:hover .markdown-copy,
+.markdown-copy:focus-visible,
+.markdown-copy.is-copied,
+.markdown-copy.is-failed {
+  opacity: 1;
+}
+
+.markdown-copy:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.markdown-copy.is-copied { color: var(--accent-success); }
+.markdown-copy.is-failed { color: var(--accent-danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .markdown-copy { transition: none; }
+}
+
+/* Token colours are derived from the active theme tokens, so highlighting follows
+   both themes and the user's accent colour without a second stylesheet. */
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote { color: var(--text-muted); font-style: italic; }
+
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-section,
+.markdown-body .hljs-doctag { color: var(--accent-recovery); }
+
+.markdown-body .hljs-string,
+.markdown-body .hljs-regexp,
+.markdown-body .hljs-addition,
+.markdown-body .hljs-attribute { color: var(--accent-success); }
+
+.markdown-body .hljs-number,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-symbol,
+.markdown-body .hljs-bullet,
+.markdown-body .hljs-meta { color: var(--accent-warning); }
+
+.markdown-body .hljs-title,
+.markdown-body .hljs-name,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-variable,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-type { color: var(--text-link); }
+
+.markdown-body .hljs-deletion { color: var(--accent-danger); }
+.markdown-body .hljs-emphasis { font-style: italic; }
+.markdown-body .hljs-strong { font-weight: 600; }
+
 .markdown-body blockquote {
   margin: 8px 0;
   padding: 6px 12px;

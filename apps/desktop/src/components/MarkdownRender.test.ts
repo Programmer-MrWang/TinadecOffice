@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import MarkdownRender from './MarkdownRender.vue'
 import UiIslandCard from './ui/island-card.vue'
 
@@ -11,10 +11,28 @@ function render(content: string) {
     attachTo: document.body,
     global: { plugins: [createI18n({
       legacy: false, locale: 'en',
-      messages: { en: { chat: { markdownTable: 'Markdown table' } } },
+      messages: {
+        en: {
+          chat: {
+            markdownTable: 'Markdown table',
+            markdownCopy: 'Copy code',
+            markdownCopied: 'Copied',
+            markdownCopyFailed: 'Copy failed',
+          },
+        },
+      },
     })] },
   })
 }
+
+function stubClipboard(writeText: (text: string) => Promise<void>) {
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: { writeText } })
+}
+
+afterEach(() => {
+  Object.defineProperty(window.navigator, 'clipboard', { configurable: true, value: undefined })
+  vi.restoreAllMocks()
+})
 
 describe('Markdown content islands', () => {
   it('keeps prose continuous and uses existing island cards for quotes, code and tables', () => {
@@ -48,6 +66,13 @@ describe('Markdown content islands', () => {
     wrapper.unmount()
   })
 
+  it('escapes text nodes instead of re-parsing them as markup', () => {
+    const wrapper = render('&lt;img src=x onerror=alert(1)&gt;')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.get('.markdown-prose').text()).toBe('<img src=x onerror=alert(1)>')
+    wrapper.unmount()
+  })
+
   it('preserves completed block DOM and table focus when later streaming prose changes', async () => {
     const completed = '```js\nconst answer = 42;\n```\n\n| 列 |\n| --- |\n| 值 |\n\n'
     const wrapper = render(completed + '后续文字')
@@ -70,6 +95,37 @@ describe('Markdown content islands', () => {
     expect(wrapper.get('pre code').text()).toBe('const answer =')
     await wrapper.setProps({ content: '```js\nconst answer = 42;\n```' })
     expect(wrapper.get('.island-card').element).toBe(card)
+    expect(wrapper.get('pre code').text()).toBe('const answer = 42;')
+    wrapper.unmount()
+  })
+
+  it('highlights fenced code, labels its language and keeps unlabelled fences quiet', () => {
+    const wrapper = render('```js\nconst answer = 42;\n```\n\n```text\nplain\n```')
+    const cards = wrapper.findAll('.markdown-code')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]!.get('.markdown-code-lang').text()).toBe('js')
+    expect(cards[0]!.findAll('.hljs-keyword').length).toBeGreaterThan(0)
+    expect(cards[1]!.get('.markdown-code-lang').text()).toBe('')
+    wrapper.unmount()
+  })
+
+  it('copies the raw code and reports the result on the button', async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+    stubClipboard(writeText)
+    const wrapper = render('```js\nconst answer = 42;\n```')
+    await wrapper.get('.markdown-copy').trigger('click')
+    expect(writeText).toHaveBeenCalledWith('const answer = 42;\n')
+    expect(wrapper.get('.markdown-copy').classes()).toContain('is-copied')
+    expect(wrapper.get('.markdown-copy').text()).toContain('Copied')
+    wrapper.unmount()
+  })
+
+  it('reports a failed copy instead of pretending it succeeded', async () => {
+    stubClipboard(() => Promise.reject(new Error('denied')))
+    const wrapper = render('```js\nconst answer = 42;\n```')
+    await wrapper.get('.markdown-copy').trigger('click')
+    expect(wrapper.get('.markdown-copy').classes()).toContain('is-failed')
+    expect(wrapper.get('.markdown-copy').text()).toContain('Copy failed')
     expect(wrapper.get('pre code').text()).toBe('const answer = 42;')
     wrapper.unmount()
   })
