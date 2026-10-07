@@ -29,6 +29,56 @@ public sealed class GitReadToolsTests
     }
 
     [Fact]
+    public async Task Status_ReturnsNonAsciiPathsVerbatim()
+    {
+        using var repo = new TempGitRepo("git-read");
+        repo.SeedInitialCommit("中文文件.txt", "initial\n");
+        File.WriteAllText(System.IO.Path.Combine(repo.Path, "中文文件.txt"), "changed\n");
+        File.WriteAllText(System.IO.Path.Combine(repo.Path, "新增 未跟踪.md"), "new\n");
+
+        var status = await GitReadTools.StatusAsync(new GitStatusArgs { RepositoryPath = repo.Path }, CancellationToken.None);
+
+        Assert.True(status.Success);
+        Assert.Contains(status.Files, entry => entry.Path == "中文文件.txt");
+        Assert.Contains(status.Files, entry => entry.Path == "新增 未跟踪.md");
+        Assert.DoesNotContain(status.Files, entry => entry.Path.Contains('\\'));
+    }
+
+    [Fact]
+    public async Task Status_SplitsRenameIntoPathAndPreviousPath()
+    {
+        using var repo = new TempGitRepo("git-read");
+        repo.SeedInitialCommit("old.txt", "content\n");
+        repo.RunGit("mv", "old.txt", "重命名 后.txt");
+
+        var status = await GitReadTools.StatusAsync(new GitStatusArgs { RepositoryPath = repo.Path }, CancellationToken.None);
+
+        var renamed = Assert.Single(status.Files, entry => entry.Path == "重命名 后.txt");
+        Assert.Equal("old.txt", renamed.PreviousPath);
+        Assert.Equal("staged_renamed", renamed.Status);
+    }
+
+    [Fact]
+    public void ParseStatus_TakesTheRenameSourceFromTheNextRecordNotFromAnArrow()
+    {
+        var status = GitReadTools.ParseStatus("/repo", "## main...origin/main [ahead 1]\0?? a -> b.txt\0R  新名字.txt\0old.txt\0");
+
+        Assert.True(status.Success);
+        Assert.Equal("main", status.Branch);
+        Assert.Equal("origin/main", status.Upstream);
+        Assert.Equal(1, status.Ahead);
+        Assert.Equal(2, status.Files.Count);
+
+        var arrow = Assert.Single(status.Files, entry => entry.Path == "a -> b.txt");
+        Assert.Null(arrow.PreviousPath);
+        Assert.Equal("untracked", arrow.Status);
+
+        var renamed = Assert.Single(status.Files, entry => entry.Path == "新名字.txt");
+        Assert.Equal("old.txt", renamed.PreviousPath);
+        Assert.Equal("staged_renamed", renamed.Status);
+    }
+
+    [Fact]
     public async Task ReadTools_RejectLinkTraversalAndOptionLikeRevisions()
     {
         using var repo = new TempGitRepo("git-read");

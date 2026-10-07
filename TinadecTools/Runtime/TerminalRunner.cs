@@ -35,6 +35,12 @@ internal static class TerminalRunner
             // protocol pipe (a live, writable handle), because a child that reads
             // or keeps it open blocks its own shutdown/EOF and wedges the caller.
             RedirectStandardInput = true,
+            // git writes UTF-8 whatever the host codepage is, and its path and
+            // commit-message output is data the caller has to read back verbatim.
+            // Leaving the child stream on the ambient codepage turns a non-ASCII
+            // filename into mojibake on any host that is not already UTF-8.
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
             CreateNoWindow = true
         };
 
