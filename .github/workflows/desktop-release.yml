@@ -71,6 +71,12 @@ jobs:
           - os: macos-15
             label: osx-arm64
             packageScript: package:mac
+            # Only this leg's bundler outgrows Node's default heap. At ed12133 the renderer build died at
+            # ~2040 MB ("FATAL ERROR: Ineffective mark-compacts near heap limit", `Abort trap: 6`, npm exit
+            # 134) once Mermaid, KaTeX and highlight.js joined the bundle; v0.2.1 (86aeff6) still built
+            # inside the default on this image. The ceiling is a CI-only bundler limit — shrinking the
+            # bundle is the actual fix and remains open.
+            nodeOptions: --max-old-space-size=8192
     steps:
       - uses: actions/checkout@v4
 
@@ -127,6 +133,8 @@ jobs:
         run: bun test src
 
       - name: Build and package the application
+        env:
+          NODE_OPTIONS: ${{ matrix.nodeOptions }}
         # The stager resolves the target from the runner itself, so no leg can stage a runtime for
         # another platform; the leg name is what the runner is, not what someone typed.
         run: npm run ${{ matrix.packageScript }} -w @tinadec/desktop
