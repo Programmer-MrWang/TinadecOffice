@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-08
-**Last Updated By:** 打包态改用 app://bundle 并恢复同源策略、本地媒体走 tinadec-media://、终端 IPC 白名单化、外链 openExternal、Git 面板与同类加载加过期响应防护。
-**Last Verified Commit:** 66d103e + 工作树；本批次见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md（Desktop全量1036 passed/14 skipped、electron node --test 55/55、类型检查 passed、真实 Electron 冒烟见 .tinadec_dev/evidence/2026-10-08-issue33-app-bundle-security/；生产 vite build 本轮未取证）；Markdown批次见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
+**Last Updated By:** 打包态改用 app://bundle 并恢复同源策略、本地媒体走 tinadec-media://、终端 IPC 白名单化、外链 openExternal、Git 面板与同类加载加过期响应防护。；命令面板图标/风险色、紧凑布局、切页动效与自动关闭修复。
+**Last Verified Commit:** 108c49c + 工作树；命令面板细节定向109/109、vue-tsc通过、实际SFC浏览器三宽度/明暗风险色/原生Enter与捕获关闭/减少动态效果检查通过，见 .tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md。此前专项记录：66d103e + 工作树；本批次见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md（Desktop全量1036 passed/14 skipped、electron node --test 55/55、类型检查 passed、真实 Electron 冒烟见 .tinadec_dev/evidence/2026-10-08-issue33-app-bundle-security/；生产 vite build 本轮未取证）；Markdown批次见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
 **Branch:** main
+
+### 2026-10-08 命令面板图标、动效与关闭
+
+permissionChoices集中图标与风险元数据：default中性、auto-approve/对话代批黄色、审查员/双重代批蓝色、full-access红色；模型和模式子页也有图标，模式复用modePresentation。具体选择/开关自动emit close，子页入口保持导航；不要恢复旧的“选择开关后保持打开”。外部pointerdown/click在capture阶段关闭，仅排除面板和其dialog触发器，避免画布stopPropagation导致失效；草稿仅消费slash设置token。子页在稳定元素上做150msWAAPI淡入/滑动和高度过渡，旧动画在关闭/切页取消，遵守prefers-reduced-motion。真实浏览器验证用offscreen绘制，等待动画落定后截图，避免隐藏窗口未推进动画时误存空白帧。报告`.tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md`，定向109/109与类型通过。
 
 ### 2026-10-08 打包态 origin、终端 IPC 与过期响应
 

@@ -1,0 +1,290 @@
+{
+  "timestamp": "2026-10-08T07:28:29.150Z",
+  "scope": "Actual command panel SFC, fixture catalogs, actual styles/material; no full-app/runtime verification",
+  "sourceHashes": {
+    "apps/desktop/src/components/ComposerCommandPanel.vue": "b5e1f3e92dc181ea5de49717d683362cdc25b0d6052b3b8fafc4d0fb2598b19c",
+    "apps/desktop/src/components/ComposerBar.vue": "38fc8fcf9eb8b2232e6a682d2715015aaa9b0a186adc2fa2f9757bff0883c729",
+    "apps/desktop/src/lib/composerCommands.ts": "9f58a8e847c791a466801bc32308e392d0aec707485b9ceca902f3b511997bd9",
+    "apps/desktop/src/styles.css": "b38d00b6146f1181e058e55c15829e5c09b8db3c4cbeab93ee45aef57e91fc20"
+  },
+  "cases": [
+    {
+      "width": 800,
+      "spatial": false,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 490,
+        "width": 460,
+        "height": 460,
+        "scrollWidth": 458,
+        "clientWidth": 458,
+        "listHeight": 340,
+        "listScrollHeight": 402,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 800,
+      "spatial": true,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 490,
+        "width": 460,
+        "height": 460,
+        "scrollWidth": 458,
+        "clientWidth": 458,
+        "listHeight": 340,
+        "listScrollHeight": 634,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    },
+    {
+      "width": 520,
+      "spatial": false,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 490,
+        "width": 460,
+        "height": 460,
+        "scrollWidth": 458,
+        "clientWidth": 458,
+        "listHeight": 340,
+        "listScrollHeight": 402,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 520,
+      "spatial": true,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 490,
+        "width": 460,
+        "height": 460,
+        "scrollWidth": 458,
+        "clientWidth": 458,
+        "listHeight": 340,
+        "listScrollHeight": 634,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    },
+    {
+      "width": 320,
+      "spatial": false,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 350,
+        "width": 320,
+        "height": 460,
+        "scrollWidth": 318,
+        "clientWidth": 318,
+        "listHeight": 324,
+        "listScrollHeight": 450,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 9,
+        "switches": 0
+      }
+    },
+    {
+      "width": 320,
+      "spatial": true,
+      "metrics": {
+        "top": 262,
+        "bottom": 722,
+        "left": 30,
+        "right": 350,
+        "width": 320,
+        "height": 460,
+        "scrollWidth": 318,
+        "clientWidth": 318,
+        "listHeight": 324,
+        "listScrollHeight": 761,
+        "material": "opaque",
+        "backdropFilter": "none",
+        "rows": 14,
+        "switches": 5
+      }
+    }
+  ],
+  "model": {
+    "top": 423.234375,
+    "bottom": 722,
+    "left": 30,
+    "right": 350,
+    "width": 320,
+    "height": 298.765625,
+    "scrollWidth": 318,
+    "clientWidth": 318,
+    "listHeight": 162,
+    "listScrollHeight": 162,
+    "material": "opaque",
+    "backdropFilter": "none",
+    "rows": 3,
+    "switches": 0
+  },
+  "keyboard": {
+    "rows": 1,
+    "on": true,
+    "closed": true
+  },
+  "transition": {
+    "fromHeight": 460,
+    "currentHeight": 420.9375,
+    "page": "model",
+    "opacity": 0.200143,
+    "running": 2,
+    "durations": [
+      150,
+      150
+    ]
+  },
+  "risks": {
+    "dark": {
+      "rows": 6,
+      "icons": 6,
+      "neutral": {
+        "risk": "neutral",
+        "color": "rgb(125, 133, 144)",
+        "rgb": [
+          125,
+          133,
+          144
+        ]
+      },
+      "low": {
+        "risk": "low",
+        "color": "color(srgb 0.24549 0.512157 0.822745)",
+        "rgb": [
+          63,
+          131,
+          210
+        ]
+      },
+      "medium": {
+        "risk": "medium",
+        "color": "rgb(210, 153, 34)",
+        "rgb": [
+          210,
+          153,
+          34
+        ]
+      },
+      "high": {
+        "risk": "high",
+        "color": "rgb(248, 81, 73)",
+        "rgb": [
+          248,
+          81,
+          73
+        ]
+      }
+    },
+    "light": {
+      "rows": 6,
+      "icons": 6,
+      "neutral": {
+        "risk": "neutral",
+        "color": "rgb(101, 109, 118)",
+        "rgb": [
+          101,
+          109,
+          118
+        ]
+      },
+      "low": {
+        "risk": "low",
+        "color": "color(srgb 0.256471 0.523137 0.831373)",
+        "rgb": [
+          65,
+          133,
+          212
+        ]
+      },
+      "medium": {
+        "risk": "medium",
+        "color": "rgb(154, 103, 0)",
+        "rgb": [
+          154,
+          103,
+          0
+        ]
+      },
+      "high": {
+        "risk": "high",
+        "color": "rgb(207, 34, 46)",
+        "rgb": [
+          207,
+          34,
+          46
+        ]
+      }
+    }
+  },
+  "nativeEnter": {
+    "closed": true,
+    "permission": "full-access",
+    "draft": "保留中的消息草稿"
+  },
+  "outsideClosed": true,
+  "reducedMotion": {
+    "reduced": true,
+    "animations": 0
+  },
+  "narrowViewport": {
+    "top": 42,
+    "bottom": 502,
+    "left": 30,
+    "right": 350,
+    "width": 320,
+    "height": 460,
+    "scrollWidth": 318,
+    "clientWidth": 318,
+    "listHeight": 324,
+    "listScrollHeight": 761,
+    "material": "opaque",
+    "backdropFilter": "none",
+    "rows": 14,
+    "switches": 5,
+    "viewportWidth": 360,
+    "viewportHeight": 600
+  },
+  "blur": {
+    "top": 262,
+    "bottom": 722,
+    "left": 30,
+    "right": 490,
+    "width": 460,
+    "height": 460,
+    "scrollWidth": 458,
+    "clientWidth": 458,
+    "listHeight": 340,
+    "listScrollHeight": 634,
+    "material": "blur",
+    "backdropFilter": "blur(12px)",
+    "rows": 14,
+    "switches": 5
+  }
+}

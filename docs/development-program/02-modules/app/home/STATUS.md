@@ -17,6 +17,8 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-HOME-F005 | +与/统一命令面板及会话运行设置 | 已验收 | Desktop1024/14 skipped、native107、Gateway80、Core存储19与空间脚本API14、真实SFC/Electron与类型/构建 | 本地功能验收；非完整Home审计、外部模型/PG实机或平台安装包验收 | [APP-HOME-104](TODO.md#app-home-104)、[实施记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md) |
 
+2026-10-08命令面板细节修订：选择器图标与权限风险色、紧凑布局、150ms切页过渡、选项/Enter自动关闭和点击外部关闭已修；109项定向、类型检查与实际SFC浏览器验证通过。见[细节修复记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md)。
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。
