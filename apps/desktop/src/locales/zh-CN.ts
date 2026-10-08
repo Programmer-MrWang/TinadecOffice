@@ -1841,6 +1841,7 @@ retry: '重试',
     publishedReadOnlyHint: '该模式已发布，画布只读；克隆后可编辑自定义副本。',
   },
   commandPanel: {
+    risk: { low: '低风险', medium: '中风险', high: '高风险' },
     model: '对话模型',
     modelHint: '选择当前对话的模型，其他智能体仍使用各自的设置',
     mode: '预设模式',

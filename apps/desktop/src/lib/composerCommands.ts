@@ -1,5 +1,7 @@
 import type { PermissionLevel } from '@/types/mode'
 import type { SpaceOptionsDto } from '@/api'
+import type { Component } from 'vue'
+import { Eye, Shield, ShieldAlert, ShieldCheck, UserCheck, Users } from '@lucide/vue'
 
 export type ComposerPage = 'root' | 'model' | 'mode' | 'permission' | 'workflow'
 export type SpaceToggle = Exclude<keyof SpaceOptionsDto, 'workflow_mode_version_id'>
@@ -18,13 +20,14 @@ export const composerSettings = [
   { id: 'worktree', label: 'commandPanel.worktree', hint: 'commandPanel.worktreeHint', keywords: 'worktree git isolation 隔离 工作树', toggle: 'worktree', surface: 'space' },
 ] as const
 
-export const permissionChoices: ReadonlyArray<{ value: PermissionLevel; label: string; hint: string }> = [
-  { value: 'default', label: 'permission.default', hint: 'permission.defaultHint' },
-  { value: 'auto-approve', label: 'permission.autoApprove', hint: 'permission.autoApproveHint' },
-  { value: 'full-access', label: 'permission.fullAccess', hint: 'permission.fullAccessHint' },
-  { value: 'delegate-conversation', label: 'permission.delegateConversation', hint: 'permission.delegateConversationHint' },
-  { value: 'delegate-reviewer', label: 'permission.delegateReviewer', hint: 'permission.delegateReviewerHint' },
-  { value: 'delegate-both', label: 'permission.delegateBoth', hint: 'permission.delegateBothHint' },
+export type PermissionRisk = 'neutral' | 'low' | 'medium' | 'high'
+export const permissionChoices: ReadonlyArray<{ value: PermissionLevel; label: string; hint: string; icon: Component; risk: PermissionRisk }> = [
+  { value: 'default', label: 'permission.default', hint: 'permission.defaultHint', icon: Shield, risk: 'neutral' },
+  { value: 'auto-approve', label: 'permission.autoApprove', hint: 'permission.autoApproveHint', icon: ShieldCheck, risk: 'medium' },
+  { value: 'full-access', label: 'permission.fullAccess', hint: 'permission.fullAccessHint', icon: ShieldAlert, risk: 'high' },
+  { value: 'delegate-conversation', label: 'permission.delegateConversation', hint: 'permission.delegateConversationHint', icon: UserCheck, risk: 'medium' },
+  { value: 'delegate-reviewer', label: 'permission.delegateReviewer', hint: 'permission.delegateReviewerHint', icon: Eye, risk: 'low' },
+  { value: 'delegate-both', label: 'permission.delegateBoth', hint: 'permission.delegateBothHint', icon: Users, risk: 'low' },
 ]
 
 // Only the first token is a command. Absolute paths and prose containing slashes

@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import type { Ref } from 'vue'
 import ComposerBar from './ComposerBar.vue'
 import type { ProjectDto } from '@/api'
+import type { PermissionLevel } from '@/types/mode'
 import type { AttachableFile, PendingAttachment } from '@/lib/pendingAttachments'
 
 vi.mock('vue-i18n', () => ({
@@ -100,6 +101,7 @@ vi.mock('@/api', () => apiMock)
 
 function mountComposer(props: Partial<{
   busy: boolean
+  permission: PermissionLevel
   canStop: boolean
   modelValue: string
   modeVersionId: string | null
@@ -479,6 +481,11 @@ describe('ComposerBar unified command panel', () => {
     click('[data-testid="command-panel-provider-1:model-b"]')
     await flushPromises()
     expect(wrapper.emitted('update:meetingModelOverride')?.[0]?.[0]).toEqual({ provider_instance_id: 'provider-1', model: 'model-b' })
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    click('[data-testid="command-panel-model"]')
+    await flushPromises()
     click('[data-testid="command-panel-default"]')
     await flushPromises()
     expect(wrapper.emitted('update:meetingModelOverride')?.[1]?.[0]).toBeNull()
@@ -495,7 +502,7 @@ describe('ComposerBar unified command panel', () => {
     wrapper.unmount()
   })
 
-  it('keeps space toggles open and waits for authoritative props before displaying enabled state', async () => {
+  it('closes after toggling and displays only the authoritative saved state when reopened', async () => {
     const wrapper = mountComposer({ spatial: true, spaceOptions, modelValue: '' })
     await wrapper.find('.welcome-dialog-plus').trigger('click')
     await flushPromises()
@@ -505,10 +512,12 @@ describe('ComposerBar unified command panel', () => {
     plan.click()
     await flushPromises()
     expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, plan_first: true })
-    expect(plan.getAttribute('aria-checked')).toBe('false')
-    expect(document.querySelector('.composer-command-panel')).not.toBeNull()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('false')
     await wrapper.setProps({ spaceOptions: { ...spaceOptions, plan_first: true } })
-    expect(plan.getAttribute('aria-checked')).toBe('true')
+    expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('true')
     wrapper.unmount()
   })
 
@@ -527,7 +536,7 @@ describe('ComposerBar unified command panel', () => {
     await flushPromises()
     expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, workflow_mode_version_id: 'mv-custom-1' })
     await wrapper.setProps({ settingsError: 'Workflow requires multi_agent.' })
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Workflow requires multi_agent.')
+    expect(wrapper.find('[role="alert"]').text()).toContain('Workflow requires multi_agent.')
     expect(wrapper.emitted('update:permission')).toBeUndefined()
     wrapper.unmount()
   })
@@ -540,6 +549,9 @@ describe('ComposerBar unified command panel', () => {
     click('[data-testid="command-panel-plan"]')
     await flushPromises()
     expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, plan_first: true })
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
     expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('false')
     await wrapper.setProps({ spaceOptions: { ...spaceOptions, plan_first: true } })
     expect(document.querySelector('[data-testid="command-panel-plan"]')?.getAttribute('aria-checked')).toBe('true')
@@ -600,6 +612,137 @@ describe('ComposerBar unified command panel', () => {
     expect(document.activeElement).toBe(wrapper.find('textarea').element)
     expect(wrapper.find('textarea').element.value).toBe('draft remains')
     wrapper.unmount()
+  })
+
+  it('renders permission icons and risk cues in both the list and current permission trigger', async () => {
+    const wrapper = mountComposer({ permission: 'full-access' })
+    expect(wrapper.find('.permission-selector-trigger .composer-permission-icon').attributes('data-risk')).toBe('high')
+    await wrapper.find('.permission-selector-trigger').trigger('click')
+    await flushPromises()
+    const rows = [...document.querySelectorAll('.command-panel-row')]
+    expect(rows).toHaveLength(6)
+    expect(rows.every(row => row.querySelector('svg.command-panel-row-icon'))).toBe(true)
+    expect(document.querySelector('[data-testid="command-panel-default"] svg')?.getAttribute('data-risk')).toBe('neutral')
+    expect(document.querySelector('[data-testid="command-panel-delegate-reviewer"] svg')?.getAttribute('data-risk')).toBe('low')
+    expect(document.querySelector('[data-testid="command-panel-auto-approve"] svg')?.getAttribute('data-risk')).toBe('medium')
+    expect(document.querySelector('[data-testid="command-panel-full-access"]')?.getAttribute('aria-label')).toContain('commandPanel.risk.high')
+    wrapper.unmount()
+  })
+
+  it('renders icons for every configured model and published preset choice', async () => {
+    apiMock.api.listModelProviders.mockResolvedValue([provider, { ...provider, id: 'cli', connection_kind: 'cli' }] as never)
+    apiMock.api.listAgentModeTopologies.mockResolvedValue([{ ...CONVERSATION_MODE, slug: 'plan' }, WORKSPACE_TOPOLOGY] as never)
+    const wrapper = mountComposer({ modeVersionId: CONVERSATION_MODE.latest_published_mode_version_id })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    click('[data-testid="command-panel-model"]')
+    await flushPromises()
+    expect([...document.querySelectorAll('.command-panel-row')].every(row => row.querySelector('svg.command-panel-row-icon'))).toBe(true)
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    expect(document.querySelectorAll('.mode-selector-item')).toHaveLength(3)
+    expect([...document.querySelectorAll('.mode-selector-item')].every(row => row.querySelector('svg.command-panel-row-icon'))).toBe(true)
+    expect(wrapper.find('.mode-selector-trigger svg').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it.each(['search', 'option'])('Enter from %s confirms a permission, closes the panel and restores the draft focus', async from => {
+    const wrapper = mount(ComposerBar, { attachTo: document.body, props: { busy: false, permission: 'default', modelValue: 'keep this draft' } })
+    await wrapper.find('.permission-selector-trigger').trigger('click')
+    await flushPromises()
+    search('fullAccess')
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    const target = from === 'search' ? input : document.querySelector('[data-testid="command-panel-full-access"]') as HTMLButtonElement
+    target.focus()
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(wrapper.emitted('update:permission')?.[0]?.[0]).toBe('full-access')
+    expect(wrapper.emitted('update:permission')).toHaveLength(1)
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(document.activeElement).toBe(wrapper.find('textarea').element)
+    expect(wrapper.find('textarea').element.value).toBe('keep this draft')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('Enter on a slash setting consumes only the command and keeps the panel closed after the draft updates', async () => {
+    const wrapper = mountComposer({ spatial: true, spaceOptions, modelValue: '/plan Continue the task' })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(wrapper.emitted('update:spaceOptions')?.[0]?.[0]).toEqual({ ...spaceOptions, plan_first: true })
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toBe('Continue the task')
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    await wrapper.setProps({ modelValue: 'Continue the task' })
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it.each(['pointerdown', 'click'])('closes on outside %s even when the canvas stops propagation', async eventType => {
+    const wrapper = mount(ComposerBar, { attachTo: document.body, props: { busy: false, permission: 'default', modelValue: 'keep draft' } })
+    await wrapper.find('.welcome-dialog-plus').trigger('click')
+    await flushPromises()
+    const canvas = document.createElement('div')
+    canvas.addEventListener(eventType, event => event.stopPropagation())
+    document.body.append(canvas)
+    canvas.dispatchEvent(new Event(eventType, { bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(document.activeElement).toBe(wrapper.find('textarea').element)
+    expect(wrapper.find('textarea').element.value).toBe('keep draft')
+    canvas.remove()
+    wrapper.unmount()
+  })
+
+  it('lets the plus trigger close an open panel and closes when the user resumes typing', async () => {
+    const wrapper = mount(ComposerBar, { attachTo: document.body, props: { busy: false, permission: 'default', modelValue: 'draft' } })
+    const plus = wrapper.find('.welcome-dialog-plus').element
+    plus.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    ;(plus as HTMLButtonElement).click()
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).not.toBeNull()
+    plus.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    ;(plus as HTMLButtonElement).click()
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    ;(plus as HTMLButtonElement).click()
+    await flushPromises()
+    wrapper.find('textarea').element.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it.each([false, true])('animates page changes while respecting reduced motion: %s', async reduced => {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate')
+    const cancel = vi.fn()
+    const animate = vi.fn((_frames: Keyframe[] | PropertyIndexedKeyframes | null, _options?: number | KeyframeAnimationOptions) => ({ cancel, finished: Promise.resolve() } as unknown as Animation))
+    Object.defineProperty(HTMLElement.prototype, 'animate', { configurable: true, value: animate })
+    const media = vi.spyOn(window, 'matchMedia').mockImplementation(query => ({ matches: reduced && query.includes('prefers-reduced-motion'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn() } as unknown as MediaQueryList))
+    const wrapper = mountComposer()
+    try {
+      await wrapper.find('.welcome-dialog-plus').trigger('click')
+      await flushPromises()
+      animate.mockClear()
+      click('[data-testid="command-panel-model"]')
+      await flushPromises()
+      if (reduced) expect(animate).not.toHaveBeenCalled()
+      else {
+        expect(animate).toHaveBeenCalled()
+        expect(animate.mock.calls[0]?.[0]).toEqual([{ opacity: 0, transform: 'translateX(8px)' }, { opacity: 1, transform: 'translateX(0)' }])
+      }
+      click('.command-panel-close')
+      await flushPromises()
+      if (!reduced) expect(cancel).toHaveBeenCalled()
+    } finally {
+      wrapper.unmount()
+      media.mockRestore()
+      if (original) Object.defineProperty(HTMLElement.prototype, 'animate', original)
+      else Reflect.deleteProperty(HTMLElement.prototype, 'animate')
+    }
   })
 
   it('starts a new slash query at the root after closing a preset subpage', async () => {

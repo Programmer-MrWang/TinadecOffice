@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ArrowUp, ChevronDown, FileText, Folder, FolderOpen, FolderPlus, Image, Plus, Settings, Sparkles, Square } from '@lucide/vue'
+import { ArrowUp, ChevronDown, FileText, Folder, FolderOpen, FolderPlus, Image, Layers, Plus, Settings, Sparkles, Square } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import { ref, computed, watch, onMounted, onUnmounted, nextTick, type Ref } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick, type Component, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { UiButton, UiScrollArea } from '@/components/ui'
 import ComposerCommandPanel from './ComposerCommandPanel.vue'
@@ -76,8 +76,10 @@ const composerBoxRef = ref<HTMLElement | null>(null)
 const commandPanelRef = ref<InstanceType<typeof ComposerCommandPanel> | null>(null)
 const commandPage = ref<ComposerPage>('root')
 const modeLabel = ref(t('chat.followDefault'))
+const modeGlyph = shallowRef<Component>(Layers)
 const modeUnavailable = ref(false)
-const permissionLabel = computed(() => t(permissionChoices.find(choice => choice.value === props.permission)!.label))
+const permissionChoice = computed(() => permissionChoices.find(choice => choice.value === props.permission)!)
+const permissionLabel = computed(() => t(permissionChoice.value.label))
 const enabledSpaceLabels = computed(() => props.spatial ? [
   ...composerSettings.filter(setting => 'toggle' in setting && props.spaceOptions?.[setting.toggle]).map(setting => t(setting.label)),
   ...(props.spaceOptions?.workflow_mode_version_id ? [t('commandPanel.workflow')] : []),
@@ -186,7 +188,6 @@ function openCommandPanel(page: ComposerPage = 'root') {
 function consumeSettingsSlash() {
   if (composerSlashQuery(props.modelValue) !== null && !commandsDismissed.value) {
     updateDraft(props.modelValue.replace(/^\/\S*[ \t]?/u, ''))
-    showPlusMenu.value = true
   }
 }
 
@@ -688,9 +689,9 @@ function confirmSteer(id: string, interrupt = false) {
             :title="t('commandPanel.mode')"
             aria-haspopup="dialog"
             @click="openCommandPanel('mode')"
-          ><Sparkles :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" /></button>
+          ><component :is="modeGlyph" :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" /></button>
           <slot v-if="spatial" name="capabilities" />
-          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" @click="openCommandPanel('permission')"><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
+          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" @click="openCommandPanel('permission')"><component :is="permissionChoice.icon" :size="14" class="composer-permission-icon" :data-risk="permissionChoice.risk" aria-hidden="true" /><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
           <button
             ref="projectTriggerRef"
             class="project-dropdown-trigger"
@@ -735,7 +736,7 @@ function confirmSteer(id: string, interrupt = false) {
       @update:permission="changePermission"
       @update:meeting-model-override="changeModel"
       @update:space-options="changeSpaceOptions"
-      @mode-label="(label, unavailable) => { modeLabel = label; modeUnavailable = unavailable }"
+      @mode-label="(label, unavailable, icon) => { modeLabel = label; modeUnavailable = unavailable; modeGlyph = icon }"
     />
 
     <!-- Docked-only dispatch menu: teleported so the dialog's overflow:hidden never clips it. -->
@@ -794,6 +795,9 @@ function confirmSteer(id: string, interrupt = false) {
 </template>
 
 <style scoped>
+.composer-permission-icon[data-risk='low'] { color: color-mix(in srgb, var(--accent-info) 80%, var(--text-primary)); }
+.composer-permission-icon[data-risk='medium'] { color: var(--accent-warning); }
+.composer-permission-icon[data-risk='high'] { color: var(--accent-danger); }
 .composer-settings-summary { display: flex; align-items: center; gap: 6px; padding: 0 8px 6px; flex-wrap: wrap; }
 .composer-settings-summary button { background: var(--surface-section); border: 1px solid var(--border-muted); border-radius: 999px; padding: 3px 8px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
 .composer-settings-summary button:hover { background: var(--surface-hover); }
