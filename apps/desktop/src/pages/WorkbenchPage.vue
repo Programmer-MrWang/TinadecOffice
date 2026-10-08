@@ -41,15 +41,20 @@ const selectedInstance = computed(
 )
 
 async function loadLineage(): Promise<void> {
+  // Read-id guard: a reply for a run the user has already moved away from must not land,
+  // otherwise the canvas shows the previous run's agents next to the current run's header.
+  const target = runId.value
   lineage.value = []
   selectedInstanceId.value = null
-  if (!runId.value) return
+  if (!target) return
   try {
-    const rows = await api.getRunAgentLineage(runId.value)
+    const rows = await api.getRunAgentLineage(target)
+    if (runId.value !== target) return
     // git_steward vs worker.git are distinct roles; label with role when no
     // friendlier name is projected.
     lineage.value = rows.map((row) => ({ ...row, display_name: row.role }))
   } catch {
+    if (runId.value !== target) return
     // Lineage is a projection; absence degrades the canvas to empty state.
     lineage.value = []
   }

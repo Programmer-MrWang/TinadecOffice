@@ -14,8 +14,28 @@ export const useRunStore = defineStore('run', () => {
 
   const current = computed(() => runs.value.find(r => r.id === selectedRunId.value) ?? runs.value[0] ?? null)
 
+  /** Bumped on every load; a reply that started under an older epoch is dropped. */
+  let loadEpoch = 0
+  let lastSessionId: string | null = null
+
   async function fetchRuns(sessionId: string) {
-    try { runs.value = await generatedApi.listRuns(sessionId) } catch (e) { error.value = e instanceof Error ? e.message : String(e) }
+    const epoch = ++loadEpoch
+    // A different session: clear the previous one's runs up front. Waiting for the reply used
+    // to leave another session's runs (and its selected run id) on screen for the whole
+    // round-trip, and forever if that request failed.
+    if (sessionId && sessionId !== lastSessionId) {
+      lastSessionId = sessionId
+      runs.value = []
+      selectedRunId.value = null
+    }
+    try {
+      const next = await generatedApi.listRuns(sessionId)
+      if (epoch !== loadEpoch) return
+      runs.value = next
+    } catch (e) {
+      if (epoch !== loadEpoch) return
+      error.value = e instanceof Error ? e.message : String(e)
+    }
     if (selectedRunId.value && !runs.value.find(r => r.id === selectedRunId.value)) selectedRunId.value = runs.value[0]?.id ?? null
     if (!selectedRunId.value) selectedRunId.value = runs.value[0]?.id ?? null
   }

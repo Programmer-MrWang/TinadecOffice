@@ -42,7 +42,11 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+/** Read-id: flipping the filters quickly must not let the first reply overwrite the last. */
+let loadEpoch = 0
+
 async function load(): Promise<void> {
+  const epoch = ++loadEpoch
   loading.value = true
   loadError.value = null
   try {
@@ -50,14 +54,16 @@ async function load(): Promise<void> {
       api.listMemoryCandidates({ status: status.value, scope: scope.value || undefined, limit: PAGE }),
       api.listMemoryItems({ status: showHistory.value ? 'revoked' : 'active', scope: scope.value || undefined, limit: PAGE }),
     ])
+    if (epoch !== loadEpoch) return
     candidates.value = queue
     items.value = shelf
   } catch (e) {
+    if (epoch !== loadEpoch) return
     loadError.value = errorMessage(e)
     candidates.value = []
     items.value = []
   } finally {
-    loading.value = false
+    if (epoch === loadEpoch) loading.value = false
   }
 }
 

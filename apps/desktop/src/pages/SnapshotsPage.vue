@@ -28,6 +28,10 @@ const loading = ref(false)
 const loadError = ref<string | null>(null)
 const restoring = ref<string | null>(null)
 
+/** Read-ids for the two project-scoped lists on this page; see load()/loadChanges(). */
+let snapshotEpoch = 0
+let changesEpoch = 0
+
 type RestoreResult = {
   status?: string
   applied_file_count?: number
@@ -42,20 +46,29 @@ const sorted = computed(() =>
 )
 
 async function load(): Promise<void> {
-  if (!selectedProjectId.value) return
+  const projectId = selectedProjectId.value
+  if (!projectId) return
+  const epoch = ++snapshotEpoch
   loading.value = true
   loadError.value = null
   try {
-    snapshots.value = await api.listWorkspaceSnapshots(selectedProjectId.value)
+    const rows = await api.listWorkspaceSnapshots(projectId)
+    // The project changed while this was in flight; its snapshot list is not the one on
+    // screen, and restore targets are picked from this list.
+    if (epoch !== snapshotEpoch) return
+    snapshots.value = rows
   } catch (e) {
+    if (epoch !== snapshotEpoch) return
     loadError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    loading.value = false
+    if (epoch === snapshotEpoch) loading.value = false
   }
 }
 
 function selectProject(id: string): void {
   selectedProjectId.value = id
+  // Any list still in flight belongs to the project being left.
+  snapshotEpoch += 1
   snapshots.value = []
   lastRestore.value = null
   void load()
@@ -106,19 +119,27 @@ function describeError(e: unknown): string {
 }
 
 async function loadChanges(): Promise<void> {
-  if (!reviewSnapshotId.value) return
-  changes.value = await api.listWorkspaceSnapshotFiles(reviewSnapshotId.value)
+  const snapshotId = reviewSnapshotId.value
+  if (!snapshotId) return
+  const epoch = ++changesEpoch
+  const rows = await api.listWorkspaceSnapshotFiles(snapshotId)
+  // Opening another snapshot while this was in flight must not paint the previous one's
+  // changes — "undo this file" reads its path straight out of this list.
+  if (epoch !== changesEpoch) return
+  changes.value = rows
 }
 
 async function toggleReview(snapshot: SnapshotDto): Promise<void> {
   if (reviewSnapshotId.value === snapshot.id) {
     reviewSnapshotId.value = null
+    changesEpoch += 1
     changes.value = []
     diffs.value = {}
     openDiffPaths.value = []
     return
   }
   reviewSnapshotId.value = snapshot.id
+  changesEpoch += 1
   changes.value = []
   diffs.value = {}
   openDiffPaths.value = []

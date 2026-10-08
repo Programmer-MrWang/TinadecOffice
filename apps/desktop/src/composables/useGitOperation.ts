@@ -514,6 +514,7 @@ export function useGitOperation(
 
   async function loadStatus() {
     const path = cwd.value
+    const epoch = cwdEpoch
     if (!path) {
       preview.value = null
       pushPlan.value = null
@@ -532,22 +533,32 @@ export function useGitOperation(
           arguments: { action: 'push_plan' },
         }),
       ])
+      // The project changed while this was in flight: the reply describes a repository that
+      // is no longer on screen, and writing it would put A's branch and file list next to
+      // B's cwd — the exact pairing that makes "stage selected" commit the wrong paths.
+      if (epoch !== cwdEpoch) return
       preview.value = nextPreview
       pushPlan.value = nextPushPlan
       syncSelection()
     } catch (err) {
+      if (epoch !== cwdEpoch) return
       notifyOperationError(err, t('context.gitLoadFailed'))
     } finally {
-      loading.value = false
+      // A newer load owns the flag; clearing it here would hide that load's progress.
+      if (epoch === cwdEpoch) loading.value = false
     }
   }
 
   async function loadLog(limit = 50, ref?: string) {
     const path = cwd.value
+    const epoch = cwdEpoch
     if (!path) return
     try {
-      logResult.value = await api.gitLog(path, limit, ref)
+      const next = await api.gitLog(path, limit, ref)
+      if (epoch !== cwdEpoch) return
+      logResult.value = next
     } catch (err) {
+      if (epoch !== cwdEpoch) return
       logResult.value = null
       notifyOperationError(err, t('context.gitLoadFailed'))
     }
@@ -555,14 +566,17 @@ export function useGitOperation(
 
   async function loadBranches() {
     const path = cwd.value
+    const epoch = cwdEpoch
     if (!path) return
     try {
       const res = await api.executeCodeTool('git_worktree_manager', {
         cwd: path,
         arguments: { action: 'branch_list', all: true },
       })
+      if (epoch !== cwdEpoch) return
       branchResult.value = res
     } catch (err) {
+      if (epoch !== cwdEpoch) return
       notifyOperationError(err, t('context.gitLoadFailed'))
     }
   }
@@ -1239,10 +1253,37 @@ export function useGitOperation(
   }
 
   // ---- Watch ----
+
+  /**
+   * Bumped on every project change. In-flight loads capture the value they started under and
+   * drop their reply if it no longer matches.
+   */
+  let cwdEpoch = 0
+
+  /**
+   * Drop everything that describes the previous repository.
+   *
+   * The watcher used to reset the approval ids only, so `preview`, `selectedPaths` and the
+   * commit message survived a project switch. With the branch name and file list still on
+   * screen next to the new cwd, "stage selected" built a tool action from A's paths and B's
+   * repository — and when the paths happened to overlap, it committed A's files into B.
+   */
+  function resetForProjectChange() {
+    resetApprovals()
+    preview.value = null
+    pushPlan.value = null
+    logResult.value = null
+    branchResult.value = null
+    selectedPaths.value = new Set()
+    selectAll.value = false
+    commitMessage.value = ''
+  }
+
   watch(
     () => cwd.value,
     () => {
-      resetApprovals()
+      cwdEpoch += 1
+      resetForProjectChange()
       void loadStatus()
     },
     { immediate: true },
