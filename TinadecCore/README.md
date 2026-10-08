@@ -109,7 +109,7 @@ TinadecCore stands on other people's work, and we say so plainly:
 - **QQ 群** — `370780878`
 - **飞书群** — [点击加入](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=7a3k9813-07f8-4e13-b00c-d9d1c07d539b)
 - **X (Twitter)** — [@tinadecoffice](https://x.com/tinadecoffice)
-- Issues and PRs: please file them against the Core paths in this repository.
+- Issues and PRs: [Tinadec/TinadecCore](https://github.com/Tinadec/TinadecCore) — this tree is published as a standalone repository; open Core work there.
 
 ## License
 

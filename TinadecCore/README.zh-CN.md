@@ -109,7 +109,7 @@ TinadecCore 站在别人的工作上，我们明说：
 - **飞书群** —— [点击加入](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=7a3k9813-07f8-4e13-b00c-d9d1c07d539b)
 - **Discord** —— [discord.gg/EcKYQfbG72](https://discord.gg/EcKYQfbG72)
 - **X (Twitter)** —— [@tinadecoffice](https://x.com/tinadecoffice)
-- Issue 与 PR：请直接开在本仓库的 Core 路径上。
+- Issue 与 PR：[Tinadec/TinadecCore](https://github.com/Tinadec/TinadecCore) —— 本目录已发布为独立仓库，Core 的工作请开在那里。
 
 ## 许可证
 
