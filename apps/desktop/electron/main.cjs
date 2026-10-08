@@ -62,11 +62,28 @@ const {
   removePet,
   setEnabled,
 } = require('./petStore.cjs');
+const {
+  APP_SCHEME_PRIVILEGES,
+  appBundleUrl,
+  registerAppBundleProtocol,
+} = require('./appBundle.cjs');
+const {
+  MEDIA_SCHEME_PRIVILEGES,
+  registerLocalMediaProtocol,
+  sourceToMediaPath,
+} = require('./localMedia.cjs');
+const { attachExternalLinkGuards } = require('./externalLinks.cjs');
 
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'tinadec-pet-preview',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
-}]);
+const DIST_DIR = path.join(__dirname, '..', 'dist');
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'tinadec-pet-preview',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
+  { scheme: 'app', privileges: APP_SCHEME_PRIVILEGES },
+  { scheme: 'tinadec-media', privileges: MEDIA_SCHEME_PRIVILEGES },
+]);
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -95,7 +112,10 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      webSecurity: false
+      // Same-origin policy stays on. The packaged bundle is served from `app://bundle`
+      // instead of `file://` (see appBundle.cjs), which is what used to force this off:
+      // without it any page the preview panel embeds could reach this window's
+      // contextBridge surface, including the terminal IPC that spawns processes.
     }
   });
 
@@ -103,7 +123,7 @@ async function createWindow() {
   // can reliably distinguish it from the Debug Studio window.
   tagMainWindow(win);
 
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  attachExternalLinkGuards(win.webContents);
 
   win.once('ready-to-show', () => {
     win.show();
@@ -115,7 +135,7 @@ async function createWindow() {
   if (isDev) {
     await win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    await win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    await win.loadURL(appBundleUrl());
   }
 
   // Restore any persisted panel windows after the main window is ready
@@ -301,12 +321,11 @@ const MAX_BACKGROUND_IMAGE_BYTES = 50 * 1024 * 1024;
 
 ipcMain.handle('tinadec:read-image-data-url', async (_event, source) => {
   try {
-    let filePath = String(source || '');
-    if (filePath.startsWith('file:///')) {
-      filePath = decodeURIComponent(filePath.slice('file:///'.length));
-    } else if (filePath.startsWith('file://')) {
-      filePath = decodeURIComponent(filePath.slice('file://'.length));
-    }
+    // The background setting holds a `tinadec-media://` URL now (see localMedia.cjs), so the
+    // pixels come from the path behind that URL. Raw paths and file:// URLs are still
+    // accepted so a value persisted by an older build keeps working.
+    const filePath = sourceToMediaPath(String(source ?? ''));
+    if (!filePath) return null;
     const ext = path.extname(filePath).slice(1).toLowerCase();
     const mime = IMAGE_MIME[ext];
     if (!mime) return null;
@@ -442,6 +461,8 @@ app.whenReady().then(async () => {
       dialog.showErrorBox('TinadecOffice', `本地服务启动失败：${message}`);
     }
   }
+  registerAppBundleProtocol({ protocol, distDir: DIST_DIR });
+  registerLocalMediaProtocol({ protocol });
   protocol.handle('tinadec-pet-preview', async (request) => {
     try {
       const url = new URL(request.url);

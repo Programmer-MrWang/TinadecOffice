@@ -146,18 +146,26 @@ let shellCatalog = null;
 function probeWsl() {
   if (process.platform !== 'win32' || wslProbed) return;
   wslProbed = true;
-  childProcess.execFile(
-    'wsl.exe',
-    ['--list', '--quiet'],
-    { encoding: 'utf-8', timeout: 3000, windowsHide: true },
-    (err, stdout) => {
-      if (!err && stdout && stdout.trim()) {
-        wslProfile = { id: 'wsl', label: 'WSL', shell: path.join(systemRoot(), 'System32', 'wsl.exe'), args: [] };
-        shellCatalog = null;
-      }
-      console.log('[terminalManager] WSL probe:', wslProfile ? 'available' : 'none');
-    },
-  );
+  // `execFile` throws synchronously when the spawn itself is refused (a missing wsl.exe, an
+  // execution policy, an AV block). This runs during startup on the register path, so an
+  // unguarded throw here takes the whole main process down for a shell profile that is
+  // strictly optional.
+  try {
+    childProcess.execFile(
+      'wsl.exe',
+      ['--list', '--quiet'],
+      { encoding: 'utf-8', timeout: 3000, windowsHide: true },
+      (err, stdout) => {
+        if (!err && stdout && stdout.trim()) {
+          wslProfile = { id: 'wsl', label: 'WSL', shell: path.join(systemRoot(), 'System32', 'wsl.exe'), args: [] };
+          shellCatalog = null;
+        }
+        console.log('[terminalManager] WSL probe:', wslProfile ? 'available' : 'none');
+      },
+    );
+  } catch (err) {
+    console.log('[terminalManager] WSL probe:', 'unavailable -', err.message);
+  }
 }
 
 /**
@@ -183,6 +191,59 @@ function getDefaultShell() {
   return process.platform === 'win32'
     ? { shell: path.join(systemRoot(), 'System32', 'cmd.exe'), args: [] }
     : { shell: process.env.SHELL || '/bin/sh', args: [] };
+}
+
+/**
+ * Path identity for catalog matching — Windows paths are case-insensitive, and the renderer
+ * may hand back either separator style.
+ * @param {string} value
+ * @returns {string}
+ */
+function comparablePath(value) {
+  const resolved = path.resolve(String(value));
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+/**
+ * Resolve the shell profile a create request is allowed to use.
+ *
+ * Only a catalog entry is spawnable, and its own arguments are the ones used. The renderer
+ * used to pass `shell`/`args` straight into `pty.spawn`, and `window.tinadec.terminal` is
+ * reachable from any page this app embeds — the preview panel loads arbitrary http(s) URLs
+ * in an iframe — so "start cmd.exe with these arguments" was a general command primitive.
+ * Honouring a catalog shell while still taking caller arguments would leave the same hole.
+ *
+ * @param {string} [requested] - shell path sent by the renderer
+ * @returns {{id: string, label: string, shell: string, args: string[]}|null}
+ */
+function resolveShellProfile(requested) {
+  const shells = getAvailableShells();
+  const wanted = typeof requested === 'string' ? requested.trim() : '';
+  if (!wanted) {
+    const preferred = shells[0];
+    if (preferred) return preferred;
+    const fallback = getDefaultShell();
+    return { id: 'default', label: 'default', shell: fallback.shell, args: fallback.args };
+  }
+  const key = comparablePath(wanted);
+  return shells.find((profile) => comparablePath(profile.shell) === key) ?? null;
+}
+
+/**
+ * True when `sender` is allowed to drive the given terminal.
+ *
+ * Terminals are created through IPC, so the owner is always recorded. A window that did not
+ * open the terminal has no business writing to it, reading its scrollback, or killing it —
+ * the ownership id was tracked but never checked before.
+ *
+ * @param {{id: number}|null|undefined} sender
+ * @param {string} id
+ * @returns {boolean}
+ */
+function isTerminalOwner(sender, id) {
+  const entry = terminals.get(id);
+  if (!entry || !sender || typeof sender.id !== 'number') return false;
+  return entry.ownerWebContentsId === sender.id;
 }
 
 /**
@@ -225,10 +286,15 @@ function buildEnv(extra = {}) {
  * @returns {{id: string|null, shell?: string, title?: string, backend: 'pty'|null, error?: string}}
  */
 function createTerminal(options = {}, ownerWebContentsId = null) {
-  const id = options.id || generateId();
-  const defaultShell = getDefaultShell();
-  const shell = options.shell || defaultShell.shell;
-  const args = options.args || defaultShell.args;
+  // The id is always minted here. `options.id` used to be honoured, and overwriting a live
+  // registry entry that way left its PTY running with no handle to kill it.
+  const id = generateId();
+  const profile = resolveShellProfile(options.shell);
+  if (!profile) {
+    return { id: null, backend: null, error: `Unknown shell: ${String(options.shell)}` };
+  }
+  const shell = profile.shell;
+  const args = profile.args;
   const cwd = options.cwd || process.env.HOME || process.env.USERPROFILE || os.homedir();
   const cols = options.cols || 80;
   const rows = options.rows || 24;
@@ -509,28 +575,33 @@ function registerTerminalIpc(registration = {}) {
   setTerminalHostFilter(registration.hostFilter);
   probeWsl();
 
-  // Create a new terminal
+  // Create a new terminal. The id is minted server-side and `shell` must name a catalog
+  // entry; see resolveShellProfile for why caller-supplied argv is not an option.
   ipcMain.handle('terminal:create', async (event, options) => {
     return createTerminal(options || {}, event.sender.id);
   });
 
   // Write data to a terminal
-  ipcMain.on('terminal:write', (_event, id, data) => {
+  ipcMain.on('terminal:write', (event, id, data) => {
+    if (!isTerminalOwner(event.sender, id)) return;
     writeTerminal(id, data);
   });
 
   // Resize a terminal
-  ipcMain.on('terminal:resize', (_event, id, cols, rows) => {
+  ipcMain.on('terminal:resize', (event, id, cols, rows) => {
+    if (!isTerminalOwner(event.sender, id)) return;
     resizeTerminal(id, cols, rows);
   });
 
   // Destroy a terminal
-  ipcMain.on('terminal:destroy', (_event, id) => {
+  ipcMain.on('terminal:destroy', (event, id) => {
+    if (!isTerminalOwner(event.sender, id)) return;
     destroyTerminal(id);
   });
 
   // Replay what a terminal has printed so far
-  ipcMain.handle('terminal:snapshot', async (_event, id) => {
+  ipcMain.handle('terminal:snapshot', async (event, id) => {
+    if (!isTerminalOwner(event.sender, id)) return null;
     return readTerminalSnapshot(id);
   });
 
@@ -555,7 +626,9 @@ module.exports = {
   listTerminals,
   getAvailableShells,
   getDefaultShell,
+  isTerminalOwner,
   readTerminalSnapshot,
+  resolveShellProfile,
   setTerminalHostFilter,
   registerTerminalIpc,
 };

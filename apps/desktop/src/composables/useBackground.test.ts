@@ -1,31 +1,51 @@
 /**
  * Tests for normalizeFileSource — the core fix for background functionality.
  *
- * Before this fix, Windows file paths from Electron dialogs (e.g. `C:\Users\image.jpg`)
- * were used directly in CSS `url('C:\Users\image.jpg')`, where backslashes act as
- * CSS escape characters, causing background images to fail loading.
+ * Two separate problems are pinned here:
+ *  1. Windows file paths from Electron dialogs (e.g. `C:\Users\image.jpg`) contain
+ *     backslashes, which are CSS escape characters inside `url()`.
+ *  2. Local files can no longer be addressed as `file:///…`: the packaged window is served
+ *     from `app://bundle` with same-origin policy enabled, so a `file://` subresource is
+ *     refused. They travel through the `tinadec-media://` scheme instead
+ *     (see electron/localMedia.cjs, which decodes exactly this token).
  */
 
 import { describe, it, expect } from 'vitest'
-import { normalizeBackgroundSettings, normalizeFileSource } from './useBackground'
+import { createRequire } from 'node:module'
+import {
+  MEDIA_URL_PREFIX,
+  encodeMediaPathToken,
+  normalizeBackgroundSettings,
+  normalizeFileSource,
+} from './useBackground'
 import type { BackgroundSettings } from '../types/background'
+
+/** Inverse of the encoder, so a case can assert the path that will be served. */
+function decodeMediaUrl(url: string): string {
+  const token = url.slice(MEDIA_URL_PREFIX.length)
+  const base64 = token.replace(/-/g, '+').replace(/_/g, '/')
+  const binary = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4))
+  const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
 
 describe('normalizeFileSource', () => {
   // --- Windows paths (the primary bug) ---
 
-  it('converts Windows backslash path to file:/// URL', () => {
+  it('addresses a Windows backslash path through the media scheme', () => {
     const result = normalizeFileSource('C:\\Users\\test\\image.jpg')
-    expect(result).toBe('file:///C:/Users/test/image.jpg')
+    expect(result).toBe(`${MEDIA_URL_PREFIX}${encodeMediaPathToken('C:/Users/test/image.jpg')}`)
+    expect(decodeMediaUrl(result)).toBe('C:/Users/test/image.jpg')
   })
 
-  it('converts Windows forward-slash path to file:/// URL', () => {
+  it('addresses a Windows forward-slash path through the media scheme', () => {
     const result = normalizeFileSource('D:/photos/video.mp4')
-    expect(result).toBe('file:///D:/photos/video.mp4')
+    expect(decodeMediaUrl(result)).toBe('D:/photos/video.mp4')
   })
 
   it('handles Windows paths with spaces', () => {
     const result = normalizeFileSource('C:\\Users\\My User\\background image.png')
-    expect(result).toBe('file:///C:/Users/My User/background image.png')
+    expect(decodeMediaUrl(result)).toBe('C:/Users/My User/background image.png')
   })
 
   it('handles Windows UNC paths', () => {
@@ -50,9 +70,16 @@ describe('normalizeFileSource', () => {
     expect(normalizeFileSource(url)).toBe(url)
   })
 
-  it('passes through file:// URLs unchanged', () => {
-    const url = 'file:///C:/Users/image.jpg'
+  it('passes through an already-resolved media URL unchanged', () => {
+    const url = `${MEDIA_URL_PREFIX}${encodeMediaPathToken('C:/Users/image.jpg')}`
     expect(normalizeFileSource(url)).toBe(url)
+  })
+
+  it('re-addresses a legacy file:// URL, which the window can no longer load', () => {
+    // Older builds persisted file:///…; the value has to be migrated on read or the
+    // background silently disappears after the upgrade.
+    expect(normalizeFileSource('file:///C:/Users/image.jpg'))
+      .toBe(`${MEDIA_URL_PREFIX}${encodeMediaPathToken('C:/Users/image.jpg')}`)
   })
 
   it('passes through data: URLs unchanged', () => {
@@ -67,9 +94,9 @@ describe('normalizeFileSource', () => {
 
   // --- Unix paths ---
 
-  it('converts Unix absolute path to file:// URL', () => {
+  it('keeps the leading slash of a Unix absolute path', () => {
     const result = normalizeFileSource('/home/user/image.jpg')
-    expect(result).toBe('file:///home/user/image.jpg')
+    expect(decodeMediaUrl(result)).toBe('/home/user/image.jpg')
   })
 
   // --- Edge cases ---
@@ -80,7 +107,7 @@ describe('normalizeFileSource', () => {
 
   it('trims whitespace before processing', () => {
     const result = normalizeFileSource('  C:\\Users\\image.jpg  ')
-    expect(result).toBe('file:///C:/Users/image.jpg')
+    expect(decodeMediaUrl(result)).toBe('C:/Users/image.jpg')
   })
 
   it('returns relative paths unchanged', () => {
@@ -91,6 +118,35 @@ describe('normalizeFileSource', () => {
   it('does not corrupt HTML content (used for html background type)', () => {
     const html = '<div style="background: linear-gradient(135deg, #667eea, #764ba2); width: 100%; height: 100%;"></div>'
     expect(normalizeFileSource(html)).toBe(html)
+  })
+})
+
+/**
+ * The renderer builds the media URL and the main process decodes it, in two different
+ * languages' base64 implementations. If they disagree the background stops loading with no
+ * error anywhere, so the wire format is pinned against the real decoder.
+ */
+describe('media URL wire format (renderer encoder ↔ main-process decoder)', () => {
+  const require = createRequire(import.meta.url)
+  const { mediaPathFromUrl } = require('../../electron/localMedia.cjs') as {
+    mediaPathFromUrl: (url: string) => string | null
+  }
+
+  it('decodes back to the exact path the renderer meant', () => {
+    for (const filePath of [
+      'C:/Users/test/image.jpg',
+      'D:/photos/background image.png',
+      '/home/user/视频/webm clip.webm',
+      'C:/Users/测试/壁纸 图.png',
+    ]) {
+      const url = normalizeFileSource(filePath)
+      expect(mediaPathFromUrl(url), filePath).toBe(filePath)
+    }
+  })
+
+  it('refuses a path the scheme will not serve', () => {
+    // The extension allowlist lives in the main process; nothing here should imply one.
+    expect(mediaPathFromUrl(normalizeFileSource('C:/Users/notes.txt'))).toBeNull()
   })
 })
 

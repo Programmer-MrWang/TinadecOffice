@@ -28,7 +28,15 @@ let stored: Ref<BackgroundSettings> | null = null
 function getStoredBackground(): Ref<BackgroundSettings> {
   if (!stored) {
     const ref0 = useStorage<BackgroundSettings>(STORAGE_KEY, { ...DEFAULT_BACKGROUND_SETTINGS })
-    ref0.value = normalizeBackgroundSettings(ref0.value)
+    const normalized = normalizeBackgroundSettings(ref0.value)
+    // A source persisted by an older build is a `file:///` URL, which the window can no
+    // longer load now that the bundle is served from `app://bundle` with same-origin policy
+    // on. Re-addressing it here keeps an upgrade from silently dropping the user's
+    // background. An `html` source is markup, not a path, so it is left alone.
+    if (normalized.type !== 'html' && normalized.source) {
+      normalized.source = normalizeFileSource(normalized.source)
+    }
+    ref0.value = normalized
     stored = ref0
   }
   return stored
@@ -75,16 +83,34 @@ export function normalizeBackgroundSettings(value: unknown): BackgroundSettings 
 }
 
 /**
- * Normalize a file source path to a valid URL for CSS and HTML use.
+ * Scheme the main process serves user-picked media under (see electron/localMedia.cjs).
+ * A `file:///` URL cannot be loaded by the window any more — the bundle is served from
+ * `app://bundle` and same-origin policy is on — so local media travels through this scheme.
+ */
+export const MEDIA_URL_PREFIX = 'tinadec-media://local/'
+
+/** base64url of the UTF-8 path, byte-for-byte what the main process decodes. */
+export function encodeMediaPathToken(filePath: string): string {
+  const bytes = new TextEncoder().encode(filePath)
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/**
+ * Normalize a file source path to a URL for CSS and HTML use.
  *
  * Windows paths returned by Electron dialog (e.g. `C:\Users\image.jpg`)
  * contain backslashes which are CSS escape characters in `url()`.
- * This function converts them to `file:///` URLs so they work correctly
- * in CSS `url()`, `<img src>`, and `<video src>`.
  *
- * - Already-URL strings (http://, https://, file://, data:) are returned as-is.
- * - Unix absolute paths (/home/...) are converted to file:// URLs.
- * - Windows drive-letter paths (C:\...) are converted to file:/// URLs.
+ * Local files are addressed through the `tinadec-media://` scheme rather than `file://`:
+ * the packaged window is served from `app://bundle` with same-origin policy enabled, so a
+ * `file://` subresource is refused. Which extensions that scheme will serve is enforced in
+ * the main process, not guessed here.
+ *
+ * - Already-URL strings (http://, https://, data:, blob:, tinadec-media://) are returned as-is.
+ * - `file://` URLs and absolute paths (Windows drive letters, Unix `/…`) become media URLs.
+ * - Relative paths and raw HTML are returned untouched.
  */
 export function normalizeFileSource(source: string): string {
   if (!source) return source
@@ -95,28 +121,46 @@ export function normalizeFileSource(source: string): string {
   if (
     trimmed.startsWith('http://') ||
     trimmed.startsWith('https://') ||
-    trimmed.startsWith('file://') ||
+    trimmed.startsWith(MEDIA_URL_PREFIX) ||
     trimmed.startsWith('data:') ||
     trimmed.startsWith('blob:')
   ) {
     return trimmed
   }
 
+  // file:///C:/Users/image.jpg — an older build persisted these, and the picker used to
+  // hand them back through here. The slash after `file://` belongs to the path only on
+  // POSIX; on Windows `file:///C:/…` means `C:/…`.
+  const fromFileUrl = fileUrlToAbsolutePath(trimmed)
+  if (fromFileUrl) return mediaUrlForPath(fromFileUrl)
+
   // Windows drive-letter path (e.g. C:\Users\..., D:/photos/img.png)
   if (/^[a-zA-Z]:[\\/]/.test(trimmed)) {
-    // Convert backslashes to forward slashes, then encode for file:// URL
-    const forwardSlashes = trimmed.replace(/\\/g, '/')
-    // file:///C:/Users/image.jpg
-    return `file:///${forwardSlashes}`
+    return mediaUrlForPath(trimmed.replace(/\\/g, '/'))
   }
 
   // Unix absolute path
   if (trimmed.startsWith('/')) {
-    return `file://${trimmed}`
+    return mediaUrlForPath(trimmed)
   }
 
   // Relative path or anything else — return as-is (may work in dev server context)
   return trimmed
+}
+
+function fileUrlToAbsolutePath(source: string): string | null {
+  if (!source.startsWith('file://')) return null
+  let rest: string
+  try {
+    rest = decodeURIComponent(source.slice('file://'.length))
+  } catch {
+    return null
+  }
+  return /^\/[a-zA-Z]:/.test(rest) ? rest.slice(1) : rest
+}
+
+function mediaUrlForPath(filePath: string): string {
+  return `${MEDIA_URL_PREFIX}${encodeMediaPathToken(filePath)}`
 }
 
 /**
