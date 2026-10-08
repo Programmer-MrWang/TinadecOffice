@@ -6,6 +6,17 @@
 - 面板复用 terminal tab（AGENT 徽标来源标记）；对话内 shell 调用渲染 `TerminalCallBlock.vue`，跳转用 `openAgentTerminal`（幂等，`agent:<sessionId>` 实例 id）。
 - 已知后续项：无 ConPTY（仅管道重定向）；长驻升级目前只认显式 `long_lived:true` 参数（自动升级未做）；Gateway `/ws/terminal` 桩未启用（SSE 已够用）。
 
+## 桌面端窗口与本地资源（2026-10-08 定案）
+- 打包态渲染层**不再用 `loadFile`**：由注册为 standard+secure 的 `app://bundle` 承载 `dist/`（`electron/appBundle.cjs`，含路径穿越防护/MIME/`/`→`index.html`）。四个窗口（main/panel/pet/debug-studio）的 `webSecurity` 已恢复默认，**不要再加回 `webSecurity:false`**——它会让预览面板里的异源 iframe 读到 `contextBridge`（含终端 IPC）。
+- 用户本地媒体（背景图/视频）走 `tinadec-media://local/<base64url path>`（`electron/localMedia.cjs`）：只服务图片/视频扩展、支持 Range、**不发 CORS 头**。渲染层编码在 `useBackground.normalizeFileSource`（与主进程解码有跨语言往返用例），`read-image-data-url` 经 `sourceToMediaPath` 兼容三种形式。**网关 CORS 必须放行 `app://bundle`**，否则打包态请求被拒。
+- 终端 IPC 不可再放开：`terminal:create` 只认 shell 目录内的条目、argv 取目录值、id 服务端生成；write/resize/destroy/snapshot 校验 sender 归属。
+- 外链统一走 `electron/externalLinks.cjs`（`setWindowOpenHandler` + `will-navigate`，仅 http/https 交给系统浏览器）。
+
+## 依赖行为判据（别照抄 issue/文档的结论）
+- **elysia 1.4.29 会自己钳制 2xx**：`dist/compose.js` 的路由 catch 里 `if(!set.status||set.status<300)set.status=error?.status||500`。所以"路由暂存 201 后出错 → 响应 201"这类指控**默认先复现再采信**；但 4xx/5xx 会被保留。
+- 网关上游不可达必须回 **502**（`src/upstreamFailure.ts`），且**不能**走 `toProblemDetails`（`normalizeCode` 会把 code 抹成 `conflict`，丢掉 `CORE_UNREACHABLE` 指纹）。`TINADEC_GATEWAY_TIMEOUT_MS` 至今无人消费。
+- 桌面端 `package.json` 的 `test` 脚本是**显式文件清单**：新增 electron 测试文件必须同时加进那一行，否则静默不跑。
+
 ## 环境硬约束
 - **TinadTools 宿主禁用反射序列化**（`JsonSerializerIsReflectionEnabledByDefault=false`）：动态 JSON payload 必须用 `Utf8JsonWriter` 手写或 source-gen context（`ShellToolJsonContext` 等），否则运行时 InvalidOperationException。
 - **TinadTools 协议冒烟**：`scripts/terminal_protocol_smoke.py`（驱动真实子进程验证 one-shot/长驻/控制/事件顺序）。

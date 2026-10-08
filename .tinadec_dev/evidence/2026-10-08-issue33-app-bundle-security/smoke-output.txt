@@ -1,0 +1,4 @@
+SMOKE_PAGE {"href":"app://bundle/index.html","origin":"app://bundle","protocol":"app:","isSecureContext":true,"mounted":"app-mounted","entry":["app://bundle/assets/index-BtBDLOB1.js"],"bridge":"object","bridgeTerminal":"function"}
+SMOKE_MEDIA {"url":"tinadec-media://local/QzpcVXNlcnNcbGluY3VcQXBwRGF0YVxMb2NhbFxUZW1wXHRpbmFkZWMtc21va2UtYmcucG5n","images":{"media":"loaded:1x1","file":"refused"}}
+SMOKE_TRAVERSAL status-404
+SMOKE_CROSS_ORIGIN_BRIDGE BLOCKED:SecurityError

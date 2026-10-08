@@ -1,13 +1,23 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-08
-**Last Updated By:** 对话流Markdown扩展语法、卡片细节与复制兜底；同一工作树保留Composer命令面板与空间布局改动。
-**Last Verified Commit:** 66d103e + 工作树；Markdown批次见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md（Desktop全量1028 passed/14 skipped、类型检查与Electron真实剪贴板/MathML/Mermaid/三宽度夹具passed，生产vite build本轮未取证）；命令面板见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
+**Last Updated By:** 打包态改用 app://bundle 并恢复同源策略、本地媒体走 tinadec-media://、终端 IPC 白名单化、外链 openExternal、Git 面板与同类加载加过期响应防护。
+**Last Verified Commit:** 66d103e + 工作树；本批次见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md（Desktop全量1036 passed/14 skipped、electron node --test 55/55、类型检查 passed、真实 Electron 冒烟见 .tinadec_dev/evidence/2026-10-08-issue33-app-bundle-security/；生产 vite build 本轮未取证）；Markdown批次见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
 **Branch:** main
+
+### 2026-10-08 打包态 origin、终端 IPC 与过期响应
+
+四个窗口移除 `webSecurity: false`，打包态不再 `loadFile`：新增 `electron/appBundle.cjs` 用注册为 standard+secure 的 `app://bundle` 承载 `dist/`（真实 origin、路径穿越防护、MIME 映射、`/`→`index.html`、hash 路由与 `?splash=0` 保持原语义），Gateway CORS 相应放行 `app://bundle`。**这是 #33 攻击链的关键一跳**：`webSecurity:false` 下预览面板里的异源 iframe 能读到宿主 `contextBridge`，实测修复后读 `parent.tinadec` 抛 `SecurityError`。
+
+本地媒体随之改走 `electron/localMedia.cjs` 的 `tinadec-media://local/<base64url path>`（原 `file:///` 在 `app://bundle` origin 下必然被拒）：只服务图片/视频扩展名与存在的普通文件、支持 Range（`<video>` seek）、**不发 CORS 头**（异源 `fetch()` 读不到字节，`<img>`/`<video>`/CSS 仍可用）。`useBackground.normalizeFileSource` 负责把路径/旧 `file://` 值转成该 URL，并在读取时迁移历史持久值；编码（渲染层 TS）与解码（主进程 JS）的往返有一致性用例，`useDynamicPalette` 的 `readImageAsDataUrl` 经 `sourceToMediaPath` 同时接受两种形式。残留能力写在文件头：渲染层仍可点名任意媒体扩展名路径，与 `tinadec:read-image-data-url` 同级，进一步收紧需产品决策。
+
+`terminalManager.cjs`：`terminal:create` 只接受 shell 目录内条目、**argv 一律取目录值**、**id 一律服务端生成**（客户端 id 曾可覆盖活条目并孤儿化 PTY）；`write`/`resize`/`destroy`/`snapshot` 校验 `event.sender` 是否为 owner。`probeWsl()` 的 `execFile` 同步抛错曾会打断主进程启动，已加 try/catch。外链由 `electron/externalLinks.cjs` 统一处理：`setWindowOpenHandler` 改 deny + `shell.openExternal`（仅 http/https），并补 `will-navigate` 覆盖正文里的普通链接点击（同源导航放行）——About 页链接与"打开 API 文档"此前一律静默失效。
+
+#34：`useGitOperation` 切换 cwd 时自增 epoch、清空 `preview`/`pushPlan`/`logResult`/`branchResult`/`selectedPaths`/`commitMessage`（原先只 reset 审批 id），三个 load 在 `await` 后校验 epoch 再落值；同类竞态一并防护 `stores/workbench.fetchAll`、`stores/run.fetchRuns`（换会话先清空）、`WorkbenchPage.loadLineage`、`SnapshotsPage.load`/`loadChanges`、`MemoryPage.load`。`package.json` 的 `test` 清单加入 `appBundle/localMedia/externalLinks` 三个 electron 测试文件。
 
 ### 2026-10-08 对话流 Markdown 扩展语法
 
-MarkdownRender 仍是唯一入口（MessageItem 历史、MessageList 流式、SpatialWorkCard 详情共用），解析/分块/高亮/块级行为都在该组件，样式集中在 styles.css，只新增异步的 MarkdownDiagram 子组件。代码岛加语言标签与悬停显现的复制按钮（clipboard 异步失败或缺失时回退旧路径，失败在按钮上报"复制失败"）；highlight.js 按需注册 20 语言并按"语言+正文"记忆化，未知语言静默退化；marked-katex-extension + katex@0.18 渲染行内/块级公式（display 自带横滚），marked-footnote 渲染脚注并把标题与返回引用读屏文案本地化；`> [!NOTE/TIP/IMPORTANT/WARNING/CAUTION]` 渲染为分类型提示块（支持自定义标题），普通引用不受影响；标题注入 md- 前缀去重 id 与锚点，点击在组件内滚动并高亮、绝不改写 URL hash（应用使用 hash 路由）；mermaid@12 懒加载并按 data-theme 用主题 token 重绘，流式围栏落定后布局、超 20000 字符与解析失败都回退显示源码。表格容器满宽、表头加深、行 hover、末行去边，行内代码圆角 4px；高亮 token 全部取主题变量。定向 18（另有 MarkdownDiagram 3）、Desktop 全量 1028 passed/14 skipped、类型检查与 Electron 夹具 passed（真实剪贴板、MathML、Mermaid、三宽度无横向溢出、流式不重建已完成块）。**外链打开仍未处理**：正文 http(s) 链接点击仍走浏览器默认导航，main.cjs 无 will-navigate/openExternal（用户本轮明确不做）。依赖提醒：安装 mermaid 会把 dompurify 顺带升到 3.4.16，该版本会剥掉消毒片段首个元素标签并破坏分块，应用侧已固定回 3.4.5，升级依赖后必须复验分块。
+MarkdownRender 仍是唯一入口（MessageItem 历史、MessageList 流式、SpatialWorkCard 详情共用），解析/分块/高亮/块级行为都在该组件，样式集中在 styles.css，只新增异步的 MarkdownDiagram 子组件。代码岛加语言标签与悬停显现的复制按钮（clipboard 异步失败或缺失时回退旧路径，失败在按钮上报"复制失败"）；highlight.js 按需注册 20 语言并按"语言+正文"记忆化，未知语言静默退化；marked-katex-extension + katex@0.18 渲染行内/块级公式（display 自带横滚），marked-footnote 渲染脚注并把标题与返回引用读屏文案本地化；`> [!NOTE/TIP/IMPORTANT/WARNING/CAUTION]` 渲染为分类型提示块（支持自定义标题），普通引用不受影响；标题注入 md- 前缀去重 id 与锚点，点击在组件内滚动并高亮、绝不改写 URL hash（应用使用 hash 路由）；mermaid@12 懒加载并按 data-theme 用主题 token 重绘，流式围栏落定后布局、超 20000 字符与解析失败都回退显示源码。表格容器满宽、表头加深、行 hover、末行去边，行内代码圆角 4px；高亮 token 全部取主题变量。定向 18（另有 MarkdownDiagram 3）、Desktop 全量 1028 passed/14 skipped、类型检查与 Electron 夹具 passed（真实剪贴板、MathML、Mermaid、三宽度无横向溢出、流式不重建已完成块）。**外链打开**：正文 http(s) 链接点击现已由 `electron/externalLinks.cjs` 的 `will-navigate` 守卫接管并交给系统浏览器，见下方 2026-10-08 打包态 origin 一节（该节写于 Markdown 批次之后，本条旧结论已作废）。依赖提醒：安装 mermaid 会把 dompurify 顺带升到 3.4.16，该版本会剥掉消毒片段首个元素标签并破坏分块，应用侧已固定回 3.4.5，升级依赖后必须复验分块。
 
 ### 2026-10-08 输入框命令面板
 
