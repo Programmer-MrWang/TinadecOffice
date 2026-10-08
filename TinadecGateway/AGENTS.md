@@ -1,9 +1,17 @@
 # GATEWAY KNOWLEDGE
 
 **Last Updated:** 2026-10-08
-**Last Updated By:** 会话命令设置、空间选项与修订冲突薄代理。
-**Last Verified Commit:** 66d103e + 工作树；Gateway全量80/80及公开OpenAPI快照通过；其余产品层验收见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md。
+**Last Updated By:** 上游不可达一律 502 ProblemDetails；onError 显式落状态并记录 Elysia 的钳制事实；CORS 死条目 'file://' 换成 app://bundle。
+**Last Verified Commit:** 66d103e + 工作树；Gateway全量84/84（含新增 errorStatus 4 例）及公开OpenAPI快照通过；其余产品层验收见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md。
 **Branch:** main
+
+## 2026-10-08 上游失败必须报 502
+
+外部 issue #30 称 catch-all onError 不赋值 set.status 会让"暂存 201 后出错"的请求以 HTTP 201 + 错误体返回假成功。**在本仓依赖（elysia 1.4.29）上不成立**：`dist/compose.js:917` 的 `if(!set.status||set.status<300)set.status=error?.status||500` 已经把暂存的 2xx/3xx 钳成 500，4xx/5xx 才保留；实测三条路径（普通 Error、`s[429]`、附件路由暂存 201 后 `response.json()` 解析失败）全部 500。原先那行 `typeof set.status === 'number' ? set.status : 500` 只是**侥幸**等价于"只继承 4xx/5xx"，现已写成明示契约并注明 Elysia 版本行为。
+
+真正修掉的是**裸 fetch 缺兜底**：`coreClient.proxySse` / `proxySseWithCursor` / `proxyStream`、`streaming.proxyStream`、`toolRuntimeClient.proxyToolRuntimeSse` / `proxyToolRuntimeStream` 此前直接返回 fetch 的 promise，上游不可达时异常逃逸进 catch-all，客户端收到 **500** 而非 **502**，`serviceDiscovery` 那类探针分不出"网关坏了"与"上游没起来"。新增 `src/upstreamFailure.ts` 统一构造 502；它**刻意不走 `toProblemDetails`**，因为 `normalizeCode` 会把未知 code 重写成 `conflict`，抹掉 `CORE_UNREACHABLE` / `TOOL_RUNTIME_UNREACHABLE` 这个指纹。`config.requestTimeoutMs`（`TINADEC_GATEWAY_TIMEOUT_MS`）**仍是死配置**并在代码里标注：给所有上游 fetch 加 AbortSignal 必须放行 SSE/流式，那是行为变更不是缺陷修复，留作独立项。
+
+CORS：`ALLOWED_ORIGINS` 里的 `'file://'` 是**死条目**（file:// 文档发出的 `Origin` 字面量是 `null`，与字符串全等和正则都不匹配），已删除；打包态桌面改用 `app://bundle` 标准 scheme 承载 dist，故放行 `app://bundle`。渲染层若再引入其它 origin，必须同步更新这里。证据：[修复报告](../.tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md)。
 
 ## 2026-10-08 输入框设置契约
 

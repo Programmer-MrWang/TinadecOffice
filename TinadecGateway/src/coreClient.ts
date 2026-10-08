@@ -6,6 +6,7 @@
 
 import { getConfig } from './config.js';
 import { PRINCIPAL_VALUE, ensureRequestId } from './headers.js';
+import { upstreamUnreachableResponse } from './upstreamFailure.js';
 
 export type ProxyBody = Record<string, unknown> | string | undefined;
 
@@ -141,14 +142,19 @@ export async function proxyJson(path: string, options: ProxyOptions = {}): Promi
  */
 export async function proxySse(path: string, init?: RequestInit): Promise<Response> {
   const baseHeaders = proxyBaseHeaders(init?.headers as HeadersInit | undefined);
-  return fetch(coreEndpoint(path), {
-    ...init,
-    headers: {
-      accept: 'text/event-stream',
-      ...baseHeaders,
-      ...(init?.headers ?? {})
-    }
-  });
+  const url = coreEndpoint(path);
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: {
+        accept: 'text/event-stream',
+        ...baseHeaders,
+        ...(init?.headers ?? {})
+      }
+    });
+  } catch (error) {
+    return upstreamUnreachableResponse('core', url, error);
+  }
 }
 
 export async function proxySseWithCursor(
@@ -168,13 +174,18 @@ export async function proxySseWithCursor(
     const sep = path.includes('?') ? '&' : '?';
     url = `${path}${sep}cursor=${encodeURIComponent(cursor)}`;
   }
-  return fetch(coreEndpoint(url), {
-    ...extraInit,
-    headers: {
-      ...headers,
-      ...(extraInit?.headers as Record<string, string> | undefined)
-    }
-  });
+  const endpoint = coreEndpoint(url);
+  try {
+    return await fetch(endpoint, {
+      ...extraInit,
+      headers: {
+        ...headers,
+        ...(extraInit?.headers as Record<string, string> | undefined)
+      }
+    });
+  } catch (error) {
+    return upstreamUnreachableResponse('core', endpoint, error);
+  }
 }
 
 /**
@@ -183,11 +194,16 @@ export async function proxySseWithCursor(
  */
 export async function proxyStream(path: string, init?: RequestInit): Promise<Response> {
   const baseHeaders = proxyBaseHeaders(init?.headers as HeadersInit | undefined);
-  return fetch(coreEndpoint(path), {
-    ...init,
-    headers: {
-      ...baseHeaders,
-      ...(init?.headers as Record<string, string> | undefined)
-    }
-  });
+  const url = coreEndpoint(path);
+  try {
+    return await fetch(url, {
+      ...init,
+      headers: {
+        ...baseHeaders,
+        ...(init?.headers as Record<string, string> | undefined)
+      }
+    });
+  } catch (error) {
+    return upstreamUnreachableResponse('core', url, error);
+  }
 }

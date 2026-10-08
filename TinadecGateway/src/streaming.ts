@@ -7,6 +7,7 @@
 
 import { coreEndpoint } from './coreClient.js';
 import { toolRuntimeEndpoint } from './toolRuntimeClient.js';
+import { upstreamUnreachableResponse } from './upstreamFailure.js';
 
 export type StreamTarget = 'core' | 'tool_runtime';
 
@@ -29,14 +30,18 @@ export async function proxyStream(options: StreamProxyOptions): Promise<Response
     ? coreEndpoint(options.path)
     : toolRuntimeEndpoint(options.path);
 
-  return fetch(url, {
-    method: options.method ?? 'GET',
-    headers: options.headers ?? {},
-    body: options.body ?? undefined,
-    signal: options.signal,
-    // @ts-expect-error: Bun 支持 duplex 选项用于流式请求体
-    duplex: options.body ? 'half' : undefined,
-  });
+  try {
+    return await fetch(url, {
+      method: options.method ?? 'GET',
+      headers: options.headers ?? {},
+      body: options.body ?? undefined,
+      signal: options.signal,
+      // @ts-expect-error: Bun 支持 duplex 选项用于流式请求体
+      duplex: options.body ? 'half' : undefined,
+    });
+  } catch (error) {
+    return upstreamUnreachableResponse(options.target === 'core' ? 'core' : 'toolRuntime', url, error);
+  }
 }
 
 /**

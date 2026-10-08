@@ -60,7 +60,11 @@ function corsHeadersFor(origin: string | null): Record<string, string> {
 const ALLOWED_ORIGINS: (string | RegExp)[] = [
   /^http:\/\/127\.0\.0\.1:\d+$/,
   /^http:\/\/localhost:\d+$/,
-  'file://',
+  // The packaged desktop renderer loads its own bundle over this scheme, so its requests
+  // carry a real origin instead of the opaque `null` a file:// page reports. `'file://'`
+  // used to sit here and never matched anything: browsers send the literal string `null`
+  // for a file:// document, so the entry was dead weight rather than a policy.
+  'app://bundle',
   'tauri://localhost',
   'https://tauri.localhost',
   ...config.corsExtraOrigins.map((origin) => {
@@ -148,7 +152,15 @@ const app = new Elysia()
       return toProblemDetails(400, 'invalid_request', detail, path, rid);
     }
     if (code === 'INTERNAL_SERVER_ERROR' || code === 'UNKNOWN' || (code as string) === 'ERROR') {
-      const status = typeof set.status === 'number' ? set.status : 500;
+      // Elysia already clamped the route's staged status before handing control here:
+      // `elysia/dist/compose.js` wraps every handler in a catch that runs
+      // `if(!set.status||set.status<300)set.status=error?.status||500`, so a route that
+      // staged 201 and then threw arrives as 500 — a failed upload is never reported as a
+      // success. A staged 4xx/5xx does survive and is the honest answer, so this re-states
+      // the same contract explicitly instead of passing `set.status` through unchecked.
+      const staged = typeof set.status === 'number' ? set.status : 0;
+      const status = staged >= 400 && staged <= 599 ? staged : 500;
+      set.status = status;
       set.headers['content-type'] = 'application/problem+json';
       return toProblemDetails(status, 'conflict', (error as Error)?.message ?? 'Internal error.', path, rid);
     }

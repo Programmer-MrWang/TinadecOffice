@@ -32,7 +32,7 @@ export interface GatewayConfig {
   auth?: AuthConfig;
   /** CORS 允许的额外来源 */
   corsExtraOrigins: string[];
-  /** 请求超时（毫秒） */
+  /** 请求超时（毫秒）。注意：当前没有代理路径消费它，设置它不会产生任何效果，见下方注释。 */
   requestTimeoutMs: number;
   /** 是否信任反向代理头 */
   trustProxy: boolean;
@@ -102,6 +102,11 @@ export function loadConfig(): GatewayConfig {
     toolRuntimeUrl,
     auth,
     corsExtraOrigins,
+    // Not enforced anywhere yet: no proxy path reads this value, so a hung upstream holds the
+    // downstream connection open forever and `TINADEC_GATEWAY_TIMEOUT_MS` changes nothing.
+    // Wiring it needs an AbortSignal on every upstream fetch, which has to exempt the SSE and
+    // streaming proxies (they are meant to stay open) — that is a behaviour change of its own,
+    // not a bug fix, so it stays a separate item rather than riding along silently.
     requestTimeoutMs: getEnvNumber('TINADEC_GATEWAY_TIMEOUT_MS', 120_000),
     trustProxy: isCloud,
   };
