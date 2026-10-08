@@ -614,6 +614,112 @@ describe('ComposerBar unified command panel', () => {
     wrapper.unmount()
   })
 
+  it.each(['mode', 'permission'] as const)('the %s dropdown toggles closed and can reopen its page after going back', async name => {
+    const wrapper = mountComposer({ hero: true })
+    const selector = wrapper.find(name === 'mode' ? '.mode-selector-trigger' : '.permission-selector-trigger')
+    await selector.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe(`commandPanel.${name}`)
+    expect(selector.attributes('aria-expanded')).toBe('true')
+    await selector.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(selector.attributes('aria-expanded')).toBe('false')
+    await selector.trigger('click')
+    await flushPromises()
+    click('.command-panel-back')
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('composer.commands')
+    await selector.trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe(`commandPanel.${name}`)
+    wrapper.unmount()
+  })
+
+  it('switches dropdown pages instead of closing when a different entry is clicked', async () => {
+    const wrapper = mountComposer()
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    await wrapper.find('.permission-selector-trigger').trigger('click')
+    await flushPromises()
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.permission')
+    expect(wrapper.find('.mode-selector-trigger').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.permission-selector-trigger').attributes('aria-expanded')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it.each(['Backspace', 'Delete'])('%s returns one page when search is empty and a held key cannot edit the restored query', async key => {
+    const wrapper = mountComposer()
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+    input.dispatchEvent(event)
+    await flushPromises()
+    expect(event.defaultPrevented).toBe(true)
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('composer.commands')
+    const repeat = new KeyboardEvent('keydown', { key, repeat: true, bubbles: true, cancelable: true })
+    input.dispatchEvent(repeat)
+    expect(repeat.defaultPrevented).toBe(true)
+    document.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }))
+    const released = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+    input.dispatchEvent(released)
+    expect(released.defaultPrevented).toBe(false)
+    expect(document.querySelector('.composer-command-panel')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it.each(['Backspace', 'Delete'])('%s preserves normal deletion in a nonempty search', async key => {
+    const wrapper = mountComposer()
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    search('abc')
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+    input.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.mode')
+    wrapper.unmount()
+  })
+
+  it('does not navigate for modified deletion or input-method composition', async () => {
+    const wrapper = mountComposer()
+    await wrapper.find('.mode-selector-trigger').trigger('click')
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    for (const flags of [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { shiftKey: true }, { isComposing: true }, { keyCode: 229 }]) {
+      const event = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true, ...flags })
+      input.dispatchEvent(event)
+      expect(event.defaultPrevented).toBe(false)
+    }
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.mode')
+    wrapper.unmount()
+  })
+
+  it('returns from a slash subpage to the editable composer and blocks held deletion until key release', async () => {
+    const wrapper = mount(ComposerBar, { attachTo: document.body, props: { busy: false, permission: 'default', modelValue: '/model Keep the draft' } })
+    await flushPromises()
+    await wrapper.find('textarea').trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }))
+    await flushPromises()
+    const textarea = wrapper.find('textarea').element
+    expect(document.activeElement).toBe(textarea)
+    expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('composer.commands')
+    const repeat = new KeyboardEvent('keydown', { key: 'Backspace', repeat: true, bubbles: true, cancelable: true })
+    textarea.dispatchEvent(repeat)
+    expect(repeat.defaultPrevented).toBe(true)
+    textarea.dispatchEvent(new KeyboardEvent('keyup', { key: 'Backspace', bubbles: true }))
+    const editing = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true })
+    textarea.dispatchEvent(editing)
+    expect(editing.defaultPrevented).toBe(false)
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.find('textarea').element.value).toBe('/model Keep the draft')
+    wrapper.unmount()
+  })
+
   it('renders permission icons and risk cues in both the list and current permission trigger', async () => {
     const wrapper = mountComposer({ permission: 'full-access' })
     expect(wrapper.find('.permission-selector-trigger .composer-permission-icon').attributes('data-risk')).toBe('high')

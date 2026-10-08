@@ -180,9 +180,14 @@ function closeCommandPanel() {
 }
 
 function openCommandPanel(page: ComposerPage = 'root') {
+  if (commandPanelOpen.value && commandPanelRef.value?.page === page) {
+    closeCommandPanel()
+    return
+  }
   commandPage.value = page
   commandsDismissed.value = true
   showPlusMenu.value = true
+  commandPanelRef.value?.selectPage(page)
 }
 
 function consumeSettingsSlash() {
@@ -688,10 +693,11 @@ function confirmSteer(id: string, interrupt = false) {
             class="mode-selector-trigger"
             :title="t('commandPanel.mode')"
             aria-haspopup="dialog"
+            :aria-expanded="commandPanelOpen && commandPanelRef?.page === 'mode'"
             @click="openCommandPanel('mode')"
           ><component :is="modeGlyph" :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" /></button>
           <slot v-if="spatial" name="capabilities" />
-          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" @click="openCommandPanel('permission')"><component :is="permissionChoice.icon" :size="14" class="composer-permission-icon" :data-risk="permissionChoice.risk" aria-hidden="true" /><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
+          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" :aria-expanded="commandPanelOpen && commandPanelRef?.page === 'permission'" @click="openCommandPanel('permission')"><component :is="permissionChoice.icon" :size="14" class="composer-permission-icon" :data-risk="permissionChoice.risk" aria-hidden="true" /><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
           <button
             ref="projectTriggerRef"
             class="project-dropdown-trigger"
@@ -729,6 +735,7 @@ function confirmSteer(id: string, interrupt = false) {
       :settings-error="settingsError"
       :command-host="commandHost"
       @close="closeCommandPanel"
+      @focus-composer="textareaRef?.focus()"
       @attach="openFilePicker"
       @action="chooseCommand"
       @send-as-text="closeCommandPanel(); submit(undefined, true)"

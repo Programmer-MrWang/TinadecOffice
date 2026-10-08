@@ -27,6 +27,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   close: []
+  'focus-composer': []
   attach: [accept: string]
   action: [command: AppCommand]
   'send-as-text': []
@@ -57,6 +58,7 @@ const modelError = ref(false)
 const space = computed(() => props.spaceOptions ?? defaultSpaceOptions())
 let loadSequence = 0
 let anchorObserver: ResizeObserver | null = null
+let navigationDeleteKey: string | null = null
 let pageAnimations: Animation[] = []
 
 function cancelPageAnimations() {
@@ -134,6 +136,7 @@ interface Row {
 }
 const icons: Record<string, Component> = { model: Sparkles, mode: Layers, plan: ListChecks, spec: FileText, agents: Users, workflow: Workflow, bulletin: MessageSquare, worktree: GitBranch }
 function selectPage(next: ComposerPage) {
+  if (next === page.value) return
   rootQuery.value = query.value
   query.value = ''
   page.value = next
@@ -144,7 +147,10 @@ function back() {
   page.value = 'root'
   query.value = rootQuery.value
   index.value = 0
-  void nextTick(() => searchRef.value?.focus())
+  void nextTick(() => {
+    if (props.slashQuery != null) emit('focus-composer')
+    else searchRef.value?.focus()
+  })
 }
 function modeRows(workflow: boolean): Row[] {
   const selected = workflow ? space.value.workflow_mode_version_id : props.modeVersionId
@@ -237,6 +243,23 @@ function activate(row = rows.value[index.value]) {
 }
 function keydown(event: KeyboardEvent): boolean {
   if (!props.open || event.isComposing || event.keyCode === 229) return false
+  const deleting = event.key === 'Backspace' || event.key === 'Delete'
+  if (deleting && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    if (event.repeat && navigationDeleteKey === event.key) {
+      event.preventDefault()
+      return true
+    }
+    const target = event.target
+    const editing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLElement && target.isContentEditable
+    if (!event.repeat && page.value !== 'root' && (!editing || target === searchRef.value && searchRef.value?.value === '')) {
+      event.preventDefault()
+      event.stopPropagation()
+      navigationDeleteKey = event.key
+      back()
+      return true
+    }
+  }
   if (event.key === 'Escape') {
     event.preventDefault()
     event.stopPropagation()
@@ -301,7 +324,7 @@ async function loadCatalogs() {
 }
 watch(() => props.open, async open => {
   cancelPageAnimations()
-  if (!open) return
+  if (!open) { navigationDeleteKey = null; return }
   page.value = props.initialPage ?? 'root'
   query.value = ''
   rootQuery.value = ''
@@ -332,6 +355,9 @@ function outside(event: Event) {
   if (trigger && props.anchor?.contains(trigger)) return
   emit('close')
 }
+function releaseNavigationKey(event: KeyboardEvent) {
+  if (event.key === navigationDeleteKey) navigationDeleteKey = null
+}
 onMounted(() => {
   if (!props.open) void loadCatalogs()
   if (typeof ResizeObserver !== 'undefined') {
@@ -340,6 +366,7 @@ onMounted(() => {
   }
   document.addEventListener('pointerdown', outside, true)
   document.addEventListener('click', outside, true)
+  document.addEventListener('keyup', releaseNavigationKey, true)
   window.addEventListener('resize', place)
   window.addEventListener('scroll', place, true)
   window.visualViewport?.addEventListener('resize', place)
@@ -351,12 +378,13 @@ onUnmounted(() => {
   cancelPageAnimations()
   document.removeEventListener('pointerdown', outside, true)
   document.removeEventListener('click', outside, true)
+  document.removeEventListener('keyup', releaseNavigationKey, true)
   window.removeEventListener('resize', place)
   window.removeEventListener('scroll', place, true)
   window.visualViewport?.removeEventListener('resize', place)
   window.visualViewport?.removeEventListener('scroll', place)
 })
-defineExpose({ keydown, activate, page })
+defineExpose({ keydown, activate, page, selectPage })
 </script>
 
 <template>
@@ -364,7 +392,7 @@ defineExpose({ keydown, activate, page })
     <section v-if="open" ref="panelRef" class="composer-command-panel" data-testid="composer-commands" role="dialog" :aria-label="title" :aria-busy="settingsSaving || loading" :style="[position, panelStyle]" v-bind="panelDataAttrs" @keydown="keydown">
       <div ref="contentRef" class="command-panel-content" :data-page="page">
       <header class="command-panel-header">
-        <button v-if="page !== 'root'" class="command-panel-icon" :aria-label="t('commandPanel.back')" @click="back"><ArrowLeft :size="16" /></button>
+        <button v-if="page !== 'root'" class="command-panel-icon command-panel-back" :aria-label="t('commandPanel.back')" :title="t('commandPanel.backHint')" @click="back"><ArrowLeft :size="16" /><span>{{ t('commandPanel.back') }}</span></button>
         <strong>{{ title }}</strong>
         <button class="command-panel-icon command-panel-close" :aria-label="t('commandPanel.close')" @click="emit('close')"><X :size="15" /></button>
       </header>
@@ -398,6 +426,7 @@ defineExpose({ keydown, activate, page })
 .command-panel-header strong { font-weight: 600; }
 .command-panel-icon { width: 28px; height: 28px; display: grid; place-items: center; background: transparent; border: 0; border-radius: 7px; color: var(--text-secondary); cursor: pointer; }
 .command-panel-icon:hover { background: var(--surface-hover); }
+.command-panel-back { width: auto; display: inline-flex; gap: 4px; padding: 0 6px; }
 .command-panel-close { margin-left: auto; }
 .command-panel-search { display: flex; gap: 8px; align-items: center; color: var(--text-muted); margin: 4px 12px 8px; padding: 8px; border-radius: 8px; background: var(--surface-input); flex-shrink: 0; font-weight: 400; }
 .command-panel-search input { min-width: 0; width: 100%; height: auto; min-height: 0; padding: 0; border-radius: 0; line-height: 1.5; color: var(--text-primary); background: transparent; border: 0; box-shadow: none; outline: none; font: inherit; }

@@ -1843,6 +1843,7 @@ retry: 'Retry',
     publishedReadOnlyHint: 'This mode is published and renders read-only; clone it to edit a custom copy.',
   },
   commandPanel: {
+    backHint: 'Press Backspace or Delete to go back when the search is empty.',
     risk: { low: 'Low risk', medium: 'Medium risk', high: 'High risk' },
     model: 'Conversation model',
     modelHint: 'Choose this conversation’s model. Other agents keep their own settings.',

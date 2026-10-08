@@ -1,9 +1,13 @@
 # DESKTOP APP KNOWLEDGE
 
 **Last Updated:** 2026-10-08
-**Last Updated By:** 打包态改用 app://bundle 并恢复同源策略、本地媒体走 tinadec-media://、终端 IPC 白名单化、外链 openExternal、Git 面板与同类加载加过期响应防护。；命令面板图标/风险色、紧凑布局、切页动效与自动关闭修复。
-**Last Verified Commit:** 108c49c + 工作树；命令面板细节定向109/109、vue-tsc通过、实际SFC浏览器三宽度/明暗风险色/原生Enter与捕获关闭/减少动态效果检查通过，见 .tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md。此前专项记录：66d103e + 工作树；本批次见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md（Desktop全量1036 passed/14 skipped、electron node --test 55/55、类型检查 passed、真实 Electron 冒烟见 .tinadec_dev/evidence/2026-10-08-issue33-app-bundle-security/；生产 vite build 本轮未取证）；Markdown批次见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；非完整App/外部模型验收。
+**Last Updated By:** 命令面板同入口收起、空搜索删除键返回与slash焦点修复；新增命令语言源码讨论稿。
+**Last Verified Commit:** 0ffce81 + 工作树；导航定向4文件115/115、vue-tsc通过、实际SFC浏览器Backspace/Delete正常删字与空输入返回通过，见 .tinadec_dev/reports/2026-10-08-command-navigation.zh-CN.md；新的slash语法仍是讨论建议。先前发布/安全治理/Markdown/命令面板细节验证保留于下方dated段落及各专项报告。
 **Branch:** main
+
+### 2026-10-08 命令面板导航修复与语言讨论
+
+openCommandPanel按实际Panel.page判断同入口收起；通过公开selectPage保证initialPage相同但内部已经back的情形也能重新进入，selectPage同页调用不丢query。Backspace/Delete仅在空子页搜索/非编辑目标返回；已消费的长按导航直到document keyup清除，文本与修饰键/IME仍编辑；slash back触发focus-composer事件恢复可编辑textarea。可见返回按钮含文字和提示，入口aria-expanded跟随实际页。四文件115/115、类型与真实SFC浏览器删字/返回通过。用户选择`/team 任务正文`设置后保留正文再发送；统一命令/参数/别名方案见研究稿，尚未实现其全部语法，勿声称`/team`已能直接执行。
 
 ### 2026-10-08 命令面板图标、动效与关闭
 

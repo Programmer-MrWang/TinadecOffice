@@ -29,6 +29,7 @@
 - [x] 控制器会话隔离、设置并发、首发命名修订、队列跨会话归属与全局入口回归通过。
 - [x] 实际Panel组件三宽度、360×600视口、明暗/模糊材质和键盘Electron夹具通过。
 - [x] 2026-10-08修订：所有选择器图标、权限风险颜色、紧凑间距、切页动画、Enter自动关闭和捕获阶段外部关闭通过109项定向与真实浏览器验证；[修复记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md)。
+- [x] 同入口复点收起、不同入口切页、空搜索Backspace/Delete返回与长按保护、slash返回编辑器通过115项定向、类型和浏览器检查；[导航修复](../../../../../.tinadec_dev/reports/2026-10-08-command-navigation.zh-CN.md)。统一命令语言另见[讨论稿](../../../../../.tinadec_dev/research/2026-10-08-slash-command-language.zh-CN.md)，不将建议语法当已实现。
 - [x] 最终运行组合14项脚本API、审批全文、Desktop1024/14 skipped、native107、Gateway80及类型/构建通过；外部模型/平台边界见实施报告。
 
 <a id="app-home-103"></a>
