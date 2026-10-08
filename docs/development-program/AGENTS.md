@@ -10,6 +10,10 @@
 
 新增APP-HOME-105（关联APP-HOME-F004）完成扩展语法：代码高亮与块级复制、KaTeX 公式、脚注、分类型提示块、标题锚点与 Mermaid 图表。表格/代码/引用/提示块/图表共用既有 UiIslandCard，行内代码与卡片细节按同级项目（OpenCodeUI / openchamber / hermes-agent）收敛。按用户要求不拆层：解析、分块、高亮与块级行为都在 MarkdownRender.vue，样式在 styles.css，只新增异步的 MarkdownDiagram.vue。锚点点击在组件内滚动且不改写 URL hash（应用是 hash 路由）。命令面板批次已占用 APP-HOME-104，本批改号为 105。边界：外链打开按用户决定不做；Mermaid 未 Worker 化、性能未压测；生产 vite build 本轮未取证。证据与验收留在模块TODO/STATUS、共享报告与 evidence，不另建状态库。
 
+### 2026-10-08 命令面板实施
+
+新增APP-HOME-F005/104，关联APP-RENDERER-104。用户要求统一新契约，不做旧空间执行方式兼容；UI、Core会话配置与运行组合共用同一用户选项。任务验收留在模块TODO，证据在共享报告与evidence，不另建状态库。完整空间工作画面/外部模型/平台等后续目标不因本次命令功能完成而整体勾选。
+
 ### 2026-10-07 Markdown 内容岛屿
 
 APP-HOME-F004/103完成本地正文显示专项：正文连续，代码/表格/引用复用UiIslandCard；修复列表标记、checkbox尺寸、表格对齐、宽表格及长URL溢出。整篇消毒后分块，后续流式文字不重建已完成块和表格焦点。模块STATUS/TODO和局部渲染图已更新；报告`.tinadec_dev/reports/2026-10-07-markdown-islands.zh-CN.md`。979/14 skipped、native107、类型/构建及三宽度本地SFC夹具通过，不将模块001整体审计、完整App或真实模型验收标完成。

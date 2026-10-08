@@ -9,6 +9,10 @@
 
 MarkdownRender 仍是唯一入口（MessageItem 历史、MessageList 流式、SpatialWorkCard 详情共用），解析/分块/高亮/块级行为都在该组件，样式集中在 styles.css，只新增异步的 MarkdownDiagram 子组件。代码岛加语言标签与悬停显现的复制按钮（clipboard 异步失败或缺失时回退旧路径，失败在按钮上报"复制失败"）；highlight.js 按需注册 20 语言并按"语言+正文"记忆化，未知语言静默退化；marked-katex-extension + katex@0.18 渲染行内/块级公式（display 自带横滚），marked-footnote 渲染脚注并把标题与返回引用读屏文案本地化；`> [!NOTE/TIP/IMPORTANT/WARNING/CAUTION]` 渲染为分类型提示块（支持自定义标题），普通引用不受影响；标题注入 md- 前缀去重 id 与锚点，点击在组件内滚动并高亮、绝不改写 URL hash（应用使用 hash 路由）；mermaid@12 懒加载并按 data-theme 用主题 token 重绘，流式围栏落定后布局、超 20000 字符与解析失败都回退显示源码。表格容器满宽、表头加深、行 hover、末行去边，行内代码圆角 4px；高亮 token 全部取主题变量。定向 18（另有 MarkdownDiagram 3）、Desktop 全量 1028 passed/14 skipped、类型检查与 Electron 夹具 passed（真实剪贴板、MathML、Mermaid、三宽度无横向溢出、流式不重建已完成块）。**外链打开仍未处理**：正文 http(s) 链接点击仍走浏览器默认导航，main.cjs 无 will-navigate/openExternal（用户本轮明确不做）。依赖提醒：安装 mermaid 会把 dompurify 顺带升到 3.4.16，该版本会剥掉消毒片段首个元素标签并破坏分块，应用侧已固定回 3.4.5，升级依赖后必须复验分块。
 
+### 2026-10-08 输入框命令面板
+
+ComposerCommandPanel统一+与/及工具栏子页，Portal显式取usePanelStyles，锚定整个输入框并观察尺寸。图片/文件顶部，模型/发布预设/权限是真实目录；空间直接六选项默认false/null，无兼容切换入口。HomeController为会话选择owner，PATCH串行+revision，标题回执也更新revision；队列操作捕获来源会话与发送选项，全局palette省略覆盖字段以继承当前设置。首发附件先创建含所选配置的草稿会话，准备/上传期间禁止发送。IME/未知slash/按钮与Enter统一；Spec审批显示完整正文且只允许本次确认。不可把UI保存状态当正在运行的配置已改变。详见命令面板实施报告。
+
 ### 2026-10-07 平面对话 Markdown 显示修复与内容岛屿
 
 MarkdownRender整篇marked解析→DOMPurify RETURN_DOM_FRAGMENT→可信滚动容器与顶层分块；引用链接、嵌套语义和消毒保留。正文连续，代码/表格/引用用既有UiIslandCard（section/padding none），不新增材质根。列表标记、13px只读checkbox、表格align、块内横滚与长URL折行已修；HTML不变的已完成块不重建，表格可聚焦并保留焦点。MessageItem仅assistant正文用此组件，MessageList流式共用；用户正文仍文本插值。定向41、Markdown5、标准全量979/14 skipped、native107、类型/构建与320/520/800px本地SFC/CSS夹具通过，非完整App E2E/真实模型验收。APP-HOME-103完成；报告`.tinadec_dev/reports/2026-10-07-markdown-islands.zh-CN.md`，证据`.tinadec_dev/evidence/2026-10-07-markdown-islands/`。高亮/复制、公式、Mermaid、脚注、提示块、标题锚点与外链打开另行验收。

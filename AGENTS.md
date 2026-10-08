@@ -33,6 +33,12 @@ The Core is a MAF-based modular monolith; storage and read paths are in place, a
 
 ## CURRENT REBUILD STATE
 
+### 2026-10-08 命令面板与空间编排新契约
+
+用户明确不考虑旧版本兼容。平面选择发布预设，空间直接使用六项组合；不存在"沿用旧空间运行方式"或迁移入口。Composer的+、slash和工具栏共用输入框上方面板，真实目录、附件、模型/权限/预设/空间选项由HomeController统一管理。Core持久permission_mode/space_options/settings_revision，PATCH显式clear flags与revision冲突；发送和队列捕获选项，已准入运行冻结。空间Plan是执行前计划，Spec是逐文档人工确认，工作流/协作/公告板/Worktree实际进入运行策略。关联APP-HOME-104和APP-RENDERER-104，实施与测试边界见`.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md`。
+
+空间画布不预生成会议/计划/Git/审批占位卡；按真实运行、计划/任务、工具与Git更改、会话审批记录投影，四个快捷入口仅随对应对象出现。
+
 ### 2026-10-08 对话流 Markdown 扩展语法与卡片收口
 
 对话流 Markdown 的唯一入口仍是 `MarkdownRender.vue`（MessageItem 历史、MessageList 流式、SpatialWorkCard 详情共用），解析、分块、高亮与块级行为都在该组件内，视觉样式集中在 `styles.css`，只新增异步渲染的 `MarkdownDiagram.vue` 子组件——用户明确要求不为扩展语法拆分多层。代码岛新增语言标签与悬停显现的复制按钮（异步剪贴板失败或缺失时回退旧路径，失败在按钮上报"复制失败"）；highlight.js 按需注册并记忆化，未知语言静默退化；KaTeX 行内/块级公式（display 自带横滚）与 marked-footnote 脚注（标题与返回引用文案本地化）；`> [!NOTE/TIP/IMPORTANT/WARNING/CAUTION]` 渲染为分类型提示块；标题 md- 前缀去重 id 与锚点，点击在组件内滚动且不改写 URL hash（应用是 hash 路由）；mermaid 懒加载、跟随主题 token 重绘、解析失败回退源码。表格容器满宽、表头加深、行 hover、末行去边。证据：`.tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md` 与 `.tinadec_dev/evidence/2026-10-08-markdown-extended/`（真实剪贴板、MathML、Mermaid、三宽度）。边界：**外链打开仍未处理**（正文链接点击仍走默认导航，main.cjs 无 will-navigate/openExternal，用户本轮明确不做）；Mermaid 未 Worker 化、性能未压测；生产构建本轮未取证。依赖提醒：安装 mermaid 会把 dompurify 顺带升级到 3.4.16，其消毒片段会剥掉首个元素标签并破坏分块，应用侧已固定回 3.4.5，升级依赖后必须复验分块。
