@@ -139,7 +139,6 @@ TinadecOffice/
 | Document | Purpose |
 |----------|---------|
 | [Core product definition & DmaEA baseline](docs/tinadec-core-product-definition.zh-CN.md) | Authoritative: positioning, DmaEA, permissions, evolution, roadmap |
-| [Core reference decisions](docs/tinadec-core-reference-decisions.zh-CN.md) | MAF + nine reference projects: evidence, adoptions, rejections |
 | [Harness integration model](docs/agent-harness-product-model.zh-CN.md) | Integration/deployment responsibilities ([English](docs/agent-harness-product-model.en.md)) |
 | [Architecture](docs/architecture.md) | Technical architecture, ports, event shapes |
 | [Startup guide](docs/startup.md) | Local startup & troubleshooting |

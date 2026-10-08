@@ -27,7 +27,7 @@ TinadecCore pins the Microsoft Agent Framework package family to `1.18.0`. MAF-s
 - MAF automatic-approval iteration limits are only a ceiling for Core tool-round budgets. They do not grant authority or bypass Core's durable approval and Tool Dispatcher path.
 - MAF session or workflow checkpoints may be opaque sidecars to a Core checkpoint, but Core remains authoritative for scope, event watermarks, leases, approvals, idempotency, side effects, and recovery decisions.
 
-TinadecOffice intentionally studies sibling projects. The source-backed TinadecCore decisions are recorded in [`tinadec-core-reference-decisions.zh-CN.md`](tinadec-core-reference-decisions.zh-CN.md); the earlier workbench-oriented map remains in [`reference-project-map.md`](reference-project-map.md).
+Design decisions informed by prior art are kept in the team's internal records and are intentionally not part of the public documentation set.
 
 ## Default Ports
 

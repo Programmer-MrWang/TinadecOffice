@@ -549,7 +549,7 @@ codegraph explore "How does approval gate mechanism work?"
 - [TinadecOffice 架构文档](architecture.md)
 - [Agent Harness 产品模型](agent-harness-product-model.zh-CN.md)
 - [启动运行手册](startup.md)
-- [参考项目映射](reference-project-map.md)
+- 参考项目调研：团队内部记录，未随公开文档集提供
 
 ---
 

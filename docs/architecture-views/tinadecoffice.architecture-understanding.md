@@ -82,7 +82,7 @@ Qoder 里：`.dot` 用 Graphviz 格式查看器可直接预览（Canvas 需本�
 3. `Stub` 与 `ControlPlane` 的路由遮蔽方向需运行时验证。
 4. Tool Runtime `:48732` 是否存在于其它仓库/部署环境：未知。
 5. `IsPackable=true` 只证明打包边界，不等于已发布；本机 NuGet 无 `TinadecCore.*` 包。
-6. MAF 1.18 具体 API 行为未反编译证实；`docs/tinadec-core-reference-decisions.zh-CN.md` 仍是 1.17.0（文档滞后）。
+6. MAF 1.18 具体 API 行为未反编译证实；团队内部参考记录仍停留在 1.17.0（记录滞后）。
 
 ## 9. 若要把这张图变成"可依赖的活文档"，下一步验证任务
 

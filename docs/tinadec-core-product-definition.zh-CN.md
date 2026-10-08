@@ -9,7 +9,7 @@
 
 本文是 TinadecCore 的权威产品定义。它回答四个问题：TinadecCore 是什么、DmaEA 为什么存在、智能体如何被配置与治理、TinadecCore 如何与 TinadecTool、TinadecGateway、TinadecApp 独立协作。
 
-各参考仓库的源码证据、采用项与拒绝项见 [TinadecCore 参考项目调研与设计决策](tinadec-core-reference-decisions.zh-CN.md)。
+设计取舍的源码证据与沿用/拒绝记录由团队内部参考记录维护，未随公开文档集提供。
 
 文中的“必须”“不允许”表示产品不变量；“应”表示默认决策；“可”表示扩展点。实现状态使用以下标记：
 

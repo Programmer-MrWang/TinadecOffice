@@ -139,7 +139,6 @@ TinadecOffice/
 | 文档 | 用途 |
 |------|------|
 | [TinadecCore 产品定义与 DmaEA 架构基线](docs/tinadec-core-product-definition.zh-CN.md) | Core 定位、DmaEA、权限、配置、演化与路线图（权威基线） |
-| [TinadecCore 参考决策](docs/tinadec-core-reference-decisions.zh-CN.md) | MAF 与九个参考项目的源码证据、采用项和拒绝项 |
 | [Harness 集成模型](docs/agent-harness-product-model.zh-CN.md) | 当前集成部署职责（[English](docs/agent-harness-product-model.en.md)） |
 | [架构](docs/architecture.md) | 技术架构、端口、事件形态 |
 | [启动手册](docs/startup.md) | 本地启动与故障排查 |
