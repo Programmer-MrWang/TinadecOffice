@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-09",
+  "environment": "Windows / current localhost browser / 1169x719",
+  "original": {
+    "effect": "opaque",
+    "opacity": 80,
+    "blur": 8
+  },
+  "translucent": {
+    "effect": "translucent",
+    "opacity": 46,
+    "backdrop": "blur(6px)",
+    "background": "rgba(15, 20, 26, 0.46)",
+    "selectedRow": "rgba(40, 44, 51, 0.82)"
+  },
+  "blur": {
+    "backdrop": "blur(6px)",
+    "background": "rgba(15, 20, 26, 0.46)",
+    "effect": "blur",
+    "filter": "blur(14px)",
+    "modal": true,
+    "selectedRow": "rgba(40, 44, 51, 0.62)",
+    "style": "background-color: rgba(var(--bg-primary-rgb, 10, 14, 20), 0.46); backdrop-filter: blur(14px); --material-filter-section: blur(2.8px) saturate(105%); --material-filter-raised: blur(4.9px) saturate(108%);"
+  },
+  "fullscreen": {
+    "background": "rgba(15, 20, 26, 0.46)",
+    "effect": "blur",
+    "filter": "blur(14px)",
+    "fullscreen": true,
+    "height": 719.4285888671875,
+    "modal": true,
+    "width": 1169.1429443359375
+  },
+  "closed": {
+    "appFilter": "none",
+    "modalCount": 0,
+    "searchOpen": false
+  },
+  "restored": {
+    "effect": "opaque",
+    "opacity": 80,
+    "blur": 8
+  }
+}

@@ -14,6 +14,7 @@ import { homeController } from '@/controllers/HomeController'
 import { codeController } from '@/controllers/CodeController'
 import { selectionKey } from '@/lib/storageScope'
 import { closePalette, useCommandPalette } from '@/composables/useCommandPalette'
+import { usePanelStyles } from '@/composables/usePanelStyles'
 import { availableCommands, implicitArgument, type AppCommand, type CommandHost } from '@/lib/appCommands'
 import {
   requestConversation, requestModelProvider, requestSettingsSection,
@@ -27,6 +28,9 @@ import {
 const { t } = useI18n()
 const router = useRouter()
 const { open, comboLabel, seededQuery } = useCommandPalette()
+const { getPanelStyle, getPanelDataAttributes } = usePanelStyles()
+const materialStyle = computed(() => getPanelStyle())
+const materialAttributes = computed(() => getPanelDataAttributes())
 const query = ref('')
 const activeIndex = ref(0)
 const activeKind = ref<SpotlightKind | 'all'>('all')
@@ -236,6 +240,8 @@ function onKeydown(event: KeyboardEvent) {
     ref="dialogRef"
     class="command-palette no-drag"
     :class="{ 'command-palette--fullscreen': fullscreen }"
+    :style="materialStyle"
+    v-bind="materialAttributes"
     aria-labelledby="palette-title"
     aria-describedby="palette-description"
     @close="closePalette()"
@@ -381,7 +387,11 @@ function onKeydown(event: KeyboardEvent) {
   box-shadow: none;
   -webkit-app-region: no-drag;
 }
-.command-palette::backdrop { background: color-mix(in srgb, var(--bg-primary) 16%, transparent); }
+.command-palette::backdrop {
+  background: color-mix(in srgb, var(--bg-primary) 16%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
 .search-screen { display: flex; flex-direction: column; height: min(590px, calc(100dvh - 90px)); width: 100%; margin: 0 auto; padding: 0; }
 .command-palette--fullscreen { inset: 0; transform: none; width: 100%; height: 100%; margin: 0; border: 0; border-radius: 0; }
 .command-palette--fullscreen .search-screen { height: 100%; width: min(1120px, 100%); padding: 44px 40px 20px; }
@@ -418,7 +428,7 @@ function onKeydown(event: KeyboardEvent) {
 .search-group-toggle { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 32px; padding: 0 2px 7px; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; text-align: left; }
 .search-group-count { font-size: 11px; font-weight: 400; color: var(--text-muted); }
 .command-palette-row { display: flex; align-items: center; gap: 12px; min-height: 50px; padding: 8px 10px; cursor: pointer; border-radius: 6px; }
-.command-palette-row.is-active { background: var(--bg-hover); }
+.command-palette-row.is-active { background: var(--surface-hover); }
 .search-result-icon { flex-shrink: 0; color: var(--text-secondary); }
 .search-result-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .command-palette-label { color: var(--text-primary); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
