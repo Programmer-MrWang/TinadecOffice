@@ -3021,6 +3021,14 @@
               "string"
             ]
           },
+          "color": {
+            "default": "default",
+            "type": "string"
+          },
+          "icon": {
+            "default": "folder",
+            "type": "string"
+          },
           "name": {
             "type": [
               "null",
@@ -3033,8 +3041,23 @@
               "string"
             ]
           },
+          "primary_root_id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "project_path": {
             "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceSourceRoot"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
           },
           "storage_root": {
             "type": [
@@ -5606,6 +5629,12 @@
             },
             "type": "array"
           },
+          "primary_root_id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "project_root": {
             "type": [
               "null",
@@ -5676,6 +5705,12 @@
               "null",
               "string"
             ]
+          },
+          "workspace_roots": {
+            "items": {
+              "$ref": "#/components/schemas/ToolWorkspaceRootDto"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -6196,6 +6231,17 @@
         },
         "type": "object"
       },
+      "ToolWorkspaceRootDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateProjectRequest": {
         "properties": {
           "name": {
@@ -6511,6 +6557,36 @@
         },
         "type": "object"
       },
+      "WorkspaceEditRequest": {
+        "properties": {
+          "color": {
+            "default": "default",
+            "type": "string"
+          },
+          "icon": {
+            "default": "folder",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primary_root_id": {
+            "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceSourceRoot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "roots",
+          "primary_root_id"
+        ],
+        "type": "object"
+      },
       "WorkspaceFileRestoreRequestDto": {
         "properties": {
           "expected_sha256": {
@@ -6523,6 +6599,17 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "WorkspacePreviewRequest": {
+        "properties": {
+          "project_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_path"
+        ],
         "type": "object"
       },
       "WorkspaceRestoreRequestDto": {
@@ -6583,6 +6670,21 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "WorkspaceSourceRoot": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
         "type": "object"
       }
     }
@@ -12082,6 +12184,28 @@
         ]
       }
     },
+    "/api/v1/storage/scopes/preview": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspacePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
     "/api/v1/storage/scopes/{storageId}": {
       "delete": {
         "parameters": [
@@ -12386,6 +12510,58 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/workspace": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK"

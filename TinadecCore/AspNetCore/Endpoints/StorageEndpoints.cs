@@ -19,18 +19,31 @@ public static class StorageEndpoints
             var selected = lifecycle_status ?? lifecycleStatus ?? TinadecCore.Memory.LifecycleStatuses.Active;
             if (!TinadecCore.Memory.LifecycleStatuses.IsKnown(selected))
                 return Results.BadRequest(new { code = "INVALID_LIFECYCLE_STATUS", message = "lifecycle_status must be active, archived, or trashed." });
-            if (http.RequestServices.GetService<IStorageScopeRegistry>() is { } registry && !http.Request.Headers.ContainsKey(StorageScopeHttpExtensions.StorageHeader))
+            if (http.RequestServices.GetService<IStorageScopeRegistry>() is { } registry
+                && (!http.Request.Headers.ContainsKey(StorageScopeHttpExtensions.StorageHeader) || http.Request.Headers[StorageScopeHttpExtensions.StorageHeader] == "user"))
             {
                 var projects = new List<object>();
                 foreach (var scope in registry.List().Where(x => x.ScopeKind == "project"))
                 {
-                    await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
-                    projects.AddRange((await lease.Services.GetRequiredService<ProjectSessionStore>().ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, scope.StorageId)));
+                    try
+                    {
+                        await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
+                        var workspace = (registry as IWorkspaceRegistry)?.ReadWorkspace(scope.StorageId);
+                        projects.AddRange((await lease.Services.GetRequiredService<ProjectSessionStore>().ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, scope.StorageId, workspace, scope)));
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException or Tomlyn.TomlException or ConfigurationDocumentException)
+                    {
+                        if (selected == TinadecCore.Memory.LifecycleStatuses.Active)
+                            projects.Add(new { id = scope.ProjectId, storage_id = scope.StorageId, name = Path.GetFileName(scope.ProjectRoot), path = scope.ProjectRoot,
+                                kind = "local", lifecycle_status = "active", created_at = DateTimeOffset.UnixEpoch, updated_at = DateTimeOffset.UnixEpoch,
+                                storage_root = scope.Root, external = scope.External, availability = "error", availability_error = ex.Message });
+                    }
                 }
                 return Results.Ok(projects);
             }
             var storageId = http.RequestServices.GetService<IScopeStorageLocations>()?.StorageId;
-            return Results.Ok((await store.ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, storageId)));
+            var definition = http.RequestServices.GetService<IWorkspaceDefinitionProvider>()?.Read();
+            return Results.Ok((await store.ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, storageId, definition)));
         });
 
         app.MapPost("/api/v1/projects", async (CreateProjectRequest request, HttpContext http, ProjectSessionStore store, CancellationToken ct) =>
@@ -42,7 +55,7 @@ public static class StorageEndpoints
                     var scope = await registry.OpenAsync(new(request.Path, request.Name), ct).ConfigureAwait(false);
                     await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
                     var opened = await lease.Services.GetRequiredService<ProjectSessionStore>().GetProjectAnyStatusAsync(scope.ProjectId!.Value, ct).ConfigureAwait(false);
-                    return Results.Created($"/api/v1/projects/{opened!.Id}", ToProject(opened, scope.StorageId));
+                    return Results.Created($"/api/v1/projects/{opened!.Id}", ToProject(opened, scope.StorageId, (registry as IWorkspaceRegistry)?.ReadWorkspace(scope.StorageId), scope));
                 }
                 var project = await store.CreateProjectAsync(request.Name, request.Path, ct).ConfigureAwait(false);
                 return Results.Created($"/api/v1/projects/{project.Id}", ToProject(project));
@@ -51,16 +64,27 @@ public static class StorageEndpoints
             catch (InvalidOperationException ex) { return Results.Conflict(new { code = "DUPLICATE_PROJECT_ROOT", message = ex.Message }); }
         });
 
-        app.MapPatch("/api/v1/projects/{projectId}", async (string projectId, UpdateProjectRequest request, ProjectSessionStore store, CancellationToken ct) =>
+        app.MapPatch("/api/v1/projects/{projectId}", async (string projectId, UpdateProjectRequest request, HttpContext http, ProjectSessionStore store, CancellationToken ct) =>
         {
             if (!Guid.TryParse(projectId, out var id)) return Results.BadRequest(new { code = "INVALID_PROJECT_ID" });
             if (string.IsNullOrWhiteSpace(request.Name)) return Results.BadRequest(new { code = "INVALID_PROJECT", message = "Project name is required." });
             try
             {
+                if (http.RequestServices.GetService<IWorkspaceRegistry>() is { } workspaces
+                    && http.RequestServices.GetService<IScopeStorageLocations>() is { ProjectRoot: not null } locations)
+                {
+                    var expected = http.Request.Headers.IfMatch.ToString();
+                    if (expected.Length == 0) return Results.Problem(statusCode: 428, title: "precondition_required");
+                    var current = workspaces.ReadWorkspace(locations.StorageId);
+                    await workspaces.EditWorkspaceAsync(locations.StorageId, new(request.Name!, current.Roots, current.PrimaryRootId, current.Icon, current.Color), expected.Trim('"'), ct).ConfigureAwait(false);
+                }
                 var project = await store.RenameProjectAsync(id, request.Name!, ct).ConfigureAwait(false);
                 if (project is null) return Results.NotFound(new { code = "PROJECT_NOT_FOUND" });
-                return Results.Ok(ToProject(project));
+                return Results.Ok(ToProject(project, http.RequestServices.GetService<IScopeStorageLocations>()?.StorageId,
+                    http.RequestServices.GetService<IWorkspaceDefinitionProvider>()?.Read()));
             }
+            catch (ConfigurationDocumentException ex) { return Results.Json(new { code = ex.Code, message = ex.Message, diagnostics = ex.Diagnostics },
+                statusCode: ex.Code == "configuration_conflict" ? 412 : 403); }
             catch (ArgumentException ex) { return Results.BadRequest(new { code = "INVALID_PROJECT", message = ex.Message }); }
         });
 
@@ -456,7 +480,11 @@ public static class StorageEndpoints
         });
     }
 
-    private static object ToProject(ProjectRecord project, string? storageId = null) => new { id = project.Id, storage_id = storageId, name = project.Name, path = project.RootPath, kind = project.Kind, created_at = project.CreatedAt, updated_at = project.UpdatedAt, lifecycle_status = project.LifecycleStatus, trashed_at = project.TrashedAt };
+    private static object ToProject(ProjectRecord project, string? storageId = null, WorkspaceDefinition? workspace = null, StorageScopeDescriptor? scope = null) => new {
+        id = project.Id, storage_id = storageId, name = workspace?.Name ?? project.Name, path = workspace?.PrimaryPath ?? project.RootPath,
+        roots = workspace?.Roots, primary_root_id = workspace?.PrimaryRootId, icon = workspace?.Icon ?? "folder", color = workspace?.Color ?? "default",
+        configuration_hash = workspace?.ContentHash, storage_root = scope?.Root, external = scope?.External, availability = "ready",
+        kind = project.Kind, created_at = project.CreatedAt, updated_at = project.UpdatedAt, lifecycle_status = project.LifecycleStatus, trashed_at = project.TrashedAt };
     private static object ToSession(SessionRecord session) => new
     {
         id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status,

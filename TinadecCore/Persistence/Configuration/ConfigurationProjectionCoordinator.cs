@@ -217,7 +217,7 @@ public sealed class ConfigurationProjectionCoordinator : IConfigurationProjectio
                     if (byKey.TryGetValue(key, out var current))
                     {
                         // Published history is immutable. Edits must use a fresh version identity.
-                        if (IsHistorical(entity) && !Same(entity, current, row))
+                        if (IsHistorical(entity) && !Same(entity, current, row, db.Database.IsNpgsql()))
                             throw Invalid(entity.GetTableName()!, "Published versions are immutable; create a new version id instead of editing historical content.");
                         db.Attach(current);
                         db.Entry(current).CurrentValues.SetValues(row);
@@ -361,11 +361,23 @@ public sealed class ConfigurationProjectionCoordinator : IConfigurationProjectio
         _ => throw new InvalidOperationException("Unknown configuration projection context.")
     };
     internal static bool IsHistorical(IEntityType entity) => entity.GetTableName()!.EndsWith("_versions", StringComparison.Ordinal);
-    internal static bool Same(IEntityType entity, object a, object b) => entity.GetProperties().Where(p => p.Name is not
+    internal static bool Same(IEntityType entity, object a, object b, bool postgreSql = false) => entity.GetProperties().Where(p => p.Name is not
         ("Status" or "Revision" or "UpdatedAt" or "UpdatedByPrincipalId" or "ArchivedAt" or "DeletedAt")).All(p =>
         p.Name.EndsWith("Json", StringComparison.Ordinal)
             ? JsonSame(p.PropertyInfo?.GetValue(a) as string, p.PropertyInfo?.GetValue(b) as string)
-            : Equals(p.PropertyInfo?.GetValue(a), p.PropertyInfo?.GetValue(b)));
+            : ScalarSame(p.PropertyInfo?.GetValue(a), p.PropertyInfo?.GetValue(b), postgreSql));
+    private static bool ScalarSame(object? left, object? right, bool postgreSql)
+    {
+        // PostgreSQL/Npgsql retains microseconds, while TOML retains .NET's 100ns
+        // ticks. Compare at the actual database precision without rewriting the
+        // source or relaxing any other immutable version field.
+        const long postgresEpochTicks = 630822816000000000L;
+        if (postgreSql && left is DateTimeOffset leftOffset && right is DateTimeOffset rightOffset)
+            return (leftOffset.UtcTicks - postgresEpochTicks) / 10 == (rightOffset.UtcTicks - postgresEpochTicks) / 10;
+        if (postgreSql && left is DateTime leftDate && right is DateTime rightDate)
+            return (leftDate.Ticks - postgresEpochTicks) / 10 == (rightDate.Ticks - postgresEpochTicks) / 10;
+        return Equals(left, right);
+    }
     private static bool JsonSame(string? a, string? b)
     {
         if (a == b) return true;

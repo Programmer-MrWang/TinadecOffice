@@ -9,9 +9,14 @@ namespace TinadecCore.Storage.Migrations.PostgreSql;
 public sealed class VectorStorePgVector : Migration
 {
     protected override void Up(MigrationBuilder m) => m.Sql("""
-        create extension if not exists vector;
+        create extension if not exists vector with schema public;
 
-        create table if not exists vector_chunks (
+        -- Extensions belong to the database, while all domain tables belong to the scope.
+        -- Respect an existing installation's namespace without moving its resources.
+        do $vector$ declare vector_schema text; begin
+        select n.nspname into strict vector_schema from pg_extension e
+            join pg_namespace n on n.oid = e.extnamespace where e.extname = 'vector';
+        execute format($ddl$ create table if not exists vector_chunks (
             id bigserial primary key,
             tenant_id uuid not null,
             workspace_id uuid null,
@@ -26,9 +31,10 @@ public sealed class VectorStorePgVector : Migration
             model_id text not null,
             metadata_json text not null,
             created_at timestamptz not null,
-            embedding vector not null,
+            embedding %I.vector not null,
             unique nulls not distinct (tenant_id, workspace_id, project_id, namespace, source_type, source_id, source_revision, chunk_index, model_id)
-        );
+        ) $ddl$, vector_schema);
+        end $vector$;
 
         create table if not exists vector_collections (
             model_id text primary key,
@@ -37,15 +43,19 @@ public sealed class VectorStorePgVector : Migration
 
         create index if not exists ix_vector_chunks_scope on vector_chunks(tenant_id, workspace_id, project_id, namespace, model_id);
         create index if not exists ix_vector_chunks_project_source on vector_chunks(tenant_id, workspace_id, project_id, namespace, source_type, source_id);
-        do $$ begin
-            create index if not exists ix_vector_chunks_embedding_hnsw on vector_chunks using hnsw (embedding vector_cosine_ops);
-        exception when others then
+        do $vector$ declare vector_schema text; begin
+            select n.nspname into strict vector_schema from pg_extension e
+                join pg_namespace n on n.oid = e.extnamespace where e.extname = 'vector';
             begin
-                create index if not exists ix_vector_chunks_embedding_ivfflat on vector_chunks using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+                execute format('create index if not exists ix_vector_chunks_embedding_hnsw on vector_chunks using hnsw (embedding %I.vector_cosine_ops)', vector_schema);
             exception when others then
-                raise notice 'vector index creation skipped: %', sqlerrm;
+                begin
+                    execute format('create index if not exists ix_vector_chunks_embedding_ivfflat on vector_chunks using ivfflat (embedding %I.vector_cosine_ops) with (lists = 100)', vector_schema);
+                exception when others then
+                    raise notice 'vector index creation skipped: %', sqlerrm;
+                end;
             end;
-        end $$;
+        end $vector$;
         """);
 
     protected override void Down(MigrationBuilder m) => m.Sql("""

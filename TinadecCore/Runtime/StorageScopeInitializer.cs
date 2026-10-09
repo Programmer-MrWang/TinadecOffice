@@ -38,7 +38,8 @@ public sealed class StorageScopeInitializer
 
     public async Task<StorageScopeDescriptor> InitializeProjectAsync(string storageId, string projectPath,
         StorageScopeDescriptor defaults, string? backend = null, string? configuredRoot = null,
-        string? postgresConnectionReference = null, CancellationToken ct = default, Guid? projectId = null)
+        string? postgresConnectionReference = null, CancellationToken ct = default, Guid? projectId = null,
+        WorkspaceDefinition? workspace = null)
     {
         var projectRoot = StorageScopePaths.NormalizeProjectRoot(projectPath);
         var target = configuredRoot is null ? Path.Combine(projectRoot, ".tinadec") : Path.GetFullPath(configuredRoot);
@@ -57,7 +58,7 @@ public sealed class StorageScopeInitializer
             ValidateBackend(backend ?? "sqlite"), external, postgresConnectionReference);
         try
         {
-            await PublishAsync(scope, defaults, ct).ConfigureAwait(false);
+            await PublishAsync(scope, defaults, ct, workspace).ConfigureAwait(false);
             return scope;
         }
         catch (Exception ex) when (configuredRoot is null && ex is (UnauthorizedAccessException or IOException))
@@ -70,7 +71,7 @@ public sealed class StorageScopeInitializer
             StorageScopePaths.RejectLinks(fallback);
             if (Directory.Exists(fallback)) return ReadManifest(storageId, projectRoot, fallback, backend, postgresConnectionReference, true);
             scope = scope with { Root = fallback, External = true };
-            await PublishAsync(scope, defaults, ct).ConfigureAwait(false);
+            await PublishAsync(scope, defaults, ct, workspace).ConfigureAwait(false);
             return scope;
         }
     }
@@ -94,7 +95,8 @@ public sealed class StorageScopeInitializer
         return new StorageScopeDescriptor(storageId, "project", root, projectRoot, projectId, storedBackend, external, reference);
     }
 
-    private static async Task PublishAsync(StorageScopeDescriptor scope, StorageScopeDescriptor defaults, CancellationToken ct)
+    private static async Task PublishAsync(StorageScopeDescriptor scope, StorageScopeDescriptor defaults, CancellationToken ct,
+        WorkspaceDefinition? workspace)
     {
         var parent = Path.GetDirectoryName(scope.Root)!;
         Directory.CreateDirectory(parent);
@@ -132,7 +134,9 @@ public sealed class StorageScopeInitializer
                 ["defaults_digest"] = DirectoryDigest(defaults.Config)
             };
             if (scope.PostgresConnectionReference is { } reference) manifest["postgres_connection_reference"] = reference;
-            await File.WriteAllTextAsync(Path.Combine(staging, "project.toml"), TomlSerializer.Serialize(manifest), ct).ConfigureAwait(false);
+            var manifestText = TomlSerializer.Serialize(manifest);
+            if (workspace is not null) manifestText = WorkspaceDefinitionFile.Write(manifestText, workspace, scope.ProjectRoot!);
+            await File.WriteAllTextAsync(Path.Combine(staging, "project.toml"), manifestText, ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
             Directory.Move(staging, scope.Root);
         }

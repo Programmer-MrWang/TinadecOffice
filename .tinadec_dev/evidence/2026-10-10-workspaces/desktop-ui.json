@@ -1,0 +1,41 @@
+{
+  "accepted": true,
+  "electron": "43.3.0",
+  "platform": "win32",
+  "native_picker": false,
+  "production_preload_and_picker_handler": true,
+  "real_desktop_components": true,
+  "real_core_gateway": true,
+  "list_rows": "representative_ui_fixture",
+  "events": [
+    {
+      "step": "folder_selection",
+      "no_storage_initialized": true,
+      "native_picker": false
+    },
+    {
+      "step": "created",
+      "new_conversation_context": true,
+      "secondary_uninitialized": true
+    },
+    {
+      "step": "fold_and_plus",
+      "scope_unchanged": true,
+      "plus_does_not_fold": true,
+      "recent_and_selected_old": true
+    },
+    {
+      "step": "edited_primary",
+      "storage_unchanged": true,
+      "primary_changed": true
+    },
+    {
+      "step": "reload",
+      "manifest_and_sidebar_state_restored": true
+    },
+    {
+      "step": "explicit_existing_open",
+      "no_overwrite": true
+    }
+  ]
+}

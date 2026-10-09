@@ -1,0 +1,123 @@
+{
+  "accepted": true,
+  "native_picker": true,
+  "owned_root": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-ui-5c85c623fe",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=b4dc4f0a-68db-4b12-b1f2-1d79330c45b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=b4dc4f0a-68db-4b12-b1f2-1d79330c45b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/ui-row-0/messages",
+      "status": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/ui-row-0/tool-executions?limit=12",
+      "status": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/ui-row-0/runs",
+      "status": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/storage/scopes/2668757733654e4790f3295bc6cf5444/workspace",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/ui-row-0/orchestration",
+      "status": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/approvals?session_id=ui-row-0",
+      "status": 400
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/approval-rules?sessionId=ui-row-0",
+      "status": 400
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/storage/scopes/2668757733654e4790f3295bc6cf5444/workspace",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=b4dc4f0a-68db-4b12-b1f2-1d79330c45b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=b4dc4f0a-68db-4b12-b1f2-1d79330c45b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  ],
+  "manifest": "﻿schema_version = 1\nproject_id = \"b4dc4f0a-68db-4b12-b1f2-1d79330c45b0\"\nbackend = \"sqlite\"\nconfiguration_version = 1\ninitialized_at = \"2026-10-09T18:38:34.6147701+00:00\"\ndefaults_digest = \"2b454b7ef5bafab429a1d334ca010c92bf614ada975c6643ee27f3a53dfd091d\"\n\n[workspace]\nname = \"Edited workspace\"\nprimary_root_id = \"619bb76f-f556-4fae-872a-cacdb5a85aab\"\nicon = \"folder\"\ncolor = \"default\"\n\n[[workspace.roots]]\nid = \"831c2ceb-e550-49fc-a057-709f5ac03fb1\"\npath = \".\"\n\n[[workspace.roots]]\nid = \"619bb76f-f556-4fae-872a-cacdb5a85aab\"\npath = \"../second\"\n"
+}

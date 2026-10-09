@@ -1,0 +1,122 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="d806d2f0-3027-4d28-a10d-5ca14e9aabe9" name="lincu@LINSTATION 2026-10-10 03:03:31" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-10T03:03:31.5798791+08:00" queuing="2026-10-10T03:03:31.5798816+08:00" start="2026-10-10T03:02:00.9538964+08:00" finish="2026-10-10T03:14:01.8973236+08:00" />
+  <TestSettings name="default" id="7151e04e-fa47-44ef-97f3-d8f045267efa">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-10_03_03_31" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="0233ea65-84c9-4c71-84bb-8e4fff244d9c" testId="7f8caf89-fc1d-00f1-d275-9b3af737c17c" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" computerName="LINSTATION" duration="00:00:59.6545544" startTime="2026-10-10T03:11:20.9585358+08:00" endTime="2026-10-10T03:12:20.8998441+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0233ea65-84c9-4c71-84bb-8e4fff244d9c" />
+    <UnitTestResult executionId="30a9910d-f800-40ad-a30b-fa95ec4337a6" testId="8d9ef63c-b625-620a-4897-0a6ba3d4960f" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" computerName="LINSTATION" duration="00:01:05.0410409" startTime="2026-10-10T03:04:48.6529976+08:00" endTime="2026-10-10T03:05:54.2716683+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="30a9910d-f800-40ad-a30b-fa95ec4337a6" />
+    <UnitTestResult executionId="0dc47ab5-1781-4093-8c9d-fe754664902c" testId="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder" computerName="LINSTATION" duration="00:01:26.8877563" startTime="2026-10-10T03:02:04.1553643+08:00" endTime="2026-10-10T03:03:31.4325639+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0dc47ab5-1781-4093-8c9d-fe754664902c" />
+    <UnitTestResult executionId="d7969ea0-9167-4d18-8297-bc4261bf6cd5" testId="e8c73281-274c-3468-57dc-1454e536fc5a" testName="TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart" computerName="LINSTATION" duration="00:00:00.0010000" startTime="2026-10-10T03:14:00.7822660+08:00" endTime="2026-10-10T03:14:00.8051846+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d7969ea0-9167-4d18-8297-bc4261bf6cd5">
+      <Output>
+        <ErrorInfo>
+          <Message>A real isolated PostgreSQL service must be explicitly configured.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="744dc336-bf1f-4dbf-8c11-57b9911de717" testId="f2ee48de-dd3b-9287-e871-7df15036306f" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CreatingWithAnAnchorOtherThanThePrimaryFolderDoesNotInitializeEitherFolder" computerName="LINSTATION" duration="00:00:21.6773333" startTime="2026-10-10T03:09:06.7100859+08:00" endTime="2026-10-10T03:09:28.4968707+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="744dc336-bf1f-4dbf-8c11-57b9911de717" />
+    <UnitTestResult executionId="db6fd43f-acd8-44c8-9d3e-215b416ab0e9" testId="4c6de8d7-c611-6aa0-88ae-348060d452e8" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" computerName="LINSTATION" duration="00:01:16.8964133" startTime="2026-10-10T03:03:31.5188142+08:00" endTime="2026-10-10T03:04:48.6363045+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="db6fd43f-acd8-44c8-9d3e-215b416ab0e9" />
+    <UnitTestResult executionId="f173a771-7a15-4d74-a171-21184c0e5e2c" testId="d4395ac7-ef3f-3f1c-4079-a1cd283f1741" testName="TinadecCore.Api.Tests.StorageScopeApiTests.DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" computerName="LINSTATION" duration="00:01:39.4782280" startTime="2026-10-10T03:12:20.9485122+08:00" endTime="2026-10-10T03:14:00.7068450+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f173a771-7a15-4d74-a171-21184c0e5e2c" />
+    <UnitTestResult executionId="e5a1af40-e53e-44a4-827a-578f844b84eb" testId="9cac4fd3-52f1-c990-f095-61908467eefc" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CancellingWhileWorkspaceWriteLeaseIsHeldPreservesManifestAndGrants" computerName="LINSTATION" duration="00:01:07.3541228" startTime="2026-10-10T03:07:59.1883178+08:00" endTime="2026-10-10T03:09:06.7076716+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e5a1af40-e53e-44a4-827a-578f844b84eb" />
+    <UnitTestResult executionId="d64cee22-5f27-43b2-9dd0-5e73f4cf1b1f" testId="0ec90b4a-b879-a314-ee09-a090e03700a9" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits" computerName="LINSTATION" duration="00:00:52.0037156" startTime="2026-10-10T03:07:06.9348832+08:00" endTime="2026-10-10T03:07:59.1445203+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d64cee22-5f27-43b2-9dd0-5e73f4cf1b1f">
+      <Output>
+        <ErrorInfo>
+          <Message>{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.4","title":"workspace_authorization_required","status":403,"detail":"Workspace folders differ from the host authorization. Open or edit the workspace through the desktop to grant them.","code":"workspace_authorization_required","diagnostics":[{"code":"workspace_roots","message":"project.toml: workspace.roots / workspace.primary_root_id","severity":"error"}],"trace_id":"0HNP66VL3KPA2"}</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MultiFolderWorkspaceTests.cs:line 85&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="47f0e523-828e-494d-87e6-b636bede34eb" testId="ae2e2500-d3e0-0b59-2077-c7f63661544f" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" computerName="LINSTATION" duration="00:01:20.4171296" startTime="2026-10-10T03:09:28.4997056+08:00" endTime="2026-10-10T03:11:20.9560377+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="47f0e523-828e-494d-87e6-b636bede34eb" />
+    <UnitTestResult executionId="254fb071-0b91-44d7-bd00-0ad5595f496e" testId="4a774364-daf9-c207-7ca4-b6331b1f18a0" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConcurrentEditorsWithSameHashPublishOnlyOneDefinition" computerName="LINSTATION" duration="00:01:12.5180788" startTime="2026-10-10T03:05:54.2753779+08:00" endTime="2026-10-10T03:07:06.9325009+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="254fb071-0b91-44d7-bd00-0ad5595f496e" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee">
+      <Execution id="0dc47ab5-1781-4093-8c9d-fe754664902c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="EditingProjectFileCannotGrantAnOutsideFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="4c6de8d7-c611-6aa0-88ae-348060d452e8">
+      <Execution id="db6fd43f-acd8-44c8-9d3e-215b416ab0e9" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7f8caf89-fc1d-00f1-d275-9b3af737c17c">
+      <Execution id="0233ea65-84c9-4c71-84bb-8e4fff244d9c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConcurrentEditorsWithSameHashPublishOnlyOneDefinition" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="4a774364-daf9-c207-7ca4-b6331b1f18a0">
+      <Execution id="254fb071-0b91-44d7-bd00-0ad5595f496e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="ConcurrentEditorsWithSameHashPublishOnlyOneDefinition" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="ae2e2500-d3e0-0b59-2077-c7f63661544f">
+      <Execution id="47f0e523-828e-494d-87e6-b636bede34eb" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="0ec90b4a-b879-a314-ee09-a090e03700a9">
+      <Execution id="d64cee22-5f27-43b2-9dd0-5e73f4cf1b1f" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="e8c73281-274c-3468-57dc-1454e536fc5a">
+      <Execution id="d7969ea0-9167-4d18-8297-bc4261bf6cd5" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests" name="MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="d4395ac7-ef3f-3f1c-4079-a1cd283f1741">
+      <Execution id="f173a771-7a15-4d74-a171-21184c0e5e2c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="8d9ef63c-b625-620a-4897-0a6ba3d4960f">
+      <Execution id="30a9910d-f800-40ad-a30b-fa95ec4337a6" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CreatingWithAnAnchorOtherThanThePrimaryFolderDoesNotInitializeEitherFolder" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="f2ee48de-dd3b-9287-e871-7df15036306f">
+      <Execution id="744dc336-bf1f-4dbf-8c11-57b9911de717" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="CreatingWithAnAnchorOtherThanThePrimaryFolderDoesNotInitializeEitherFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CancellingWhileWorkspaceWriteLeaseIsHeldPreservesManifestAndGrants" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="9cac4fd3-52f1-c990-f095-61908467eefc">
+      <Execution id="e5a1af40-e53e-44a4-827a-578f844b84eb" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="CancellingWhileWorkspaceWriteLeaseIsHeldPreservesManifestAndGrants" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="7f8caf89-fc1d-00f1-d275-9b3af737c17c" executionId="0233ea65-84c9-4c71-84bb-8e4fff244d9c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8d9ef63c-b625-620a-4897-0a6ba3d4960f" executionId="30a9910d-f800-40ad-a30b-fa95ec4337a6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee" executionId="0dc47ab5-1781-4093-8c9d-fe754664902c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e8c73281-274c-3468-57dc-1454e536fc5a" executionId="d7969ea0-9167-4d18-8297-bc4261bf6cd5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f2ee48de-dd3b-9287-e871-7df15036306f" executionId="744dc336-bf1f-4dbf-8c11-57b9911de717" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4c6de8d7-c611-6aa0-88ae-348060d452e8" executionId="db6fd43f-acd8-44c8-9d3e-215b416ab0e9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d4395ac7-ef3f-3f1c-4079-a1cd283f1741" executionId="f173a771-7a15-4d74-a171-21184c0e5e2c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9cac4fd3-52f1-c990-f095-61908467eefc" executionId="e5a1af40-e53e-44a4-827a-578f844b84eb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0ec90b4a-b879-a314-ee09-a090e03700a9" executionId="d64cee22-5f27-43b2-9dd0-5e73f4cf1b1f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ae2e2500-d3e0-0b59-2077-c7f63661544f" executionId="47f0e523-828e-494d-87e6-b636bede34eb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4a774364-daf9-c207-7ca4-b6331b1f18a0" executionId="254fb071-0b91-44d7-bd00-0ad5595f496e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="11" executed="10" passed="9" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.60]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.96]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:01.04]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:05:56.19]       {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.4","title":"workspace_authorization_required","status":403,"detail":"Workspace folders differ from the host authorization. Open or edit the workspace through the desktop to grant them.","code":"workspace_authorization_required","diagnostics":[{"code":"workspace_roots","message":"project.toml: workspace.roots / workspace.primary_root_id","severity":"error"}],"trace_id":"0HNP66VL3KPA2"}&#xD;
+[xUnit.net 00:05:56.19]       Stack Trace:&#xD;
+[xUnit.net 00:05:56.20]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MultiFolderWorkspaceTests.cs(85,0): at TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits()&#xD;
+[xUnit.net 00:05:56.20]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:11:57.85]       A real isolated PostgreSQL service must be explicitly configured.&#xD;
+[xUnit.net 00:11:57.91]   Finished:    TinadecCore.Api.Tests&#xD;
+在测试运行中跳过测试“TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart”。&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-10T03:07:59.1733345+08:00">
+        <Text>[xUnit.net 00:05:56.18]     TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Warning" timestamp="2026-10-10T03:14:00.8757030+08:00">
+        <Text>[xUnit.net 00:11:57.85]     TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

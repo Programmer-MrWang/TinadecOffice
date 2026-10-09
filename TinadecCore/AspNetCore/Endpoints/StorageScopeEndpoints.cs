@@ -15,7 +15,21 @@ public static class StorageScopeEndpoints
         });
         app.MapPost("/api/v1/storage/scopes/open", async (OpenScopeRequest request, IStorageScopeRegistry registry, CancellationToken ct) =>
             await HandleAsync(async () => Results.Ok(await ToDtoAsync(await registry.OpenAsync(new(request.ProjectPath,
-                request.Name, request.Backend, request.StorageRoot, request.PostgresConnectionReference), ct).ConfigureAwait(false), registry, ct).ConfigureAwait(false))));
+                request.Name, request.Backend, request.StorageRoot, request.PostgresConnectionReference,
+                request.Roots, request.PrimaryRootId, request.Icon, request.Color), ct).ConfigureAwait(false), registry, ct).ConfigureAwait(false))));
+        app.MapPost("/api/v1/storage/scopes/preview", (WorkspacePreviewRequest request, IWorkspaceRegistry registry) =>
+            HandleAsync(() => Task.FromResult<IResult>(Results.Ok(registry.PreviewWorkspace(request.ProjectPath)))));
+        app.MapGet("/api/v1/storage/scopes/{storageId}/workspace", (string storageId, HttpResponse response, IWorkspaceRegistry registry) =>
+            HandleAsync(() => { var workspace = registry.ReadWorkspace(storageId); response.Headers.ETag = '"' + workspace.ContentHash + '"';
+                return Task.FromResult<IResult>(Results.Ok(workspace)); }));
+        app.MapPut("/api/v1/storage/scopes/{storageId}/workspace", (string storageId, WorkspaceEditRequest request, HttpContext http, IWorkspaceRegistry registry, CancellationToken ct) =>
+            HandleAsync(async () => {
+                var expected = http.Request.Headers.IfMatch.ToString();
+                if (expected.Length == 0) return Results.Problem(statusCode: 428, title: "precondition_required", extensions: new Dictionary<string, object?> { ["code"] = "precondition_required" });
+                var workspace = await registry.EditWorkspaceAsync(storageId, request, expected.Trim('"'), ct).ConfigureAwait(false);
+                http.Response.Headers.ETag = '"' + workspace.ContentHash + '"';
+                return Results.Ok(workspace);
+            }));
         app.MapGet("/api/v1/storage/scopes/{storageId}/diagnostics", async (string storageId, IStorageScopeRegistry registry, CancellationToken ct) =>
             await HandleAsync(async () =>
             {
@@ -85,7 +99,9 @@ public static class StorageScopeEndpoints
 
     internal static Task<object> ToDtoAsync(StorageScopeDescriptor scope, IStorageScopeRegistry registry, CancellationToken ct)
     {
+        var workspace = scope.ScopeKind == "project" && registry is IWorkspaceRegistry workspaces ? workspaces.ReadWorkspace(scope.StorageId) : null;
         return Task.FromResult<object>(new { storage_id = scope.StorageId, scope_kind = scope.ScopeKind, project_id = scope.ProjectId, project_root = scope.ProjectRoot,
+            workspace,
             storage_root = scope.Root, backend = scope.Backend, external = scope.External, postgres_connection_reference = scope.PostgresConnectionReference,
             allow_storage_write = registry.GetWritePolicy(scope.StorageId),
             paths = new { config = scope.Config, skills = scope.Skills, packages = scope.Packages, data = scope.Data, state = scope.State,
@@ -97,7 +113,7 @@ public static class StorageScopeEndpoints
     private static async Task<IResult> HandleAsync(Func<Task<IResult>> action)
     {
         try { return await action().ConfigureAwait(false); }
-        catch (ConfigurationDocumentException ex) { return Results.Problem(statusCode: ex.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400,
+        catch (ConfigurationDocumentException ex) { return Results.Problem(statusCode: ex.Code == "workspace_authorization_required" ? 403 : ex.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400,
             title: ex.Code, detail: ex.Message, extensions: new Dictionary<string, object?> { ["code"] = ex.Code, ["diagnostics"] = ex.Diagnostics }); }
         catch (KeyNotFoundException ex) { return Results.Problem(statusCode: 404, title: "storage_scope_not_found", detail: ex.Message); }
         catch (ArgumentException ex) { return Results.Problem(statusCode: 400, title: "invalid_storage_request", detail: ex.Message); }
@@ -105,7 +121,9 @@ public static class StorageScopeEndpoints
         { return Results.Problem(statusCode: 409, title: "storage_conflict", detail: ex.Message); }
     }
 
-    public sealed record OpenScopeRequest(string ProjectPath, string? Name = null, string? Backend = null, string? StorageRoot = null, string? PostgresConnectionReference = null);
+    public sealed record OpenScopeRequest(string ProjectPath, string? Name = null, string? Backend = null, string? StorageRoot = null, string? PostgresConnectionReference = null,
+        IReadOnlyList<WorkspaceSourceRoot>? Roots = null, string? PrimaryRootId = null, string Icon = "folder", string Color = "default");
+    public sealed record WorkspacePreviewRequest(string ProjectPath);
     public sealed record ConfigureScopeRequest(string Backend, string? StorageRoot = null, string? PostgresConnectionReference = null);
     public sealed record CleanupRequest(string Category);
     public sealed record CleanupApplyRequest(string PreviewId);

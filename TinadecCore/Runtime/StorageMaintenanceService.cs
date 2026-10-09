@@ -171,6 +171,7 @@ public sealed class StorageMaintenanceService(IStorageScopeRegistry registry)
         await using var lease = await registry.AcquireExclusiveAsync(storageId, ct).ConfigureAwait(false);
         if (lease.Descriptor.ScopeKind != "project") throw new ArgumentException("Only project storage can be deleted here.");
         await RequireIdleAsync(lease.Services, ct).ConfigureAwait(false);
+        await RequireNoDatabaseExtensionsAsync(lease, ct).ConfigureAwait(false);
         var files = OwnedFiles(lease.Descriptor.Root, lease.Descriptor.Root, ct);
         var preview = new StorageCleanupPreview(Guid.NewGuid().ToString("N"), storageId, "project_storage", lease.Descriptor.Root,
             files.Count, files.Sum(x => x.Length), DateTimeOffset.UtcNow.AddMinutes(5));
@@ -186,6 +187,7 @@ public sealed class StorageMaintenanceService(IStorageScopeRegistry registry)
         await using var exclusive = await registry.AcquireExclusiveAsync(storageId, ct).ConfigureAwait(false);
         using var contentLease = exclusive.Services.GetRequiredService<IContentLeaseRegistry>().AcquireMaintenance();
         await RequireIdleAsync(exclusive.Services, ct).ConfigureAwait(false);
+        await RequireNoDatabaseExtensionsAsync(exclusive, ct).ConfigureAwait(false);
         var descriptor = exclusive.Descriptor;
         var connection = exclusive.Services.GetRequiredService<IDatabaseConnectionInfo>();
         var files = OwnedFiles(descriptor.Root, descriptor.Root, ct);
@@ -218,6 +220,19 @@ public sealed class StorageMaintenanceService(IStorageScopeRegistry registry)
             throw;
         }
         return cleanup.Preview;
+    }
+
+    private static async Task RequireNoDatabaseExtensionsAsync(StorageRuntimeLease lease, CancellationToken ct)
+    {
+        var connection = lease.Services.GetRequiredService<IDatabaseConnectionInfo>();
+        if (connection.Provider != DatabaseProvider.PostgreSql) return;
+        var schema = lease.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<TinadecPersistenceOptions>>().Value.PostgreSql.Schema;
+        await using var database = new Npgsql.NpgsqlConnection(connection.ConnectionString);
+        await database.OpenAsync(ct).ConfigureAwait(false);
+        await using var command = new Npgsql.NpgsqlCommand("SELECT e.extname FROM pg_extension e JOIN pg_namespace n ON n.oid = e.extnamespace WHERE n.nspname = @schema LIMIT 1", database);
+        command.Parameters.AddWithValue("schema", schema ?? "");
+        if (await command.ExecuteScalarAsync(ct).ConfigureAwait(false) is string extension)
+            throw new InvalidOperationException("Project storage cannot be deleted while its schema hosts the database-wide extension '" + extension + "'. Ask the database administrator to relocate the extension first.");
     }
 
     internal static List<FileInfo> OwnedFiles(string root, string directory, CancellationToken ct)

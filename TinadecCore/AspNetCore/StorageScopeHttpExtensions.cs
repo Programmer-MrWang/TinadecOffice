@@ -11,6 +11,7 @@ public static class StorageScopeHttpExtensions
     {
         services.AddSingleton<IStorageScopeRegistry>(sp => new StorageScopeRegistry(sp, sp.GetRequiredService<IConfiguration>(),
             scopedServices => scopedServices.AddTinadecCoreHttp()));
+        services.AddSingleton<IWorkspaceRegistry>(sp => (IWorkspaceRegistry)sp.GetRequiredService<IStorageScopeRegistry>());
         services.AddSingleton<StorageMaintenanceService>();
         services.AddSingleton<ContentCollectionService>();
         services.AddHostedService<StorageScopeRecoveryWorker>();

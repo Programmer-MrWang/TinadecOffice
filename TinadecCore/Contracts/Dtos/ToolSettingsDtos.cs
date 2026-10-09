@@ -121,6 +121,8 @@ public sealed class ToolResourceDiagnosticDto
 /// <summary>Host-authored immutable context, separate from model-supplied tool parameters.</summary>
 public sealed class ToolExecutionContextDto
 {
+    [JsonPropertyName("workspace_roots")] public IReadOnlyList<ToolWorkspaceRootDto> WorkspaceRoots { get; init; } = [];
+    [JsonPropertyName("primary_root_id")] public string? PrimaryRootId { get; init; }
     [JsonPropertyName("schema_version")] public int SchemaVersion { get; init; } = 1;
     [JsonPropertyName("run_id")] public string? RunId { get; init; }
     [JsonPropertyName("storage_id")] public string? StorageId { get; init; }
@@ -138,6 +140,12 @@ public sealed class ToolExecutionContextDto
     [JsonPropertyName("skill_resources")] public IReadOnlyList<ToolSkillSnapshotDto> SkillResources { get; init; } = [];
     [JsonPropertyName("mcp_import_error")] public string? McpImportError { get; init; }
     [JsonPropertyName("resource_diagnostics")] public IReadOnlyList<ToolResourceDiagnosticDto> ResourceDiagnostics { get; init; } = [];
+}
+
+public sealed class ToolWorkspaceRootDto
+{
+    [JsonPropertyName("id")] public string Id { get; init; } = string.Empty;
+    [JsonPropertyName("path")] public string Path { get; init; } = string.Empty;
 }
 
 public sealed class FrozenToolConfigurationDto

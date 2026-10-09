@@ -18,7 +18,9 @@ using Tomlyn.Model;
 namespace TinadecCore.Runtime;
 
 public sealed record OpenStorageScopeRequest(string ProjectPath, string? Name = null, string? Backend = null,
-    string? StorageRoot = null, string? PostgresConnectionReference = null);
+    string? StorageRoot = null, string? PostgresConnectionReference = null,
+    IReadOnlyList<WorkspaceSourceRoot>? Roots = null, string? PrimaryRootId = null,
+    string Icon = "folder", string Color = "default");
 
 public interface IStorageScopeRegistry
 {
@@ -46,7 +48,7 @@ public sealed class StorageRuntimeLease : IAsyncDisposable
 }
 
 /// <summary>Host-owned mounts. Connections, singleton stores and hosted workers never change their scope.</summary>
-public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposable
+public sealed partial class StorageScopeRegistry : IStorageScopeRegistry, IWorkspaceRegistry, IAsyncDisposable
 {
     private readonly IServiceProvider _host;
     private readonly IConfiguration _configuration;
@@ -85,19 +87,36 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
     public async Task<StorageScopeDescriptor> OpenAsync(OpenStorageScopeRequest request, CancellationToken ct = default)
     {
         var projectRoot = StorageScopePaths.NormalizeProjectRoot(request.ProjectPath);
+        var requestedWorkspace = WorkspaceDefinitionFile.Validate(new WorkspaceDefinition(
+            request.Name ?? Path.GetFileName(projectRoot), request.Roots ?? [new("primary", projectRoot)],
+            request.PrimaryRootId ?? "primary", request.Icon, request.Color));
+        foreach (var root in requestedWorkspace.Roots)
+            if (List().Any(scope => IsWithinStorage(scope.Root, root.Path)))
+                throw new ArgumentException("A source folder cannot be inside product storage: " + root.Path);
         if (request.StorageRoot is not null) ValidateDistinctStorageRoot(request.StorageRoot, null);
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         StorageScopeDescriptor scope;
         try
         {
             var existing = _registrations.Values.FirstOrDefault(x => x.OwnerPrincipalId == _identity.PrincipalId
-                && StorageScopeInitializer.SamePath(x.Scope.ProjectRoot!, projectRoot));
+                && (StorageScopeInitializer.SamePath(x.Scope.ProjectRoot!, projectRoot)
+                    || (x.Roots ?? []).Any(root => StorageScopeInitializer.SamePath(root.Path, projectRoot))));
             if (existing is not null)
             {
                 if (request.Backend is not null && request.Backend != existing.Scope.Backend
                     || request.StorageRoot is not null && !StorageScopeInitializer.SamePath(request.StorageRoot, existing.Scope.Root))
                     throw new InvalidOperationException("Use the storage configuration action to change an existing scope.");
                 scope = existing.Scope;
+                // Opening existing data never rewrites its configuration. Explicitly selected roots
+                // may rebind a copied/imported manifest, but must match the displayed definition.
+                if (request.Roots is not null)
+                {
+                    var saved = WorkspaceDefinitionFile.Read(scope, existing.Name);
+                    RequireSameRoots(saved, requestedWorkspace);
+                    _registrations[scope.StorageId] = existing with { Roots = saved.Roots, PrimaryRootId = saved.PrimaryRootId,
+                        HistoricalRoots = MergeHistory(HistoricalRoots(existing), saved.Roots) };
+                    await SaveRegistrationsAsync(ct).ConfigureAwait(false);
+                }
             }
             else
             {
@@ -109,13 +128,22 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
                 {
                     await CloseAsync(moved.Scope.StorageId, ct).ConfigureAwait(false);
                     scope = manifest! with { StorageId = moved.Scope.StorageId };
-                    _registrations[scope.StorageId] = moved with { Scope = scope };
+                    var definition = WorkspaceDefinitionFile.Read(scope, moved.Name);
+                    RequireSelectedRoots(definition, requestedWorkspace, request.Roots is not null, projectRoot);
+                    _registrations[scope.StorageId] = moved with { Scope = scope, Roots = definition.Roots, PrimaryRootId = definition.PrimaryRootId,
+                        HistoricalRoots = MergeHistory(HistoricalRoots(moved), definition.Roots) };
                 }
                 else
                 {
+                    if (manifest is null && !StorageScopeInitializer.SamePath(projectRoot, requestedWorkspace.PrimaryPath))
+                        throw new ArgumentException("A new workspace's project_path must be its primary source folder.");
                     scope = await _initializer.InitializeProjectAsync(Guid.NewGuid().ToString("N"), projectRoot, User,
-                        request.Backend, request.StorageRoot, request.PostgresConnectionReference, ct).ConfigureAwait(false);
-                    _registrations[scope.StorageId] = new(scope, _identity.PrincipalId, false, request.Name ?? Path.GetFileName(projectRoot));
+                        request.Backend, request.StorageRoot, request.PostgresConnectionReference, ct,
+                        workspace: requestedWorkspace).ConfigureAwait(false);
+                    var definition = WorkspaceDefinitionFile.Read(scope, requestedWorkspace.Name);
+                    RequireSelectedRoots(definition, requestedWorkspace, request.Roots is not null, projectRoot);
+                    _registrations[scope.StorageId] = new(scope, _identity.PrincipalId, false, definition.Name,
+                        definition.Roots, definition.PrimaryRootId);
                 }
                 await SaveRegistrationsAsync(ct).ConfigureAwait(false);
             }
@@ -309,7 +337,8 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
             await AtomicWriteAsync(manifestPath, TomlSerializer.Serialize(manifest), ct).ConfigureAwait(false);
         }
         else scope = await _initializer.InitializeProjectAsync(storageId, registration.Scope.ProjectRoot!, User,
-            backend, newRoot, postgresConnectionReference, ct, registration.Scope.ProjectId).ConfigureAwait(false);
+            backend, newRoot, postgresConnectionReference, ct, registration.Scope.ProjectId,
+            workspace: ReadWorkspace(storageId, requireAvailable: true)).ConfigureAwait(false);
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try { _registrations[storageId] = registration with { Scope = scope }; await SaveRegistrationsAsync(ct).ConfigureAwait(false); }
         finally { _gate.Release(); }
@@ -329,6 +358,7 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
     {
         var scope = registration.Scope;
         if (!Directory.Exists(scope.ProjectRoot)) throw new DirectoryNotFoundException("The registered project directory is unavailable.");
+        var workspace = ReadWorkspace(scope.StorageId);
         var manifest = StorageScopeInitializer.ReadManifest(scope.StorageId, scope.ProjectRoot!, scope.Root, external: scope.External);
         if (manifest.ProjectId != scope.ProjectId || manifest.Backend != scope.Backend
             || manifest.PostgresConnectionReference != scope.PostgresConnectionReference)
@@ -359,6 +389,8 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
         if (_host.GetService<IHostApplicationLifetime>() is { } lifetime) services.AddSingleton(lifetime);
         services.AddSingleton<IScopeStorageLocations>(scope);
         services.AddSingleton<IStorageScopeRegistry>(this);
+        services.AddSingleton<IWorkspaceRegistry>(this);
+        services.AddSingleton<IWorkspaceDefinitionProvider>(new RegisteredWorkspace(this, scope.StorageId));
         services.AddSingleton<IProtectedStorageRoots>(new HostProtectedRoots(this, scope.StorageId));
         services.AddTinadecPersistence(configuration, scope.Root);
         services.AddTinadecCore();
@@ -385,8 +417,8 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
             var store = provider.GetRequiredService<ProjectSessionStore>();
             var projects = await store.ListProjectsAsync().ConfigureAwait(false);
             if (!projects.Any(x => x.Id == scope.ProjectId))
-                await store.CreateProjectAsync(registration.Name, scope.ProjectRoot!, stableProjectId: scope.ProjectId).ConfigureAwait(false);
-            else await store.RebindProjectRootAsync(scope.ProjectId!.Value, scope.ProjectRoot!).ConfigureAwait(false);
+                await store.CreateProjectAsync(workspace.Name, workspace.PrimaryPath, stableProjectId: scope.ProjectId).ConfigureAwait(false);
+            else await store.RebindProjectRootAsync(scope.ProjectId!.Value, workspace.PrimaryPath).ConfigureAwait(false);
             // Opening imported data does not authorize a recovered mutation. Recovery retains the existing approval gates.
             await provider.GetRequiredService<StorageLifecycleService>().ReconcileAsync().ConfigureAwait(false);
             await using (var recoveryScope = provider.CreateAsyncScope())
@@ -446,8 +478,13 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
                 Path.GetFullPath(item["project_root"].ToString()!), Guid.Parse(item["project_id"].ToString()!),
                 StorageScopeInitializer.ValidateBackend(item["backend"].ToString()!), Convert.ToBoolean(item["external"]),
                 StorageScopeInitializer.Value(item, "postgres_connection_reference")?.ToString());
+            var roots = StorageScopeInitializer.Value(item, "authorized_roots") is TomlTableArray rows
+                ? rows.Select(row => new WorkspaceSourceRoot(row["id"].ToString()!, Path.GetFullPath(row["path"].ToString()!))).ToArray() : null;
             _registrations[id] = new(scope, Guid.Parse(item["owner_principal_id"].ToString()!),
-                Convert.ToBoolean(StorageScopeInitializer.Value(item, "allow_storage_write") ?? false), item["name"].ToString()!);
+                Convert.ToBoolean(StorageScopeInitializer.Value(item, "allow_storage_write") ?? false), item["name"].ToString()!,
+                roots, StorageScopeInitializer.Value(item, "primary_root_id")?.ToString(),
+                StorageScopeInitializer.Value(item, "historical_roots") is TomlTableArray historical
+                    ? historical.Select(row => new WorkspaceSourceRoot(row["id"].ToString()!, Path.GetFullPath(row["path"].ToString()!))).ToArray() : null);
         }
     }
 
@@ -465,6 +502,16 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
                 ["name"] = registration.Name
             };
             if (scope.PostgresConnectionReference is { } reference) entry["postgres_connection_reference"] = reference;
+            if (registration.Roots is { } roots)
+            {
+                entry["primary_root_id"] = registration.PrimaryRootId!;
+                var grants = new TomlTableArray();
+                foreach (var root in roots) grants.Add(new TomlTable { ["id"] = root.Id, ["path"] = root.Path });
+                entry["authorized_roots"] = grants;
+            }
+            var historical = new TomlTableArray();
+            foreach (var root in HistoricalRoots(registration)) historical.Add(new TomlTable { ["id"] = root.Id, ["path"] = root.Path });
+            entry["historical_roots"] = historical;
             entries.Add(entry);
         }
         return AtomicWriteAsync(_registryFile, TomlSerializer.Serialize(new TomlTable { ["schema_version"] = 1, ["projects"] = entries }), ct);
@@ -541,7 +588,8 @@ public sealed class StorageScopeRegistry : IStorageScopeRegistry, IAsyncDisposab
         _runtimes.Clear(); _mounts.Clear(); _gate.Dispose();
     }
 
-    private sealed record Registration(StorageScopeDescriptor Scope, Guid OwnerPrincipalId, bool AllowStorageWrite, string Name);
+    private sealed record Registration(StorageScopeDescriptor Scope, Guid OwnerPrincipalId, bool AllowStorageWrite, string Name,
+        IReadOnlyList<WorkspaceSourceRoot>? Roots = null, string? PrimaryRootId = null, IReadOnlyList<WorkspaceSourceRoot>? HistoricalRoots = null);
     private sealed class HostTenantContext(TenantContext identity) : ITenantContextAccessor { public TenantContext Current => identity; }
     private sealed class HostProjectWritePolicy(bool allow) : IProjectStorageWritePolicy
     {

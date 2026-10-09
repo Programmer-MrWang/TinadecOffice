@@ -1,0 +1,542 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="82909e6a-a6d4-42be-888a-82c2330975cc" name="@linstation 2026-10-10 04:16:53" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-10T04:16:53.7956005+08:00" queuing="2026-10-10T04:16:53.7956006+08:00" start="2026-10-10T04:16:51.2627998+08:00" finish="2026-10-10T04:17:00.3482400+08:00" />
+  <TestSettings name="default" id="3456f46d-a7db-40cb-85cf-6eaa7ed1b894">
+    <Deployment runDeploymentRoot="_linstation_2026-10-10_04_16_53" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="75d3318b-d2d9-4f72-a728-4ff650d67e8e" testId="83995976-5372-686e-689d-9665faf0ab81" testName="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_ConfiguresOnlyWriteSideRights" computerName="linstation" duration="00:00:00.0002469" startTime="2026-10-10T04:16:53.5958125+08:00" endTime="2026-10-10T04:16:53.5959038+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="75d3318b-d2d9-4f72-a728-4ff650d67e8e" />
+    <UnitTestResult executionId="7c363b1c-0384-4ef4-b691-3055fa9b3b28" testId="68af0863-3240-6e35-2f0d-74ccd5bbd508" testName="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_EscapesQuotesAndBackslashesSoAPathCannotBecomeSyntax" computerName="linstation" duration="00:00:00.0032515" startTime="2026-10-10T04:16:53.5953717+08:00" endTime="2026-10-10T04:16:53.5954314+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7c363b1c-0384-4ef4-b691-3055fa9b3b28" />
+    <UnitTestResult executionId="f7984d55-1dee-4631-b1f9-6444b7c618af" testId="9fb986c3-4a4b-e939-89d3-f5dd435e197b" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" computerName="linstation" duration="00:00:00.0312005" startTime="2026-10-10T04:16:59.1688605+08:00" endTime="2026-10-10T04:16:59.2033177+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f7984d55-1dee-4631-b1f9-6444b7c618af">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Contains() Failure: Sub-string not found
+String:    ""
+Not found: "started"</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 215
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="e1c286a8-90e6-4a43-b22f-5fc0b55e565b" testId="7037ea9c-1964-0e55-a2ad-eb8643a1f915" testName="TinadecTools.Tests.MultiFolderToolTests.FrozenEnvelopeAllowsBothSourcesAndRejectsOutsideAndProtectedStorage" computerName="linstation" duration="00:00:00.2075931" startTime="2026-10-10T04:16:59.9731209+08:00" endTime="2026-10-10T04:17:00.1827124+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e1c286a8-90e6-4a43-b22f-5fc0b55e565b" />
+    <UnitTestResult executionId="252c0bdc-f1a8-466c-b4c2-c9d4d4bee4c0" testId="9c3332e7-5b03-bfa5-c8d8-89a4638b9926" testName="TinadecTools.Tests.PosixSandboxTests.LinuxPayload_RoundTripsThroughTheSourceGeneratedContext_InSnakeCase" computerName="linstation" duration="00:00:00.1253437" startTime="2026-10-10T04:16:53.5949283+08:00" endTime="2026-10-10T04:16:53.5950008+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="252c0bdc-f1a8-466c-b4c2-c9d4d4bee4c0" />
+    <UnitTestResult executionId="73ea298b-acf8-4eec-93d3-01721172da35" testId="197a9a09-c2fa-9f71-9245-f9ae8d68b524" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds" computerName="linstation" duration="00:00:00.1390478" startTime="2026-10-10T04:16:53.9776846+08:00" endTime="2026-10-10T04:16:54.0611259+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="73ea298b-acf8-4eec-93d3-01721172da35">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=131 stdout= stderr=You must install .NET to run this application.
+
+App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+Architecture: x64
+App host version: 10.0.8
+.NET location: Not found
+
+The following locations were searched:
+  Application directory:
+    /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+  Environment variable:
+    DOTNET_ROOT_X64 = &lt;not set&gt;
+    DOTNET_ROOT = &lt;not set&gt;
+  Registered location:
+    /etc/dotnet/install_location_x64 = &lt;not set&gt;
+  Default location:
+    /usr/share/dotnet
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+Download the .NET runtime:
+https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+ error= profile=(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write*
+  (require-all
+    (require-any
+      (subpath "/tmp/tinadec-sbx-it-u1Uxdt")
+    )
+  )
+)
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 144
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="f5dc7e26-c888-4528-9f63-8ca03f2e235b" testId="bda35a3e-2df3-b355-bb8e-ebf44ec78598" testName="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 4, expectedRight: 16384)" computerName="linstation" duration="00:00:00.0022722" startTime="2026-10-10T04:16:53.3831023+08:00" endTime="2026-10-10T04:16:53.3831950+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f5dc7e26-c888-4528-9f63-8ca03f2e235b" />
+    <UnitTestResult executionId="c674c1fd-9e28-4cc8-89bd-e83805ce3ebf" testId="cad18fbc-1a53-22c3-c494-4a817c7e994e" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" computerName="linstation" duration="00:00:00.0013088" startTime="2026-10-10T04:16:54.0632028+08:00" endTime="2026-10-10T04:16:54.0635398+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c674c1fd-9e28-4cc8-89bd-e83805ce3ebf" />
+    <UnitTestResult executionId="96e2c904-29c5-445e-8e0e-87e52eb01423" testId="a79bdcd7-b856-66b7-99cb-b7acb8c3e382" testName="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants" computerName="linstation" duration="00:00:00.0021518" startTime="2026-10-10T04:16:53.3808706+08:00" endTime="2026-10-10T04:16:53.3809450+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="96e2c904-29c5-445e-8e0e-87e52eb01423" />
+    <UnitTestResult executionId="ca41686a-a03f-439c-b0d6-de7273a8e0cc" testId="9dd13730-de00-6fce-4648-c10ef1020b49" testName="TinadecTools.Tests.PosixSandboxTests.LinuxLauncherMode_IsRecognisedOnlyAsTheFirstArgument" computerName="linstation" duration="00:00:00.0014328" startTime="2026-10-10T04:16:53.3795120+08:00" endTime="2026-10-10T04:16:53.3796427+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ca41686a-a03f-439c-b0d6-de7273a8e0cc" />
+    <UnitTestResult executionId="32aa1ba1-de20-44d4-a776-c7a2026a8891" testId="83b898ad-e987-8f8b-e531-00c7f08b353a" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup" computerName="linstation" duration="00:00:05.0703686" startTime="2026-10-10T04:16:54.0643276+08:00" endTime="2026-10-10T04:16:59.1374707+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="32aa1ba1-de20-44d4-a776-c7a2026a8891">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=131 stdout= stderr=You must install .NET to run this application.
+
+App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+Architecture: x64
+App host version: 10.0.8
+.NET location: Not found
+
+The following locations were searched:
+  Application directory:
+    /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+  Environment variable:
+    DOTNET_ROOT_X64 = &lt;not set&gt;
+    DOTNET_ROOT = &lt;not set&gt;
+  Registered location:
+    /etc/dotnet/install_location_x64 = &lt;not set&gt;
+  Default location:
+    /usr/share/dotnet
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+Download the .NET runtime:
+https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 271
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="121d5de4-33ba-4725-b5f6-8bcc42d7aebe" testId="aac3d691-cbf4-de51-3154-fc61e7e09541" testName="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 1, expected: 2)" computerName="linstation" duration="00:00:00.0000626" startTime="2026-10-10T04:16:53.3825621+08:00" endTime="2026-10-10T04:16:53.3826618+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="121d5de4-33ba-4725-b5f6-8bcc42d7aebe" />
+    <UnitTestResult executionId="da8176c2-aff4-4f98-981d-96d3874d9981" testId="aaaec24c-c266-f55f-b704-dd72e9361b8e" testName="TinadecTools.Tests.MultiFolderToolTests.WindowsRunnerRetainsHostFolderSetAndRejectsUnlistedWorkingDirectories" computerName="linstation" duration="00:00:00.0083777" startTime="2026-10-10T04:16:59.9653035+08:00" endTime="2026-10-10T04:16:59.9727813+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="da8176c2-aff4-4f98-981d-96d3874d9981" />
+    <UnitTestResult executionId="77afc980-0664-4522-97ec-a89da6be3a23" testId="d6e7637b-6350-a30b-18e3-87615411d6ec" testName="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 2, expectedRight: 8192)" computerName="linstation" duration="00:00:00.0007825" startTime="2026-10-10T04:16:53.5943060+08:00" endTime="2026-10-10T04:16:53.5944431+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="77afc980-0664-4522-97ec-a89da6be3a23" />
+    <UnitTestResult executionId="3ce147eb-4cab-4b8b-96a2-229181a5eada" testId="b3d69371-3246-a3e8-7c3a-30a0c8ca4837" testName="TinadecTools.Tests.PosixSandboxTests.WriteTargets_DeduplicatesUnderCaseSensitivePosixComparison" computerName="linstation" duration="00:00:00.0024488" startTime="2026-10-10T04:16:53.5951135+08:00" endTime="2026-10-10T04:16:53.5951752+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3ce147eb-4cab-4b8b-96a2-229181a5eada" />
+    <UnitTestResult executionId="3a6cdb0e-f941-4621-a8f8-1f7cb201dfaf" testId="2a131d84-6067-c26e-07a0-e59cbc4734e9" testName="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_NeverHandlesDeviceOrSocketCreation" computerName="linstation" duration="00:00:00.0004775" startTime="2026-10-10T04:16:53.5956747+08:00" endTime="2026-10-10T04:16:53.5957329+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3a6cdb0e-f941-4621-a8f8-1f7cb201dfaf" />
+    <UnitTestResult executionId="071effbf-2bc9-4c8c-b058-d59f7d3c6aba" testId="93e3e31a-1cab-e388-f80c-4beb96c5a0b2" testName="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_WithNoGrantsStaysDenyAllWrites" computerName="linstation" duration="00:00:00.0006169" startTime="2026-10-10T04:16:53.3828628+08:00" endTime="2026-10-10T04:16:53.3829558+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="071effbf-2bc9-4c8c-b058-d59f7d3c6aba" />
+    <UnitTestResult executionId="c2461fc3-6bd4-4623-be7d-8754654a0afe" testId="29570da0-cf7f-3839-ea85-0369284314de" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse" computerName="linstation" duration="00:00:00.0265260" startTime="2026-10-10T04:16:59.2081351+08:00" endTime="2026-10-10T04:16:59.2329098+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c2461fc3-6bd4-4623-be7d-8754654a0afe">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=131 stdout= stderr=You must install .NET to run this application.
+
+App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+Architecture: x64
+App host version: 10.0.8
+.NET location: Not found
+
+The following locations were searched:
+  Application directory:
+    /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+  Environment variable:
+    DOTNET_ROOT_X64 = &lt;not set&gt;
+    DOTNET_ROOT = &lt;not set&gt;
+  Registered location:
+    /etc/dotnet/install_location_x64 = &lt;not set&gt;
+  Default location:
+    /usr/share/dotnet
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+Download the .NET runtime:
+https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+ error= run=[/tmp/tinadec-sbx-it-gme1IJ | TMPDIR=/tmp/ | launcher=/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools]</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 240
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="8c84dfb9-d98b-42b5-aa16-3a174dd8a86e" testId="c9a102c4-ef2c-4cc8-44a1-0834fe94a693" testName="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_UsesLiteralForFilesAndSubpathForDirectories" computerName="linstation" duration="00:00:00.0695458" startTime="2026-10-10T04:16:53.2474184+08:00" endTime="2026-10-10T04:16:53.3361689+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8c84dfb9-d98b-42b5-aa16-3a174dd8a86e" />
+    <UnitTestResult executionId="ad454fdb-2ada-4584-b466-84a2878cd07b" testId="711badb2-c21e-c02b-fd27-60fac71312f0" testName="TinadecTools.Tests.MultiFolderToolTests.WindowsCommandAndGitUseAnAuthorizedSecondaryFolder" computerName="linstation" duration="00:00:00.7233249" startTime="2026-10-10T04:16:59.2402498+08:00" endTime="2026-10-10T04:16:59.9638185+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ad454fdb-2ada-4584-b466-84a2878cd07b" />
+    <UnitTestResult executionId="1f3324f7-c81c-4827-8de9-b5de015ea5c5" testId="9acc27f5-41b4-9756-4805-f75573af087f" testName="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 2, expected: 2)" computerName="linstation" duration="00:00:00.0198440" startTime="2026-10-10T04:16:53.3811905+08:00" endTime="2026-10-10T04:16:53.3812570+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1f3324f7-c81c-4827-8de9-b5de015ea5c5" />
+    <UnitTestResult executionId="e5032cad-f672-4d51-a6f3-ccc81835a2b5" testId="c2514246-e0f8-da7e-db56-a7f90fbe0a75" testName="TinadecTools.Tests.PosixSandboxTests.WriteTargets_AlwaysIncludeTheScratchCacheAndTemporaryDirectory" computerName="linstation" duration="00:00:00.0152533" startTime="2026-10-10T04:16:53.5955268+08:00" endTime="2026-10-10T04:16:53.5955872+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e5032cad-f672-4d51-a6f3-ccc81835a2b5" />
+    <UnitTestResult executionId="19e88c56-d562-4f7a-b6d4-6c92948d20ae" testId="af21f0f9-6f02-ebd9-3596-27ecd2a097b4" testName="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 4, expected: 16386)" computerName="linstation" duration="00:00:00.0009002" startTime="2026-10-10T04:16:53.3819190+08:00" endTime="2026-10-10T04:16:53.3821870+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="19e88c56-d562-4f7a-b6d4-6c92948d20ae" />
+    <UnitTestResult executionId="dda0b3d1-a868-4483-8e39-d716f5d5b666" testId="d22f80dc-4806-6ddb-f08a-8de07fd57d79" testName="TinadecTools.Tests.PosixSandboxTests.BubblewrapWritableDeviceBindStaysAtTheExactNullDevice" computerName="linstation" duration="00:00:00.0004166" startTime="2026-10-10T04:16:53.5959949+08:00" endTime="2026-10-10T04:16:53.5960526+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="dda0b3d1-a868-4483-8e39-d716f5d5b666" />
+    <UnitTestResult executionId="cca4eb53-7cba-4c71-a714-507c43324f22" testId="79834acb-d9a0-93b3-5d64-947f8a943783" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites" computerName="linstation" duration="00:00:00.5985748" startTime="2026-10-10T04:16:53.2543691+08:00" endTime="2026-10-10T04:16:53.9064070+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cca4eb53-7cba-4c71-a714-507c43324f22">
+      <Output>
+        <ErrorInfo>
+          <Message> You must install .NET to run this application.
+
+App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+Architecture: x64
+App host version: 10.0.8
+.NET location: Not found
+
+The following locations were searched:
+  Application directory:
+    /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+  Environment variable:
+    DOTNET_ROOT_X64 = &lt;not set&gt;
+    DOTNET_ROOT = &lt;not set&gt;
+  Registered location:
+    /etc/dotnet/install_location_x64 = &lt;not set&gt;
+  Default location:
+    /usr/share/dotnet
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+Download the .NET runtime:
+https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 113
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="674148e2-4a3a-4af4-bcde-c4eed0430880" testId="358d8605-f5ce-4c49-ef7c-730d4076c5f6" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TheConfinementMechanismThisPlatformReliesOnIsPresent" computerName="linstation" duration="00:00:00.0022497" startTime="2026-10-10T04:16:59.2076072+08:00" endTime="2026-10-10T04:16:59.2078377+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="674148e2-4a3a-4af4-bcde-c4eed0430880" />
+    <UnitTestResult executionId="adbc1130-0a58-4035-b836-c140260dc77a" testId="bf0325dd-d877-b454-dcc2-2c2262e221dc" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable" computerName="linstation" duration="00:00:00.0275117" startTime="2026-10-10T04:16:59.1397799+08:00" endTime="2026-10-10T04:16:59.1677188+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="adbc1130-0a58-4035-b836-c140260dc77a">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=131 stdout= stderr=You must install .NET to run this application.
+
+App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+Architecture: x64
+App host version: 10.0.8
+.NET location: Not found
+
+The following locations were searched:
+  Application directory:
+    /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+  Environment variable:
+    DOTNET_ROOT_X64 = &lt;not set&gt;
+    DOTNET_ROOT = &lt;not set&gt;
+  Registered location:
+    /etc/dotnet/install_location_x64 = &lt;not set&gt;
+  Default location:
+    /usr/share/dotnet
+
+Learn more:
+https://aka.ms/dotnet/app-launch-failed
+
+Download the .NET runtime:
+https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 178
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="52079963-377a-4169-a170-db0794d9a911" testId="dd1aeee4-08ec-df62-68a7-81ec8e705611" testName="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers" computerName="linstation" duration="00:00:00.0008546" startTime="2026-10-10T04:16:53.5961329+08:00" endTime="2026-10-10T04:16:53.5961884+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="52079963-377a-4169-a170-db0794d9a911" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TheConfinementMechanismThisPlatformReliesOnIsPresent" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="358d8605-f5ce-4c49-ef7c-730d4076c5f6">
+      <Execution id="674148e2-4a3a-4af4-bcde-c4eed0430880" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TheConfinementMechanismThisPlatformReliesOnIsPresent" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="dd1aeee4-08ec-df62-68a7-81ec8e705611">
+      <Execution id="52079963-377a-4169-a170-db0794d9a911" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 4, expectedRight: 16384)" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="bda35a3e-2df3-b355-bb8e-ebf44ec78598">
+      <Execution id="f5dc7e26-c888-4528-9f63-8ca03f2e235b" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_EscapesQuotesAndBackslashesSoAPathCannotBecomeSyntax" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="68af0863-3240-6e35-2f0d-74ccd5bbd508">
+      <Execution id="7c363b1c-0384-4ef4-b691-3055fa9b3b28" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="SeatbeltProfile_EscapesQuotesAndBackslashesSoAPathCannotBecomeSyntax" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.LinuxLauncherMode_IsRecognisedOnlyAsTheFirstArgument" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="9dd13730-de00-6fce-4648-c10ef1020b49">
+      <Execution id="ca41686a-a03f-439c-b0d6-de7273a8e0cc" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="LinuxLauncherMode_IsRecognisedOnlyAsTheFirstArgument" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.LinuxPayload_RoundTripsThroughTheSourceGeneratedContext_InSnakeCase" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="9c3332e7-5b03-bfa5-c8d8-89a4638b9926">
+      <Execution id="252c0bdc-f1a8-466c-b4c2-c9d4d4bee4c0" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="LinuxPayload_RoundTripsThroughTheSourceGeneratedContext_InSnakeCase" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 1, expected: 2)" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="aac3d691-cbf4-de51-3154-fc61e7e09541">
+      <Execution id="121d5de4-33ba-4725-b5f6-8bcc42d7aebe" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.MultiFolderToolTests.WindowsRunnerRetainsHostFolderSetAndRejectsUnlistedWorkingDirectories" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="aaaec24c-c266-f55f-b704-dd72e9361b8e">
+      <Execution id="da8176c2-aff4-4f98-981d-96d3874d9981" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.MultiFolderToolTests" name="WindowsRunnerRetainsHostFolderSetAndRejectsUnlistedWorkingDirectories" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 2, expected: 2)" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="9acc27f5-41b4-9756-4805-f75573af087f">
+      <Execution id="1f3324f7-c81c-4827-8de9-b5de015ea5c5" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="197a9a09-c2fa-9f71-9245-f9ae8d68b524">
+      <Execution id="73ea298b-acf8-4eec-93d3-01721172da35" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="AWriteInsideTheGrantedDirectorySucceeds" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_ConfiguresOnlyWriteSideRights" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="83995976-5372-686e-689d-9665faf0ab81">
+      <Execution id="75d3318b-d2d9-4f72-a728-4ff650d67e8e" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="HandledAccessFs_ConfiguresOnlyWriteSideRights" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="bf0325dd-d877-b454-dcc2-2c2262e221dc">
+      <Execution id="adbc1130-0a58-4035-b836-c140260dc77a" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_UsesLiteralForFilesAndSubpathForDirectories" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="c9a102c4-ef2c-4cc8-44a1-0834fe94a693">
+      <Execution id="8c84dfb9-d98b-42b5-aa16-3a174dd8a86e" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="SeatbeltProfile_UsesLiteralForFilesAndSubpathForDirectories" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="a79bdcd7-b856-66b7-99cb-b7acb8c3e382">
+      <Execution id="96e2c904-29c5-445e-8e0e-87e52eb01423" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 2, expectedRight: 8192)" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="d6e7637b-6350-a30b-18e3-87615411d6ec">
+      <Execution id="77afc980-0664-4522-97ec-a89da6be3a23" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="cad18fbc-1a53-22c3-c494-4a817c7e994e">
+      <Execution id="c674c1fd-9e28-4cc8-89bd-e83805ce3ebf" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.WriteTargets_AlwaysIncludeTheScratchCacheAndTemporaryDirectory" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="c2514246-e0f8-da7e-db56-a7f90fbe0a75">
+      <Execution id="e5032cad-f672-4d51-a6f3-ccc81835a2b5" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="WriteTargets_AlwaysIncludeTheScratchCacheAndTemporaryDirectory" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.BubblewrapWritableDeviceBindStaysAtTheExactNullDevice" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="d22f80dc-4806-6ddb-f08a-8de07fd57d79">
+      <Execution id="dda0b3d1-a868-4483-8e39-d716f5d5b666" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="BubblewrapWritableDeviceBindStaysAtTheExactNullDevice" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.MultiFolderToolTests.WindowsCommandAndGitUseAnAuthorizedSecondaryFolder" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="711badb2-c21e-c02b-fd27-60fac71312f0">
+      <Execution id="ad454fdb-2ada-4584-b466-84a2878cd07b" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.MultiFolderToolTests" name="WindowsCommandAndGitUseAnAuthorizedSecondaryFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 4, expected: 16386)" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="af21f0f9-6f02-ebd9-3596-27ecd2a097b4">
+      <Execution id="19e88c56-d562-4f7a-b6d4-6c92948d20ae" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="83b898ad-e987-8f8b-e531-00c7f08b353a">
+      <Execution id="32aa1ba1-de20-44d4-a776-c7a2026a8891" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TerminationReachesTheWholeProcessGroup" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.MultiFolderToolTests.FrozenEnvelopeAllowsBothSourcesAndRejectsOutsideAndProtectedStorage" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="7037ea9c-1964-0e55-a2ad-eb8643a1f915">
+      <Execution id="e1c286a8-90e6-4a43-b22f-5fc0b55e565b" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.MultiFolderToolTests" name="FrozenEnvelopeAllowsBothSourcesAndRejectsOutsideAndProtectedStorage" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_WithNoGrantsStaysDenyAllWrites" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="93e3e31a-1cab-e388-f80c-4beb96c5a0b2">
+      <Execution id="071effbf-2bc9-4c8c-b058-d59f7d3c6aba" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="SeatbeltProfile_WithNoGrantsStaysDenyAllWrites" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.WriteTargets_DeduplicatesUnderCaseSensitivePosixComparison" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="b3d69371-3246-a3e8-7c3a-30a0c8ca4837">
+      <Execution id="3ce147eb-4cab-4b8b-96a2-229181a5eada" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="WriteTargets_DeduplicatesUnderCaseSensitivePosixComparison" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="79834acb-d9a0-93b3-5d64-947f8a943783">
+      <Execution id="cca4eb53-7cba-4c71-a714-507c43324f22" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="29570da0-cf7f-3839-ea85-0369284314de">
+      <Execution id="c2461fc3-6bd4-4623-be7d-8754654a0afe" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TheChildSeesTheRetainedEnvironmentAndNothingElse" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_NeverHandlesDeviceOrSocketCreation" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="2a131d84-6067-c26e-07a0-e59cbc4734e9">
+      <Execution id="3a6cdb0e-f941-4621-a8f8-1f7cb201dfaf" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxTests" name="HandledAccessFs_NeverHandlesDeviceOrSocketCreation" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" storage="/var/tmp/tinadec-workspaces-20261010.jcokij/artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="9fb986c3-4a4b-e939-89d3-f5dd435e197b">
+      <Execution id="f7984d55-1dee-4631-b1f9-6444b7c618af" />
+      <TestMethod codeBase="/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="83995976-5372-686e-689d-9665faf0ab81" executionId="75d3318b-d2d9-4f72-a728-4ff650d67e8e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="68af0863-3240-6e35-2f0d-74ccd5bbd508" executionId="7c363b1c-0384-4ef4-b691-3055fa9b3b28" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9fb986c3-4a4b-e939-89d3-f5dd435e197b" executionId="f7984d55-1dee-4631-b1f9-6444b7c618af" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7037ea9c-1964-0e55-a2ad-eb8643a1f915" executionId="e1c286a8-90e6-4a43-b22f-5fc0b55e565b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9c3332e7-5b03-bfa5-c8d8-89a4638b9926" executionId="252c0bdc-f1a8-466c-b4c2-c9d4d4bee4c0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="197a9a09-c2fa-9f71-9245-f9ae8d68b524" executionId="73ea298b-acf8-4eec-93d3-01721172da35" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bda35a3e-2df3-b355-bb8e-ebf44ec78598" executionId="f5dc7e26-c888-4528-9f63-8ca03f2e235b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cad18fbc-1a53-22c3-c494-4a817c7e994e" executionId="c674c1fd-9e28-4cc8-89bd-e83805ce3ebf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a79bdcd7-b856-66b7-99cb-b7acb8c3e382" executionId="96e2c904-29c5-445e-8e0e-87e52eb01423" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9dd13730-de00-6fce-4648-c10ef1020b49" executionId="ca41686a-a03f-439c-b0d6-de7273a8e0cc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="83b898ad-e987-8f8b-e531-00c7f08b353a" executionId="32aa1ba1-de20-44d4-a776-c7a2026a8891" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="aac3d691-cbf4-de51-3154-fc61e7e09541" executionId="121d5de4-33ba-4725-b5f6-8bcc42d7aebe" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="aaaec24c-c266-f55f-b704-dd72e9361b8e" executionId="da8176c2-aff4-4f98-981d-96d3874d9981" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d6e7637b-6350-a30b-18e3-87615411d6ec" executionId="77afc980-0664-4522-97ec-a89da6be3a23" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b3d69371-3246-a3e8-7c3a-30a0c8ca4837" executionId="3ce147eb-4cab-4b8b-96a2-229181a5eada" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2a131d84-6067-c26e-07a0-e59cbc4734e9" executionId="3a6cdb0e-f941-4621-a8f8-1f7cb201dfaf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="93e3e31a-1cab-e388-f80c-4beb96c5a0b2" executionId="071effbf-2bc9-4c8c-b058-d59f7d3c6aba" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="29570da0-cf7f-3839-ea85-0369284314de" executionId="c2461fc3-6bd4-4623-be7d-8754654a0afe" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c9a102c4-ef2c-4cc8-44a1-0834fe94a693" executionId="8c84dfb9-d98b-42b5-aa16-3a174dd8a86e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="711badb2-c21e-c02b-fd27-60fac71312f0" executionId="ad454fdb-2ada-4584-b466-84a2878cd07b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9acc27f5-41b4-9756-4805-f75573af087f" executionId="1f3324f7-c81c-4827-8de9-b5de015ea5c5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c2514246-e0f8-da7e-db56-a7f90fbe0a75" executionId="e5032cad-f672-4d51-a6f3-ccc81835a2b5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="af21f0f9-6f02-ebd9-3596-27ecd2a097b4" executionId="19e88c56-d562-4f7a-b6d4-6c92948d20ae" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d22f80dc-4806-6ddb-f08a-8de07fd57d79" executionId="dda0b3d1-a868-4483-8e39-d716f5d5b666" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="79834acb-d9a0-93b3-5d64-947f8a943783" executionId="cca4eb53-7cba-4c71-a714-507c43324f22" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="358d8605-f5ce-4c49-ef7c-730d4076c5f6" executionId="674148e2-4a3a-4af4-bcde-c4eed0430880" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bf0325dd-d877-b454-dcc2-2c2262e221dc" executionId="adbc1130-0a58-4035-b836-c140260dc77a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dd1aeee4-08ec-df62-68a7-81ec8e705611" executionId="52079963-377a-4169-a170-db0794d9a911" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="28" executed="28" passed="22" failed="6" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.01] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.8)
+[xUnit.net 00:00:00.27]   Discovering: TinadecTools.Tests
+[xUnit.net 00:00:00.60]   Discovered:  TinadecTools.Tests
+[xUnit.net 00:00:00.71]   Starting:    TinadecTools.Tests
+[xUnit.net 00:00:01.48]        You must install .NET to run this application.
+[xUnit.net 00:00:01.49]       
+[xUnit.net 00:00:01.49]       App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+[xUnit.net 00:00:01.49]       Architecture: x64
+[xUnit.net 00:00:01.49]       App host version: 10.0.8
+[xUnit.net 00:00:01.49]       .NET location: Not found
+[xUnit.net 00:00:01.49]       
+[xUnit.net 00:00:01.49]       The following locations were searched:
+[xUnit.net 00:00:01.49]         Application directory:
+[xUnit.net 00:00:01.49]           /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+[xUnit.net 00:00:01.49]         Environment variable:
+[xUnit.net 00:00:01.49]           DOTNET_ROOT_X64 = &lt;not set&gt;
+[xUnit.net 00:00:01.49]           DOTNET_ROOT = &lt;not set&gt;
+[xUnit.net 00:00:01.49]         Registered location:
+[xUnit.net 00:00:01.49]           /etc/dotnet/install_location_x64 = &lt;not set&gt;
+[xUnit.net 00:00:01.49]         Default location:
+[xUnit.net 00:00:01.49]           /usr/share/dotnet
+[xUnit.net 00:00:01.49]       
+[xUnit.net 00:00:01.49]       Learn more:
+[xUnit.net 00:00:01.49]       https://aka.ms/dotnet/app-launch-failed
+[xUnit.net 00:00:01.49]       
+[xUnit.net 00:00:01.49]       Download the .NET runtime:
+[xUnit.net 00:00:01.49]       https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+[xUnit.net 00:00:01.49]       
+[xUnit.net 00:00:01.50]       Stack Trace:
+[xUnit.net 00:00:01.51]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(113,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites()
+[xUnit.net 00:00:01.51]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:01.62]       exit=131 stdout= stderr=You must install .NET to run this application.
+[xUnit.net 00:00:01.62]       
+[xUnit.net 00:00:01.62]       App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+[xUnit.net 00:00:01.62]       Architecture: x64
+[xUnit.net 00:00:01.62]       App host version: 10.0.8
+[xUnit.net 00:00:01.62]       .NET location: Not found
+[xUnit.net 00:00:01.62]       
+[xUnit.net 00:00:01.62]       The following locations were searched:
+[xUnit.net 00:00:01.62]         Application directory:
+[xUnit.net 00:00:01.62]           /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+[xUnit.net 00:00:01.62]         Environment variable:
+[xUnit.net 00:00:01.62]           DOTNET_ROOT_X64 = &lt;not set&gt;
+[xUnit.net 00:00:01.62]           DOTNET_ROOT = &lt;not set&gt;
+[xUnit.net 00:00:01.62]         Registered location:
+[xUnit.net 00:00:01.62]           /etc/dotnet/install_location_x64 = &lt;not set&gt;
+[xUnit.net 00:00:01.62]         Default location:
+[xUnit.net 00:00:01.62]           /usr/share/dotnet
+[xUnit.net 00:00:01.62]       
+[xUnit.net 00:00:01.62]       Learn more:
+[xUnit.net 00:00:01.62]       https://aka.ms/dotnet/app-launch-failed
+[xUnit.net 00:00:01.62]       
+[xUnit.net 00:00:01.62]       Download the .NET runtime:
+[xUnit.net 00:00:01.62]       https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+[xUnit.net 00:00:01.62]        error= profile=(version 1)
+[xUnit.net 00:00:01.62]       (allow default)
+[xUnit.net 00:00:01.62]       (deny file-write*)
+[xUnit.net 00:00:01.62]       (allow file-write*
+[xUnit.net 00:00:01.62]         (require-all
+[xUnit.net 00:00:01.62]           (require-any
+[xUnit.net 00:00:01.62]             (subpath "/tmp/tinadec-sbx-it-u1Uxdt")
+[xUnit.net 00:00:01.62]           )
+[xUnit.net 00:00:01.62]         )
+[xUnit.net 00:00:01.62]       )
+[xUnit.net 00:00:01.62]       
+[xUnit.net 00:00:01.62]       Stack Trace:
+[xUnit.net 00:00:01.62]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(144,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds()
+[xUnit.net 00:00:01.62]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:06.69]       exit=131 stdout= stderr=You must install .NET to run this application.
+[xUnit.net 00:00:06.69]       
+[xUnit.net 00:00:06.69]       App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+[xUnit.net 00:00:06.69]       Architecture: x64
+[xUnit.net 00:00:06.69]       App host version: 10.0.8
+[xUnit.net 00:00:06.69]       .NET location: Not found
+[xUnit.net 00:00:06.69]       
+[xUnit.net 00:00:06.69]       The following locations were searched:
+[xUnit.net 00:00:06.69]         Application directory:
+[xUnit.net 00:00:06.69]           /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+[xUnit.net 00:00:06.69]         Environment variable:
+[xUnit.net 00:00:06.69]           DOTNET_ROOT_X64 = &lt;not set&gt;
+[xUnit.net 00:00:06.69]           DOTNET_ROOT = &lt;not set&gt;
+[xUnit.net 00:00:06.69]         Registered location:
+[xUnit.net 00:00:06.69]           /etc/dotnet/install_location_x64 = &lt;not set&gt;
+[xUnit.net 00:00:06.69]         Default location:
+[xUnit.net 00:00:06.69]           /usr/share/dotnet
+[xUnit.net 00:00:06.69]       
+[xUnit.net 00:00:06.69]       Learn more:
+[xUnit.net 00:00:06.69]       https://aka.ms/dotnet/app-launch-failed
+[xUnit.net 00:00:06.69]       
+[xUnit.net 00:00:06.69]       Download the .NET runtime:
+[xUnit.net 00:00:06.69]       https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+[xUnit.net 00:00:06.69]       
+[xUnit.net 00:00:06.69]       Stack Trace:
+[xUnit.net 00:00:06.69]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(271,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup()
+[xUnit.net 00:00:06.69]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:06.72]       exit=131 stdout= stderr=You must install .NET to run this application.
+[xUnit.net 00:00:06.72]       
+[xUnit.net 00:00:06.72]       App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+[xUnit.net 00:00:06.72]       Architecture: x64
+[xUnit.net 00:00:06.72]       App host version: 10.0.8
+[xUnit.net 00:00:06.72]       .NET location: Not found
+[xUnit.net 00:00:06.72]       
+[xUnit.net 00:00:06.72]       The following locations were searched:
+[xUnit.net 00:00:06.72]         Application directory:
+[xUnit.net 00:00:06.72]           /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+[xUnit.net 00:00:06.72]         Environment variable:
+[xUnit.net 00:00:06.72]           DOTNET_ROOT_X64 = &lt;not set&gt;
+[xUnit.net 00:00:06.72]           DOTNET_ROOT = &lt;not set&gt;
+[xUnit.net 00:00:06.72]         Registered location:
+[xUnit.net 00:00:06.72]           /etc/dotnet/install_location_x64 = &lt;not set&gt;
+[xUnit.net 00:00:06.72]         Default location:
+[xUnit.net 00:00:06.72]           /usr/share/dotnet
+[xUnit.net 00:00:06.72]       
+[xUnit.net 00:00:06.72]       Learn more:
+[xUnit.net 00:00:06.72]       https://aka.ms/dotnet/app-launch-failed
+[xUnit.net 00:00:06.72]       
+[xUnit.net 00:00:06.72]       Download the .NET runtime:
+[xUnit.net 00:00:06.72]       https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+[xUnit.net 00:00:06.72]       
+[xUnit.net 00:00:06.72]       Stack Trace:
+[xUnit.net 00:00:06.72]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(178,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable()
+[xUnit.net 00:00:06.72]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:06.76]       Assert.Contains() Failure: Sub-string not found
+[xUnit.net 00:00:06.76]       String:    ""
+[xUnit.net 00:00:06.76]       Not found: "started"
+[xUnit.net 00:00:06.76]       Stack Trace:
+[xUnit.net 00:00:06.76]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(215,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel()
+[xUnit.net 00:00:06.76]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:06.79]       exit=131 stdout= stderr=You must install .NET to run this application.
+[xUnit.net 00:00:06.79]       
+[xUnit.net 00:00:06.79]       App: /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools
+[xUnit.net 00:00:06.79]       Architecture: x64
+[xUnit.net 00:00:06.79]       App host version: 10.0.8
+[xUnit.net 00:00:06.79]       .NET location: Not found
+[xUnit.net 00:00:06.79]       
+[xUnit.net 00:00:06.79]       The following locations were searched:
+[xUnit.net 00:00:06.79]         Application directory:
+[xUnit.net 00:00:06.79]           /var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/
+[xUnit.net 00:00:06.79]         Environment variable:
+[xUnit.net 00:00:06.79]           DOTNET_ROOT_X64 = &lt;not set&gt;
+[xUnit.net 00:00:06.79]           DOTNET_ROOT = &lt;not set&gt;
+[xUnit.net 00:00:06.79]         Registered location:
+[xUnit.net 00:00:06.79]           /etc/dotnet/install_location_x64 = &lt;not set&gt;
+[xUnit.net 00:00:06.79]         Default location:
+[xUnit.net 00:00:06.79]           /usr/share/dotnet
+[xUnit.net 00:00:06.79]       
+[xUnit.net 00:00:06.79]       Learn more:
+[xUnit.net 00:00:06.79]       https://aka.ms/dotnet/app-launch-failed
+[xUnit.net 00:00:06.79]       
+[xUnit.net 00:00:06.79]       Download the .NET runtime:
+[xUnit.net 00:00:06.79]       https://aka.ms/dotnet-core-applaunch?missing_runtime=true&amp;arch=x64&amp;rid=linux-x64&amp;os=fedora.44&amp;apphost_version=10.0.8
+[xUnit.net 00:00:06.79]        error= run=[/tmp/tinadec-sbx-it-gme1IJ | TMPDIR=/tmp/ | launcher=/var/tmp/tinadec-workspaces-20261010.JcokIJ/artifacts/bin/TinadecTools.Tests/debug/TinadecTools]
+[xUnit.net 00:00:06.79]       Stack Trace:
+[xUnit.net 00:00:06.79]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(240,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse()
+[xUnit.net 00:00:06.79]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:07.74]   Finished:    TinadecTools.Tests
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:53.9299319+08:00">
+        <Text>[xUnit.net 00:00:01.47]     TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:54.0628258+08:00">
+        <Text>[xUnit.net 00:00:01.62]     TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:59.1399903+08:00">
+        <Text>[xUnit.net 00:00:06.69]     TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:59.1690672+08:00">
+        <Text>[xUnit.net 00:00:06.72]     TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:59.2066476+08:00">
+        <Text>[xUnit.net 00:00:06.76]     TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-10T04:16:59.2342335+08:00">
+        <Text>[xUnit.net 00:00:06.79]     TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

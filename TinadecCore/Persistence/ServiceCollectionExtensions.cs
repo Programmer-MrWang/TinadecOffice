@@ -142,6 +142,14 @@ public static class ServiceCollectionExtensions
             return new DatabaseConnectionInfo(DatabaseProvider.PostgreSql, null);
         }
 
-        return new DatabaseConnectionInfo(DatabaseProvider.PostgreSql, connectionString);
+        var connection = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+        if (options.PostgreSql.Schema is { Length: > 0 } schema)
+        {
+            if (schema.Any(c => !(char.IsAsciiLetterOrDigit(c) || c == '_')))
+                throw new InvalidOperationException("Invalid host-owned PostgreSQL schema.");
+            // Raw stores and EF contexts must use the same scope, without a public fallback.
+            connection.SearchPath = schema;
+        }
+        return new DatabaseConnectionInfo(DatabaseProvider.PostgreSql, connection.ConnectionString);
     }
 }

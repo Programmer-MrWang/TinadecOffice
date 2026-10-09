@@ -1,0 +1,1148 @@
+{
+  "policy": "Latest outcome per fully qualified test and platform; repeats are not added. Initial failures remain in their TRX files.",
+  "windows_core": {
+    "inputs": [
+      "workspace-contract.trx",
+      "workspace-core.trx",
+      "storage-baseline.trx",
+      "workspace-core-final.trx",
+      "workspace-core-regression.trx",
+      "workspace-move-final.trx",
+      "workspace-persistence-final.trx"
+    ],
+    "total_unique": 63,
+    "passed": 62,
+    "failed": 0,
+    "skipped": 1,
+    "results": [
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_CutsALargeFileAndStopsSayingItIsTheWholeThing",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.UnknownSnapshot_IsCodedNotFound_NotABareStatus",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceSnapshotProviderTests.SourceConfigurationAndSkillsRestoreWhileRuntimeStorageRemainsUntouched",
+        "outcome": "Passed",
+        "source": "workspace-core.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;..\\\\outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;/etc/passwd&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_BringsBackAFileTheAgentDeleted",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_ServesBothBodiesOfAModifiedFile",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Listing_ReportsWhichRowsCanBeUndone",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_MarksADeletedFileAbsentRatherThanEmpty",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;./../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_WithoutTheHashTheReviewerWasShown_IsRejected",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceSnapshotProviderTests.FilesystemProviderCapturesAndRestoresWithConflictGuard",
+        "outcome": "Passed",
+        "source": "workspace-core.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_KeepsBinaryOutTheText",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesToOverwriteAnEditNobodyReviewed",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Listing_SeesAddedModifiedDeletedAndUnchangedFilesSeparately",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_UndoesOneFileAndLeavesTheOthersForTheirOwnReview",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;notes/../../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceSnapshotProviderTests.GitProviderCapturesIndexPatchesAndRestoresDeterministically",
+        "outcome": "Passed",
+        "source": "workspace-core.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.Move_RebindsHostIdentity_WhileCopyGetsIndependentStorageIdentity",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.ChangingStorageRoot_CreatesIndependentData_AndRetainsOldStoreAndProjectIdentity",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.HostShutdownAwaitsConcurrentDisposalAndReleasesOwnedFileHandles",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.UntrustedLoopbackCannotReadDataInitializeStorageOrApproveActions",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.CacheCleanup_RequiresPreview_AndPreservesDataConfigAndCredentials",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.ConflictingOrCorruptStorage_IsReportedAndNeverOverwritten",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.DeletingProjectStorage_RequiresItsPreview_AndPreservesCode",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.ProjectRequests_AreIsolated_AndUnknownScopeCannotSelectArbitraryStorage",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.StorageScopeApiTests.ConcurrentOpen_IsIdempotent_AndDoesNotOverwriteProjectConfiguration",
+        "outcome": "Passed",
+        "source": "workspace-core-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConcurrentEditorsWithSameHashPublishOnlyOneDefinition",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CancellingWhileWorkspaceWriteLeaseIsHeldPreservesManifestAndGrants",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart",
+        "outcome": "NotExecuted",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CreatingWithAnAnchorOtherThanThePrimaryFolderDoesNotInitializeEitherFolder",
+        "outcome": "Passed",
+        "source": "workspace-core-regression.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits",
+        "outcome": "Passed",
+        "source": "workspace-move-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.CopiedConfigurationMaterializesProviderContentInIndependentProjectDatabase",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.AnEditCreatedBeforeExternalFileChangeCannotOverwriteIt",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.CompileDigestRejectsAnEditAfterAdmissionStarted",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.SaveValidatesFieldTypesBeforeCommittingTheFile",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeJsonValuesUseOmittedInheritanceAndRejectAmbiguousArrayNulls",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.DuplicateLogicalIdentityIsRejectedBeforeTheFileCommit",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingErrorsAndNullSentinelsCannotChangeAuthoritativeBytes",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingsRoundTripGuiWritesManualModesAndFrozenHistory",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.RetiredFileVersionRemainsHistoryAndCannotSupplyAnActiveDefault",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.GuiWritesTomlAndManualEditRebuildsProjectionWithCommentsPreserved",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.StorageAndLoggingValidateAndChangedBackendBlocksAdmissionUntilApplied",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.AgentPackEnvelopeBytesAndSemanticDigestRebuildInAnIndependentScope",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.EmptyConfigurationCannotEraseTheFileProjection",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.HostBootstrapCannotReseedDeletedRuntimeStorageOrLoggingFiles",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.UserStorageIdentityIsStableConcurrentAndNewRootsHaveIndependentSchemas",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.ConditionalSaveRejectsStaleHashAndInvalidTomlWithoutChangingBytes",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.PublishedProjectMissingFileIsRejectedWithoutLocalStateOrSqlHistory",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingStorageConfigurationBlocksCompilation",
+        "outcome": "Passed",
+        "source": "workspace-persistence-final.trx"
+      }
+    ]
+  },
+  "windows_tools": {
+    "inputs": [
+      "workspace-tools-final.trx",
+      "workspace-tools-regression.trx",
+      "workspace-tools-latest.trx"
+    ],
+    "total_unique": 40,
+    "passed": 40,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.WindowsRealAclDenialSurvivesAConcurrentLeaseAndReleasesAtTheEnd",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.OnlyTheHostAssignedWorktreeIsASourceException",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_ProtectedBranchPush_IsWireFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_SuccessfulCommand_IsWireSuccess",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_MissingCommand_IsWireFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.FrozenEnvelopeAllowsBothSourcesAndRejectsOutsideAndProtectedStorage",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_GitCommitStyleQuoting_QuotesSurviveToCmd",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.RealCmd_QuotedCommitMessage_ReachesGitAsOneArgument",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_MissingWorkingDirectory_IsWireFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_Timeout_IsWireFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.HostFrozenWriteGrantCannotOpenAnotherScopeAndSelectedPackagesStayReadable",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.RealFileWritesAllowSourcesAndRejectEveryInternalCategory",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.ResolveSandboxCommand_Windows_CarriesTheWholeCommandAsRawTail",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_NonZeroExit_IsWireSuccessWithEmbeddedFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_NotApproved_IsWireFailure",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.ResolveSandboxCommand_Posix_UsesArgvAndNoRawTail",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.RealCmd_RawTail_EchosInnerQuotesWithoutBackslashes",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.ConcurrentScopesHaveSeparateScratchAndCannotInheritTheHostControlToken",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_LongLived_UsesTheStreamingSandboxBackend_AndCanBeKilled",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.StorageBoundaryTests.WindowsIdentitySeparatesScopesAndPrivilegeTiers",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.ShellToolTests.Shell_EchoWithDoubleQuotes_CmdParsesInnerQuotes",
+        "outcome": "Passed",
+        "source": "workspace-tools-final.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.WindowsRunnerRetainsHostFolderSetAndRejectsUnlistedWorkingDirectories",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 1, expected: 2)",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_EscapesQuotesAndBackslashesSoAPathCannotBecomeSyntax",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.BubblewrapWritableDeviceBindStaysAtTheExactNullDevice",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 2, expected: 2)",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_NeverHandlesDeviceOrSocketCreation",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.WindowsCommandAndGitUseAnAuthorizedSecondaryFolder",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_UsesLiteralForFilesAndSubpathForDirectories",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_ConfiguresOnlyWriteSideRights",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 4, expectedRight: 16384)",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.LinuxLauncherMode_IsRecognisedOnlyAsTheFirstArgument",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.LinuxPayload_RoundTripsThroughTheSourceGeneratedContext_InSnakeCase",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_WithNoGrantsStaysDenyAllWrites",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 4, expected: 16386)",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.WriteTargets_AlwaysIncludeTheScratchCacheAndTemporaryDirectory",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.WriteTargets_DeduplicatesUnderCaseSensitivePosixComparison",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 2, expectedRight: 8192)",
+        "outcome": "Passed",
+        "source": "workspace-tools-latest.trx"
+      }
+    ]
+  },
+  "resource_claims": {
+    "inputs": [
+      "workspace-resource-claims.trx"
+    ],
+    "total_unique": 34,
+    "passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.UnusableParameters_YieldNoPath(parametersJson: &quot;{\\&quot;filepath\\&quot;:42}&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ResourceClaim_MirrorsTheToolMutationClass",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ManagedWorkspaceRootRetainsItsClaimAndPrefixBoundary(tool: &quot;git_worktree_create&quot;, parameter: &quot;repository_path&quot;, mutating: True)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.AbsolutePathOutsideTheWorkspace_YieldsNoPath",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;git_commit&quot;, parameter: &quot;repository_path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ToolsWithoutASinglePath_YieldNoPath(toolId: &quot;mcp_invoke&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;git_status&quot;, parameter: &quot;repository_path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.FileTools_ExtractTheWorkspaceRelativeTarget(toolId: &quot;write_file&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ResourceClaimPath_IsReadFromThePathSchemeOnly",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EscapingTargets_YieldNoPath(raw: &quot;../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.MultiFolderClaimsQualifyPrimaryAndSecondaryPathsWithoutNameCollisions",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ManagedWorkspaceRootRetainsItsClaimAndPrefixBoundary(tool: &quot;git_status&quot;, parameter: &quot;repository_path&quot;, mutating: False)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.UnusableParameters_YieldNoPath(parametersJson: &quot;not json&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.AbsolutePathInsideTheWorkspace_IsMadeRelative",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;file_search&quot;, parameter: &quot;path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;ls&quot;, parameter: &quot;path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;git_worktree_create&quot;, parameter: &quot;repository_path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.UnusableParameters_YieldNoPath(parametersJson: &quot;{\\&quot;content\\&quot;:\\&quot;x\\&quot;}&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EscapingTargets_YieldNoPath(raw: &quot;src/../../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ToolsWithoutASinglePath_YieldNoPath(toolId: &quot;mcp_search&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.UnusableParameters_YieldNoPath(parametersJson: &quot;[1,2]&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ToolsWithoutASinglePath_YieldNoPath(toolId: &quot;create_workspace&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;git_push&quot;, parameter: &quot;repository_path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.GitAndProcessTools_WithoutTheirPathArgument_YieldNoPath",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ManagedSharedPackagesRequireExactFrozenRootAndReadTool",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.UnusableParameters_YieldNoPath(parametersJson: &quot;{}&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ManagedWorkspaceRootRetainsItsClaimAndPrefixBoundary(tool: &quot;ls&quot;, parameter: &quot;path&quot;, mutating: False)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.FileTools_ExtractTheWorkspaceRelativeTarget(toolId: &quot;delete_file&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;shell&quot;, parameter: &quot;cwd&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;stat&quot;, parameter: &quot;path&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.FileTools_ExtractTheWorkspaceRelativeTarget(toolId: &quot;read_file&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.EveryPathTargetingTool_ContributesItsTarget(toolId: &quot;command_run&quot;, parameter: &quot;working_directory&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.ToolsWithoutASinglePath_YieldNoPath(toolId: &quot;some_future_tool&quot;)",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      },
+      {
+        "test": "TinadecCore.AgentFramework.Tests.ToolResourcePathRegistryTests.WindowsSeparatorsAndDotSegments_AreNormalized",
+        "outcome": "Passed",
+        "source": "workspace-resource-claims.trx"
+      }
+    ]
+  },
+  "linux_core": {
+    "inputs": [
+      "linux-workspace-core-initial.trx",
+      "linux-workspace-core-second.trx",
+      "linux-workspace-core-third.trx",
+      "linux-workspace-core-fourth.trx",
+      "linux-workspace-core-fifth.trx",
+      "linux-workspace-core.trx",
+      "linux-workspace-vector-existing.trx"
+    ],
+    "total_unique": 28,
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_CutsALargeFileAndStopsSayingItIsTheWholeThing",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_BringsBackAFileTheAgentDeleted",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Listing_ReportsWhichRowsCanBeUndone",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Listing_SeesAddedModifiedDeletedAndUnchangedFilesSeparately",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;./../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_KeepsBinaryOutTheText",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CreatingWithAnAnchorOtherThanThePrimaryFolderDoesNotInitializeEitherFolder",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;..\\\\outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_WithoutTheHashTheReviewerWasShown_IsRejected",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.CancellingWhileWorkspaceWriteLeaseIsHeldPreservesManifestAndGrants",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.MovingAWorkspaceRetainsRootIdentityAndAllowsSubsequentExplicitEdits",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-third.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesToOverwriteAnEditNobodyReviewed",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_MarksADeletedFileAbsentRatherThanEmpty",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_UndoesOneFileAndLeavesTheOthersForTheirOwnReview",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Diff_ServesBothBodiesOfAModifiedFile",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConcurrentEditorsWithSameHashPublishOnlyOneDefinition",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.UnknownSnapshot_IsCodedNotFound_NotABareStatus",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;/etc/passwd&quot;)",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.PostgreSqlMultiFolderWorkspaceTests.MultiFolderScopesKeepSchemaFactsAndPrimaryChangesIndependentAcrossRestart",
+        "outcome": "Passed",
+        "source": "linux-workspace-vector-existing.trx"
+      },
+      {
+        "test": "TinadecCore.Api.Tests.WorkspaceFileReviewApiTests.Restore_RefusesEveryPathShapeThatLeavesTheWorkspace(escape: &quot;notes/../../outside.txt&quot;)",
+        "outcome": "Passed",
+        "source": "linux-workspace-core-initial.trx"
+      }
+    ]
+  },
+  "linux_tools": {
+    "inputs": [
+      "linux-workspace-tools-initial.trx",
+      "linux-workspace-tools-second.trx",
+      "linux-workspace-tools.trx"
+    ],
+    "total_unique": 28,
+    "passed": 28,
+    "failed": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_ConfiguresOnlyWriteSideRights",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_EscapesQuotesAndBackslashesSoAPathCannotBecomeSyntax",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.FrozenEnvelopeAllowsBothSourcesAndRejectsOutsideAndProtectedStorage",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.LinuxPayload_RoundTripsThroughTheSourceGeneratedContext_InSnakeCase",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 4, expectedRight: 16384)",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_AllowsEverythingThenRestrictsWritesToGrants",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.LinuxLauncherMode_IsRecognisedOnlyAsTheFirstArgument",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 1, expected: 2)",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.WindowsRunnerRetainsHostFolderSetAndRejectsUnlistedWorkingDirectories",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_WidensOnlyWhenTheKernelAbiSupportsIt(abi: 2, expectedRight: 8192)",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.WriteTargets_DeduplicatesUnderCaseSensitivePosixComparison",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.HandledAccessFs_NeverHandlesDeviceOrSocketCreation",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_WithNoGrantsStaysDenyAllWrites",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_UsesLiteralForFilesAndSubpathForDirectories",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.MultiFolderToolTests.WindowsCommandAndGitUseAnAuthorizedSecondaryFolder",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 2, expected: 2)",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.WriteTargets_AlwaysIncludeTheScratchCacheAndTemporaryDirectory",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.FileScopedRights_KeepsWriteAndTruncateAndNothingDirectoryShaped(abi: 4, expected: 16386)",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.BubblewrapWritableDeviceBindStaysAtTheExactNullDevice",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.TheConfinementMechanismThisPlatformReliesOnIsPresent",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxIntegrationTests.TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      },
+      {
+        "test": "TinadecTools.Tests.PosixSandboxTests.SeatbeltProfile_GrantsTheDeclaredPathAndItsResolvedFormWithoutInventingOthers",
+        "outcome": "Passed",
+        "source": "linux-workspace-tools.trx"
+      }
+    ]
+  },
+  "desktop": {
+    "passed": 62,
+    "failed": 0,
+    "skipped": 0,
+    "source": "desktop-tests-final.json"
+  },
+  "gateway": {
+    "passed": 6,
+    "failed": 0,
+    "source": "bun test src/storageProxy.test.ts src/openapi.snapshot.test.ts"
+  },
+  "native_ipc": {
+    "passed": 1,
+    "failed": 0,
+    "source": "node --test electron/workspaceFolders.test.cjs"
+  },
+  "windows_native_ui": {
+    "accepted": true,
+    "electron": "43.3.0",
+    "platform": "win32",
+    "native_picker": true,
+    "production_preload_and_picker_handler": true,
+    "real_desktop_components": true,
+    "real_core_gateway": true,
+    "list_rows": "representative_ui_fixture",
+    "events": [
+      {
+        "step": "folder_selection",
+        "no_storage_initialized": true,
+        "native_picker": true
+      },
+      {
+        "step": "created",
+        "new_conversation_context": true,
+        "secondary_uninitialized": true
+      },
+      {
+        "step": "fold_and_plus",
+        "scope_unchanged": true,
+        "plus_does_not_fold": true,
+        "recent_and_selected_old": true
+      },
+      {
+        "step": "edited_primary",
+        "storage_unchanged": true,
+        "primary_changed": true
+      },
+      {
+        "step": "reload",
+        "manifest_and_sidebar_state_restored": true
+      },
+      {
+        "step": "explicit_existing_open",
+        "no_overwrite": true
+      }
+    ]
+  },
+  "windows_visual_ui": {
+    "accepted": true,
+    "electron": "43.3.0",
+    "platform": "win32",
+    "native_picker": false,
+    "production_preload_and_picker_handler": true,
+    "real_desktop_components": true,
+    "real_core_gateway": true,
+    "list_rows": "representative_ui_fixture",
+    "events": [
+      {
+        "step": "folder_selection",
+        "no_storage_initialized": true,
+        "native_picker": false
+      },
+      {
+        "step": "created",
+        "new_conversation_context": true,
+        "secondary_uninitialized": true
+      },
+      {
+        "step": "fold_and_plus",
+        "scope_unchanged": true,
+        "plus_does_not_fold": true,
+        "recent_and_selected_old": true
+      },
+      {
+        "step": "edited_primary",
+        "storage_unchanged": true,
+        "primary_changed": true
+      },
+      {
+        "step": "reload",
+        "manifest_and_sidebar_state_restored": true
+      },
+      {
+        "step": "explicit_existing_open",
+        "no_overwrite": true
+      }
+    ]
+  },
+  "linux_environment": {
+    "accepted": true,
+    "postgresql": "isolated real cluster; fresh and existing extension namespaces",
+    "platform": "Linux WSL2",
+    "owned_root": "/var/tmp/tinadec-workspaces-20261010.JcokIJ",
+    "sandbox": "Bubblewrap 0.13.0 plus Landlock; temporary test runtime registration restored"
+  },
+  "tools_process": {
+    "accepted": true,
+    "windows_low_privilege_shell": "not_accepted"
+  }
+}

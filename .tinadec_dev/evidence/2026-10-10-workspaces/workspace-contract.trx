@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="8da2dcdb-11f8-48de-a7e5-146c89674984" name="lincu@LINSTATION 2026-10-10 01:53:42" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-10T01:53:42.9332754+08:00" queuing="2026-10-10T01:53:42.9332759+08:00" start="2026-10-10T01:53:21.0076433+08:00" finish="2026-10-10T01:57:45.0222067+08:00" />
+  <TestSettings name="default" id="82b33ca7-c518-4301-9167-45a64cb51323">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-10_01_53_42" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="9fe829c3-c012-458d-9cb6-06255e32864b" testId="8d9ef63c-b625-620a-4897-0a6ba3d4960f" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" computerName="LINSTATION" duration="00:00:36.3447899" startTime="2026-10-10T01:56:08.2689749+08:00" endTime="2026-10-10T01:56:44.8251158+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9fe829c3-c012-458d-9cb6-06255e32864b" />
+    <UnitTestResult executionId="d517095e-ab2a-407c-96b5-0671485efdc4" testId="ae2e2500-d3e0-0b59-2077-c7f63661544f" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" computerName="LINSTATION" duration="00:00:29.0383682" startTime="2026-10-10T01:56:44.8263669+08:00" endTime="2026-10-10T01:57:25.4489322+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d517095e-ab2a-407c-96b5-0671485efdc4" />
+    <UnitTestResult executionId="71bb3ee8-4fbc-49ec-81a0-014acf9b1cc6" testId="4c6de8d7-c611-6aa0-88ae-348060d452e8" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" computerName="LINSTATION" duration="00:00:33.9097269" startTime="2026-10-10T01:55:34.1862639+08:00" endTime="2026-10-10T01:56:08.2669294+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="71bb3ee8-4fbc-49ec-81a0-014acf9b1cc6" />
+    <UnitTestResult executionId="98983bad-f067-45f5-a375-00b9918a1e9c" testId="724637fb-6350-5262-8f2e-bc87bb60adc6" testName="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" computerName="LINSTATION" duration="00:00:42.1865489" startTime="2026-10-10T01:53:42.9004608+08:00" endTime="2026-10-10T01:54:25.1396023+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="98983bad-f067-45f5-a375-00b9918a1e9c">
+      <Output>
+        <ErrorInfo>
+          <Message>OpenAPI snapshot drift at C:\git\agent\TinadecOffice\TinadecCore\tests\__snapshots__\openapi.core.json. Snapshot has been regenerated; review git diff and commit it if intentional.</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\CoreOpenApiSnapshotTests.cs:line 166&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="82cd9c11-8d80-449d-917a-61e859d0cc7a" testId="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4" testName="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" computerName="LINSTATION" duration="00:00:19.5709655" startTime="2026-10-10T01:53:23.2464982+08:00" endTime="2026-10-10T01:53:42.8621819+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="82cd9c11-8d80-449d-917a-61e859d0cc7a" />
+    <UnitTestResult executionId="6dbd3e2b-e56d-467a-8130-9c14d9d9212c" testId="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder" computerName="LINSTATION" duration="00:01:08.7494172" startTime="2026-10-10T01:54:25.2101038+08:00" endTime="2026-10-10T01:55:34.1736143+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6dbd3e2b-e56d-467a-8130-9c14d9d9212c" />
+    <UnitTestResult executionId="e742fadf-97ff-4693-b817-8ecb8cc5769e" testId="7f8caf89-fc1d-00f1-d275-9b3af737c17c" testName="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" computerName="LINSTATION" duration="00:00:19.2416401" startTime="2026-10-10T01:57:25.4495037+08:00" endTime="2026-10-10T01:57:44.7427884+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e742fadf-97ff-4693-b817-8ecb8cc5769e" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4">
+      <Execution id="82cd9c11-8d80-449d-917a-61e859d0cc7a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests" name="ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.EditingProjectFileCannotGrantAnOutsideFolder" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee">
+      <Execution id="6dbd3e2b-e56d-467a-8130-9c14d9d9212c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="EditingProjectFileCannotGrantAnOutsideFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="4c6de8d7-c611-6aa0-88ae-348060d452e8">
+      <Execution id="71bb3ee8-4fbc-49ec-81a0-014acf9b1cc6" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="InvalidFoldersAndDuplicatePathsLeaveManifestUntouched" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7f8caf89-fc1d-00f1-d275-9b3af737c17c">
+      <Execution id="e742fadf-97ff-4693-b817-8ecb8cc5769e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="SnapshotQualifiesSameNamedFilesAndRestoresSecondaryFolder" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="724637fb-6350-5262-8f2e-bc87bb60adc6">
+      <Execution id="98983bad-f067-45f5-a375-00b9918a1e9c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests" name="CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="ae2e2500-d3e0-0b59-2077-c7f63661544f">
+      <Execution id="d517095e-ab2a-407c-96b5-0671485efdc4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="ConditionalEditPreservesCommentsStorageAndHistoricalFrozenRoots" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MultiFolderWorkspaceTests.PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\workspace-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="8d9ef63c-b625-620a-4897-0a6ba3d4960f">
+      <Execution id="9fe829c3-c012-458d-9cb6-06255e32864b" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\workspace-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MultiFolderWorkspaceTests" name="PreviewDoesNotCreateStorageAndCreationOnlyInitializesPrimary" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="8d9ef63c-b625-620a-4897-0a6ba3d4960f" executionId="9fe829c3-c012-458d-9cb6-06255e32864b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ae2e2500-d3e0-0b59-2077-c7f63661544f" executionId="d517095e-ab2a-407c-96b5-0671485efdc4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4c6de8d7-c611-6aa0-88ae-348060d452e8" executionId="71bb3ee8-4fbc-49ec-81a0-014acf9b1cc6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="724637fb-6350-5262-8f2e-bc87bb60adc6" executionId="98983bad-f067-45f5-a375-00b9918a1e9c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4" executionId="82cd9c11-8d80-449d-917a-61e859d0cc7a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1af7cb8a-e658-29c9-c3a1-f7e987ddb8ee" executionId="6dbd3e2b-e56d-467a-8130-9c14d9d9212c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7f8caf89-fc1d-00f1-d275-9b3af737c17c" executionId="e742fadf-97ff-4693-b817-8ecb8cc5769e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="7" executed="7" passed="6" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.36]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.56]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.61]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:01:02.59]       OpenAPI snapshot drift at C:\git\agent\TinadecOffice\TinadecCore\tests\__snapshots__\openapi.core.json. Snapshot has been regenerated; review git diff and commit it if intentional.&#xD;
+[xUnit.net 00:01:02.60]       Stack Trace:&#xD;
+[xUnit.net 00:01:02.60]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\CoreOpenApiSnapshotTests.cs(166,0): at TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline()&#xD;
+[xUnit.net 00:01:02.60]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:04:22.19]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-10T01:54:25.1634558+08:00">
+        <Text>[xUnit.net 00:01:02.59]     TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
