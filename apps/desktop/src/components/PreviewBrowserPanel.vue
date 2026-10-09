@@ -193,7 +193,9 @@ watch(
           <button
             v-for="link in quickLinks"
             :key="link.url"
+            type="button"
             class="preview-quick-link"
+            :title="link.url"
             @click="navigate(link.url)"
           >
             <Globe :size="14" />
@@ -228,6 +230,7 @@ watch(
 .preview-browser-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   height: 100%;
   overflow: hidden;
 }
@@ -301,6 +304,7 @@ watch(
 .preview-content {
   flex: 1;
   position: relative;
+  min-width: 0;
   min-height: 0;
   background: var(--bg-primary);
   overflow: hidden;
@@ -340,20 +344,23 @@ watch(
   flex-direction: column;
   gap: 6px;
   width: 100%;
+  min-width: 0;
   max-width: 280px;
   margin-top: 8px;
 }
 
 .preview-quick-link {
-  display: flex;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 4px 8px;
+  min-width: 0;
   padding: 10px 12px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-muted);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, border-color 0.15s;
   text-align: left;
 }
 
@@ -363,13 +370,16 @@ watch(
 }
 
 .preview-quick-link span {
+  min-width: 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .preview-quick-link small {
-  margin-left: auto;
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 10px;
   color: var(--text-muted);
   font-family: monospace;

@@ -119,7 +119,7 @@ onUnmounted(() => {
     >
       <component :is="currentPermission.icon" :size="14" />
       <span class="permission-selector-label">{{ currentPermission.label }}</span>
-      <ChevronDown :size="12" class="permission-selector-chevron" />
+      <ChevronDown :size="12" class="permission-selector-chevron" :class="{ 'is-expanded': showDropdown }" aria-hidden="true" />
     </button>
 
     <Teleport to="body">
@@ -154,6 +154,11 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.permission-selector-chevron { flex-shrink: 0; transition: transform 160ms ease; }
+.permission-selector-chevron.is-expanded { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .permission-selector-chevron { transition: none; }
+}
 .permission-option-copy { display: flex; flex-direction: column; gap: 4px; text-align: start; }
 .permission-option-copy small { color: var(--text-secondary); font-size: var(--text-xs, 12px); white-space: normal; line-height: 1.5; }
 .permission-selector-item { align-items: flex-start; }

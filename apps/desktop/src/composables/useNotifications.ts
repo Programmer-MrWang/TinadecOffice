@@ -1,4 +1,5 @@
 import { computed, ref } from 'vue'
+import { apiErrorDetails } from '@/lib/apiError'
 
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error'
 
@@ -507,7 +508,7 @@ function addError(
       message: normalizeError(input.message, input.title),
     })
   }
-  return add(kind, 'error', { ...options, message: normalizeError(input, options.title) })
+  return add(kind, 'error', { ...options, details: options.details ?? apiErrorDetails(input), message: normalizeError(input, options.title) })
 }
 
 /** Patch a live notification without recreating it. */
@@ -631,7 +632,7 @@ function startTask(input: string | TaskOptions): TaskHandle {
     succeed: (result) =>
       settle('success', typeof result === 'string' ? { message: result } : (result ?? {})),
     fail: (error, failOptions = {}) =>
-      settle('error', { ...failOptions, message: normalizeError(error, failOptions.title) }),
+      settle('error', { ...failOptions, details: failOptions.details ?? apiErrorDetails(error), message: normalizeError(error, failOptions.title) }),
     dismiss: () => dismiss(taskId),
   }
 }
@@ -902,7 +903,7 @@ const status = {
         message: normalizeError(input.message, input.title),
       })
     }
-    return addStatus('error', { ...options, message: normalizeError(input, options?.title) })
+    return addStatus('error', { ...options, details: options?.details ?? apiErrorDetails(input), message: normalizeError(input, options?.title) })
   },
 }
 

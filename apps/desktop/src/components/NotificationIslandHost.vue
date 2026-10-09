@@ -265,7 +265,7 @@ function taskLabel(item: NotificationItem) {
               </span>
               <div class="island-stack__content">
                 <span class="island-stack__title">
-                  <Pin v-if="item.persistence !== 'auto'" :size="10" class="island-overflow__pin-inline" aria-hidden="true" />{{ item.title || item.message }}
+                  {{ item.title || item.message }}
                 </span>
                 <span v-if="item.source" class="island-stack__source">{{ item.source }}</span>
               </div>
@@ -357,7 +357,7 @@ function taskLabel(item: NotificationItem) {
                   </span>
                   <div class="island-overflow__content">
                     <span class="island-overflow__title">
-                      <Pin v-if="item.persistence !== 'auto'" :size="10" class="island-overflow__pin-inline" aria-hidden="true" />{{ item.title || item.message }}
+                      {{ item.title || item.message }}
                     </span>
                     <span v-if="item.source" class="island-overflow__source">{{ item.source }}</span>
                   </div>
@@ -636,7 +636,6 @@ function taskLabel(item: NotificationItem) {
   background: transparent; color: var(--text-tertiary, #656d76); cursor: default; opacity: 0.75;
 }
 .island-overflow__row:hover .island-overflow__action--static { opacity: 0.75; }
-.island-overflow__pin-inline { margin-right: 3px; color: var(--text-tertiary, #656d76); vertical-align: -1px; }
 .island-overflow__row--cleared { opacity: 0.66; }
 .island-overflow__footer { display: flex; justify-content: flex-end; gap: 7px; padding: 8px 13px; }
 .island-overflow__footer button:disabled { opacity: 0.45; cursor: default; }

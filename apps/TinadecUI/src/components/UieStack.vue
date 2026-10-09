@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { ChevronsLeft, Globe, type LucideIcon } from '@lucide/vue'
+import { Combine, Globe, type LucideIcon } from '@lucide/vue'
 import UieCardHost from './UieCardHost.vue'
 import BrowserTabBar from './BrowserTabBar.vue'
 import { useI18n } from 'vue-i18n'
+import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { useUie } from './useUie'
 import { usePanelStyles } from '@/composables/usePanelStyles'
 import { useResponsiveMode, useTabLabelMode } from '@/composables/useElementSize'
@@ -355,13 +356,25 @@ onUnmounted(() => {
           ×
         </span>
       </button>
-      <button
-        class="uie-dock-merge-btn"
-        :title="t('context.mergePanel')"
-        @click="mergeIntoMain"
-      >
-        <ChevronsLeft :size="12" />
-      </button>
+      <TooltipProvider :delay-duration="300">
+        <TooltipRoot>
+          <TooltipTrigger as-child>
+            <button
+              type="button"
+              class="uie-dock-merge-btn"
+              :aria-label="t('context.mergePanel')"
+              @click="mergeIntoMain"
+            >
+              <Combine :size="16" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipPortal>
+            <TooltipContent side="bottom" align="end" :side-offset="6" class="uie-action-tooltip">
+              {{ t('context.mergePanel') }}
+            </TooltipContent>
+          </TooltipPortal>
+        </TooltipRoot>
+      </TooltipProvider>
     </div>
 
     <!-- Other stacks: minimal browser-style tab bar for multi-card stacks -->
@@ -456,8 +469,9 @@ onUnmounted(() => {
   display: grid;
   place-items: center;
   align-self: center;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
   margin-left: 2px;
   border: none;
   border-radius: 6px;
@@ -465,6 +479,11 @@ onUnmounted(() => {
   color: var(--text-secondary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
+}
+
+.uie-dock-merge-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
 }
 
 .uie-dock-merge-btn:hover {

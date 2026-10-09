@@ -1,0 +1,55 @@
+{
+  "project": {
+    "framework": {
+      "name": "vite",
+      "label": "Vite",
+      "links": {
+        "installation": "https://shadcn-vue.com/docs/installation/vite",
+        "tailwind": "https://tailwindcss.com/docs/guides/vite"
+      }
+    },
+    "typescript": true,
+    "isSrcDir": true,
+    "tailwindConfigFile": null,
+    "tailwindCssFile": "src/styles.css",
+    "tailwindVersion": "v4",
+    "aliasPrefix": "@",
+    "packageManager": "npm"
+  },
+  "config": {
+    "$schema": "https://ui.shadcn.com/schema.json",
+    "style": "base-nova",
+    "typescript": true,
+    "tailwind": {
+      "css": "src/styles.css",
+      "baseColor": "neutral",
+      "cssVariables": true,
+      "prefix": ""
+    },
+    "iconLibrary": "lucide",
+    "rtl": false,
+    "menuColor": "default",
+    "menuAccent": "subtle",
+    "aliases": {
+      "components": "@/components",
+      "utils": "@/lib/utils",
+      "ui": "@/components/ui",
+      "lib": "@/lib",
+      "hooks": "@/hooks"
+    },
+    "registries": {
+      "@shadcn": "https://shadcn-vue.com/r/styles/{style}/{name}.json"
+    },
+    "resolvedPaths": {
+      "cwd": "apps/desktop",
+      "tailwindConfig": "",
+      "tailwindCss": "C:/git/agent/TinadecOffice/apps/desktop/src/styles.css",
+      "utils": "C:/git/agent/TinadecOffice/apps/desktop/src/lib/utils",
+      "components": "C:/git/agent/TinadecOffice/apps/desktop/src/components",
+      "lib": "C:/git/agent/TinadecOffice/apps/desktop/src/lib",
+      "hooks": "C:/git/agent/TinadecOffice/apps/desktop/src/hooks",
+      "ui": "C:/git/agent/TinadecOffice/apps/desktop/src/components/ui",
+      "composables": "C:/git/agent/TinadecOffice/apps/desktop/src/composables"
+    }
+  }
+}

@@ -12,7 +12,7 @@
 // Shared styles come from apps/desktop/src/styles.css (.browser-tab-*).
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
-  ChevronsLeft,
+  PanelsTopLeft,
   ExternalLink,
   Home as HomeIcon,
   PanelRightClose,
@@ -21,12 +21,14 @@ import {
   type LucideIcon,
 } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
+import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 import { useDetachedTabs } from '@/composables/useDetachedTabs'
 import { useDockDrag, type DockDropTarget } from '@/composables/useDockDrag'
 import { FEATURE_CATALOG } from './cards/home/featureCatalog'
 import type { PersistedCardInstance, UieSlotId } from '../engine/types'
 
 const { t } = useI18n()
+const collapseLabel = computed(() => t('context.collapsePanel', t('app.collapse')))
 
 const props = defineProps<{
   /** Card instances in the stack, including the pinned homePicker. */
@@ -269,23 +271,44 @@ onUnmounted(() => {
     </button>
 
     <!-- Restore single panel (dock has more than one pane) -->
-    <button
-      v-if="canRestore"
-      class="browser-tab-collapse"
-      :title="t('context.restoreDock')"
-      @click="emit('restore-dock')"
-    >
-      <ChevronsLeft :size="14" />
-    </button>
+    <TooltipProvider :delay-duration="300">
+      <TooltipRoot v-if="canRestore">
+        <TooltipTrigger as-child>
+          <button
+            type="button"
+            class="browser-tab-collapse"
+            :aria-label="t('context.restoreDock')"
+            @click="emit('restore-dock')"
+          >
+            <PanelsTopLeft :size="16" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipPortal>
+          <TooltipContent side="bottom" align="end" :side-offset="6" class="uie-action-tooltip">
+            {{ t('context.restoreDock') }}
+          </TooltipContent>
+        </TooltipPortal>
+      </TooltipRoot>
 
-    <!-- Collapse button -->
-    <button
-      class="browser-tab-collapse"
-      :title="t('app.collapse')"
-      @click="emit('collapse')"
-    >
-      <PanelRightClose :size="14" />
-    </button>
+      <!-- Collapse preserves every pane and tab in the column. -->
+      <TooltipRoot>
+        <TooltipTrigger as-child>
+          <button
+            type="button"
+            class="browser-tab-collapse"
+            :aria-label="collapseLabel"
+            @click="emit('collapse')"
+          >
+            <PanelRightClose :size="16" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipPortal>
+          <TooltipContent side="bottom" align="end" :side-offset="6" class="uie-action-tooltip">
+            {{ collapseLabel }}
+          </TooltipContent>
+        </TooltipPortal>
+      </TooltipRoot>
+    </TooltipProvider>
 
     <!-- New-tab dropdown: teleported to body so the panel's overflow clipping
          never cuts it off; position:fixed right-aligned to the + button.

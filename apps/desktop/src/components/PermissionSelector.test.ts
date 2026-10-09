@@ -10,9 +10,13 @@ describe('permission selection', () => {
   it('describes command approval and the policy of existing runs', async () => {
     const wrapper = mount(PermissionSelector, { attachTo: document.body, props: { modelValue: 'full-access' }, global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] } })
     const trigger = wrapper.get('button')
+    const chevron = trigger.get('.permission-selector-chevron')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(chevron.classes()).not.toContain('is-expanded')
     await trigger.trigger('keydown', { key: 'ArrowDown' })
     await flushPromises()
     expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(chevron.classes()).toContain('is-expanded')
     const menu = document.querySelector('[role="menu"]')!
     const current = menu.querySelector<HTMLButtonElement>('[aria-checked="true"]')!
     expect(current.textContent).toContain('without manual approval')
@@ -23,6 +27,8 @@ describe('permission selection', () => {
     document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     await flushPromises()
     expect(document.querySelector('[role="menu"]')).toBeNull()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(chevron.classes()).not.toContain('is-expanded')
     expect(document.activeElement).toBe(trigger.element)
     wrapper.unmount()
   })
