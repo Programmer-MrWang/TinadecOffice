@@ -196,11 +196,11 @@ public sealed class EvidenceArchiveTests : IAsyncLifetime
             Task.FromResult<ProjectReference?>(null);
     }
 
-    private sealed class Factory(string root, bool embeddings) : WebApplicationFactory<Program>
+    private sealed class Factory(string root, bool embeddings) : IsolatedApiFactory
     {
         public Dictionary<Guid, Guid> Sessions { get; } = new();
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder) => builder
             .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(root, "tinadec.db"),

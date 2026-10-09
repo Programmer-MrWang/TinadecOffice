@@ -778,6 +778,10 @@ export interface paths {
     /** POST /api/v1/storage/scopes/open */
     post: operations["postApiV1StorageScopesOpen"];
   };
+  "/api/v1/storage/scopes/preview": {
+    /** POST /api/v1/storage/scopes/preview */
+    post: operations["postApiV1StorageScopesPreview"];
+  };
   "/api/v1/storage/scopes/{storageId}": {
     /** DELETE /api/v1/storage/scopes/:storageId */
     delete: operations["deleteApiV1StorageScopesByStorageId"];
@@ -825,6 +829,12 @@ export interface paths {
   "/api/v1/storage/scopes/{storageId}/storage-delete-preview": {
     /** POST /api/v1/storage/scopes/:storageId/storage-delete-preview */
     post: operations["postApiV1StorageScopesByStorageIdStorage-delete-preview"];
+  };
+  "/api/v1/storage/scopes/{storageId}/workspace": {
+    /** GET /api/v1/storage/scopes/:storageId/workspace */
+    get: operations["getApiV1StorageScopesByStorageIdWorkspace"];
+    /** PUT /api/v1/storage/scopes/:storageId/workspace */
+    put: operations["putApiV1StorageScopesByStorageIdWorkspace"];
   };
   "/api/v1/storage/scopes/{storageId}/write-policy": {
     /** POST /api/v1/storage/scopes/:storageId/write-policy */
@@ -1785,6 +1795,13 @@ export interface components {
       /** @description Stable snake_case machine-readable error code. */
       code: string;
       detail?: string;
+      diagnostics?: {
+          code: string;
+          column?: number;
+          line?: number;
+          message: string;
+          severity: string;
+        }[];
       instance?: string;
       status: number;
       title: string;
@@ -1794,7 +1811,13 @@ export interface components {
       [key: string]: unknown;
     };
     Project: {
+      availability?: string;
+      availability_error?: string;
+      color?: string;
+      configuration_hash?: string;
       created_at: string | null;
+      external?: boolean;
+      icon?: string;
       /** Format: uuid */
       id: string;
       kind: string | null;
@@ -1802,7 +1825,13 @@ export interface components {
       lifecycle_status: "active" | "archived" | "trashed";
       name: string;
       path: string;
+      primary_root_id?: string;
+      roots?: {
+          id: string;
+          path: string;
+        }[];
       storage_id?: string;
+      storage_root?: string;
       trashed_at: string | null;
       updated_at: string | null;
       [key: string]: unknown;
@@ -2017,9 +2046,13 @@ export interface components {
     };
     StorageOpenRequest: {
       backend?: string;
+      color?: string;
+      icon?: string;
       name?: string;
       postgres_connection_reference?: string;
+      primary_root_id?: string;
       project_path: string;
+      roots?: components["schemas"]["WorkspaceRoot"][];
       storage_root?: string;
     };
     StoragePreviewApplyRequest: {
@@ -2043,6 +2076,7 @@ export interface components {
       scope_kind: string;
       storage_id: string;
       storage_root: string;
+      workspace?: components["schemas"]["WorkspaceDefinition"];
     };
     StorageScopeList: components["schemas"]["StorageScope"][];
     StorageStatistics: {
@@ -2540,6 +2574,36 @@ export interface components {
       permission_mode?: string | null;
       space_options?: components["schemas"]["SpaceOptions"] | null;
       title?: string | null;
+    };
+    WorkspaceDefinition: {
+      color: string;
+      content_hash: string;
+      icon: string;
+      name: string;
+      primary_path?: string;
+      primary_root_id: string;
+      roots: components["schemas"]["WorkspaceRoot"][];
+    };
+    WorkspaceEditRequest: {
+      color?: string;
+      icon?: string;
+      name: string;
+      primary_root_id: string;
+      roots: components["schemas"]["WorkspaceRoot"][];
+    };
+    WorkspacePreview: {
+      exists: boolean;
+      project_path: string;
+      storage_id?: string | null;
+      storage_root?: string | null;
+      workspace?: components["schemas"]["WorkspaceDefinition"];
+    };
+    WorkspacePreviewRequest: {
+      project_path: string;
+    };
+    WorkspaceRoot: {
+      id: string;
+      path: string;
     };
   };
   responses: never;
@@ -5559,6 +5623,29 @@ export interface operations {
       };
     };
   };
+  /** POST /api/v1/storage/scopes/preview */
+  postApiV1StorageScopesPreview: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkspacePreviewRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["WorkspacePreview"];
+        };
+      };
+    };
+  };
   /** DELETE /api/v1/storage/scopes/:storageId */
   deleteApiV1StorageScopesByStorageId: {
     parameters: {
@@ -5822,6 +5909,54 @@ export interface operations {
       200: {
         content: {
           "application/json": components["schemas"]["StorageCleanupPreview"];
+        };
+      };
+    };
+  };
+  /** GET /api/v1/storage/scopes/:storageId/workspace */
+  getApiV1StorageScopesByStorageIdWorkspace: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["WorkspaceDefinition"];
+        };
+      };
+    };
+  };
+  /** PUT /api/v1/storage/scopes/:storageId/workspace */
+  putApiV1StorageScopesByStorageIdWorkspace: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+        "If-Match": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["WorkspaceEditRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["WorkspaceDefinition"];
         };
       };
     };

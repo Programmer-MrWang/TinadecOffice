@@ -148,9 +148,9 @@ public sealed class ConnectAcpHandshakeTests : IAsyncLifetime
         }
     }
 
-    private sealed class Factory(string root, IAcpHarnessProber prober) : WebApplicationFactory<Program>
+    private sealed class Factory(string root, IAcpHarnessProber prober) : IsolatedApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder) => builder
             .ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(root, "tinadec.db"),

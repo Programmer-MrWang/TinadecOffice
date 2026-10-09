@@ -88,14 +88,13 @@ public sealed class AgentModeListTests : IAsyncLifetime
         Assert.Equal("invalid_request", body.GetProperty("code").GetString());
     }
 
-    private sealed class AgentModeListFactory : WebApplicationFactory<Program>
+    private sealed class AgentModeListFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public AgentModeListFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

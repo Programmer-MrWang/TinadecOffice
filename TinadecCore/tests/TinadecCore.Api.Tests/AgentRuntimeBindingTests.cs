@@ -132,14 +132,13 @@ public sealed class AgentRuntimeBindingTests : IAsyncLifetime
         Assert.All(previews, p => Assert.Equal("user_binding", p.GetProperty("strategy_source").GetString()));
     }
 
-    private sealed class AgentRuntimeBindingFactory : WebApplicationFactory<Program>
+    private sealed class AgentRuntimeBindingFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public AgentRuntimeBindingFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

@@ -237,11 +237,10 @@ public sealed class ToolSettingsApiTests : IAsyncLifetime
         request.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
         return client.SendAsync(request);
     }
-    private sealed class Factory(string root) : WebApplicationFactory<Program>
+    private sealed class Factory(string root) : IsolatedApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting("TinadecStorage:Enabled", "false");
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string,string?> { ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(root,"tinadec.db"), ["TinadecPersistence:DataRoot"] = Path.Combine(root,"data"), ["TinadecTools:DefaultWorkspaceRoot"] = root, ["Logging:LogLevel:Default"] = "Warning" }));
             builder.ConfigureTestServices(services => { services.RemoveAll<IToolProvider>(); services.AddSingleton<IToolProvider>(new Provider()); });
         }

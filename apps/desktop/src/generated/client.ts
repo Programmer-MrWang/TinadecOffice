@@ -8,6 +8,7 @@
  */
 import type { components } from './schema'
 import { isAbortError } from '../lib/isAbortError'
+import { ApiError, apiErrorMessage } from '../lib/apiError'
 import { storageHeaders, captureStorageId, rememberStorageResult, normalizeStorageRequest } from '../lib/storageScope'
 
 type Schemas = components['schemas']
@@ -115,9 +116,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   let data: unknown = null
   if (text) { try { data = JSON.parse(text) } catch { throw new Error(`Invalid JSON: ${text.slice(0,200)}`) } }
   if (!res.ok) {
-    const rec = data as Record<string, unknown> | null
-    const msg = rec?.message ?? (rec?.error as Record<string, unknown> | null)?.message ?? res.statusText
-    throw new Error(typeof msg === 'string' && msg ? msg : String(msg ?? res.statusText))
+    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data)
   }
   rememberStorageResult(path, data, storageId)
   return data as T
@@ -141,9 +140,7 @@ async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { e
   let data: unknown = null
   if (text) { try { data = JSON.parse(text) } catch { throw new Error(`Invalid JSON: ${text.slice(0,200)}`) } }
   if (!res.ok) {
-    const rec = data as Record<string, unknown> | null
-    const msg = rec?.message ?? (rec?.error as Record<string, unknown> | null)?.message ?? res.statusText
-    throw new Error(typeof msg === 'string' && msg ? msg : String(msg ?? res.statusText))
+    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data)
   }
   const result = data as T
   rememberStorageResult(path, result, storageId)

@@ -845,11 +845,11 @@ public sealed class ToolDispatcherResilienceTests : IAsyncLifetime
     private ITenantContextAccessor TenantAccessor() =>
         _factory!.Services.GetRequiredService<ITenantContextAccessor>();
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : IsolatedApiFactory
     {
         private readonly string _root;
         public Factory(string root) => _root = root;
-        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),
             ["TinadecPersistence:DataRoot"] = Path.Combine(_root, "data"),

@@ -684,14 +684,13 @@ public sealed class LifecycleManagementApiTests : IAsyncLifetime
         return await response.Content.ReadFromJsonAsync<JsonElement>();
     }
 
-    private sealed class LifecycleFactory : WebApplicationFactory<Program>
+    private sealed class LifecycleFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public LifecycleFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

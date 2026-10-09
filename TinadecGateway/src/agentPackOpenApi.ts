@@ -199,6 +199,13 @@ const problemDetails = t.Object({
   code: t.String({ description: 'Stable snake_case machine-readable error code.' }),
   trace_id: t.Optional(t.String()),
   instance: t.Optional(t.String()),
+  diagnostics: t.Optional(t.Array(t.Object({
+    code: t.String(),
+    message: t.String(),
+    severity: t.String(),
+    line: t.Optional(t.Unsafe({ type: 'integer', minimum: 1 })),
+    column: t.Optional(t.Unsafe({ type: 'integer', minimum: 1 })),
+  }, { additionalProperties: false }))),
 }, { additionalProperties: true });
 
 export const agentPackOpenApiSchemas = {

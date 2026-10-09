@@ -313,14 +313,13 @@ public sealed class WorkspaceInstructionApiTests : IAsyncLifetime
         Assert.Null(WorkspaceInstructionPolicy.Select(["README.md", "AGENTS.txt"]));
     }
 
-    private sealed class InstructionFactory : WebApplicationFactory<Program>
+    private sealed class InstructionFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public InstructionFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

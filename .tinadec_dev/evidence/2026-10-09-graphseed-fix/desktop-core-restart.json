@@ -1,0 +1,16 @@
+{
+  "real_core_process_restarted": true,
+  "isolated": true,
+  "read_status": 200,
+  "packs": [
+    {
+      "pack_id": "tinadec.graph.seed-pack",
+      "active_version": "3.0.1"
+    },
+    {
+      "pack_id": "tinadec.tests.bootstrap-pack",
+      "active_version": "0.1.0"
+    }
+  ],
+  "workspace_defaults_unchanged": true
+}

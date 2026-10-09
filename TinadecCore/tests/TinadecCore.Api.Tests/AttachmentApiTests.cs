@@ -714,14 +714,13 @@ public sealed class AttachmentApiTests : IAsyncLifetime
         Assert.Equal(payload.Substring(4_096, 16), continued.Result!.Value.GetProperty("content").GetString());
     }
 
-    private sealed class AttachmentFactory : WebApplicationFactory<Program>
+    private sealed class AttachmentFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public AttachmentFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

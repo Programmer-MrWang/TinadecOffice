@@ -58,24 +58,22 @@ public sealed class CoreOpenApiSnapshotTests
         };
     }
 
-    private sealed class SnapshotFactory : WebApplicationFactory<Program>
+    private sealed class SnapshotFactory : IsolatedApiFactory
     {
-        private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-openapi-snap", Guid.NewGuid().ToString("N"));
+        private readonly string _root = ApiTestStorage.CreateRoot("openapi-snapshot");
         private readonly bool _managed;
         public SnapshotFactory(bool managed = true)
         {
             _managed = managed;
             Directory.CreateDirectory(_root);
         }
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override bool UsesManagedStorage => _managed;
+        protected override string? ManagedUserRoot => _managed ? _root : null;
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment(_managed ? "StorageTesting" : "Testing");
             var settings = new Dictionary<string, string?> { ["Logging:LogLevel:Default"] = "Warning" };
             if (_managed)
             {
-                builder.UseSetting("TinadecStorage:Enabled", "true");
-                builder.UseSetting("TinadecStorage:UserRoot", _root);
-                builder.UseSetting("TinadecTools:DefaultWorkspaceRoot", Path.Combine(_root, "workspace"));
                 settings["TinadecStorage:Enabled"] = "true";
                 settings["TinadecStorage:UserRoot"] = _root;
                 settings["TinadecTools:DefaultWorkspaceRoot"] = Path.Combine(_root, "workspace");

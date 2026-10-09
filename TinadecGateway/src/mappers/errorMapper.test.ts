@@ -62,3 +62,24 @@ test('a core problem with no code degrades to conflict and says so through the t
   assert.equal(mapped.code, 'conflict');
   assert.equal(mapped.title, 'conflict');
 });
+
+test('configuration failures keep narrow diagnostics and reject malformed positions or private extensions', () => {
+  const diagnostic = { code: 'configuration_unique', message: 'Duplicate draft slug meeting.', severity: 'error', line: 7, column: 3 };
+  const mapped = mapCoreErrorToExternal(400, {
+    code: 'configuration_invalid', detail: 'Configuration validation failed.', trace_id: 'trace-config',
+    diagnostics: [
+      { ...diagnostic, private_extension: 'must-not-forward' },
+      { ...diagnostic, line: '7' },
+      { ...diagnostic, column: -1 },
+      { code: 'missing-message', severity: 'error' },
+      { ...diagnostic, line: null, column: null },
+    ],
+    secret_reference: 'must-not-forward',
+  });
+  assert.equal(mapped.code, 'configuration_invalid');
+  assert.equal(mapped.trace_id, 'trace-config');
+  assert.deepEqual(mapped.diagnostics, [diagnostic, { code: diagnostic.code, message: diagnostic.message, severity: 'error' }]);
+  assert.equal(JSON.stringify(mapped).includes('must-not-forward'), false);
+  for (const code of ['configuration_conflict', 'configuration_missing', 'configuration_restart_required', 'configuration_unique_filter_unsupported'])
+    assert.equal(mapCoreErrorToExternal(412, { code }).code, code);
+});

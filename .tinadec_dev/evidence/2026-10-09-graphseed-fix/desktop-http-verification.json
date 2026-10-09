@@ -1,0 +1,11 @@
+{
+  "installation_requests": 2,
+  "outcomes": [
+    400,
+    201
+  ],
+  "structured_diagnostics": true,
+  "trace_id_preserved": true,
+  "existing_pack_preserved": true,
+  "real_user_toml_unchanged": true
+}

@@ -244,7 +244,7 @@ public sealed class ApiEndpointTests : IClassFixture<ApiEndpointFactory>
         }
     }
 
-    private sealed class ToolLayerReadinessFactory : WebApplicationFactory<Program>
+    private sealed class ToolLayerReadinessFactory : IsolatedApiFactory
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-tool-readiness-tests", Guid.NewGuid().ToString("N"));
 
@@ -259,9 +259,8 @@ public sealed class ApiEndpointTests : IClassFixture<ApiEndpointFactory>
         public string WorkspaceRoot { get; }
         public WorkspaceBoundToolRegistry Registry { get; }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),
@@ -309,15 +308,14 @@ public sealed class ApiEndpointTests : IClassFixture<ApiEndpointFactory>
     }
 }
 
-public sealed class ApiEndpointFactory : WebApplicationFactory<Program>
+public sealed class ApiEndpointFactory : IsolatedApiFactory
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-api-tests", Guid.NewGuid().ToString("N"));
 
     public ApiEndpointFactory() => Directory.CreateDirectory(_root);
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
     {
-        builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

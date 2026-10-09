@@ -2949,6 +2949,37 @@
           "detail": {
             "type": "string"
           },
+          "diagnostics": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "column": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "line": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "severity"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "instance": {
             "type": "string"
           },
@@ -2979,8 +3010,26 @@
       "Project": {
         "additionalProperties": true,
         "properties": {
+          "availability": {
+            "type": "string"
+          },
+          "availability_error": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string"
+          },
+          "configuration_hash": {
+            "type": "string"
+          },
           "created_at": {
             "nullable": true,
+            "type": "string"
+          },
+          "external": {
+            "type": "boolean"
+          },
+          "icon": {
             "type": "string"
           },
           "id": {
@@ -3005,7 +3054,31 @@
           "path": {
             "type": "string"
           },
+          "primary_root_id": {
+            "type": "string"
+          },
+          "roots": {
+            "items": {
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "path"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
           "storage_id": {
+            "type": "string"
+          },
+          "storage_root": {
             "type": "string"
           },
           "trashed_at": {
@@ -3894,14 +3967,29 @@
           "backend": {
             "type": "string"
           },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
           "postgres_connection_reference": {
             "type": "string"
           },
+          "primary_root_id": {
+            "type": "string"
+          },
           "project_path": {
             "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRoot"
+            },
+            "type": "array"
           },
           "storage_root": {
             "type": "string"
@@ -3973,6 +4061,10 @@
           },
           "storage_root": {
             "type": "string"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceDefinition",
+            "nullable": true
           }
         },
         "required": [
@@ -6009,6 +6101,124 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "WorkspaceDefinition": {
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primary_path": {
+            "type": "string"
+          },
+          "primary_root_id": {
+            "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRoot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "roots",
+          "primary_root_id",
+          "icon",
+          "color",
+          "content_hash"
+        ],
+        "type": "object"
+      },
+      "WorkspaceEditRequest": {
+        "properties": {
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primary_root_id": {
+            "type": "string"
+          },
+          "roots": {
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceRoot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "roots",
+          "primary_root_id"
+        ],
+        "type": "object"
+      },
+      "WorkspacePreview": {
+        "properties": {
+          "exists": {
+            "type": "boolean"
+          },
+          "project_path": {
+            "type": "string"
+          },
+          "storage_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "storage_root": {
+            "nullable": true,
+            "type": "string"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/WorkspaceDefinition",
+            "nullable": true
+          }
+        },
+        "required": [
+          "exists",
+          "project_path"
+        ],
+        "type": "object"
+      },
+      "WorkspacePreviewRequest": {
+        "properties": {
+          "project_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_path"
+        ],
+        "type": "object"
+      },
+      "WorkspaceRoot": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
         "type": "object"
       }
     },
@@ -11605,6 +11815,56 @@
         ]
       }
     },
+    "/api/v1/storage/scopes/preview": {
+      "post": {
+        "operationId": "postApiV1StorageScopesPreview",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Tinadec-Storage-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer.",
+            "in": "header",
+            "name": "X-Tinadec-Host-Control",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspacePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspacePreview"
+                }
+              }
+            },
+            "description": "Core storage/configuration result"
+          }
+        },
+        "summary": "POST /api/v1/storage/scopes/preview",
+        "tags": [
+          "Storage"
+        ]
+      }
+    },
     "/api/v1/storage/scopes/{storageId}": {
       "delete": {
         "operationId": "deleteApiV1StorageScopesByStorageId",
@@ -12192,6 +12452,118 @@
           }
         },
         "summary": "POST /api/v1/storage/scopes/:storageId/storage-delete-preview",
+        "tags": [
+          "Storage"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/workspace": {
+      "get": {
+        "operationId": "getApiV1StorageScopesByStorageIdWorkspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tinadec-Storage-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer.",
+            "in": "header",
+            "name": "X-Tinadec-Host-Control",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDefinition"
+                }
+              }
+            },
+            "description": "Core storage/configuration result"
+          }
+        },
+        "summary": "GET /api/v1/storage/scopes/:storageId/workspace",
+        "tags": [
+          "Storage"
+        ]
+      },
+      "put": {
+        "operationId": "putApiV1StorageScopesByStorageIdWorkspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tinadec-Storage-Id",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer.",
+            "in": "header",
+            "name": "X-Tinadec-Host-Control",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceDefinition"
+                }
+              }
+            },
+            "description": "Core storage/configuration result"
+          }
+        },
+        "summary": "PUT /api/v1/storage/scopes/:storageId/workspace",
         "tags": [
           "Storage"
         ]

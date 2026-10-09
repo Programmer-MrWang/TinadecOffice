@@ -536,16 +536,15 @@ public sealed class VibeGraphPackTests
 }
 
 /// <summary>Isolated host for the vibe pack round (own database and workspace).</summary>
-public sealed class VibePackFactory : WebApplicationFactory<Program>
+public sealed class VibePackFactory : IsolatedApiFactory
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-vibe-pack-tests", Guid.NewGuid().ToString("N"));
 
     public string WorkspacePath => Path.Combine(_root, "workspace");
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
     {
         Directory.CreateDirectory(WorkspacePath);
-        builder.UseSetting(Microsoft.AspNetCore.Hosting.WebHostDefaults.EnvironmentKey, "Testing");
         builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

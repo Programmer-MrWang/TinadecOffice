@@ -17,6 +17,11 @@ const nullableJsonObject = () => t.Unsafe({ type: 'object', additionalProperties
 const lifecycleStatus = () => t.Unsafe({ type: 'string', enum: ['active', 'archived', 'trashed'] });
 
 const project = t.Object({
+  roots: t.Optional(t.Array(t.Object({ id: t.String(), path: t.String() }))),
+  primary_root_id: t.Optional(t.String()),
+  icon: t.Optional(t.String()), color: t.Optional(t.String()),
+  configuration_hash: t.Optional(t.String()), storage_root: t.Optional(t.String()),
+  external: t.Optional(t.Boolean()), availability: t.Optional(t.String()), availability_error: t.Optional(t.String()),
   storage_id: t.Optional(t.String()),
   id: t.String({ format: 'uuid' }),
   name: t.String(),

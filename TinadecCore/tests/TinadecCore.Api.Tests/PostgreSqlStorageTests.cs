@@ -45,7 +45,7 @@ public sealed class PostgreSqlStorageTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Created, messageResponse.StatusCode);
     }
 
-    private sealed class PostgreSqlFactory : WebApplicationFactory<Program>
+    private sealed class PostgreSqlFactory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly string _connectionString;
@@ -56,9 +56,8 @@ public sealed class PostgreSqlStorageTests : IAsyncLifetime
             _connectionString = connectionString;
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Provider"] = "PostgreSql",

@@ -233,11 +233,11 @@ public sealed class ModelInvocationQueryTests : IAsyncLifetime
     private static IEnumerable<Guid> EnumerateIds(JsonElement items) =>
         items.EnumerateArray().Select(x => x.GetProperty("id").GetGuid());
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : IsolatedApiFactory
     {
         private readonly string _root;
         public Factory(string root) => _root = root;
-        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),
             ["TinadecPersistence:DataRoot"] = Path.Combine(_root, "data"),

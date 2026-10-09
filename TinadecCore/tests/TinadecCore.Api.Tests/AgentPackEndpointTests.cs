@@ -998,7 +998,7 @@ public sealed class AgentPackEndpointTests
         }
     }
 
-    private sealed class AgentPackFactory : WebApplicationFactory<Program>
+    private sealed class AgentPackFactory : IsolatedApiFactory
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-agent-pack-tests", Guid.NewGuid().ToString("N"));
         private readonly string? _role;
@@ -1011,9 +1011,8 @@ public sealed class AgentPackEndpointTests
 
         public string WorkspacePath => Path.Combine(_root, "workspace");
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

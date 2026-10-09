@@ -3244,7 +3244,7 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         }
     }
 
-    private sealed class ToolChainFactory : WebApplicationFactory<Program>
+    private sealed class ToolChainFactory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly ToolScriptedClient _client;
@@ -3269,9 +3269,8 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
             _settings = settings;
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 var settings = new Dictionary<string, string?>

@@ -897,11 +897,10 @@ public sealed class TinaChatTests : IAsyncLifetime
             Guid.Parse("c7d1e4f6-a251-4a4e-9a01-1a0f4b77d002"), Guid.Parse("c7d1e4f6-a251-4a4e-9a01-1a0f4b77d003"), "owner", true);
     }
 
-    private sealed class ChatFactory(string root, MutableIdentity identity, RecordingModel model, RecordingLoggerProvider logs) : WebApplicationFactory<Program>
+    private sealed class ChatFactory(string root, MutableIdentity identity, RecordingModel model, RecordingLoggerProvider logs) : IsolatedApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

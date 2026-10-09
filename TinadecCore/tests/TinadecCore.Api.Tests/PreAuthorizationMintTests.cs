@@ -545,7 +545,7 @@ public sealed class PreAuthorizationMintTests : IAsyncLifetime
     private ITenantContextAccessor TenantAccessor() =>
         _factory!.Services.GetRequiredService<ITenantContextAccessor>();
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly IReadOnlyDictionary<string, string?>? _extra;
@@ -556,7 +556,7 @@ public sealed class PreAuthorizationMintTests : IAsyncLifetime
             _extra = extra;
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) =>
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder) => builder.ConfigureAppConfiguration((_, config) =>
         {
             var values = new Dictionary<string, string?>
             {

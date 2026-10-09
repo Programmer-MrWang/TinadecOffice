@@ -13,7 +13,7 @@ namespace TinadecCore.Api.Tests;
 
 public sealed class StorageScopeApiTests : IAsyncLifetime
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-scopes", Guid.NewGuid().ToString("N"));
+    private readonly string _root = ApiTestStorage.CreateRoot("storage-scopes");
     private ScopeFactory? _factory;
     private readonly string _token = Guid.NewGuid().ToString("N");
     private string? _previousToken;
@@ -214,8 +214,9 @@ public sealed class StorageScopeApiTests : IAsyncLifetime
         var created = await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = scope.GetProperty("project_id").GetString(), title = "new fact after preview" });
         Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync());
         var deleted = await client.PostAsJsonAsync($"/api/v1/storage/scopes/{id}/storage-delete", new { preview_id = preview.GetProperty("preview_id").GetString() });
-        Assert.Equal(HttpStatusCode.Conflict, deleted.StatusCode);
-        Assert.Contains("changed after the preview", await deleted.Content.ReadAsStringAsync());
+        var deletionDetail = await deleted.Content.ReadAsStringAsync();
+        Assert.True(deleted.StatusCode == HttpStatusCode.Conflict, deletionDetail);
+        Assert.Contains("changed after the preview", deletionDetail);
         Assert.True(Directory.Exists(scope.GetProperty("storage_root").GetString()));
         Assert.Empty(Directory.EnumerateFiles(Path.Combine(scope.GetProperty("storage_root").GetString()!, "temp"), "deletion-preview-*.db"));
     }
@@ -273,19 +274,17 @@ public sealed class StorageScopeApiTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync($"/api/v1/host-challenge?nonce={nonce}&nonce={nonce}")).StatusCode);
     }
 
-    private sealed class ScopeFactory(string root, string token) : WebApplicationFactory<Program>
+    private sealed class ScopeFactory(string root, string token) : IsolatedApiFactory
     {
+        protected override bool UsesManagedStorage => true;
+        protected override string? ManagedUserRoot => Path.Combine(root, "user");
         protected override void ConfigureClient(HttpClient client)
         {
             base.ConfigureClient(client);
             client.DefaultRequestHeaders.Add("X-Tinadec-Host-Control", token);
         }
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("StorageTesting");
-            builder.UseSetting("TinadecStorage:Enabled", "true");
-            builder.UseSetting("TinadecStorage:UserRoot", Path.Combine(root, "user"));
-            builder.UseSetting("TinadecTools:DefaultWorkspaceRoot", Path.Combine(root, "workspace"));
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             { ["TinadecStorage:Enabled"] = "true", ["TinadecStorage:UserRoot"] = Path.Combine(root, "user"),
                 ["TinadecTools:DefaultWorkspaceRoot"] = Path.Combine(root, "workspace"), ["Logging:LogLevel:Default"] = "Warning" }));

@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/api'
+import { ApiError } from '@/lib/apiError'
 import { GRAPH_SEED_PACK_ID, graphSeedPackEnvelope } from './GraphSeedPack'
 
 afterEach(() => {
@@ -9,6 +10,19 @@ afterEach(() => {
 })
 
 describe('agent pack API client', () => {
+  it('keeps structured configuration diagnostics and trace without response extensions', async () => {
+    const diagnostic = { code: 'configuration_unique', message: 'Duplicate draft slug meeting.', severity: 'error', line: 12, column: 4 }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      code: 'configuration_invalid', detail: 'Configuration validation failed.', trace_id: 'trace-validation',
+      diagnostics: [{ ...diagnostic, private_extension: 'not-public' }, { code: 1, message: 'invalid', severity: 'error' }],
+      private_extension: 'not-public',
+    }), { status: 400, headers: { 'content-type': 'application/problem+json' } })))
+    const error = await api.installAgentPack(GRAPH_SEED_PACK_ID, { preview_id: 'preview-1', envelope: graphSeedPackEnvelope }, { idempotency_key: 'validation-test' }).catch((error: unknown) => error)
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ message: 'Configuration validation failed.', code: 'configuration_invalid', status: 400, trace_id: 'trace-validation', diagnostics: [diagnostic] })
+    expect(JSON.stringify(error)).not.toContain('not-public')
+  })
+
   it('posts the envelope directly for preview and preserves the response ETag', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       action: 'install',

@@ -423,7 +423,7 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
 
     // ── host ──────────────────────────────────────────────────────────────────
 
-    private sealed class UnattendedFactory : WebApplicationFactory<Program>
+    private sealed class UnattendedFactory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly UnattendedScriptedClient _client;
@@ -436,9 +436,8 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
             _extra = extra;
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) =>
             {
                 var tomlPath = Path.Combine(_root, "unattended-agent-runtime.toml");

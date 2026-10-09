@@ -402,16 +402,15 @@ public sealed class ControlPlaneConfigGuardTests
     }
 
     /// <summary>Isolated host with a temp SQLite DB and an inspectable in-memory secret store.</summary>
-    private sealed class GuardFactory : WebApplicationFactory<Program>
+    private sealed class GuardFactory : IsolatedApiFactory
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-config-guard-tests", Guid.NewGuid().ToString("N"));
         public TestModelSecretStore SecretStore { get; } = new();
 
         public GuardFactory() => Directory.CreateDirectory(_root);
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

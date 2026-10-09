@@ -7,6 +7,7 @@ import {
 import { scopedApi } from '@/lib/storageScope'
 const api = scopedApi(baseApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
+import { apiErrorDetails } from '@/lib/apiError'
 import {
   GRAPH_SEED_PACK_DIGEST,
   GRAPH_SEED_PACK_ID,
@@ -32,6 +33,7 @@ export interface GraphSeedPackBootstrapState {
   preview: AgentPackInstallPreviewDto | null
   active_version: string | null
   error: string | null
+  error_details: string | null
   checked_at: number | null
 }
 
@@ -40,26 +42,29 @@ interface EnsureOptions {
   prompt?: boolean
 }
 
-interface BootstrapBroadcast {
+type BootstrapBroadcast = { type: 'state_request'; key: string } | {
   type: 'handled'
   key: string
   phase: GraphSeedPackPhase
   active_version: string | null
+  error?: string | null
+  error_details?: string | null
 }
 
 const NOTIFICATION_KEY = 'graph-seed-pack'
 const DEFERRED_NOTIFICATION_KEY = 'graph-seed-pack-deferred'
 const CHANNEL_NAME = 'tinadec-agent-pack-bootstrap'
-const LOCK_NAME = `tinadec-agent-pack:${GRAPH_SEED_PACK_ID}:${GRAPH_SEED_PACK_VERSION}`
 
 const state = ref<GraphSeedPackBootstrapState>({
   phase: 'idle',
   preview: null,
   active_version: null,
   error: null,
+  error_details: null,
   checked_at: null,
 })
 const handledPromptKeys = new Set<string>()
+const terminalFailures = new Map<string, Partial<GraphSeedPackBootstrapState>>()
 let activeEnsure: Promise<void> | null = null
 let channel: BroadcastChannel | null = null
 let translate: (key: string, params?: Record<string, unknown>) => string = (key) => key
@@ -77,7 +82,7 @@ export function setGraphSeedPackTranslator(
 }
 
 function bootstrapKey(): string {
-  return `${api.gatewayUrl}|${GRAPH_SEED_PACK_ID}|${GRAPH_SEED_PACK_VERSION}`
+  return `${api.gatewayUrl}|user|${GRAPH_SEED_PACK_ID}|${GRAPH_SEED_PACK_VERSION}|${GRAPH_SEED_PACK_DIGEST}`
 }
 
 function setState(patch: Partial<GraphSeedPackBootstrapState>): void {
@@ -89,14 +94,29 @@ function getChannel(): BroadcastChannel | null {
   channel = new BroadcastChannel(CHANNEL_NAME)
   channel.addEventListener('message', (event: MessageEvent<BootstrapBroadcast>) => {
     const message = event.data
-    if (!message || message.type !== 'handled' || message.key !== bootstrapKey()) return
+    const terminalPhases = ['up_to_date', 'newer_installed', 'deferred', 'owner_required', 'conflict', 'error']
+    if (message?.type === 'state_request' && message.key === bootstrapKey()) {
+      if (terminalPhases.includes(state.value.phase)) broadcastHandled(state.value.phase, state.value.active_version)
+      return
+    }
+    if (!message || message.type !== 'handled' || message.key !== bootstrapKey()
+      || !terminalPhases.includes(message.phase)
+      || (message.active_version !== null && typeof message.active_version !== 'string')
+      || (message.error != null && typeof message.error !== 'string')
+      || (message.error_details != null && typeof message.error_details !== 'string')) return
     handledPromptKeys.add(message.key)
-    setState({
+    const outcome = {
       phase: message.phase,
       active_version: message.active_version,
+      error: message.error ?? null,
+      error_details: message.error_details ?? null,
       checked_at: Date.now(),
-    })
+    }
+    if (message.phase === 'error' || message.phase === 'conflict') terminalFailures.set(message.key, outcome)
+    else terminalFailures.delete(message.key)
+    setState(outcome)
   })
+  channel.postMessage({ type: 'state_request', key: bootstrapKey() } satisfies BootstrapBroadcast)
   return channel
 }
 
@@ -106,7 +126,16 @@ function broadcastHandled(phase: GraphSeedPackPhase, activeVersion: string | nul
     key: bootstrapKey(),
     phase,
     active_version: activeVersion,
+    error: state.value.error,
+    error_details: state.value.error_details,
   } satisfies BootstrapBroadcast)
+}
+
+function rememberFailure(): void {
+  const key = bootstrapKey()
+  handledPromptKeys.add(key)
+  terminalFailures.set(key, { ...state.value })
+  broadcastHandled(state.value.phase, state.value.active_version)
 }
 
 function previewDetails(preview: AgentPackInstallPreviewDto): string {
@@ -166,6 +195,7 @@ async function previewPack(): Promise<AgentPackInstallPreviewDto> {
     preview,
     active_version: preview.installed_version,
     error: null,
+    error_details: null,
     checked_at: Date.now(),
   })
   return preview
@@ -221,6 +251,7 @@ async function applyPreview(preview: AgentPackInstallPreviewDto): Promise<void> 
     key: `${NOTIFICATION_KEY}-task`,
     title: t(isUpgrade ? 'agentPack.upgradingTitle' : 'agentPack.installingTitle'),
     message: t('agentPack.installingMessage'),
+    details: undefined,
     source: 'GraphSeedPack',
   })
   setState({ phase: 'installing', error: null })
@@ -239,7 +270,7 @@ async function applyPreview(preview: AgentPackInstallPreviewDto): Promise<void> 
     dismissByKey(DEFERRED_NOTIFICATION_KEY)
     task.succeed({ message: t(result.status === 'updated' ? 'agentPack.upgradeSucceeded' : 'agentPack.installSucceeded') })
   } catch (error) {
-    if (isHttpStatus(error, 409) || isHttpStatus(error, 412) || isCodedError(error, 'conflict')) {
+    if (isHttpStatus(error, 409) || isHttpStatus(error, 412)) {
       try {
         const current = await previewPack()
         if (current.action === 'up_to_date' || current.action === 'newer_installed') {
@@ -253,12 +284,15 @@ async function applyPreview(preview: AgentPackInstallPreviewDto): Promise<void> 
     }
 
     const message = error instanceof Error ? error.message : t('agentPack.installFailed')
-    setState({ phase: 'error', error: message })
-    task.fail(error, { title: t('agentPack.installFailed'), source: 'GraphSeedPack' })
+    const details = apiErrorDetails(error)
+    setState({ phase: 'error', error: message, error_details: details ?? null, checked_at: Date.now() })
+    rememberFailure()
+    task.fail(error, { title: t('agentPack.installFailed'), details, source: 'GraphSeedPack' })
     status.error({
       key: NOTIFICATION_KEY,
       title: t('agentPack.installFailed'),
       message,
+      details,
       source: 'GraphSeedPack',
       action: { label: t('settings.retry'), run: () => ensureGraphSeedPack({ force: true, prompt: true }) },
     })
@@ -271,9 +305,11 @@ function settleInstalled(result: AgentPackInstallResultDto): void {
     phase,
     active_version: result.active_version,
     error: null,
+    error_details: null,
     checked_at: Date.now(),
   })
   handledPromptKeys.add(bootstrapKey())
+  terminalFailures.delete(bootstrapKey())
   broadcastHandled(phase, result.active_version)
 }
 
@@ -285,19 +321,36 @@ function settleInstalledFromPreview(preview: AgentPackInstallPreviewDto): void {
     preview,
     active_version: preview.installed_version,
     error: null,
+    error_details: null,
     checked_at: Date.now(),
   })
   handledPromptKeys.add(bootstrapKey())
+  terminalFailures.delete(bootstrapKey())
   broadcastHandled(phase, preview.installed_version)
 }
 
 async function runEnsure(options: EnsureOptions): Promise<void> {
   const key = bootstrapKey()
   const { status } = useNotifications()
-  setState({ phase: 'checking', error: null })
+  // Reconnects and queued windows preserve the last failure. Only explicit checks/retries
+  // replace it with a fresh preview; a failed attempt is not a user's "not now" decision.
+  const failure = terminalFailures.get(key)
+  if (!options.force && failure) {
+    setState(failure)
+    return
+  }
+  if (options.force) terminalFailures.delete(key)
+  setState({ phase: 'checking', error: null, error_details: null })
 
   try {
     const preview = await previewPack()
+    // A peer can report its terminal result while this HTTP preview is in flight.
+    // Preserve that result before a queued window opens another install prompt.
+    const peerFailure = terminalFailures.get(key)
+    if (!options.force && peerFailure) {
+      setState(peerFailure)
+      return
+    }
     if (preview.action === 'up_to_date' || preview.action === 'newer_installed') {
       settleInstalledFromPreview(preview)
       return
@@ -305,6 +358,7 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
     if (preview.action === 'conflict') {
       const message = [...(preview.differences ?? []), ...preview.warnings].join('\n') || t('agentPack.conflictMessage')
       setState({ phase: 'conflict', error: message })
+      rememberFailure()
       status.error({
         key: NOTIFICATION_KEY,
         title: t('agentPack.conflictTitle'),
@@ -322,7 +376,7 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
       await confirmAndInstall(preview)
     }
   } catch (error) {
-    if (isHttpStatus(error, 403) || isCodedError(error, 'agent_pack_management_forbidden')) {
+    if (isCodedError(error, 'agent_pack_management_forbidden')) {
       const message = t('agentPack.ownerRequiredMessage')
       setState({ phase: 'owner_required', error: message, checked_at: Date.now() })
       handledPromptKeys.add(key)
@@ -336,11 +390,14 @@ async function runEnsure(options: EnsureOptions): Promise<void> {
       return
     }
     const message = error instanceof Error ? error.message : t('agentPack.previewFailed')
-    setState({ phase: 'error', error: message, checked_at: Date.now() })
+    const details = apiErrorDetails(error)
+    setState({ phase: 'error', error: message, error_details: details ?? null, checked_at: Date.now() })
+    rememberFailure()
     status.error({
       key: NOTIFICATION_KEY,
       title: t('agentPack.previewFailed'),
       message,
+      details,
       source: 'GraphSeedPack',
       action: { label: t('settings.retry'), run: () => ensureGraphSeedPack({ force: true, prompt: true }) },
     })
@@ -356,7 +413,7 @@ async function withCrossWindowLock(run: () => Promise<void>): Promise<void> {
     await run()
     return
   }
-  await lockManager.request(LOCK_NAME, run)
+  await lockManager.request(`tinadec-agent-pack:${bootstrapKey()}`, run)
 }
 
 export function ensureGraphSeedPack(options: EnsureOptions = {}): Promise<void> {
@@ -376,8 +433,9 @@ export function installOrUpgradeGraphSeedPack(): Promise<void> {
 }
 
 export function __resetGraphSeedPackBootstrapForTests(): void {
-  state.value = { phase: 'idle', preview: null, active_version: null, error: null, checked_at: null }
+  state.value = { phase: 'idle', preview: null, active_version: null, error: null, error_details: null, checked_at: null }
   handledPromptKeys.clear()
+  terminalFailures.clear()
   activeEnsure = null
   channel?.close()
   channel = null

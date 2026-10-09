@@ -583,15 +583,13 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         return await client.GetFromJsonAsync<JsonElement?>($"/api/v1/tools/skills/{resourceId}");
     }
 
-    private sealed class SkillFactory : WebApplicationFactory<Program>
+    private sealed class SkillFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public SkillFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting("TinadecStorage:Enabled", "false");
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

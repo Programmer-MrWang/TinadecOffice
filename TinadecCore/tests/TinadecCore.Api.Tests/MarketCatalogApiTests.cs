@@ -1688,7 +1688,7 @@ public sealed partial class MarketCatalogApiTests : IAsyncLifetime
         }
     }
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly string? _toolsExecutable;
@@ -1717,9 +1717,8 @@ public sealed partial class MarketCatalogApiTests : IAsyncLifetime
                 .Select(path => Path.Combine(path, executableName)).FirstOrDefault(File.Exists);
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting("TinadecStorage:Enabled", "false");
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

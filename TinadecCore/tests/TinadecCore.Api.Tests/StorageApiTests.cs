@@ -689,14 +689,13 @@ public sealed partial class StorageApiTests : IAsyncLifetime
         Assert.Single(idempotentChunks.Select(item => item.Sequence).Distinct());
     }
 
-    private sealed class StorageFactory : WebApplicationFactory<Program>
+    private sealed class StorageFactory : IsolatedApiFactory
     {
         private readonly string _root;
         public StorageFactory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();

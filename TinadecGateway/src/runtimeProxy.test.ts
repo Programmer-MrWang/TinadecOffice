@@ -315,6 +315,29 @@ test('agent pack routes preserve public RFC9457 error codes', { concurrency: fal
   }
 });
 
+test('pack preview and apply preserve configuration diagnostics through actual routes', { concurrency: false }, async () => {
+  const diagnostic = { code: 'configuration_unique', message: 'agents.toml: duplicate draft slug meeting.', severity: 'error', line: 12, column: 4 };
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    code: 'configuration_invalid', detail: 'Configuration validation failed.', trace_id: 'trace-pack-validation',
+    diagnostics: [{ ...diagnostic, private_extension: 'drop-this' }], private_extension: 'drop-this',
+  }), { status: 400, headers: { 'content-type': 'application/problem+json' } })) as typeof fetch;
+  for (const [method, path, body] of [
+    ['POST', '/api/v1/agent-packs/install-preview', { api_version: 'tinadec.io/agent-pack/v1alpha1' }],
+    ['PUT', '/api/v1/agent-packs/tinadec.graph.seed-pack', { preview_id: 'preview-1', envelope: {} }],
+  ] as const) {
+    const response = await app.handle(new Request(`http://gateway.local${path}`, {
+      method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+    }));
+    assert.equal(response.status, 400);
+    assert.equal(response.headers.get('content-type'), 'application/problem+json');
+    const problem = await response.json() as Record<string, unknown>;
+    assert.equal(problem.code, 'configuration_invalid');
+    assert.equal(problem.trace_id, 'trace-pack-validation');
+    assert.deepEqual(problem.diagnostics, [diagnostic]);
+    assert.equal(JSON.stringify(problem).includes('drop-this'), false);
+  }
+});
+
 test('governance control routes proxy decisions and grants without local authorization', { concurrency: false }, async () => {
   const requests: Array<{ url: string; method: string; body: string | undefined }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

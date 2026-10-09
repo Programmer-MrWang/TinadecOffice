@@ -485,11 +485,10 @@ public sealed class OrganizationTests : IAsyncLifetime
 
     private sealed record Call(TenantContext Scope, Guid SessionId, Guid RunId, string Action, string ClientControlId);
 
-    private sealed class OrganizationFactory(string root, MemberScript script, RecordingRunController governanceController) : WebApplicationFactory<Program>
+    private sealed class OrganizationFactory(string root, MemberScript script, RecordingRunController governanceController) : IsolatedApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseEnvironment("Testing");
             builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(root, "tinadec.db"),

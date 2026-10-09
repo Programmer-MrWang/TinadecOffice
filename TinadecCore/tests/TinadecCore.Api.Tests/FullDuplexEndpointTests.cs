@@ -2204,7 +2204,7 @@ public sealed partial class FullDuplexEndpointTests : IAsyncLifetime
         Assert.Equal("INVALID_RUN_CONTROL", body.GetProperty("code").GetString());
     }
 
-    private sealed class FullDuplexFactory : WebApplicationFactory<Program>
+    private sealed class FullDuplexFactory : IsolatedApiFactory
     {
         private readonly string _root;
         private readonly ScriptedChatClient _client;
@@ -2224,9 +2224,8 @@ public sealed partial class FullDuplexEndpointTests : IAsyncLifetime
             _throwingLogger = throwingLogger;
         }
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             var settings = new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

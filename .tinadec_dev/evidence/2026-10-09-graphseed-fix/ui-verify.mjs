@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { join, resolve } from 'node:path';
+const root = process.cwd();
+const evidence = join(root, '.tinadec_dev/evidence/2026-10-09-graphseed-fix');
+const requestEvidence = JSON.parse(await readFile(join(evidence, 'desktop-real-http-requests.json'), 'utf8'));
+const installs = requestEvidence.requests.filter(request => request.method === 'PUT');
+assert.deepEqual(installs.map(request => request.status), [400, 201]);
+assert.equal(installs[0].code, 'configuration_invalid');
+assert.equal(installs[0].trace_id_present, true);
+assert.equal(installs[0].diagnostics[0].code, 'configuration_unique');
+assert.match(installs[0].diagnostics[0].message, /agent_definitions/);
+const ui = JSON.parse(await readFile(join(evidence, 'desktop-ui-acceptance.json'), 'utf8'));
+assert.match(ui.events[0].visible_details, /trace_id:/);
+assert.match(ui.events.find(event => event.step === 'inventory_content').text, /tinadec\.tests\.bootstrap-pack/);
+assert.match(ui.events.find(event => event.step === 'inventory_content').text, /tinadec\.graph\.seed-pack/);
+const before = JSON.parse(await readFile(join(evidence, 'user-config-before.json'), 'utf8'));
+const configRoot = resolve(process.env.USERPROFILE, '.tinadec/config');
+const files = await Promise.all((await readdir(configRoot)).filter(name => name.endsWith('.toml')).sort().map(async name => {
+  const bytes = await readFile(join(configRoot, name));
+  return { name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+}));
+const unchanged = JSON.stringify(files) === JSON.stringify(before.files);
+await writeFile(join(evidence, 'user-config-after.json'), JSON.stringify({ checked_at: new Date().toISOString(), source: '~/.tinadec/config', unchanged, files }, null, 2) + '\n');
+assert.equal(unchanged, true, 'Real user TOML files changed; inspect before/after hashes before claiming preservation.');
+await writeFile(join(evidence, 'desktop-http-verification.json'), JSON.stringify({ installation_requests: installs.length, outcomes: installs.map(request => request.status), structured_diagnostics: true, trace_id_preserved: true, existing_pack_preserved: true, real_user_toml_unchanged: unchanged }, null, 2) + '\n');
+console.log(JSON.stringify({ verified: true, installation_requests: installs.length, user_config_files_unchanged: files.length }));

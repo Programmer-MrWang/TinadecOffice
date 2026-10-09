@@ -1,0 +1,32 @@
+{
+  "electron": "43.3.0",
+  "real_desktop_components": true,
+  "real_core_gateway": true,
+  "isolated_user_copy": true,
+  "events": [
+    {
+      "step": "real_core_validation_failure",
+      "phase": "error",
+      "diagnostics_visible": true,
+      "visible_details": "详细信息\n\nerror configuration_unique: agent_definitions: duplicate unique identity (TenantId, WorkspaceId, Slug).\ntrace_id: 0HNP5VCO4HD7Q:00000003"
+    },
+    {
+      "step": "ordinary_reconnect",
+      "phase": "error",
+      "no_auto_install": true
+    },
+    {
+      "step": "explicit_retry",
+      "phase": "up_to_date"
+    },
+    {
+      "step": "inventory_content",
+      "text": "已安装的包已安装 2 个\nGraphSeedPacktinadec.graph.seed-pack\n\n版本 3.0.1\n\n设为默认禁用\n卸载\nBootstrapFixturePacktinadec.tests.bootstrap-pack工作区默认\n\n版本 0.1.0\n\n禁用\n卸载"
+    },
+    {
+      "step": "renderer_reload",
+      "phase": "up_to_date",
+      "inventory_restored": true
+    }
+  ]
+}

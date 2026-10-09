@@ -403,14 +403,14 @@ public sealed class UserToolActionDurabilityTests : IAsyncLifetime
         return (action.GetProperty("id").GetGuid(), action.GetProperty("permission_request_id").GetGuid());
     }
 
-    private sealed class Factory : WebApplicationFactory<Program>
+    private sealed class Factory : IsolatedApiFactory
     {
         private readonly string _root;
         public MutableProvider Provider { get; } = new();
 
         public Factory(string root) => _root = root;
 
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        protected override void ConfigureIsolatedWebHost(IWebHostBuilder builder)
         {
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {

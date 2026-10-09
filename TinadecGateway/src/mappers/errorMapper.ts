@@ -35,6 +35,7 @@ const CODE_MAP: Record<string, string> = {
 };
 
 const ALLOWED_CODES = new Set([
+  'workspace_authorization_required',
   'session_settings_conflict',
   'space_options_unavailable',
   'space_options_invalid',
@@ -53,6 +54,17 @@ const ALLOWED_CODES = new Set([
   'forbidden',
   'host_authorization_required',
   'host_identity_unavailable',
+  'configuration_invalid',
+  'configuration_conflict',
+  'configuration_missing',
+  'configuration_not_found',
+  'configuration_link_rejected',
+  'configuration_scope_mismatch',
+  'configuration_changed_during_admission',
+  'configuration_restart_required',
+  'configuration_projection_invalid',
+  'configuration_source_reference',
+  'configuration_unique_filter_unsupported',
   'method_not_allowed',
   'payload_too_large',
   'unsupported_media_type',
@@ -148,6 +160,32 @@ export interface ProblemDetails {
   code: string;
   trace_id?: string;
   instance?: string;
+  diagnostics?: ConfigurationDiagnostic[];
+}
+
+export interface ConfigurationDiagnostic {
+  code: string;
+  message: string;
+  severity: string;
+  line?: number;
+  column?: number;
+}
+
+/** Copy a narrow public projection; upstream extension objects may contain private data. */
+function publicDiagnostics(value: unknown): ConfigurationDiagnostic[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.flatMap((entry): ConfigurationDiagnostic[] => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+    const item = entry as Record<string, unknown>;
+    if (typeof item.code !== 'string' || typeof item.message !== 'string' || typeof item.severity !== 'string') return [];
+    for (const position of [item.line, item.column]) {
+      if (position != null && (!Number.isSafeInteger(position) || Number(position) < 1)) return [];
+    }
+    return [{ code: item.code, message: item.message, severity: item.severity,
+      ...(typeof item.line === 'number' ? { line: item.line } : {}),
+      ...(typeof item.column === 'number' ? { column: item.column } : {}),
+    }];
+  });
 }
 
 export function toProblemDetails(status: number, codeRaw: string, detail: string, instance?: string, traceId?: string): ProblemDetails {
@@ -166,18 +204,21 @@ export function toProblemDetails(status: number, codeRaw: string, detail: string
 export function mapCoreErrorToExternal(status: number, data: unknown, instance?: string): ProblemDetails {
   if (data && typeof data === 'object') {
     const rec = data as Record<string, unknown>;
-    const codeRaw = (rec.code as string) ?? (rec.title as string) ?? 'conflict';
+    const codeRaw = typeof rec.code === 'string' ? rec.code : typeof rec.title === 'string' ? rec.title : 'conflict';
     const detail = (rec.detail as string) ?? (rec.message as string) ?? (rec.title as string) ?? 'Request failed.';
-    const traceId = rec.trace_id as string | undefined ?? rec.traceId as string | undefined;
+    const traceId = typeof rec.trace_id === 'string' ? rec.trace_id
+      : typeof rec.traceId === 'string' ? rec.traceId : undefined;
     const mapped = normalizeCode(codeRaw);
+    const diagnostics = publicDiagnostics(rec.diagnostics);
     return {
-      type: (rec.type as string) ?? `https://tinadec.dev/errors/${mapped}`,
+      type: typeof rec.type === 'string' ? rec.type : `https://tinadec.dev/errors/${mapped}`,
       title: mapped,
       status,
       detail: String(detail),
       code: mapped,
-      instance: (rec.instance as string) ?? instance,
+      instance: typeof rec.instance === 'string' ? rec.instance : instance,
       trace_id: traceId,
+      ...(diagnostics ? { diagnostics } : {}),
     };
   }
   return toProblemDetails(status, 'conflict', 'Request failed.', instance);
