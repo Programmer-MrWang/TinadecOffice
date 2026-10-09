@@ -1,4 +1,5 @@
 import { computed, ref, watch, type Ref } from 'vue'
+import { revealWorkspace } from '@/composables/useWorkspaceList'
 import {
   api,
   createUserToolActionForPath,
@@ -35,6 +36,7 @@ import { useRunStore } from '@/stores/run'
 import { registerProjectStorage, projectStorageId, setSelectedStorage, selectedStorage, selectedStorageId, selectionIdentity, selectionKey, scopedApi } from '@/lib/storageScope'
 import type { SessionTransferDto } from '@/settings/storage'
 import type { TaskHandle } from '@/composables/useNotifications'
+import type { WorkspaceInput, WorkspaceDefinition, WorkspaceLoadState } from '@/lib/workspaces'
 
 // ---------------------------------------------------------------------------
 // HomeController — the single domain controller for the Home page.
@@ -45,6 +47,8 @@ import type { TaskHandle } from '@/composables/useNotifications'
 // ---------------------------------------------------------------------------
 
 const projects = ref<ProjectDto[]>([])
+const workspaceEditor = ref<{ open: boolean; projectKey: string | null }>({ open: false, projectKey: null })
+const workspaceLoadStates = ref<Record<string, WorkspaceLoadState>>({})
 const sessions = ref<SessionDto[]>([])
 const sessionTransfers = ref<Record<string, SessionTransferDto>>({})
 type SessionView = 'flat' | 'space'
@@ -277,8 +281,10 @@ async function loadInitial() {
     if (routeData?.base_url) modelBaseUrl.value = routeData.base_url
     suppressProjectSessionsReload = true
     try {
-      setSelectedStorage(projectList[0]?.storage_id ?? 'user')
-      selectedProjectId.value = projectList[0]?.id ?? null
+      const saved = localStorage.getItem('tinadec.workspace.context.v1')
+      const restored = projectList.find(project => selectionKey(project) === saved)
+      setSelectedStorage(restored?.storage_id ?? 'user')
+      selectedProjectId.value = restored?.id ?? null
       await loadSessions()
     } finally {
       suppressProjectSessionsReload = false
@@ -300,22 +306,36 @@ async function loadInitial() {
 
 let sessionListRead = 0
 let sessionListAbort: AbortController | null = null
+const workspaceRetryAborts = new Map<string, AbortController>()
 
 async function loadSessions() {
   // Unfiltered listing covers both project-bound sessions and free conversations
   // (sessions without a project), so the sidebar stays correct with zero projects.
   const read = ++sessionListRead
+  for (const retry of workspaceRetryAborts.values()) retry.abort()
+  workspaceRetryAborts.clear()
   sessionListAbort?.abort()
   const loadAbort = new AbortController()
   sessionListAbort = loadAbort
   try {
-    const sessionList = await api.listSessions(undefined, loadAbort.signal)
+    const scopes = [{ storageId: 'user', projectId: undefined as string | undefined, key: 'user::free' },
+      ...projects.value.map(project => ({ storageId: project.storage_id ?? projectStorageId(project.id), projectId: project.id, key: selectionKey(project) }))]
+    workspaceLoadStates.value = Object.fromEntries(scopes.map(scope => [scope.key, { status: 'loading' as const }]))
+    const results = await Promise.allSettled(scopes.map(scope => api.listSessions(scope.projectId, loadAbort.signal, scope.storageId)))
     // A late response from a previous project/session view must never replace the
     // current roster. This is separate from the transcript read guard below:
     // replacing the roster can move selectedSessionId back to an old conversation
     // before the transcript guard ever has a chance to protect the model send.
     if (read !== sessionListRead || loadAbort.signal.aborted) return
-    sessions.value = sessionList
+    const roster: SessionDto[] = []
+    const states: Record<string, WorkspaceLoadState> = {}
+    results.forEach((result, index) => {
+      const scope = scopes[index]!
+      if (result.status === 'fulfilled') { roster.push(...result.value); states[scope.key] = { status: 'ready' } }
+      else { states[scope.key] = { status: 'error', message: result.reason instanceof Error ? result.reason.message : String(result.reason) }; roster.push(...sessions.value.filter(row => (row.storage_id ?? 'user') === scope.storageId)) }
+    })
+    sessions.value = roster
+    workspaceLoadStates.value = states
     if (!selectedProjectId.value) {
       if (selectedSessionId.value && !visibleSessions.value.find((s) => s.id === selectedSessionId.value)) {
         selectedSessionId.value = null
@@ -324,13 +344,38 @@ async function loadSessions() {
     }
     const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value && (!s.storage_id || s.storage_id === selectedStorageId()))
     if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
-      selectedSessionId.value = projectSessions[0]?.id ?? null
+      selectedSessionId.value = null
     }
   } catch (error) {
     if (!isAbortError(error)) throw error
   } finally {
     if (sessionListAbort === loadAbort) sessionListAbort = null
   }
+}
+
+async function retryWorkspace(key: string) {
+  const project = projects.value.find(row => selectionKey(row) === key)
+  if (!project && key !== 'user::free') return
+  const storage = project?.storage_id ?? (project ? projectStorageId(project.id) : 'user')
+  const read = sessionListRead
+  workspaceRetryAborts.get(key)?.abort()
+  const retry = new AbortController()
+  workspaceRetryAborts.set(key, retry)
+  workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'loading' } }
+  try {
+    const rows = await api.listSessions(project?.id, retry.signal, storage)
+    const recovered = project?.availability === 'error' ? await api.readWorkspace(storage) : null
+    if (read !== sessionListRead || retry.signal.aborted) return
+    if (recovered) projects.value = projects.value.map(row => selectionKey(row) === key ? {
+      ...row, ...recovered, path: recovered.roots.find(root => root.id === recovered.primary_root_id)!.path,
+      configuration_hash: recovered.content_hash, availability: 'ready', availability_error: undefined,
+    } : row)
+    sessions.value = [...sessions.value.filter(row => (row.storage_id ?? 'user') !== storage || (row.project_id ?? null) !== (project?.id ?? null)), ...rows]
+    workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'ready' } }
+  } catch (reason) {
+    if (!retry.signal.aborted && read === sessionListRead)
+      workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'error', message: reason instanceof Error ? reason.message : String(reason) } }
+  } finally { if (workspaceRetryAborts.get(key) === retry) workspaceRetryAborts.delete(key) }
 }
 
 let sessionRead = 0
@@ -451,18 +496,38 @@ function attachActiveRuns() {
   for (const run of activeRuns.value) attachRun(run.id)
 }
 
-async function openProject() {
-  await run('open project', async () => {
-    const path = await window.tinadec.openProjectDialog()
-    if (!path) return
-    const scope = await api.openStorageScope({ project_path: path, name: basenameFromPath(path) })
-    if (!scope.project_id) throw new Error('Core did not return the opened project identity.')
+function openProject() { workspaceEditor.value = { open: true, projectKey: null } }
+function editWorkspace(projectKey: string) { workspaceEditor.value = { open: true, projectKey } }
+function startNewConversation(projectKey: string | null) {
+  const identity = projectKey ? selectionIdentity(projectKey) : null
+  sessionRead++; sessionLoadAbort?.abort()
+  setSelectedStorage(identity?.storageId ?? projectStorageId(identity?.id))
+  selectedProjectId.value = identity?.id ?? null
+  selectedSessionId.value = null; pendingSessionId.value = null
+  draft.value = ''; messages.value = []; invokeError.value = null
+  const project = currentProject.value
+  try { localStorage.setItem('tinadec.workspace.context.v1', project ? selectionKey(project) : 'user::free') } catch { /* State is optional. */ }
+}
+async function completeWorkspace(input: WorkspaceInput, projectKey: string | null, hash?: string, anchor?: string) {
+  let definition: WorkspaceDefinition
+  if (projectKey) {
+    const identity = selectionIdentity(projectKey)
+    definition = await api.saveWorkspace(identity.storageId ?? projectStorageId(identity.id), input, hash!)
+    projects.value = projects.value.map(project => selectionKey(project) === projectKey ? { ...project, ...definition, path: definition.roots.find(root => root.id === definition.primary_root_id)!.path, configuration_hash: definition.content_hash } : project)
+  } else {
+    const path = anchor ?? input.roots.find(root => root.id === input.primary_root_id)!.path
+    const scope = await api.openStorageScope({ project_path: path, ...input })
+    if (!scope.project_id || !scope.workspace) throw new Error('工作区身份或配置未返回。')
+    definition = scope.workspace
     registerProjectStorage(scope.project_id, scope.storage_id)
-    const project: ProjectDto = { id: scope.project_id, storage_id: scope.storage_id, name: basenameFromPath(path), path, created_at: new Date().toISOString() }
-    projects.value = [project, ...projects.value.filter((item) => selectionKey(item) !== selectionKey(project))]
-    setSelectedStorage(scope.storage_id)
-    selectedProjectId.value = project.id
-  })
+    const project: ProjectDto = { id: scope.project_id, storage_id: scope.storage_id, ...definition, path: definition.roots.find(root => root.id === definition.primary_root_id)!.path,
+      configuration_hash: definition.content_hash, storage_root: scope.storage_root, external: scope.external, created_at: new Date().toISOString() }
+    projects.value = [project, ...projects.value.filter(item => selectionKey(item) !== selectionKey(project))]
+    startNewConversation(selectionKey(project))
+    revealWorkspace(selectionKey(project))
+    void loadSessions()
+  }
+  workspaceEditor.value = { open: false, projectKey: null }
 }
 
 async function createSession(projectId: string | null) {
@@ -509,8 +574,7 @@ async function refreshProjectsAndSessions() {
   const projectList = await api.listProjects()
   projects.value = projectList
   if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value && (!p.storage_id || p.storage_id === selectedStorageId()))) {
-    setSelectedStorage(projectList[0]?.storage_id ?? 'user')
-    selectedProjectId.value = projectList[0]?.id ?? null
+    startNewConversation(null)
   }
   // Unfiltered listing, same as loadSessions: per-project queries never return
   // free conversations, so archiving/trashing anything would drop them from the
@@ -518,7 +582,7 @@ async function refreshProjectsAndSessions() {
   await loadSessions()
   const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value && (!s.storage_id || s.storage_id === selectedStorageId()))
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
-    selectedSessionId.value = projectSessions[0]?.id ?? null
+    selectedSessionId.value = null
   }
 }
 
@@ -1146,6 +1210,12 @@ export const homeController = {
   // Methods
   start,
   openProject,
+  editWorkspace,
+  workspaceEditor,
+  workspaceLoadStates,
+  completeWorkspace,
+  startNewConversation,
+  retryWorkspaces: retryWorkspace,
   createSession,
   renameProject,
   renameSession,
@@ -1188,15 +1258,15 @@ export const homeController = {
   updateDraft: (value: string) => { draft.value = value },
   updatePermission: (value: PermissionLevel) => updateComposerSettings({ permission_mode: value }),
   setSelectedProject: (id: string | null) => {
-    const identity = id ? selectionIdentity(id) : null
-    setSelectedStorage(identity?.storageId ?? projectStorageId(identity?.id))
-    selectedProjectId.value = identity?.id ?? null
+    startNewConversation(id)
   },
   setSelectedSession: (id: string) => {
     const identity = selectionIdentity(id)
     if (identity.storageId) setSelectedStorage(identity.storageId)
     const session = sessions.value.find(s => s.id === identity.id && (!s.storage_id || s.storage_id === selectedStorageId()))
     if (session && (session.view_mode ?? 'flat') !== viewMode.value) return
+    if (session) { suppressProjectSessionsReload = true; selectedProjectId.value = session.project_id ?? null; suppressProjectSessionsReload = false }
     selectedSessionId.value = identity.id
+    try { localStorage.setItem('tinadec.workspace.context.v1', currentProject.value ? selectionKey(currentProject.value) : 'user::free') } catch { /* Optional local state. */ }
   },
 }

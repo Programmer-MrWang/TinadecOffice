@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
+import { useWorkspaceList, freeWorkspaceKey, recentWorkspaceSessions } from '@/composables/useWorkspaceList'
+import { workspaceIcons, type WorkspaceLoadState } from '@/lib/workspaces'
 import { selectionKey, selectionIdentity, selectedStorage } from '@/lib/storageScope'
 import {
   Archive,
@@ -18,8 +20,9 @@ import {
   Waypoints,
   Sparkles,
   Store,
-  Terminal,
   Trash2,
+  ArrowUp,
+  ArrowDown,
 } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { ProjectDto, SessionDto } from '../api'
@@ -29,9 +32,12 @@ import InlineRenameInput from '@/components/InlineRenameInput.vue'
 import RowContextMenu, { type RowMenuItem } from '@/components/RowContextMenu.vue'
 import { UiButton } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
+import { useDebugStudio } from '@/composables/useDebugStudio'
 
 const { t } = useI18n()
 const { confirm } = useNotifications()
+const { enabled: debugStudioEnabled, load: loadDebugStudio } = useDebugStudio()
+onMounted(loadDebugStudio)
 
 const props = defineProps<{
   projects: ProjectDto[]
@@ -43,6 +49,7 @@ const props = defineProps<{
   spaceActive?: boolean
   panelStyle?: Record<string, string>
   panelDataAttrs?: Record<string, string>
+  workspaceLoadStates?: Record<string, WorkspaceLoadState>
 }>()
 
 const emit = defineEmits<{
@@ -52,7 +59,6 @@ const emit = defineEmits<{
   'open-project': []
   'go-settings': []
   'go-market': []
-  'go-workbench': []
   'change-view': [mode: 'flat' | 'space']
   'toggle-collapse': []
   'rename-project': [id: string, name: string]
@@ -62,18 +68,40 @@ const emit = defineEmits<{
   'trash-project': [id: string]
   'trash-session': [id: string]
   'migrate-session': [id: string, targetProjectKey: string]
+  'edit-workspace': [id: string]
+  'retry-workspaces': [key: string]
 }>()
 
-const expandedProjects = ref<Set<string>>(new Set())
+const list = useWorkspaceList()
+watch(() => props.projects.map(selectionKey), keys => list.reconcile(keys), { immediate: true })
+let draggedWorkspace: string | null = null
+function startDrag(event: DragEvent, key: string) {
+  draggedWorkspace = key
+  if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/x-tinadec-workspace', key) }
+}
+function dropWorkspace(event: DragEvent, key: string) {
+  event.preventDefault()
+  if (draggedWorkspace) list.move(draggedWorkspace, key)
+  draggedWorkspace = null
+}
 const viewMenu = ref<HTMLDivElement | null>(null)
+const viewMenuId = `sidebar-view-${useId()}`
+const viewMenuOpen = ref(false)
+let viewMenuTrigger: HTMLButtonElement | null = null
 const viewMenuStyle = ref({ left: '0px', top: '0px' })
 function openViewMenu(event: MouseEvent) {
-  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  viewMenuTrigger = event.currentTarget as HTMLButtonElement
+  const rect = viewMenuTrigger.getBoundingClientRect()
   viewMenuStyle.value = { left: `${Math.max(8, Math.min(rect.left, window.innerWidth - 210))}px`, top: `${Math.max(8, rect.top - 116)}px` }
-  viewMenu.value?.togglePopover()
+  // The native invoker performs the toggle after this positioning handler;
+  // it also owns Escape/light-dismiss and restores focus when the menu closes.
+}
+function updateViewMenuState(event: Event) {
+  viewMenuOpen.value = (event as ToggleEvent).newState === 'open'
 }
 function changeView(mode: 'flat' | 'space') {
   viewMenu.value?.hidePopover()
+  viewMenuTrigger?.focus({ preventScroll: true })
   emit('change-view', mode)
 }
 
@@ -95,7 +123,11 @@ const migrationProjects = computed(() => props.projects.filter(project => projec
 const migrationAllowed = computed(() => menuTarget.value?.kind === 'session' && props.sessions.some(session => selectionKey(session) === menuTarget.value?.id && !session.project_id) && migrationProjects.value.length > 0)
 
 const menuItems = computed<RowMenuItem[]>(() => [
-  { key: 'rename', label: t('sidebar.rename'), icon: Pencil },
+  ...(menuTarget.value?.kind === 'project' ? [
+    { key: 'edit-workspace', label: '编辑工作区', icon: Pencil },
+    { key: 'move-up', label: '上移', icon: ArrowUp },
+    { key: 'move-down', label: '下移', icon: ArrowDown },
+  ] : [{ key: 'rename', label: t('sidebar.rename'), icon: Pencil }]),
   ...(migrationAllowed.value ? [{ key: 'migrate', label: t('sidebar.migrateSession'), icon: ArrowRightLeft }] : []),
   { key: 'archive', label: t('sidebar.archive'), icon: Archive },
   { key: 'trash', label: t('sidebar.moveToTrash'), icon: Trash2, danger: true },
@@ -112,11 +144,7 @@ function openMenuAtButton(event: MouseEvent, kind: 'project' | 'session', id: st
 
 function startRename(target: MenuTarget) {
   renaming.value = { kind: target.kind, id: target.id }
-  if (target.kind === 'project' && !expandedProjects.value.has(target.id)) {
-    const next = new Set(expandedProjects.value)
-    next.add(target.id)
-    expandedProjects.value = next
-  }
+  if (target.kind === 'project' && !isExpanded(target.id)) toggleExpand(target.id)
 }
 
 function submitRename(value: string) {
@@ -135,6 +163,8 @@ async function handleMenuSelect(key: string) {
   const target = menuTarget.value
   menuTarget.value = null
   if (!target) return
+  if (key === 'edit-workspace') { emit('edit-workspace', target.id); return }
+  if (key === 'move-up' || key === 'move-down') { list.step(target.id, key === 'move-up' ? -1 : 1); return }
   if (key === 'rename') {
     startRename(target)
     return
@@ -173,8 +203,16 @@ function submitMigration() {
 }
 
 const filteredProjects = computed(() => {
-  return props.projects
+  return [...props.projects].sort((a, b) => list.state.value.order.indexOf(selectionKey(a)) - list.state.value.order.indexOf(selectionKey(b)))
 })
+const workspaces = computed(() => [{ key: freeWorkspaceKey, name: t('chat.freeConversation'), project: null as ProjectDto | null },
+  ...filteredProjects.value.map(project => ({ key: selectionKey(project), name: project.name, project }))])
+function allSessions(key: string): SessionDto[] { return key === freeWorkspaceKey ? freeSessions.value : getProjectSessions(key) }
+function shownSessions(key: string) {
+  const active = props.sessions.find(isActiveSession)
+  return recentWorkspaceSessions(allSessions(key), active ? selectionKey(active) : null, list.state.value.allKeys.includes(key))
+}
+function isActiveSession(session: SessionDto) { return session.id === props.selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage.value) }
 
 function getProjectSessions(projectKey: string): SessionDto[] {
   const { id, storageId } = selectionIdentity(projectKey)
@@ -182,22 +220,15 @@ function getProjectSessions(projectKey: string): SessionDto[] {
 }
 
 function isExpanded(projectId: string): boolean {
-  return expandedProjects.value.has(projectId)
+  return !list.state.value.collapsedKeys.includes(projectId)
 }
 
 function toggleExpand(projectId: string) {
-  const next = new Set(expandedProjects.value)
-  if (next.has(projectId)) {
-    next.delete(projectId)
-  } else {
-    next.add(projectId)
-  }
-  expandedProjects.value = next
+  list.toggle(projectId, 'collapsedKeys')
 }
 
 function handleProjectClick(projectId: string) {
   toggleExpand(projectId)
-  emit('select-project', projectId)
 }
 
 function handleSessionClick(sessionId: string) {
@@ -209,7 +240,8 @@ function handleNewSession(projectId: string) {
 }
 
 function handleNewThread() {
-  emit('create-session', props.selectedProjectId ?? props.projects[0]?.id ?? null)
+  const selected = props.projects.find(project => project.id === props.selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage.value))
+  emit('create-session', selected ? selectionKey(selected) : null)
 }
 
 // Sessions not bound to any project (Codex-style free conversations). The title is
@@ -223,6 +255,7 @@ const freeSessions = computed(() =>
 const tokenUsage = ref<number[]>([])
 
 function openDebugStudio() {
+  if (!debugStudioEnabled.value) return
   ;(window as unknown as { tinadec?: { openDebugStudio?: () => Promise<boolean> } }).tinadec?.openDebugStudio?.()
 }
 </script>
@@ -262,16 +295,7 @@ function openDebugStudio() {
         variant="ghost"
         size="sm"
         class="sidebar-nav-item w-full justify-start"
-        :title="t('sidebar.commandCenter')"
-        @click="emit('go-workbench')"
-      >
-        <Terminal :size="16" class="sidebar-icon" />
-        <span class="sidebar-label">{{ t('sidebar.commandCenter') }}</span>
-      </UiButton>
-      <UiButton
-        variant="ghost"
-        size="sm"
-        class="sidebar-nav-item w-full justify-start"
+        v-if="debugStudioEnabled"
         title="Debug Studio"
         @click="openDebugStudio()"
       >
@@ -280,137 +304,42 @@ function openDebugStudio() {
       </UiButton>
     </nav>
 
-    <div class="sidebar-list">
-      <div v-if="freeSessions.length > 0" class="project-group free-conversation-group">
-        <div class="project-row">
-          <div class="project-row-main free-conversation-header">
-            <Sparkles :size="14" class="sidebar-list-item-icon sidebar-icon" />
-            <span class="sidebar-list-item-text sidebar-label">{{ t('sidebar.freeConversations') }}</span>
-          </div>
+    <div class="workspace-section-heading">
+      <button class="workspace-section-toggle" :aria-expanded="!list.state.value.collapsed" aria-controls="sidebar-workspaces" @click="list.state.value.collapsed = !list.state.value.collapsed">
+        <ChevronRight :size="13" class="workspace-section-chevron" :class="{ expanded: !list.state.value.collapsed }" /><span class="sidebar-label">工作区</span>
+      </button>
+      <button class="workspace-section-add" aria-label="新建工作区" title="新建工作区" @click.stop="emit('open-project')"><Plus :size="14" /></button>
+    </div>
+    <div id="sidebar-workspaces" class="sidebar-list" v-show="!list.state.value.collapsed">
+      <div v-for="workspace in workspaces" :key="workspace.key" class="project-group" :class="{ 'free-conversation-group': !workspace.project }" :data-workspace-key="workspace.key">
+        <div class="project-row" :class="{ active: workspace.project ? workspace.project.id === selectedProjectId && (!workspace.project.storage_id || workspace.project.storage_id === selectedStorage) : !selectedProjectId }"
+          :draggable="!!workspace.project" @dragstart.stop="workspace.project && startDrag($event, workspace.key)" @dragend="draggedWorkspace = null"
+          @dragover.prevent="workspace.project && draggedWorkspace" @drop.stop="workspace.project && dropWorkspace($event, workspace.key)"
+          @contextmenu.prevent="workspace.project && openMenuAtCursor($event, 'project', workspace.key, workspace.name)" @click="handleProjectClick(workspace.key)">
+          <button class="project-row-main" :title="workspace.project?.path ?? workspace.name" :aria-expanded="isExpanded(workspace.key)" :aria-controls="`workspace-sessions-${workspace.key}`" @click.stop="handleProjectClick(workspace.key)">
+            <component :is="workspace.project ? workspaceIcons[workspace.project.icon ?? 'folder'] ?? FolderOpen : Sparkles" :size="15" class="sidebar-list-item-icon sidebar-icon" :class="`workspace-color-${workspace.project?.color ?? 'default'}`" />
+            <span class="sidebar-list-item-text sidebar-label">{{ workspace.name }}</span>
+          </button>
+          <button v-if="workspace.project" class="project-row-action sidebar-extra" :aria-label="`${workspace.name} · ${t('sidebar.moreActions')}`" :title="t('sidebar.moreActions')" @mousedown.stop @click.stop="openMenuAtButton($event, 'project', workspace.key, workspace.name)"><MoreHorizontal :size="14" /></button>
+          <button class="project-row-action sidebar-extra" :disabled="busy || workspace.project?.availability === 'error'" :aria-label="`${workspace.name} · ${t('sidebar.newChat')}`" :title="t('sidebar.newChat')" @mousedown.stop @click.stop="emit('create-session', workspace.project ? workspace.key : null)"><Plus :size="14" /></button>
         </div>
-        <div class="project-sessions sidebar-extra">
-          <div
-            v-for="session in freeSessions"
-            :key="selectionKey(session)"
-            class="session-row"
-            :class="{ active: session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) }"
-            @contextmenu.prevent="openMenuAtCursor($event, 'session', selectionKey(session), session.title)"
-          >
-            <button
-              class="session-item"
-              @click="handleSessionClick(selectionKey(session))"
-              @dblclick.stop="renaming = { kind: 'session', id: selectionKey(session) }"
-            >
+        <div v-if="isExpanded(workspace.key)" :id="`workspace-sessions-${workspace.key}`" class="project-sessions sidebar-extra">
+          <div v-if="workspaceLoadStates?.[workspace.key]?.status === 'loading'" class="session-empty" role="status">加载中…</div>
+          <div v-else-if="workspaceLoadStates?.[workspace.key]?.status === 'error' || workspace.project?.availability === 'error'" class="workspace-load-error" role="status">
+            <span :title="workspaceLoadStates?.[workspace.key]?.message ?? workspace.project?.availability_error">加载失败</span><button @click="emit('retry-workspaces', workspace.key)">重试</button>
+          </div>
+          <div v-for="session in shownSessions(workspace.key)" :key="selectionKey(session)" class="session-row" :class="{ active: isActiveSession(session) }" @contextmenu.prevent="openMenuAtCursor($event, 'session', selectionKey(session), session.title)">
+            <button class="session-item" :aria-current="isActiveSession(session) ? 'page' : undefined" :title="session.title" @click="handleSessionClick(selectionKey(session))" @dblclick.stop="renaming = { kind: 'session', id: selectionKey(session) }">
               <span class="session-dot" :class="session.status" />
-              <InlineRenameInput
-                v-if="renaming?.kind === 'session' && renaming.id === selectionKey(session)"
-                :model-value="session.title"
-                class="session-title"
-                @submit="submitRename"
-                @cancel="cancelRename"
-              />
-              <span v-else class="session-title">{{ session.title }}</span>
+              <InlineRenameInput v-if="renaming?.kind === 'session' && renaming.id === selectionKey(session)" :model-value="session.title" class="session-title" @submit="submitRename" @cancel="cancelRename" /><span v-else class="session-title">{{ session.title }}</span>
             </button>
-            <button
-              class="session-more"
-              :title="t('sidebar.moreActions')"
-              @click.stop="openMenuAtButton($event, 'session', selectionKey(session), session.title)"
-            >
-              <MoreHorizontal :size="13" />
-            </button>
+            <button class="session-more" :title="t('sidebar.moreActions')" @click.stop="openMenuAtButton($event, 'session', selectionKey(session), session.title)"><MoreHorizontal :size="13" /></button>
           </div>
+          <div v-if="!allSessions(workspace.key).length && (!workspaceLoadStates?.[workspace.key] || workspaceLoadStates[workspace.key]?.status === 'ready') && workspace.project?.availability !== 'error'" class="session-empty">{{ t('sidebar.noSessions') }}</div>
+          <button v-if="allSessions(workspace.key).length > shownSessions(workspace.key).length || list.state.value.allKeys.includes(workspace.key)" class="workspace-show-more" @click="list.toggle(workspace.key, 'allKeys')">{{ list.state.value.allKeys.includes(workspace.key) ? '收起显示' : '展开显示' }}</button>
         </div>
       </div>
-
-      <div
-        v-for="project in filteredProjects"
-        :key="selectionKey(project)"
-        class="project-group"
-      >
-        <div
-          class="project-row"
-          :class="{ active: project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) }"
-          @contextmenu.prevent="openMenuAtCursor($event, 'project', selectionKey(project), project.name)"
-        >
-          <button
-            class="project-row-main"
-            :aria-current="project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) ? 'location' : undefined"
-            :title="project.name"
-            @click="handleProjectClick(selectionKey(project))"
-            @dblclick.stop="renaming = { kind: 'project', id: selectionKey(project) }"
-          >
-            <ChevronRight
-              :size="14"
-              class="project-chevron sidebar-extra"
-              :class="{ expanded: isExpanded(selectionKey(project)) }"
-            />
-            <FolderOpen :size="14" class="sidebar-list-item-icon sidebar-icon" />
-            <InlineRenameInput
-              v-if="renaming?.kind === 'project' && renaming.id === selectionKey(project)"
-              :model-value="project.name"
-              class="sidebar-list-item-text"
-              @submit="submitRename"
-              @cancel="cancelRename"
-            />
-            <span v-else class="sidebar-list-item-text sidebar-label">{{ project.name }}</span>
-          </button>
-          <button
-            class="project-row-action sidebar-extra"
-            :title="t('sidebar.moreActions')"
-            @click.stop="openMenuAtButton($event, 'project', selectionKey(project), project.name)"
-          >
-            <MoreHorizontal :size="14" />
-          </button>
-          <button
-            class="project-row-action sidebar-extra"
-            :title="t('sidebar.newChat')"
-            @click.stop="handleNewSession(selectionKey(project))"
-          >
-            <Plus :size="14" />
-          </button>
-        </div>
-
-        <div v-if="isExpanded(selectionKey(project))" class="project-sessions sidebar-extra">
-          <div
-            v-for="session in getProjectSessions(selectionKey(project))"
-            :key="selectionKey(session)"
-            class="session-row"
-            :class="{ active: session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) }"
-            @contextmenu.prevent="openMenuAtCursor($event, 'session', selectionKey(session), session.title)"
-          >
-            <button
-              class="session-item"
-              :aria-current="session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) ? 'page' : undefined"
-              @click="handleSessionClick(selectionKey(session))"
-              @dblclick.stop="renaming = { kind: 'session', id: selectionKey(session) }"
-            >
-              <span class="session-dot" :class="session.status" />
-              <InlineRenameInput
-                v-if="renaming?.kind === 'session' && renaming.id === selectionKey(session)"
-                :model-value="session.title"
-                class="session-title"
-                @submit="submitRename"
-                @cancel="cancelRename"
-              />
-              <span v-else class="session-title">{{ session.title }}</span>
-            </button>
-            <button
-              class="session-more"
-              :title="t('sidebar.moreActions')"
-              @click.stop="openMenuAtButton($event, 'session', selectionKey(session), session.title)"
-            >
-              <MoreHorizontal :size="13" />
-            </button>
-          </div>
-          <div v-if="getProjectSessions(selectionKey(project)).length === 0" class="session-empty">
-            {{ t('sidebar.noSessions') }}
-          </div>
-        </div>
-      </div>
-
-      <div v-if="filteredProjects.length === 0" class="sidebar-empty">
-        <span class="sidebar-label">{{ t('sidebar.noResults') }}</span>
-      </div>
+      <button v-if="!filteredProjects.length" class="workspace-empty-create sidebar-extra" @click="emit('open-project')"><FolderOpen :size="14" />添加工作区</button>
     </div>
 
     <div v-if="tokenUsage.length > 0" class="token-usage-area">
@@ -437,7 +366,11 @@ function openDebugStudio() {
           class="sidebar-footer-action"
           :title="t('space.switchView')"
           :aria-label="t('space.switchView')"
+          :aria-expanded="viewMenuOpen"
+          :aria-controls="viewMenuId"
           aria-haspopup="dialog"
+          :popovertarget="viewMenuId"
+          popovertargetaction="toggle"
           @click="openViewMenu"
         >
           <Waypoints v-if="spaceActive" :size="16" /><LayoutGrid v-else :size="16" />
@@ -471,9 +404,9 @@ function openDebugStudio() {
       @select="handleMenuSelect"
       @close="menuTarget = null"
     />
-    <div ref="viewMenu" popover class="sidebar-view-menu" :style="viewMenuStyle" role="dialog" :aria-label="t('space.switchView')">
-      <button :aria-pressed="!spaceActive" @click="changeView('flat')"><LayoutGrid :size="18" />{{ t('space.flat') }}</button>
-      <button :aria-pressed="!!spaceActive" @click="changeView('space')"><Waypoints :size="18" />{{ t('space.title') }}</button>
+    <div :id="viewMenuId" ref="viewMenu" popover class="sidebar-view-menu" :style="viewMenuStyle" role="dialog" :aria-label="t('space.switchView')" @beforetoggle="updateViewMenuState">
+      <button :aria-pressed="!spaceActive" :autofocus="!spaceActive" @click="changeView('flat')"><LayoutGrid :size="18" />{{ t('space.flat') }}</button>
+      <button :aria-pressed="!!spaceActive" :autofocus="!!spaceActive" @click="changeView('space')"><Waypoints :size="18" />{{ t('space.title') }}</button>
     </div>
     <dialog ref="migrationDialog" class="sidebar-migration-dialog" aria-labelledby="migration-title" @close="migrationSession = null">
       <form @submit.prevent="submitMigration">
@@ -488,7 +421,14 @@ function openDebugStudio() {
 </template>
 
 <style scoped>
-.sidebar-view-menu { position: fixed; inset: auto; margin: 0; width: 200px; padding: 6px; border: 1px solid var(--border-muted); border-radius: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); }
+.sidebar-view-menu { position: fixed; inset: auto; margin: 0; width: 200px; padding: 6px; border: 1px solid var(--border-muted); border-radius: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); opacity: 0; transform: translateY(6px) scale(0.98); transform-origin: bottom left; pointer-events: none; transition: opacity 160ms ease-out, transform 160ms ease-out, display 160ms allow-discrete, overlay 160ms allow-discrete; }
+.sidebar-view-menu:popover-open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+@starting-style {
+  .sidebar-view-menu:popover-open { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-view-menu { transition: none; transform: none; }
+}
 .sidebar-view-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
 .sidebar-view-menu button:hover, .sidebar-view-menu button[aria-pressed="true"] { background: var(--surface-selected); }
 .sidebar-migration-dialog { width: min(560px, calc(100vw - 32px)); border: 1px solid var(--border-muted); border-radius: 12px; padding: 24px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); }

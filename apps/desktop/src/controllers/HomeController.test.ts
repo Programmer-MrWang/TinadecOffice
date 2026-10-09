@@ -9,6 +9,7 @@ const h = vi.hoisted(() => ({
   doctor: vi.fn(async () => null),
   readiness: vi.fn(async () => ({ items: [] })),
   listSessions: vi.fn(async () => []),
+  readWorkspace: vi.fn(),
   createSession: vi.fn(),
   listMessages: vi.fn(async () => []),
   revertSessionMessage: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock('@/api', () => ({
     doctor: h.doctor,
     readiness: h.readiness,
     listSessions: h.listSessions,
+    readWorkspace: h.readWorkspace,
     createSession: h.createSession,
     listMessages: h.listMessages,
     revertSessionMessage: h.revertSessionMessage,
@@ -723,7 +725,7 @@ describe('HomeController initial load', () => {
     homeController.start()
     await flushPromises()
 
-    expect(h.listSessions).toHaveBeenCalledTimes(1)
+    expect(h.listSessions).toHaveBeenCalledTimes(2) // User and workspace rosters load independently.
     expect(rosterSignal.aborted).toBe(false)
 
     resolveRoster([])
@@ -735,6 +737,31 @@ describe('HomeController initial load', () => {
 })
 
 describe('HomeController independent storage scopes', () => {
+  it('clears only the recovered workspace availability failure after a successful scoped retry', async () => {
+    const first = { id: 'failed-a', storage_id: 'failed-scope-a', path: 'C:/failed-a', name: 'first', availability: 'error', availability_error: 'missing directory' }
+    const second = { id: 'failed-b', storage_id: 'failed-scope-b', path: 'C:/failed-b', name: 'second', availability: 'error' }
+    homeController.projects.value = [first, second] as never
+    h.listSessions.mockResolvedValueOnce([])
+    h.readWorkspace.mockResolvedValueOnce({ name: 'recovered first', roots: [{ id: 'a', path: first.path }], primary_root_id: 'a', content_hash: 'recovered-hash' })
+    await homeController.retryWorkspaces('failed-scope-a::failed-a')
+    expect(h.readWorkspace).toHaveBeenCalledWith(first.storage_id)
+    expect(homeController.projects.value[0]).toMatchObject({ name: 'recovered first', availability: 'ready', configuration_hash: 'recovered-hash' })
+    expect(homeController.projects.value[0]?.availability_error).toBeUndefined()
+    expect(homeController.projects.value[1]).toEqual(second)
+  })
+  it('retries one workspace without reloading or replacing another workspace roster', async () => {
+    const first = { id: 'retry-a', storage_id: 'retry-scope-a', path: 'C:/retry-a', name: 'first' }
+    const second = { id: 'retry-b', storage_id: 'retry-scope-b', path: 'C:/retry-b', name: 'second' }
+    homeController.projects.value = [first, second] as never
+    homeController.sessions.value = [{ id: 'retained-b', project_id: second.id, storage_id: second.storage_id }] as never
+    homeController.workspaceLoadStates.value = { 'retry-scope-a::retry-a': { status: 'error' }, 'retry-scope-b::retry-b': { status: 'ready' } }
+    h.listSessions.mockResolvedValueOnce([{ id: 'recovered-a', project_id: first.id, storage_id: first.storage_id }] as never)
+    await homeController.retryWorkspaces('retry-scope-a::retry-a')
+    expect(h.listSessions).toHaveBeenCalledTimes(1)
+    expect(h.listSessions).toHaveBeenCalledWith(first.id, expect.any(AbortSignal), first.storage_id)
+    expect(homeController.sessions.value.map(row => row.id)).toEqual(['retained-b', 'recovered-a'])
+    expect(homeController.workspaceLoadStates.value['retry-scope-b::retry-b']).toEqual({ status: 'ready' })
+  })
   it('applies a late settings receipt to its source clone only', async () => {
     let finish!: (result: { id: string; settings_revision: number; permission_mode: string }) => void
     const original = { id: 'clone-project', storage_id: 'original-scope', path: 'C:/original', name: 'original' }
