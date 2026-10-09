@@ -4,6 +4,7 @@ import type { components } from '@/generated/schema'
 import type { MessageAttachmentDto, MessageDto, SseChunk } from '@/generated/client'
 import { createRunStream, runStreamDelta, type RunStreamHandle } from '@/lib/runStream'
 import { isAbortError } from '@/lib/isAbortError'
+import { ApiError } from '@/lib/apiError'
 import { captureStorageId, rememberStorageResult, normalizeStorageRequest, storageHeaders, storageFetch, sessionStorageId, selectionIdentity, type StorageRequestOptions } from '@/lib/storageScope'
 import type { StorageScopeDto, StorageStatsDto, StorageCleanupPreviewDto, StorageContentPreviewDto, StorageDeletePreviewDto, SessionTransferDto, ConfigurationDocumentDto, StorageConfigureInput } from '@/settings/storage'
 import { ScopedEventSource } from '@/lib/scopedEventSource'
@@ -29,6 +30,15 @@ export type TinaChatExecution = components['schemas']['TinaChatExecutionDto']
 export type TinaChatWorkspacePolicy = components['schemas']['TinaChatWorkspacePolicyDto']
 
 export interface ProjectDto {
+  roots?: import('@/lib/workspaces').WorkspaceRoot[] | null;
+  primary_root_id?: string | null;
+  icon?: string;
+  color?: string;
+  configuration_hash?: string | null;
+  storage_root?: string | null;
+  external?: boolean | null;
+  availability?: 'ready' | 'error';
+  availability_error?: string;
   storage_id?: string;
   id: string;
   name: string;
@@ -2612,12 +2622,7 @@ async function requestResult<T>(path: string, init?: StorageRequestOptions): Pro
 
   if (!response.ok) {
     const message = extractErrorMessage(data, response.statusText);
-    const code = data && typeof data === 'object' && typeof (data as Record<string, unknown>).code === 'string'
-      ? (data as Record<string, unknown>).code
-      : null;
-    // Coded errors let callers branch on machine codes (e.g. context_conflict)
-    // instead of parsing human messages.
-    throw Object.assign(new Error(message), { code, status: response.status });
+    throw new ApiError(message, response.status, data);
   }
 
   rememberStorageResult(path, data, storageId)
@@ -2841,7 +2846,10 @@ function streamAdmittedInteraction(
 export const api = {
   gatewayUrl,
   listStorageScopes: () => request<StorageScopeDto[]>('/api/v1/storage/scopes', { storageId: 'user' }),
-  openStorageScope: (input: { project_path: string; name?: string } & Partial<StorageConfigureInput>) => request<StorageScopeDto>('/api/v1/storage/scopes/open', { method: 'POST', storageId: 'user', body: JSON.stringify(input) }),
+  openStorageScope: (input: { project_path: string; name?: string } & Partial<StorageConfigureInput> & Partial<import('@/lib/workspaces').WorkspaceInput>) => request<StorageScopeDto>('/api/v1/storage/scopes/open', { method: 'POST', storageId: 'user', body: JSON.stringify(input) }),
+  previewWorkspace: (project_path: string) => request<import('@/lib/workspaces').WorkspacePreview>('/api/v1/storage/scopes/preview', { method: 'POST', storageId: 'user', body: JSON.stringify({ project_path }) }),
+  readWorkspace: (storageId: string) => request<import('@/lib/workspaces').WorkspaceDefinition>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/workspace`, { storageId: 'user' }),
+  saveWorkspace: (storageId: string, input: import('@/lib/workspaces').WorkspaceInput, hash: string) => request<import('@/lib/workspaces').WorkspaceDefinition>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/workspace`, { method: 'PUT', storageId: 'user', headers: { 'If-Match': `"${hash}"` }, body: JSON.stringify(input) }),
   getStorageDiagnostics: (storageId: string) => request<StorageDiagnosticResult>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/diagnostics`, { storageId: 'user' }),
   getStorageStats: (storageId: string) => request<StorageStatsDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/stats`, { storageId: 'user' }),
   previewStorageCleanup: (storageId: string, category: string) => request<StorageCleanupPreviewDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/cleanup-preview`, { method: 'POST', storageId: 'user', body: JSON.stringify({ category }) }),
@@ -2947,7 +2955,7 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ name, path })
   }),
-  listSessions: (projectId?: string, signal?: AbortSignal) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, cache: 'no-store' }),
+  listSessions: (projectId?: string, signal?: AbortSignal, storageId?: string) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, storageId, cache: 'no-store' }),
   // mode_version_id decides which agent holds the conversation. Omitted = the workspace default.
   createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null, viewMode: 'flat' | 'space' = 'flat', settings?: SessionSettingsUpdate) => request<SessionDto>('/api/v1/sessions', {
     method: 'POST',

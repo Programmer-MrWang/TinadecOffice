@@ -5,8 +5,14 @@ const string = { type: 'string' };
 const diagnostic = { type: 'object', additionalProperties: true };
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 export const storageSchemas = {
+  WorkspaceRoot: { type: 'object', properties: { id: string, path: string }, required: ['id', 'path'] },
+  WorkspaceDefinition: { type: 'object', properties: { name: string, roots: { type: 'array', items: ref('WorkspaceRoot') }, primary_root_id: string, icon: string, color: string, content_hash: string, primary_path: string }, required: ['name', 'roots', 'primary_root_id', 'icon', 'color', 'content_hash'] },
+  WorkspaceEditRequest: { type: 'object', properties: { name: string, roots: { type: 'array', items: ref('WorkspaceRoot') }, primary_root_id: string, icon: string, color: string }, required: ['name', 'roots', 'primary_root_id'] },
+  WorkspacePreviewRequest: { type: 'object', properties: { project_path: string }, required: ['project_path'] },
+  WorkspacePreview: { type: 'object', properties: { exists: { type: 'boolean' }, project_path: string, storage_id: { ...string, nullable: true }, storage_root: { ...string, nullable: true }, workspace: { ...ref('WorkspaceDefinition'), nullable: true } }, required: ['exists', 'project_path'] },
   StorageScope: { type: 'object', properties: {
     storage_id: string, scope_kind: string, project_id: { ...string, nullable: true }, project_root: { ...string, nullable: true },
+    workspace: { ...ref('WorkspaceDefinition'), nullable: true },
     storage_root: string, backend: string, external: { type: 'boolean' }, paths: { type: 'object', additionalProperties: string },
     diagnostics: { type: 'array', items: diagnostic }, allow_storage_write: { type: 'boolean' },
     postgres_connection_reference: { ...string, nullable: true }, restart_required: { type: 'boolean' }, requested_storage_root: string,
@@ -22,7 +28,8 @@ export const storageSchemas = {
   ConfigurationValidation: { type: 'object', properties: { valid: { type: 'boolean' }, diagnostics: { type: 'array', items: diagnostic } }, required: ['valid', 'diagnostics'] },
   StorageWritePolicy: { type: 'object', properties: { storage_id: string, allow_storage_write: { type: 'boolean' } }, required: ['storage_id', 'allow_storage_write'] },
   StorageDiagnostics: { type: 'object', properties: { storage_id: string, scope: ref('StorageScope'), diagnostics: { type: 'array', items: diagnostic }, configuration: { type: 'object', additionalProperties: true } }, required: ['storage_id', 'scope', 'diagnostics', 'configuration'] },
-  StorageOpenRequest: { type: 'object', properties: { project_path: string, name: string, backend: string, storage_root: string, postgres_connection_reference: string }, required: ['project_path'] },
+  StorageOpenRequest: { type: 'object', properties: { project_path: string, name: string, backend: string, storage_root: string, postgres_connection_reference: string,
+    roots: { type: 'array', items: ref('WorkspaceRoot') }, primary_root_id: string, icon: string, color: string }, required: ['project_path'] },
   StorageConfigureRequest: { type: 'object', properties: { backend: string, storage_root: string, postgres_connection_reference: string }, required: ['backend'] },
   StoragePreviewApplyRequest: { type: 'object', properties: { preview_id: string }, required: ['preview_id'] },
   StorageCleanupRequest: { type: 'object', properties: { category: { type: 'string', enum: ['cache', 'temp', 'logs'] } }, required: ['category'] },
@@ -36,6 +43,9 @@ export function registerStorageRoutes(app: AnyElysia, forwardHeaders: (request: 
   const routes: [string, string, string?][] = [
     ['GET', '/api/v1/storage/scopes', 'StorageScopeList'],
     ['POST', '/api/v1/storage/scopes/open', 'StorageScope'],
+    ['POST', '/api/v1/storage/scopes/preview', 'WorkspacePreview'],
+    ['GET', '/api/v1/storage/scopes/:storageId/workspace', 'WorkspaceDefinition'],
+    ['PUT', '/api/v1/storage/scopes/:storageId/workspace', 'WorkspaceDefinition'],
     ['GET', '/api/v1/storage/scopes/:storageId/diagnostics', 'StorageDiagnostics'],
     ['GET', '/api/v1/storage/scopes/:storageId/stats', 'StorageStatistics'],
     ['POST', '/api/v1/storage/scopes/:storageId/cleanup-preview', 'StorageCleanupPreview'],
@@ -57,6 +67,8 @@ export function registerStorageRoutes(app: AnyElysia, forwardHeaders: (request: 
   ];
   const bodySchema = (method: string, path: string) => {
     if (path.endsWith('/open')) return 'StorageOpenRequest';
+    if (path === '/api/v1/storage/scopes/preview') return 'WorkspacePreviewRequest';
+    if (path.endsWith('/workspace') && method === 'PUT') return 'WorkspaceEditRequest';
     if (path.endsWith('/configure')) return 'StorageConfigureRequest';
     if (path.endsWith('/write-policy')) return 'StorageWritePolicyRequest';
     if (path.endsWith('/cleanup-preview')) return 'StorageCleanupRequest';

@@ -27,6 +27,9 @@ test('storage and TOML routes preserve scope, CAS, Core errors, and bytes', asyn
   globalThis.fetch = (async (input, init) => { calls.push({ url: String(input), init }); return new Response('{"code":"configuration_conflict","diagnostics":[]}', { status: 412, headers: { 'content-type': 'application/problem+json', etag: '"new-hash"' } }); }) as typeof fetch;
   for (const [method, path, body] of [
     ['POST', '/api/v1/storage/scopes/open', { project_path: 'C:/project' }],
+    ['POST', '/api/v1/storage/scopes/preview', { project_path: 'C:/project' }],
+    ['GET', '/api/v1/storage/scopes/project-scope/workspace', undefined],
+    ['PUT', '/api/v1/storage/scopes/project-scope/workspace', { name: 'workspace', roots: [{ id: 'main', path: 'C:/main' }, { id: 'extra', path: 'C:/extra' }], primary_root_id: 'main' }],
     ['GET', '/api/v1/storage/scopes/project-scope/stats', undefined],
     ['POST', '/api/v1/storage/scopes/project-scope/cleanup-preview', { category: 'cache' }],
     ['POST', '/api/v1/storage/scopes/project-scope/cleanup', { preview_id: 'preview' }],

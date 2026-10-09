@@ -13,6 +13,15 @@ export interface CoreProjectDto {
 export type ProjectLifecycleStatus = 'active' | 'archived' | 'trashed';
 
 export interface ExternalProjectDto {
+  roots?: Array<{ id: string; path: string }>;
+  primary_root_id?: string;
+  icon?: string;
+  color?: string;
+  configuration_hash?: string;
+  storage_root?: string;
+  external?: boolean;
+  availability?: string;
+  availability_error?: string;
   storage_id?: string;
   id: string;
   name: string;
@@ -36,6 +45,9 @@ export function mapProject(core: unknown): ExternalProjectDto | null {
   if (!id) return null;
   return {
     ...(typeof core.storage_id === 'string' ? { storage_id: core.storage_id } : {}),
+    ...(Array.isArray(core.roots) ? { roots: core.roots.filter(isRecord).map(root => ({ id: String(root.id), path: String(root.path) })) } : {}),
+    ...Object.fromEntries(['primary_root_id', 'icon', 'color', 'configuration_hash', 'storage_root', 'availability', 'availability_error'].filter(key => typeof core[key] === 'string').map(key => [key, core[key]])),
+    ...(typeof core.external === 'boolean' ? { external: core.external } : {}),
     id,
     name: String(core.name ?? ''),
     path: String(core.path ?? ''),
