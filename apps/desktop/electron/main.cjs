@@ -36,7 +36,7 @@ for (const level of ['log', 'info', 'warn', 'error']) {
     try { hostLogSink.write('electron', `${new Date().toISOString()} ${level} ${require('node:util').format(...values)}\n`); } catch { /* stderr remains available if disk writes fail */ }
   };
 }
-const { loadAppConfig, resetGatewayUrl, saveGatewayUrl, saveUserStorageRoot } = require('./appConfig.cjs');
+const { loadAppConfig, resetGatewayUrl, saveGatewayUrl, saveUserStorageRoot, saveDebugStudioEnabled } = require('./appConfig.cjs');
 const { discoverServices } = require('./serviceDiscovery.cjs');
 const { ensureLocalServices, stopLocalServices, canonicalLocalGatewayUrl } = require('./serviceManager.cjs');
 const { createHostControl } = require('./hostControl.cjs');
@@ -177,23 +177,17 @@ async function createWindow() {
   return win;
 }
 
-ipcMain.handle('tinadec:open-project', async () => {
-  const result = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-    title: 'Open project'
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return null;
-  }
-
-  return result.filePaths[0];
+ipcMain.handle('tinadec:select-workspace-folders', async (event) => {
+  return require('./workspaceFolders.cjs').selectWorkspaceFolders(event, { mainWindow: getMainWindow(), trusted: isTrustedHostSender, dialog });
 });
 
-ipcMain.handle('tinadec:app-config', () => ({ ...loadAppConfig(appConfigFile()), storage: {
+function appConfigSnapshot() {
+  return { ...loadAppConfig(appConfigFile()), storage: {
   root: hostPaths.root, source: hostPaths.source, bootstrap_config: hostPaths.desktopConfig,
   managed: hostPaths.source === 'environment', local_services: Boolean(canonicalLocalGatewayUrl(process.env.TINADEC_RESOLVED_GATEWAY_URL)),
-} }));
+  } };
+}
+ipcMain.handle('tinadec:app-config', appConfigSnapshot);
 ipcMain.handle('tinadec:gateway-url-save', (_event, gatewayUrl) => saveGatewayUrl(appConfigFile(), gatewayUrl));
 ipcMain.handle('tinadec:gateway-url-reset', () => resetGatewayUrl(appConfigFile()));
 ipcMain.handle('tinadec:storage-write-policy', (event, storageId, allow) => {
@@ -235,7 +229,26 @@ ipcMain.on('tinadec:close', (event) => {
 });
 
 // --- Agent Debug Studio IPC ---
-ipcMain.handle('tinadec:open-debug-studio', async () => {
+ipcMain.handle('tinadec:debug-studio-enabled-save', (event, enabled) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostSender(event)) {
+    throw new Error('Debug Studio changes require the trusted main host page.');
+  }
+  saveDebugStudioEnabled(appConfigFile(), enabled);
+  const config = appConfigSnapshot();
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed() && !win.webContents.isDestroyed()) {
+      win.webContents.send('tinadec:debug-studio-enabled-changed');
+    }
+  }
+  if (!config.debug_studio_enabled) {
+    const debugWin = getDebugStudioWindow();
+    if (debugWin && !debugWin.isDestroyed()) debugWin.close();
+  }
+  return config;
+});
+ipcMain.handle('tinadec:open-debug-studio', async (event) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostSender(event)) return false;
+  if (!loadAppConfig(appConfigFile()).debug_studio_enabled) return false;
   return Boolean(await createDebugStudioWindow());
 });
 

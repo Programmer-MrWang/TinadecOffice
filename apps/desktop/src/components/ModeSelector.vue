@@ -133,19 +133,24 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     <button
       ref="triggerRef"
       class="mode-selector-trigger"
+      type="button"
       :title="t('chat.modeVersion')"
+      aria-haspopup="dialog"
+      :aria-expanded="showDropdown"
       @click="toggleDropdown"
     >
       <component :is="selectedVersion ? modeIcon(selectedVersion.slug) : Moon" :size="14" />
       <span class="mode-selector-label">{{ triggerLabel }}</span>
       <span v-if="selectionStale" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span>
-      <ChevronDown :size="12" class="mode-selector-chevron" />
+      <ChevronDown :size="12" class="mode-selector-chevron" :class="{ 'is-expanded': showDropdown }" aria-hidden="true" />
     </button>
 
     <Teleport to="body">
       <div
         v-if="showDropdown"
         class="mode-selector-portal"
+        role="dialog"
+        :aria-label="t('chat.modeVersion')"
         :style="[dropdownStyle, panelStyle]"
         v-bind="panelDataAttrs"
       >
@@ -180,3 +185,11 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.mode-selector-chevron { flex-shrink: 0; transition: transform 160ms ease; }
+.mode-selector-chevron.is-expanded { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .mode-selector-chevron { transition: none; }
+}
+</style>

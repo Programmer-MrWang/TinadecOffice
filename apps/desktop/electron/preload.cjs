@@ -10,11 +10,17 @@ contextBridge.exposeInMainWorld('tinadec', {
   resetGatewayUrl: () => ipcRenderer.invoke('tinadec:gateway-url-reset'),
   discoverServices: () => ipcRenderer.invoke('tinadec:discover-services'),
   restartApp: () => ipcRenderer.invoke('tinadec:restart'),
-  openProjectDialog: () => ipcRenderer.invoke('tinadec:open-project'),
+  selectWorkspaceFolders: () => ipcRenderer.invoke('tinadec:select-workspace-folders'),
   minimizeWindow: () => ipcRenderer.send('tinadec:minimize'),
   maximizeWindow: () => ipcRenderer.send('tinadec:maximize'),
   closeWindow: () => ipcRenderer.send('tinadec:close'),
   openDebugStudio: () => ipcRenderer.invoke('tinadec:open-debug-studio'),
+  saveDebugStudioEnabled: (enabled) => ipcRenderer.invoke('tinadec:debug-studio-enabled-save', enabled),
+  onDebugStudioEnabledChanged: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on('tinadec:debug-studio-enabled-changed', handler);
+    return () => ipcRenderer.removeListener('tinadec:debug-studio-enabled-changed', handler);
+  },
 
   // --- TinadecUIE layout persistence ---
   layout: {

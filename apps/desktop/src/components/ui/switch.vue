@@ -37,7 +37,7 @@ function toggle() {
     <span
       :data-state="modelValue ? 'checked' : 'unchecked'"
       :class="cn(
-        'pointer-events-none block h-4 w-4 rounded-full bg-[var(--bg-primary)] shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0',
+        'pointer-events-none block h-4 w-4 rounded-full bg-foreground data-[state=checked]:bg-primary-foreground shadow-lg ring-0 transition-transform motion-reduce:transition-none data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0',
       )"
     />
   </button>

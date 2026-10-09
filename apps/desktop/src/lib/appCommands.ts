@@ -77,7 +77,7 @@ export interface AppCommand {
  * one when there is none, so gating here would remove a path that works today.
  */
 /**
- * One navigation entry per page. Written as a builder because the nine rows differ
+ * One navigation entry per page. Written as a builder because the rows differ
  * only by name: an inline `run` closure per page would hide the route from
  * `command.route`, which is the field the router-declaration test enumerates.
  */
@@ -142,7 +142,6 @@ export const appCommands: readonly AppCommand[] = [
     run: (host, argument) => host.send(argument, 'parallel'),
   },
   go('view.goChat', 'palette.goChat', 'home'),
-  go('view.goWorkbench', 'palette.goWorkbench', 'workbench'),
   go('view.goCode', 'palette.goCode', 'code-editor'),
   go('view.goLibrary', 'palette.goLibrary', 'library'),
   go('view.goSnapshots', 'palette.goSnapshots', 'snapshots'),

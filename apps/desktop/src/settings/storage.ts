@@ -1,5 +1,6 @@
 export interface StorageDiagnostic { code?: string; severity?: string; message?: string; [key: string]: unknown }
 export interface StorageScopeDto {
+  workspace?: import('@/lib/workspaces').WorkspaceDefinition | null
   storage_id: string; scope_kind: string; project_id?: string | null; project_root?: string | null
   storage_root: string; backend: string; external: boolean; allow_storage_write?: boolean; postgres_connection_reference?: string | null; restart_required?: boolean; requested_storage_root?: string
   paths: Record<string, string>; diagnostics?: StorageDiagnostic[]

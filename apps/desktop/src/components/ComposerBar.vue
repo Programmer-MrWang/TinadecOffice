@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ArrowUp, ChevronDown, FileText, Folder, FolderOpen, FolderPlus, Image, Layers, Plus, Settings, Sparkles, Square } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
-import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick, type Component, type Ref } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick, useId, type Component, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { UiButton, UiScrollArea } from '@/components/ui'
+import { UiButton } from '@/components/ui'
 import ComposerCommandPanel from './ComposerCommandPanel.vue'
 import type { PermissionLevel } from '@/types/mode'
 import type { MeetingModelOverrideDto, ProjectDto, SpaceOptionsDto } from '@/api'
@@ -92,8 +92,16 @@ const showPlusMenu = ref(false)
 const showAskMenu = ref(false)
 const askMenuStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
 const projectTriggerRef = ref<HTMLElement | null>(null)
+const projectMenuRef = ref<HTMLDivElement | null>(null)
+const projectMenuId = `composer-project-${useId()}`
 const showProjectDropdown = ref(false)
 const projectDropdownStyle = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
+const projectPortalStyle = computed(() => {
+  const { overflowY: _overflow, maxHeight, ...placement } = projectDropdownStyle.value
+  // One native list owns scrolling; the portal only supplies the available
+  // height to its flex layout, rather than creating a second scrollport.
+  return { ...placement, '--project-menu-max-height': maxHeight ?? '320px' }
+})
 const attachmentPreparing = ref(false)
 const attachmentError = ref<string | null>(null)
 let disposed = false
@@ -146,6 +154,8 @@ const commandHost: CommandHost = {
 const commandsDismissed = ref(false)
 const slashQuery = computed(() => commandsDismissed.value ? null : composerSlashQuery(props.modelValue))
 const commandPanelOpen = computed(() => showPlusMenu.value || slashQuery.value !== null)
+const modePanelExpanded = computed(() => commandPanelOpen.value && commandPanelRef.value?.page === 'mode')
+const permissionPanelExpanded = computed(() => commandPanelOpen.value && commandPanelRef.value?.page === 'permission')
 watch(() => props.modelValue, (value) => {
   commandsDismissed.value = false
   if (!showPlusMenu.value && composerSlashQuery(value) !== null) commandPage.value = 'root'
@@ -422,18 +432,56 @@ async function toggleProjectDropdown() {
   showProjectDropdown.value = !showProjectDropdown.value
   if (showProjectDropdown.value) {
     await nextTick()
+    if (!showProjectDropdown.value || disposed) return
     placeMenu(projectTriggerRef.value, projectDropdownStyle, { minWidth: 220, estimatedHeight: 260 })
+    await nextTick()
+    if (!showProjectDropdown.value || disposed) return
+    const selected = projectMenuRef.value?.querySelector<HTMLButtonElement>('.project-dropdown-item.active')
+      ?? projectMenuRef.value?.querySelector<HTMLButtonElement>('.project-dropdown-item')
+    if (selected) focusProjectOption(selected)
   }
 }
 
-function selectProject(id: string | null) {
-  emit('select-project', id)
+function focusProjectOption(button: HTMLButtonElement) {
+  button.focus({ preventScroll: true })
+  button.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'auto' })
+}
+
+function closeProjectDropdown() {
   showProjectDropdown.value = false
+  projectTriggerRef.value?.focus({ preventScroll: true })
+}
+
+function projectMenuKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    event.stopPropagation()
+    closeProjectDropdown()
+    return
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const options = Array.from(projectMenuRef.value?.querySelectorAll<HTMLButtonElement>('.project-dropdown-item:not(:disabled)') ?? [])
+  if (!options.length) return
+  const index = options.indexOf(document.activeElement as HTMLButtonElement)
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1
+    : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length
+  event.preventDefault()
+  focusProjectOption(options[next]!)
+}
+
+function projectMenuFocusout(event: FocusEvent) {
+  if (event.relatedTarget && event.relatedTarget !== projectTriggerRef.value
+    && !projectMenuRef.value?.contains(event.relatedTarget as Node)) showProjectDropdown.value = false
+}
+
+function selectProject(id: string | null) {
+  closeProjectDropdown()
+  emit('select-project', id)
 }
 
 function openNewProject() {
+  closeProjectDropdown()
   emit('create-project')
-  showProjectDropdown.value = false
 }
 
 function handleClickOutside(event: MouseEvent) {
@@ -692,23 +740,30 @@ function confirmSteer(id: string, interrupt = false) {
           <button
             v-if="!spatial"
             class="mode-selector-trigger"
+            type="button"
             :title="t('commandPanel.mode')"
             aria-haspopup="dialog"
-            :aria-expanded="commandPanelOpen && commandPanelRef?.page === 'mode'"
+            :aria-expanded="modePanelExpanded"
             @click="openCommandPanel('mode')"
-          ><component :is="modeGlyph" :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" /></button>
+          ><component :is="modeGlyph" :size="14" /><span class="mode-selector-label">{{ modeLabel }}</span><span v-if="modeUnavailable" class="mode-selector-stale" :title="t('chat.modeUnavailable')">⚠</span><ChevronDown :size="12" class="mode-selector-chevron" :class="{ 'is-expanded': modePanelExpanded }" aria-hidden="true" /></button>
           <slot v-if="spatial" name="capabilities" />
-          <button class="permission-selector-trigger" :title="t('permission.nextRunHint')" aria-haspopup="dialog" :aria-expanded="commandPanelOpen && commandPanelRef?.page === 'permission'" @click="openCommandPanel('permission')"><component :is="permissionChoice.icon" :size="14" class="composer-permission-icon" :data-risk="permissionChoice.risk" aria-hidden="true" /><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" /></button>
+          <button class="permission-selector-trigger" type="button" :title="t('permission.nextRunHint')" aria-haspopup="dialog" :aria-expanded="permissionPanelExpanded" @click="openCommandPanel('permission')"><component :is="permissionChoice.icon" :size="14" class="composer-permission-icon" :data-risk="permissionChoice.risk" aria-hidden="true" /><span class="permission-selector-label">{{ permissionLabel }}</span><ChevronDown :size="12" class="permission-selector-chevron" :class="{ 'is-expanded': permissionPanelExpanded }" aria-hidden="true" /></button>
           <button
             ref="projectTriggerRef"
             class="project-dropdown-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            :aria-expanded="showProjectDropdown"
+            :aria-controls="projectMenuId"
             @click="toggleProjectDropdown"
+            @keydown.down.prevent="showProjectDropdown ? undefined : toggleProjectDropdown()"
+            @keydown.up.prevent="showProjectDropdown ? undefined : toggleProjectDropdown()"
           >
             <FolderOpen :size="12" />
             <span class="project-dropdown-label">
               {{ selectedProject?.name ?? t('chat.freeConversation') }}
             </span>
-            <ChevronDown :size="11" class="project-dropdown-chevron" />
+            <ChevronDown :size="11" class="project-dropdown-chevron" :class="{ 'is-expanded': showProjectDropdown }" />
           </button>
         </div>
         <div class="toolbar-right">
@@ -758,15 +813,22 @@ function confirmSteer(id: string, interrupt = false) {
     <Teleport to="body">
       <div
         v-if="showProjectDropdown"
+        :id="projectMenuId"
+        ref="projectMenuRef"
         class="project-dropdown-portal"
-        :style="projectDropdownStyle"
+        :style="projectPortalStyle"
+        role="dialog"
+        :aria-label="t('chat.openedProjects')"
+        @keydown="projectMenuKeydown"
+        @focusout="projectMenuFocusout"
       >
-        <UiScrollArea v-if="(projects?.length ?? 0) > 0" class="project-dropdown-scroll">
+        <div v-if="(projects?.length ?? 0) > 0" class="project-dropdown-scroll">
           <div class="project-dropdown-section">
             <div class="project-dropdown-section-title">{{ t('chat.openedProjects') }}</div>
             <button
               class="project-dropdown-item"
               :class="{ active: !selectedProjectId }"
+              :aria-pressed="!selectedProjectId"
               @click="selectProject(null)"
             >
               <Sparkles :size="12" />
@@ -777,17 +839,19 @@ function confirmSteer(id: string, interrupt = false) {
               :key="selectionKey(project)"
               class="project-dropdown-item"
               :class="{ active: project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) }"
+              :aria-pressed="project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage)"
               @click="selectProject(selectionKey(project))"
             >
               <FolderOpen :size="12" />
               <span>{{ project.name }}</span>
             </button>
           </div>
-        </UiScrollArea>
+        </div>
         <button
           v-else
           class="project-dropdown-item"
           :class="{ active: !selectedProjectId }"
+          :aria-pressed="!selectedProjectId"
           @click="selectProject(null)"
         >
           <Sparkles :size="12" />
@@ -803,6 +867,14 @@ function confirmSteer(id: string, interrupt = false) {
 </template>
 
 <style scoped>
+.mode-selector-chevron,
+.permission-selector-chevron { flex-shrink: 0; transition: transform 160ms ease; }
+.mode-selector-chevron.is-expanded,
+.permission-selector-chevron.is-expanded { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .mode-selector-chevron,
+  .permission-selector-chevron { transition: none; }
+}
 .composer-permission-icon[data-risk='low'] { color: color-mix(in srgb, var(--accent-info) 80%, var(--text-primary)); }
 .composer-permission-icon[data-risk='medium'] { color: var(--accent-warning); }
 .composer-permission-icon[data-risk='high'] { color: var(--accent-danger); }

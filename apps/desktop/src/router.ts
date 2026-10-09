@@ -1,4 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { watch } from 'vue'
+import { loadDebugStudioPreference, useDebugStudio } from './composables/useDebugStudio'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -41,7 +43,7 @@ const router = createRouter({
     {
       path: '/workbench',
       name: 'workbench',
-      component: () => import('./pages/WorkbenchPage.vue'),
+      redirect: '/space',
     },
     {
       path: '/recovery/:actionId',
@@ -79,6 +81,13 @@ const router = createRouter({
       component: () => import('./pages/DesktopPetPage.vue'),
     },
   ],
+})
+
+router.beforeEach(async (to) => {
+  if (to.name === 'debug-studio' && !(await loadDebugStudioPreference())) return { name: 'home', replace: true }
+})
+watch(useDebugStudio().enabled, (enabled) => {
+  if (!enabled && router.currentRoute.value.name === 'debug-studio') void router.replace({ name: 'home' })
 })
 
 export default router

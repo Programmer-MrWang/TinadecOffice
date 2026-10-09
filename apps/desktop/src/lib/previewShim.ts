@@ -19,17 +19,34 @@ export function installPreviewShimIfNeeded(): void {
   const w = window as unknown as { tinadec?: unknown }
   if (w.tinadec) return
 
+  // Preview-only UI state never writes the real user's desktop.toml.
+  const previewDebugKey = 'tinadec.preview.debug-studio-enabled'
+  function previewDebugEnabled(): boolean { return localStorage.getItem(previewDebugKey) === 'true' }
+
   w.tinadec = {
     gatewayUrl: () => 'http://127.0.0.1:48730',
-    getAppConfig: () => Promise.resolve({ gateway_url: 'http://127.0.0.1:48730', source: 'environment', managed: true }),
+    getAppConfig: () => Promise.resolve({ gateway_url: 'http://127.0.0.1:48730', source: 'environment', managed: true, debug_studio_enabled: previewDebugEnabled() }),
+    saveDebugStudioEnabled: (enabled: boolean) => {
+      localStorage.setItem(previewDebugKey, String(enabled))
+      return Promise.resolve({ debug_studio_enabled: enabled })
+    },
+    onDebugStudioEnabledChanged: (callback: () => void) => {
+      const listener = (event: StorageEvent) => { if (event.key === previewDebugKey) callback() }
+      window.addEventListener('storage', listener)
+      return () => window.removeEventListener('storage', listener)
+    },
     saveGatewayUrl: () => rejectNotAvailable('preview'),
     resetGatewayUrl: () => rejectNotAvailable('preview'),
     restartApp: () => { window.location.reload(); return Promise.resolve() },
-    openProjectDialog: () => Promise.resolve(null),
+    selectWorkspaceFolders: () => Promise.resolve([]),
     minimizeWindow: noop,
     maximizeWindow: noop,
     closeWindow: noop,
-    openDebugStudio: () => Promise.resolve(false),
+    openDebugStudio: () => {
+      if (!previewDebugEnabled()) return Promise.resolve(false)
+      window.location.hash = '/debug-studio'
+      return Promise.resolve(true)
+    },
     selectBackgroundFile: () => Promise.resolve(null),
 
     // Pets (no-op in preview).

@@ -3,7 +3,8 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronRight, Cpu, FileText, Globe, Monitor } from '@lucide/vue'
 import BrandLogo from '@/components/BrandLogo.vue'
-import { UiButton, UiCard } from '@/components/ui'
+import { UiButton, UiCard, UiSwitch } from '@/components/ui'
+import { useDebugStudio } from '@/composables/useDebugStudio'
 import { api as baseApi } from '@/api'
 import { scopedApi } from '@/lib/storageScope'
 const api = scopedApi(baseApi, () => 'user')
@@ -15,6 +16,16 @@ const api = scopedApi(baseApi, () => 'user')
  * links, and license. No shared state with other settings sections.
  */
 const { t } = useI18n()
+const { enabled: debugStudioEnabled, loaded: debugStudioLoaded, error: debugStudioLoadError, load: loadDebugStudio, saveEnabled } = useDebugStudio()
+const debugStudioSaving = ref(false)
+const debugStudioSaveError = ref('')
+async function changeDebugStudio(value: boolean): Promise<void> {
+  debugStudioSaving.value = true
+  debugStudioSaveError.value = ''
+  try { await saveEnabled(value) }
+  catch (error) { debugStudioSaveError.value = error instanceof Error ? error.message : String(error) }
+  finally { debugStudioSaving.value = false }
+}
 
 const aboutCoreStatus = ref<string>('')
 const aboutCoreVersion = ref<string>('')
@@ -37,6 +48,7 @@ function openExternal(url: string): void {
 }
 
 onMounted(checkAboutHealth)
+onMounted(loadDebugStudio)
 </script>
 
 <template>
@@ -80,7 +92,7 @@ onMounted(checkAboutHealth)
     <!-- Version table -->
     <UiCard class="about-versions">
       <div class="about-row">
-        <span>{{ t('settings.versionApp') }}</span>
+        <span>{{ t('settings.versionDesktop') }}</span>
         <span>0.1.0</span>
       </div>
       <div class="about-row">
@@ -90,6 +102,20 @@ onMounted(checkAboutHealth)
     </UiCard>
 
     <!-- Architecture -->
+    <UiCard class="about-developer-tools">
+      <h3>{{ t('aboutPage.developerTools') }}</h3>
+      <div class="about-developer-row">
+        <div>
+          <label for="about-debug-studio">{{ t('aboutPage.showDebugStudio') }}</label>
+          <p id="about-debug-studio-hint">{{ t('aboutPage.debugStudioHint') }}</p>
+        </div>
+        <UiSwitch id="about-debug-studio" :model-value="debugStudioEnabled" :disabled="!debugStudioLoaded || Boolean(debugStudioLoadError) || debugStudioSaving" aria-describedby="about-debug-studio-hint" @update:model-value="changeDebugStudio" />
+      </div>
+      <p v-if="debugStudioLoadError || debugStudioSaveError" class="about-developer-error" role="alert">
+        {{ t(debugStudioLoadError ? 'aboutPage.debugStudioLoadFailed' : 'aboutPage.debugStudioSaveFailed') }}: {{ debugStudioSaveError || String(debugStudioLoadError) }}
+      </p>
+    </UiCard>
+
     <div class="about-arch">
       <h3>{{ t('aboutPage.architecture') }}</h3>
       <p class="about-decouple-hint">{{ t('settings.decoupleHint') }}</p>

@@ -114,8 +114,9 @@ function mountComposer(props: Partial<{
   spaceOptions: import('@/api').SpaceOptionsDto | null
   settingsSaving: boolean
   settingsError: string | null
-}> = {}) {
+}> = {}, attachTo?: Element) {
   return mount(ComposerBar, {
+    attachTo,
     props: {
       busy: false,
       modelValue: '',
@@ -227,6 +228,88 @@ describe('ComposerBar hero variant (start page)', () => {
     wrapper.unmount()
     document.body.innerHTML = ''
     dispatchMock.getDispatchPref.mockReturnValue('queued')
+  })
+})
+
+describe('ComposerBar project chooser accessibility', () => {
+  afterEach(() => { document.body.innerHTML = '' })
+
+  const projects = Array.from({ length: 45 }, (_, index) => ({ id: `project-${index}`, name: `Project ${index}`, path: `/workspace/${index}` } as ProjectDto))
+
+  function options() {
+    return Array.from(document.querySelectorAll<HTMLButtonElement>('.project-dropdown-portal .project-dropdown-item'))
+  }
+
+  it('keeps the complete long list in one native scrollport and immediately selects its last project', async () => {
+    const wrapper = mountComposer({ hero: true, projects, selectedProjectId: 'project-44' }, document.body)
+    const trigger = wrapper.get<HTMLButtonElement>('.project-dropdown-trigger')
+    await trigger.trigger('click')
+    await flushPromises()
+    const menu = document.querySelector<HTMLElement>('.project-dropdown-portal')!
+    const scrollport = menu.querySelector<HTMLElement>('.project-dropdown-scroll')!
+    expect(trigger.attributes('aria-controls')).toBe(menu.id)
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    expect(trigger.get('.project-dropdown-chevron').classes()).toContain('is-expanded')
+    expect(scrollport.children).toHaveLength(1)
+    expect(scrollport.firstElementChild?.classList.contains('project-dropdown-section')).toBe(true)
+    expect(menu.style.overflowY).toBe('')
+    expect(menu.style.getPropertyValue('--project-menu-max-height')).not.toBe('')
+    expect(options()).toHaveLength(47)
+    const lastProject = options()[45]!
+    expect(document.activeElement).toBe(lastProject)
+    expect(lastProject.getAttribute('aria-pressed')).toBe('true')
+    lastProject.click()
+    await flushPromises()
+    expect(wrapper.emitted('select-project')).toEqual([['project-44']])
+    expect(document.activeElement).toBe(trigger.element)
+    expect(document.querySelector('.project-dropdown-portal')).toBeNull()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('supports keyboard traversal to the final project and footer with no extra scroll indicator', async () => {
+    const wrapper = mountComposer({ hero: true, projects, selectedProjectId: null }, document.body)
+    const trigger = wrapper.get('.project-dropdown-trigger')
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await flushPromises()
+    expect(document.activeElement).toBe(options()[0])
+    options()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(options()[46])
+    options()[46]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(options()[45])
+    options()[45]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(options()[0])
+    options()[0]!.click()
+    await flushPromises()
+    expect(wrapper.emitted('select-project')).toEqual([[null]])
+    expect(document.querySelector('.project-dropdown-portal')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('closes on Escape and preserves trigger focus and the existing selection', async () => {
+    const wrapper = mountComposer({ hero: true, projects, selectedProjectId: 'project-12' }, document.body)
+    const trigger = wrapper.get<HTMLButtonElement>('.project-dropdown-trigger')
+    await trigger.trigger('click')
+    await flushPromises()
+    const active = document.activeElement!
+    active.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await flushPromises()
+    expect(document.activeElement).toBe(trigger.element)
+    expect(wrapper.emitted('select-project')).toBeUndefined()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(trigger.get('.project-dropdown-chevron').classes()).not.toContain('is-expanded')
+    wrapper.unmount()
+  })
+
+  it('keeps rapid toggles closed and does not focus a removed project menu', async () => {
+    const wrapper = mountComposer({ hero: true, projects }, document.body)
+    const trigger = wrapper.get('.project-dropdown-trigger')
+    trigger.element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    trigger.element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(document.querySelector('.project-dropdown-portal')).toBeNull()
+    wrapper.unmount()
   })
 })
 
@@ -617,22 +700,32 @@ describe('ComposerBar unified command panel', () => {
   it.each(['mode', 'permission'] as const)('the %s dropdown toggles closed and can reopen its page after going back', async name => {
     const wrapper = mountComposer({ hero: true })
     const selector = wrapper.find(name === 'mode' ? '.mode-selector-trigger' : '.permission-selector-trigger')
+    const chevron = selector.get(`.${name}-selector-chevron`)
+    expect(selector.attributes('aria-expanded')).toBe('false')
+    expect(chevron.classes()).not.toContain('is-expanded')
     await selector.trigger('click')
     await flushPromises()
     expect(document.querySelector('.command-panel-header strong')?.textContent).toBe(`commandPanel.${name}`)
     expect(selector.attributes('aria-expanded')).toBe('true')
+    expect(chevron.classes()).toContain('is-expanded')
     await selector.trigger('click')
     await flushPromises()
     expect(document.querySelector('.composer-command-panel')).toBeNull()
     expect(selector.attributes('aria-expanded')).toBe('false')
+    expect(chevron.classes()).not.toContain('is-expanded')
     await selector.trigger('click')
     await flushPromises()
     click('.command-panel-back')
     await flushPromises()
     expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('composer.commands')
+    // The panel remains open after Back, but neither selector owns the root page.
+    expect(selector.attributes('aria-expanded')).toBe('false')
+    expect(chevron.classes()).not.toContain('is-expanded')
     await selector.trigger('click')
     await flushPromises()
     expect(document.querySelector('.command-panel-header strong')?.textContent).toBe(`commandPanel.${name}`)
+    expect(selector.attributes('aria-expanded')).toBe('true')
+    expect(chevron.classes()).toContain('is-expanded')
     wrapper.unmount()
   })
 
@@ -645,6 +738,19 @@ describe('ComposerBar unified command panel', () => {
     expect(document.querySelector('.command-panel-header strong')?.textContent).toBe('commandPanel.permission')
     expect(wrapper.find('.mode-selector-trigger').attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('.permission-selector-trigger').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.get('.mode-selector-chevron').classes()).not.toContain('is-expanded')
+    expect(wrapper.get('.permission-selector-chevron').classes()).toContain('is-expanded')
+    const input = document.querySelector('.command-panel-search input') as HTMLInputElement
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).not.toBeNull()
+    expect(wrapper.find('.permission-selector-trigger').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.permission-selector-chevron').classes()).not.toContain('is-expanded')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(document.querySelector('.composer-command-panel')).toBeNull()
+    expect(wrapper.find('.mode-selector-trigger').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.mode-selector-chevron').classes()).not.toContain('is-expanded')
     wrapper.unmount()
   })
 

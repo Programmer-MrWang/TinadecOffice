@@ -1129,6 +1129,14 @@ box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--swatch-color);
   font-size: 13px;
 }
 
+.about-developer-tools { margin-top: 16px; padding: 16px; }
+.about-developer-tools h3 { margin: 0 0 12px; font-size: 14px; }
+.about-developer-row { display: flex; align-items: center; gap: 16px; justify-content: space-between; }
+.about-developer-row > div { min-width: 0; }
+.about-developer-row label { font-size: 13px; font-weight: 500; }
+.about-developer-row p { margin: 4px 0 0; font-size: 12px; color: var(--text-secondary); }
+.about-developer-error { font-size: 12px; color: var(--text-error); overflow-wrap: anywhere; }
+
 .about-row span:first-child {
   color: var(--text-secondary);
 }

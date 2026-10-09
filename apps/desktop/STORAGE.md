@@ -1,6 +1,14 @@
 # Desktop 存储与配置
 
+## 多文件夹工作区（2026-10-10）
+
+工作区的源文件夹、主要目录、名称、图标和颜色以实际存储根 project.toml 为权威；目录授权归可信宿主登记。原生 select-workspace-folders IPC 返回路径数组，选择与取消不初始化存储。统一窗口确认后只提交一次创建；编辑携带内容摘要 If-Match。创建只在主要目录初始化一份 .tinadec，附加目录不初始化，更换主要目录不改变存储位置。
+
+本机 tinadec.sidebar.workspaces.v1 保存整体/逐工作区折叠、全部显示和手动顺序；tinadec.workspace.context.v1 保存新对话上下文，稳定键为 storage_id::project_id，自由对话为 user::free。这些 UI 偏好不保存权限或替代会话事实。新终端取当前主目录；已经存在的终端保持创建时的 cwd。详见 [工作区契约](../../docs/workspaces.zh-CN.md) 与 [APP-HOME-107](../../docs/development-program/02-modules/app/home/TODO.md#app-home-107)。
+
 路径由 `electron/storagePaths.cjs` 统一解析。用户根默认 `~/.tinadec`；绝对路径 `TINADEC_HOME` 优先且不会递归读取 user_root。稳定 bootstrap `~/.tinadec/config/desktop.toml` 保存 `gateway_url` 与可选绝对 `user_root`；环境覆盖时 bootstrap 位于环境根 config。不会读取、迁移或删除旧平台目录、settings.json 或旧 panel-layout。
+
+“设置 → 关于 → 显示 Debug Studio”默认关闭，写入同一个本机 bootstrap 的 `[developer] debug_studio_enabled = true/false`，不写项目配置。Gateway URL 被环境管理时仍读取此偏好。仅可信主窗口可保存和打开；禁用后广播重新读取并关闭调试浮窗，renderer 路由也拒绝关闭状态的直接链接。常规局部保存保留其他字段及注释，特殊有效 TOML 形状仍按既有序列化器保存字段。裸 Vite 预览使用独立 `tinadec.preview.debug-studio-enabled` 浏览器 UI 状态，不能操作真实 desktop.toml 或代替可信宿主。
 
 | 内容 | 默认位置 | 生命周期 |
 |---|---|---|

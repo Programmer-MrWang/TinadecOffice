@@ -1,0 +1,20 @@
+[
+  {
+    "component": "button",
+    "url": "https://shadcn-vue.com/docs/components/button",
+    "status": 200,
+    "title": "Button - shadcn&#x2F;vue"
+  },
+  {
+    "component": "dropdown-menu",
+    "url": "https://shadcn-vue.com/docs/components/dropdown-menu",
+    "status": 200,
+    "title": "Dropdown Menu - shadcn&#x2F;vue"
+  },
+  {
+    "component": "collapsible",
+    "url": "https://shadcn-vue.com/docs/components/collapsible",
+    "status": 200,
+    "title": "Collapsible - shadcn&#x2F;vue"
+  }
+]
