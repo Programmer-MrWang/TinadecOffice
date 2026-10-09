@@ -4,6 +4,7 @@
  */
 
 import { Elysia, t } from 'elysia';
+import { createHmac } from 'node:crypto';
 import { swagger } from '@elysiajs/swagger';
 import { getConfig } from './config.js';
 import { coreUrl, proxyJson, proxyRaw, proxySse } from './coreClient.js';
@@ -40,6 +41,7 @@ import { externalDtoSchemas, externalJsonRequest, externalJsonResponse } from '.
 import { registerTinaChatRoutes, tinaChatSchemas } from './tinaChatRoutes.js';
 import { registerOrganizationRoutes, organizationSchemas } from './organizationRoutes.js';
 import { registerToolsSettingsRoutes, toolsSettingsSchemas } from './toolsSettingsRoutes.js';
+import { registerStorageRoutes, storageSchemas } from './storageRoutes.js';
 
 const config = getConfig();
 const requestAuthContexts = new WeakMap<Request, AuthContext>();
@@ -54,6 +56,7 @@ function corsHeadersFor(origin: string | null): Record<string, string> {
     headers['access-control-allow-origin'] = origin;
     headers['access-control-allow-credentials'] = 'true';
     headers['vary'] = 'Origin';
+    headers['access-control-expose-headers'] = 'etag, x-request-id, x-tinadec-storage-id, content-disposition';
   }
   return headers;
 }
@@ -94,7 +97,7 @@ function forwardHeaders(request: Request): Record<string, string> {
   if (ifMatch) existing['if-match'] = ifMatch;
   const idempotencyKey = request.headers.get('idempotency-key') ?? request.headers.get('Idempotency-Key');
   if (idempotencyKey) existing['idempotency-key'] = idempotencyKey;
-  for (const name of ['x-tenant-id', 'x-user-id']) {
+  for (const name of ['x-tenant-id', 'x-user-id', 'x-tinadec-storage-id', 'x-tinadec-host-control']) {
     const value = request.headers.get(name);
     if (value) existing[name] = value;
   }
@@ -126,13 +129,14 @@ const app = new Elysia()
   .use(swagger({
     path: '/docs',
     documentation: {
-      info: { title: 'Tinadec Gateway External API', version: 'v1', description: 'Stateless gateway facade – all snake_case, RFC9457 ProblemDetails, full-duplex SSE' },
+      info: { title: 'Tinadec Gateway External API', version: 'v1', description: 'Stateless gateway facade – all snake_case, RFC9457 ProblemDetails, full-duplex SSE. With Core storage scopes enabled, every /api/v1 request except GET health and host-challenge requires a private trusted host credential. Managed Electron first verifies endpoint HMAC identity and injects credentials only in the main-process network layer; anonymous loopback, Agent shells, and unbound web/remote clients have no API authority.' },
+      security: [{ TinadecHostControl: [] }],
       tags: [
         { name: 'Projects' }, { name: 'Sessions' }, { name: 'Messages' }, { name: 'Runs' }, { name: 'Health' }, { name: 'ModelCenter' }, { name: 'AgentCenter' }, { name: 'Agents' }, { name: 'Interactions' }, { name: 'PromptPipelines' }, { name: 'Tools' }, { name: 'System' }
       ],
       // TypeBox emits valid OpenAPI schemas, but its union types are not structurally
       // assignable to openapi-types' narrower SchemaObject declaration.
-      components: { schemas: { ...agentPackOpenApiSchemas, ...externalDtoSchemas, ...tinaChatSchemas, ...organizationSchemas, ...toolsSettingsSchemas } as never },
+      components: { securitySchemes: { TinadecHostControl: { type: 'apiKey', in: 'header', name: 'X-Tinadec-Host-Control', description: 'Private trusted host credential required by scope-enabled Core. Never expose it to Agent, renderer JavaScript, TOML, or a public frontend. Gateway only forwards a supplied credential and never signs anonymous local requests.' } }, schemas: { ...agentPackOpenApiSchemas, ...externalDtoSchemas, ...tinaChatSchemas, ...organizationSchemas, ...toolsSettingsSchemas, ...storageSchemas } as never },
     }
   }))
   .onError(({ code, error, set, request }) => {
@@ -174,7 +178,7 @@ const app = new Elysia()
       const requestHeaders = request.headers.get('access-control-request-headers');
       if (requestMethod) corsHeaders['access-control-allow-methods'] = requestMethod;
       if (requestHeaders) corsHeaders['access-control-allow-headers'] = requestHeaders;
-      else corsHeaders['access-control-allow-headers'] = 'accept, content-type, authorization, x-api-key, x-tenant-id, x-user-id, x-request-id, x-tinadec-principal, idempotency-key, if-match, last-event-id';
+      else corsHeaders['access-control-allow-headers'] = 'accept, content-type, authorization, x-api-key, x-tenant-id, x-user-id, x-request-id, x-tinadec-principal, x-tinadec-storage-id, idempotency-key, if-match, last-event-id';
       corsHeaders['access-control-max-age'] = '86400';
       set.headers = { ...set.headers, ...corsHeaders };
       set.status = 204;
@@ -198,6 +202,31 @@ const app = new Elysia()
     }
     if (authResult.context) requestAuthContexts.set(request, authResult.context);
   })
+  .get('/api/v1/host-challenge', ({ set, request }) => {
+    set.headers['cache-control'] = 'no-store';
+    const nonces = new URL(request.url).searchParams.getAll('nonce');
+    const nonce = nonces[0];
+    if (nonces.length !== 1 || !nonce || !/^[A-Za-z0-9_-]{43}$/.test(nonce)) {
+      set.status = 400;
+      return toProblemDetails(400, 'invalid_request', 'nonce must be one 43-character base64url value.');
+    }
+    const key = process.env.TINADEC_HOST_CONTROL_TOKEN;
+    if (!key) {
+      set.status = 503;
+      return toProblemDetails(503, 'host_identity_unavailable', 'The Gateway has no trusted startup credential.');
+    }
+    return { role: 'gateway', nonce, proof: createHmac('sha256', key).update(`tinadec-host-v1\0gateway\0${nonce}`, 'utf8').digest('hex') };
+  }, { detail: { summary: 'Prove the managed Gateway endpoint identity without sending a credential', tags: ['Health'], security: [],
+    parameters: [{ name: 'nonce', in: 'query', required: true, schema: { type: 'string', minLength: 43, maxLength: 43, pattern: '^[A-Za-z0-9_-]{43}$' } }],
+    responses: {
+      200: { description: 'Role-bound HMAC-SHA256 proof.', content: { 'application/json': { schema: {
+        type: 'object', required: ['role', 'nonce', 'proof'], properties: {
+          role: { type: 'string', enum: ['gateway'] }, nonce: { type: 'string' }, proof: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        },
+      } } } },
+      400: { description: 'Invalid nonce.' }, 503: { description: 'No trusted startup credential is configured.' },
+    },
+  } })
   .get('/api/v1/health', async ({ set, request }) => {
     const headers = forwardHeaders(request);
     const result = await proxyJson('/api/v1/health', { headers });
@@ -228,7 +257,7 @@ const app = new Elysia()
     return mapped;
   }, {
     detail: {
-      summary: 'Health probe',
+      summary: 'Health probe', security: [],
       tags: ['Health'],
       responses: {
         200: externalJsonResponse('Health', 'Gateway health fingerprint with forwarded Core health fields.'),
@@ -602,7 +631,9 @@ const app = new Elysia()
     if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; setProxyResponseHeaders(set as never, (headers as Record<string, string>)['x-request-id'], result.headers); return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string, string>)['x-request-id'], result.headers);
     return result.data;
-  }, { detail: { summary: 'Migrate session onto a project workspace (find-or-create by root path)', tags: ['Sessions'] } })
+  }, { detail: { summary: 'Queue a free conversation transfer to a project storage scope', tags: ['Sessions'],
+    requestBody: externalJsonRequest('SessionTransferRequest'),
+    responses: { 202: externalJsonResponse('SessionTransfer', 'Durable asynchronous transfer receipt; poll session-transfers until completed.') } } })
   .delete('/api/v1/sessions/:sessionId', async ({ params, set, request }) => {
     const headers = forwardHeaders(request);
     const path = `/api/v1/sessions/${encodeURIComponent(params.sessionId)}`;
@@ -2526,6 +2557,7 @@ const app = new Elysia()
 registerTinaChatRoutes(app, forwardHeaders);
 registerOrganizationRoutes(app, forwardHeaders);
 registerToolsSettingsRoutes(app, forwardHeaders);
+registerStorageRoutes(app, forwardHeaders);
 
 export { app };
 

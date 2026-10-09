@@ -104,6 +104,37 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task TheSandboxOutlivesItsRequestThreadAndNullDeviceRemainsUsable()
+    {
+        if (!OperatingSystem.IsLinux()) return;
+        var backend = new PosixSandboxBackend();
+        await backend.EnsureSetupAsync(CancellationToken.None);
+        var target = Path.Combine(_granted, "after-request.txt");
+        var started = new TaskCompletionSource<SandboxStreamingProcess>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var caller = new Thread(() =>
+        {
+            try
+            {
+                started.SetResult(backend.StartStreamingAsync(new SandboxRunnerRequest
+                {
+                    Executable = "/bin/sh", Arguments = ["-c", $"sleep 1; cat < /dev/null; printf kept > '{target}'; echo written > /dev/null"],
+                    WorkingDirectory = WorkspacePathResolver.WorkspaceRoot
+                }, new SandboxPermissions { WritePaths = [_granted] }, CancellationToken.None).GetAwaiter().GetResult());
+            }
+            catch (Exception error) { started.SetException(error); }
+        });
+        caller.Start();
+        using var sandbox = await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(caller.Join(TimeSpan.FromSeconds(5)));
+        var stdout = sandbox.Process.StandardOutput.ReadToEndAsync();
+        var stderr = sandbox.Process.StandardError.ReadToEndAsync();
+        sandbox.Process.StandardInput.Close();
+        await sandbox.Process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(sandbox.Process.ExitCode == 0, $"exit={sandbox.Process.ExitCode} stdout={await stdout} stderr={await stderr}");
+        Assert.Equal("kept", File.ReadAllText(target));
+    }
+
+    [Fact]
     public void SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant()
     {
         if (!OperatingSystem.IsMacOS()) return; // /var is only a symlink there
@@ -181,19 +212,70 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         if (!OperatingSystem.IsLinux()) return; // macOS has no setpgid hook; see the class note in AGENTS.md.
 
         var pidFile = Path.Combine(_granted, "grandchild.pid");
-        var response = await RunAsync($"sleep 30 & echo $! > '{pidFile}'; wait", timeoutMs: 8_000);
+        var running = RunAsync($"sleep 30 & echo $! > '{pidFile}'; wait", timeoutMs: 8_000);
+        HostProcessIdentity? grandchild = null;
+        var startedDeadline = DateTime.UtcNow.AddSeconds(5);
+        while (grandchild is null && DateTime.UtcNow < startedDeadline)
+        {
+            if (File.Exists(pidFile) && int.TryParse(File.ReadAllText(pidFile).Trim(), out var namespacePid))
+                grandchild = FindHostGrandchild(pidFile, namespacePid);
+            if (grandchild is null) await Task.Delay(50);
+        }
+        var response = await running;
 
         Assert.True(response.TimedOut, $"exit={response.ExitCode} stdout={response.Stdout} stderr={response.Stderr}");
         Assert.True(File.Exists(pidFile), $"the command never backgrounded its child; stdout={response.Stdout} stderr={response.Stderr}");
-        Assert.True(int.TryParse(File.ReadAllText(pidFile).Trim(), out var grandchild), $"unparsable pid '{File.ReadAllText(pidFile)}'");
+        Assert.NotNull(grandchild);
 
-        // kill(pid, 0) == 0 while the process exists. The group signal has to reach this background
-        // child, not just the shell the parent knows about.
+        // bwrap has a PID namespace: $! is not a host PID. Identify this exact sleep
+        // through NSpid and its parent shell's unique script before termination.
+        // A zombie is already terminated; kill(pid, 0) also succeeds for zombies.
         var deadline = DateTime.UtcNow.AddSeconds(15);
-        while (DateTime.UtcNow < deadline && PosixSysCalls.Kill(grandchild, 0) == 0)
+        while (DateTime.UtcNow < deadline && IsRunning(grandchild.Value))
             await Task.Delay(100);
 
-        Assert.NotEqual(0, PosixSysCalls.Kill(grandchild, 0));
+        Assert.False(IsRunning(grandchild.Value), $"owned host grandchild {grandchild.Value.Id} is still running after timeout");
+    }
+
+    private readonly record struct HostProcessIdentity(int Id, string StartedAt);
+
+    private static HostProcessIdentity? FindHostGrandchild(string scriptMarker, int namespacePid)
+    {
+        foreach (var process in System.Diagnostics.Process.GetProcessesByName("sleep"))
+        {
+            using (process)
+            {
+                try
+                {
+                    var stat = ReadHostStat(process.Id);
+                    var nspids = File.ReadAllLines($"/proc/{process.Id}/status").Single(line => line.StartsWith("NSpid:", StringComparison.Ordinal))
+                        .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                    var parentCommand = File.ReadAllText($"/proc/{stat.ParentId}/cmdline");
+                    if (int.Parse(nspids[^1]) == namespacePid && parentCommand.Contains(scriptMarker, StringComparison.Ordinal)
+                        && stat.State != "Z") return new(process.Id, stat.StartedAt);
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+            }
+        }
+        return null;
+    }
+
+    private static bool IsRunning(HostProcessIdentity process)
+    {
+        try
+        {
+            var stat = ReadHostStat(process.Id);
+            return stat.StartedAt == process.StartedAt && stat.State != "Z";
+        }
+        catch (DirectoryNotFoundException) { return false; }
+        catch (FileNotFoundException) { return false; }
+    }
+
+    private static (string State, int ParentId, string StartedAt) ReadHostStat(int pid)
+    {
+        var text = File.ReadAllText($"/proc/{pid}/stat");
+        var fields = text[(text.LastIndexOf(')') + 2)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return (fields[0], int.Parse(fields[1]), fields[19]);
     }
 
     private static bool OnPosix => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();

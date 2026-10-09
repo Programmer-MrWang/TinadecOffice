@@ -1,0 +1,9 @@
+gcc-16.2.1-2.fc44.x86_64
+make-4.4.1-12.fc44.x86_64
+meson-1.11.2-1.fc44.noarch
+ninja-build-1.13.2-2.fc44.x86_64
+git-2.56.0-1.fc44.x86_64
+postgresql-server-18.6-1.fc44.x86_64
+postgresql-18.6-1.fc44.x86_64
+package util-linux-user is not installed
+libcap-devel-2.78-1.fc44.x86_64

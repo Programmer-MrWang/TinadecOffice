@@ -33,6 +33,8 @@ flowchart LR
 
 ## 模块边界与输入/输出
 
+2026-10-09：每个 mounted scope 的 `ProjectSessionStore` 使用自己的数据库和会话锁。项目稳定身份来自 `project.toml`，宿主 storage ID 不属于项目可复制的授权。自由会话跨作用域转移由 Runtime `SessionScopeTransferService` 协调，Memory 不直接改全局连接。长期记忆的 shared items/versions 保留，永久删除仅移除 session-owned graph 及候选引用，正文由独立内容 GC 处理。
+
 | 职责 | 当前边界 | 来源 |
 | --- | --- | --- |
 | Memory · 会话与长期记忆 | 保存会话消息与长期记忆，和Context本轮输入组装不同。已审核记忆当前按关键词评分检索，没有接通向量检索；证据archive的混合检索在AgentGraph。 | [TinadecCore/Memory/MemoryModuleRegistrar.cs:43](../../../../../TinadecCore/Memory/MemoryModuleRegistrar.cs#L43) |

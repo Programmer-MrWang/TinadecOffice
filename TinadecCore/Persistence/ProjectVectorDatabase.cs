@@ -111,14 +111,18 @@ internal sealed class ProjectVectorDatabase : IProjectVectorDatabase
         if (_connection.Provider != DatabaseProvider.Sqlite) throw new NotSupportedException("PostgreSQL vector persistence is not implemented yet.");
         var path = _paths.ProjectVectorDatabase(scope.TenantId, scope.WorkspaceId, scope.ProjectId);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path }.ToString());
-        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        connection.EnableExtensions(true);
-        connection.LoadVector();
-        await using var schema = connection.CreateCommand();
-        schema.CommandText = "CREATE TABLE IF NOT EXISTS vector_chunks (id INTEGER PRIMARY KEY, namespace TEXT NOT NULL, source_type TEXT NOT NULL, source_id TEXT NOT NULL, source_revision TEXT NOT NULL, chunk_index INTEGER NOT NULL, content_hash TEXT NOT NULL, content TEXT NOT NULL, model_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL); CREATE UNIQUE INDEX IF NOT EXISTS ix_vector_chunks_source ON vector_chunks(namespace, source_type, source_id, source_revision, chunk_index, model_id); CREATE TABLE IF NOT EXISTS vector_collections (model_id TEXT PRIMARY KEY, dimension INTEGER NOT NULL);";
-        await schema.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        return connection;
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            connection.EnableExtensions(true);
+            connection.LoadVector();
+            await using var schema = connection.CreateCommand();
+            schema.CommandText = "CREATE TABLE IF NOT EXISTS vector_chunks (id INTEGER PRIMARY KEY, namespace TEXT NOT NULL, source_type TEXT NOT NULL, source_id TEXT NOT NULL, source_revision TEXT NOT NULL, chunk_index INTEGER NOT NULL, content_hash TEXT NOT NULL, content TEXT NOT NULL, model_id TEXT NOT NULL, metadata_json TEXT NOT NULL, created_at TEXT NOT NULL); CREATE UNIQUE INDEX IF NOT EXISTS ix_vector_chunks_source ON vector_chunks(namespace, source_type, source_id, source_revision, chunk_index, model_id); CREATE TABLE IF NOT EXISTS vector_collections (model_id TEXT PRIMARY KEY, dimension INTEGER NOT NULL);";
+            await schema.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            return connection;
+        }
+        catch { await connection.DisposeAsync().ConfigureAwait(false); throw; }
     }
 
     private static async Task<string> EnsureCollectionAsync(SqliteConnection connection, string modelId, int dimension, CancellationToken cancellationToken)

@@ -1,8 +1,10 @@
 const { BrowserWindow, screen, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { storagePaths } = require('./storagePaths.cjs');
 const { appBundleUrl } = require('./appBundle.cjs');
 const { attachExternalLinkGuards } = require('./externalLinks.cjs');
+const { registerTrustedHostWindow } = require('./trustedHostRequests.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -14,10 +16,7 @@ const panelWindows = new Map();
 /**
  * Path for persisting panel window layout to disk.
  */
-const STATE_FILE = path.join(
-  process.env.APPDATA || process.env.HOME || '.',
-  '.tinadec-panel-layout.json'
-);
+const STATE_FILE = path.join(storagePaths().desktopState, 'panel-layout.json');
 
 /**
  * Read persisted panel layout from disk.
@@ -41,7 +40,10 @@ function loadPersistedLayout() {
 function savePersistedLayout(states) {
   try {
     const data = JSON.stringify({ panels: states, savedAt: Date.now() });
-    fs.writeFileSync(STATE_FILE, data, 'utf-8');
+    fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
+    const temporary = `${STATE_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, data, 'utf-8');
+    fs.renameSync(temporary, STATE_FILE);
   } catch {
     // Best-effort persistence; ignore errors
   }
@@ -189,6 +191,7 @@ async function createPanelWindow(tabId, type, title, state = {}, options = {}) {
     },
   });
 
+  registerTrustedHostWindow(win);
   attachExternalLinkGuards(win.webContents);
   // Mirrors tagMainWindow(): lets the terminal output router recognise a window that
   // can host a terminal view without consulting the panel tracking Map.

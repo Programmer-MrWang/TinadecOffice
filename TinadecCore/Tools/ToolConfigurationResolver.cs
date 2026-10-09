@@ -84,45 +84,96 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
             else if (catalog is not null) skills = await catalog.ResolveAsync(projectId, skillBindings, ct);
         }
         var roots = skills.Select(s => new ToolReadRootDto { ResourceId = s.ResourceId, Path = s.RootPath }).ToArray();
-        var hash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { settings = effective, mcp = servers.Select(s => s.ConfigurationHash), skills = skills.Select(s => new { s.ResourceId, s.ContentHash, s.Revision }), importError }));
-        return new() { AgentDefinitionId = document.AgentDefinitionId, Settings = effective, SettingsHash = hash, McpServers = servers, ReadRoots = roots, SkillResources = skills, McpImportError = importError, ResourceDiagnostics = diagnostics };
+        if (admitted is null && services.GetService<IManagedMcpProgramService>() is { } programs)
+        {
+            var resolvedServers = new List<ToolMcpServerSnapshotDto>();
+            foreach (var server in servers)
+            {
+                var resolved = await programs.ResolveForExecutionAsync(server, ct);
+                resolvedServers.Add(resolved);
+                if (resolved.ProgramStatus is "not_installed" or "outdated" or "invalid" or "needs_reinstall")
+                    diagnostics.Add(new() { Kind = "mcp_program", ResourceId = resolved.ResourceId, Status = resolved.ProgramStatus, Reason = "Registering an MCP server does not install its program. Review and approve the separate installation action." });
+            }
+            servers = resolvedServers;
+        }
+        var locations = services.GetRequiredService<IScopeStorageLocations>();
+        var storageWrite = services.GetService<IProjectStorageWritePolicy>()?.AllowStorageWrite == true;
+        var protectedRoots = services.GetService<IProtectedStorageRoots>()?.Roots ?? [];
+        var hash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { settings = effective, mcp = servers.Select(s => new { s.ConfigurationHash, s.ProgramHash, s.ProgramStatus }), skills = skills.Select(s => new { s.ResourceId, s.ContentHash, s.Revision }), importError, locations.StorageId, locations.Root, locations.ProjectRoot, storageWrite, protectedRoots }));
+        return new() { ProtectedStorageRoots = protectedRoots.ToArray(), StorageId = locations.StorageId, StorageRoot = locations.Root, ProjectRoot = locations.ProjectRoot, ProjectStorageWrite = storageWrite, AgentDefinitionId = document.AgentDefinitionId, Settings = effective, SettingsHash = hash, McpServers = servers, ReadRoots = roots, SkillResources = skills, McpImportError = importError, ResourceDiagnostics = diagnostics };
     }
     public async Task<FrozenToolConfigurationDto> ResolveForRunAsync(Guid? projectId, IReadOnlyList<Guid> agentDefinitionIds, CancellationToken cancellationToken = default)
     {
         var sharedDocument = await settings.GetAsync(null, cancellationToken);
-        var admitted = await CaptureResourcesAsync(projectId, cancellationToken);
-        var shared = await ResolveDocumentAsync(projectId, sharedDocument, cancellationToken, admitted: admitted);
-        var contexts = new Dictionary<Guid, ToolExecutionContextDto>();
+        var documents = new Dictionary<Guid, ToolSettingsDocumentDto>();
         foreach (var id in agentDefinitionIds.Distinct())
         {
             var agent = await settings.GetAsync(id, cancellationToken);
             var effective = ToolSettingsSchema.MergeAgent(sharedDocument.EffectiveSettings, agent.Settings);
             var fixedDocument = new ToolSettingsDocumentDto { AgentDefinitionId = id, Settings = agent.Settings, Revision = agent.Revision, EffectiveSettings = effective, SettingsHash = ToolSettingsSchema.Hash(effective), UpdatedAt = agent.UpdatedAt };
-            contexts[id] = await ResolveDocumentAsync(projectId, fixedDocument, cancellationToken, admitted: admitted);
+            documents[id] = fixedDocument;
         }
+        var admitted = await CaptureResourcesAsync(projectId, documents.Values.Select(x => x.EffectiveSettings).Prepend(sharedDocument.EffectiveSettings).ToArray(), cancellationToken);
+        var shared = await ResolveDocumentAsync(projectId, sharedDocument, cancellationToken, admitted: admitted);
+        var contexts = new Dictionary<Guid, ToolExecutionContextDto>();
+        foreach (var document in documents) contexts[document.Key] = await ResolveDocumentAsync(projectId, document.Value, cancellationToken, admitted: admitted);
         return new() { SharedRevision = sharedDocument.Revision, SharedContext = shared, AgentContexts = contexts, ConfigurationHash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { shared.SettingsHash, agents = contexts.OrderBy(x => x.Key).Select(x => new { id = x.Key, hash = x.Value.SettingsHash }) })) };
     }
-    private async Task<AdmissionResources> CaptureResourcesAsync(Guid? projectId, CancellationToken ct)
+    private async Task<AdmissionResources> CaptureResourcesAsync(Guid? projectId, IReadOnlyList<JsonElement> effectiveSettings, CancellationToken ct)
     {
         McpResourceCatalogSnapshot mcpResources;
         string? importError = null;
         try { mcpResources = await mcp.CaptureAsync(projectId, ct); }
         catch (ToolSettingsException ex) when (ex.Code == "mcp_import_failed") { mcpResources = new([], []); importError = ex.Message; }
-        var skills = services.GetService<IToolSkillCatalog>() is { } catalog ? await catalog.CaptureAsync(projectId, ct) : new ToolSkillCatalogSnapshot([], []);
+        if (services.GetService<IManagedMcpProgramService>() is { } programs)
+        {
+            var frozenPrograms = new List<ToolMcpServerSnapshotDto>();
+            foreach (var server in mcpResources.Servers)
+                frozenPrograms.Add(await programs.ResolveForExecutionAsync(server, ct));
+            mcpResources = new(mcpResources.Resources, frozenPrograms);
+        }
+        var skills = new ToolSkillCatalogSnapshot([], []);
+        if (services.GetService<IToolSkillCatalog>() is { } catalog && services.GetService<IToolSkillResourceService>() is { } resourceService)
+        {
+            var resources = (await resourceService.ListAsync(projectId, ct)).Skills;
+            var projectNames = resources.Where(x => x.Scope == "project").Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
+            var selected = new HashSet<Guid>();
+            foreach (var effective in effectiveSettings.Where(x => x.GetProperty("skills").GetProperty("enabled").GetBoolean()))
+            {
+                var bindings = Bindings(effective, "skills", "resource_ids");
+                foreach (var resource in resources.Where(x => x.Valid && x.Enabled && (bindings is not null ? bindings.Contains(x.ResourceId) : x.Scope == "project" || !projectNames.Contains(x.Name))))
+                    selected.Add(resource.ResourceId);
+            }
+            skills = await catalog.CaptureSelectedAsync(projectId, selected, ct);
+        }
         return new(mcpResources, skills, importError);
     }
     private sealed record AdmissionResources(McpResourceCatalogSnapshot Mcp, ToolSkillCatalogSnapshot Skills, string? McpImportError);
-    public async Task<ToolExecutionContextDto> MaterializeForCallAsync(ToolExecutionContextDto frozen, IReadOnlyList<string> allowedToolIds, CancellationToken cancellationToken = default, string? runId = null, string? toolId = null)
+    public async Task<ToolExecutionContextDto> MaterializeForCallAsync(ToolExecutionContextDto frozen, IReadOnlyList<string> allowedToolIds, CancellationToken cancellationToken = default, string? runId = null, string? toolId = null, string? workingDirectory = null)
     {
+        var locations = services.GetRequiredService<IScopeStorageLocations>();
+        if (frozen.StorageId != locations.StorageId || frozen.StorageRoot != locations.Root)
+            throw new ToolSettingsException("frozen_storage_scope_mismatch", "This historical run belongs to a different storage scope. Start a new run in the current scope.", 409);
+        workingDirectory = string.IsNullOrWhiteSpace(workingDirectory) ? frozen.WorkingDirectory ?? locations.ProjectRoot : Path.GetFullPath(workingDirectory);
+        if (!string.IsNullOrWhiteSpace(workingDirectory)) workingDirectory = WorkspacePathSpelling.Canonical(workingDirectory);
         var servers = new List<ToolMcpServerSnapshotDto>();
         foreach (var server in frozen.McpServers)
         {
             var env = new Dictionary<string,string?>();
             if (toolId is null || toolId.StartsWith("mcp_", StringComparison.OrdinalIgnoreCase))
                 foreach (var secret in server.SecretReferences ?? new Dictionary<string,string>()) env[secret.Key] = await secrets.GetAsync(secret.Value, cancellationToken) ?? throw new ToolSettingsException("mcp_secret_unavailable", "An MCP resource secret is unavailable.", 503);
-            servers.Add(new() { ResourceId = server.ResourceId, Id = server.Id, Name = server.Name, Command = server.Command, Args = server.Args, Env = env, Cwd = server.Cwd, Revision = server.Revision, ConfigurationHash = server.ConfigurationHash });
+            servers.Add(new() { ResourceId = server.ResourceId, Id = server.Id, Name = server.Name, Command = server.Command, Args = server.Args, Env = env, Cwd = server.Cwd, Revision = server.Revision, ConfigurationHash = server.ConfigurationHash, ProgramRoot = server.ProgramRoot, ProgramHash = server.ProgramHash, ProgramStatus = server.ProgramStatus });
         }
-        return new() { RunId = runId ?? frozen.RunId, AgentDefinitionId = frozen.AgentDefinitionId, SettingsHash = frozen.SettingsHash, Settings = frozen.Settings.Clone(), McpServers = servers, ReadRoots = frozen.ReadRoots, AllowedToolIds = allowedToolIds.Where(id => ToolSettingsSchema.IsEnabled(frozen.Settings,id)).ToArray(), SkillResources = frozen.SkillResources, McpImportError = frozen.McpImportError };
+        return new()
+        {
+            ProtectedStorageRoots = frozen.ProtectedStorageRoots.Concat(services.GetService<IProtectedStorageRoots>()?.Roots ?? []).Distinct().ToArray(),
+            WorkingDirectory = workingDirectory, StorageId = frozen.StorageId, StorageRoot = frozen.StorageRoot,
+            ProjectRoot = frozen.ProjectRoot, ProjectStorageWrite = frozen.ProjectStorageWrite,
+            RunId = runId ?? frozen.RunId, AgentDefinitionId = frozen.AgentDefinitionId, SettingsHash = frozen.SettingsHash,
+            Settings = frozen.Settings.Clone(), McpServers = servers, ReadRoots = frozen.ReadRoots,
+            AllowedToolIds = allowedToolIds.Where(id => ToolSettingsSchema.IsEnabled(frozen.Settings,id)).ToArray(),
+            SkillResources = frozen.SkillResources, McpImportError = frozen.McpImportError
+        };
     }
     private static IReadOnlyList<Guid>? Bindings(JsonElement settings, string section, string name)
     {

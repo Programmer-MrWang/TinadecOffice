@@ -1,0 +1,44 @@
+.NET SDK:
+ Version:           10.0.300
+ Commit:            caa81fa497
+ Workload version:  10.0.300-manifests.b47d7e23
+ MSBuild version:   18.6.3+caa81fa49
+
+Runtime Environment:
+ OS Name:     fedora
+ OS Version:  44
+ OS Platform: Linux
+ RID:         linux-x64
+ Base Path:   /var/tmp/tinadec-storage-validation/sdk/sdk/10.0.300/
+
+.NET workloads installed:
+There are no installed workloads to display.
+Configured to use workload sets when installing new manifests.
+No workload sets are installed. Run "dotnet workload restore" to install a workload set.
+
+Host:
+  Version:      10.0.8
+  Architecture: x64
+  Commit:       94ea82652c
+
+.NET SDKs installed:
+  10.0.300 [/var/tmp/tinadec-storage-validation/sdk/sdk]
+
+.NET runtimes installed:
+  Microsoft.AspNetCore.App 10.0.8 [/var/tmp/tinadec-storage-validation/sdk/shared/Microsoft.AspNetCore.App]
+  Microsoft.NETCore.App 10.0.8 [/var/tmp/tinadec-storage-validation/sdk/shared/Microsoft.NETCore.App]
+
+Other architectures found:
+  None
+
+Environment variables:
+  Not set
+
+global.json file:
+  Not found
+
+Learn more:
+  https://aka.ms/dotnet/info
+
+Download .NET:
+  https://aka.ms/dotnet/download

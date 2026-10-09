@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="5538e67a-80f8-49da-a6d5-97fa19df859e" name="@linstation 2026-10-09 15:50:49" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T15:50:49.5043293+08:00" queuing="2026-10-09T15:50:49.5043294+08:00" start="2026-10-09T15:50:47.2825586+08:00" finish="2026-10-09T15:51:19.8433930+08:00" />
+  <TestSettings name="default" id="82d2a8ed-8235-4e5d-b6ea-7e9897d27526">
+    <Deployment runDeploymentRoot="_linstation_2026-10-09_15_50_49" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="fc4c5ea5-ae59-4292-af2e-c14cfe234c2b" testId="cad18fbc-1a53-22c3-c494-4a817c7e994e" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" computerName="linstation" duration="00:00:00.0021816" startTime="2026-10-09T15:50:48.6950712+08:00" endTime="2026-10-09T15:50:48.6954077+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fc4c5ea5-ae59-4292-af2e-c14cfe234c2b" />
+    <UnitTestResult executionId="e359242a-228b-4789-9a79-cbf12fc558c0" testId="0e451509-e264-a54f-203c-676c79e380bb" testName="TinadecTools.Tests.StorageBoundaryTests.WindowsIdentitySeparatesScopesAndPrivilegeTiers" computerName="linstation" duration="00:00:00.0145508" startTime="2026-10-09T15:51:19.6449445+08:00" endTime="2026-10-09T15:51:19.6593201+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e359242a-228b-4789-9a79-cbf12fc558c0" />
+    <UnitTestResult executionId="243f5d68-cfff-42d4-8566-dd8da66f41c7" testId="4b35f49b-8bd4-1820-6687-fda5621cde5e" testName="TinadecTools.Tests.StorageBoundaryTests.WindowsRealAclDenialSurvivesAConcurrentLeaseAndReleasesAtTheEnd" computerName="linstation" duration="00:00:00.3524286" startTime="2026-10-09T15:51:19.0111048+08:00" endTime="2026-10-09T15:51:19.3636737+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="243f5d68-cfff-42d4-8566-dd8da66f41c7" />
+    <UnitTestResult executionId="2a0911ee-f12f-4497-abf6-818f4ba828d4" testId="03daea56-b2c1-f05c-782f-bd64c41c0d21" testName="TinadecTools.Tests.StorageBoundaryTests.HostFrozenWriteGrantCannotOpenAnotherScopeAndSelectedPackagesStayReadable" computerName="linstation" duration="00:00:00.0410474" startTime="2026-10-09T15:51:19.6030148+08:00" endTime="2026-10-09T15:51:19.6446504+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2a0911ee-f12f-4497-abf6-818f4ba828d4" />
+    <UnitTestResult executionId="af724c8e-6654-4fc7-850f-f862d5037d07" testId="29570da0-cf7f-3839-ea85-0369284314de" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse" computerName="linstation" duration="00:00:00.1006253" startTime="2026-10-09T15:51:18.9027581+08:00" endTime="2026-10-09T15:51:19.0043989+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="af724c8e-6654-4fc7-850f-f862d5037d07" />
+    <UnitTestResult executionId="e7144a4d-20a7-4b2f-82ce-afb346879ca6" testId="8c8253e0-1346-aacd-c2f9-7a2aa8d05e54" testName="TinadecTools.Tests.StorageBoundaryTests.ConcurrentScopesHaveSeparateScratchAndCannotInheritTheHostControlToken" computerName="linstation" duration="00:00:00.0417240" startTime="2026-10-09T15:51:19.5605871+08:00" endTime="2026-10-09T15:51:19.6027805+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e7144a4d-20a7-4b2f-82ce-afb346879ca6" />
+    <UnitTestResult executionId="eb24be9e-083e-4a61-9df7-cece66ca12c8" testId="9fb986c3-4a4b-e939-89d3-f5dd435e197b" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" computerName="linstation" duration="00:00:00.1254203" startTime="2026-10-09T15:51:18.7777076+08:00" endTime="2026-10-09T15:51:18.9009373+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eb24be9e-083e-4a61-9df7-cece66ca12c8" />
+    <UnitTestResult executionId="1bfa22ff-bdcc-4479-9cac-d25734a7b740" testId="197a9a09-c2fa-9f71-9245-f9ae8d68b524" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds" computerName="linstation" duration="00:00:00.2042424" startTime="2026-10-09T15:50:48.4103464+08:00" endTime="2026-10-09T15:50:48.6604444+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1bfa22ff-bdcc-4479-9cac-d25734a7b740">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=137 stdout=started
+ stderr= error= profile=(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write*
+  (require-all
+    (require-any
+      (subpath "/tmp/tinadec-sbx-it-JNwKBM")
+    )
+  )
+)
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 99
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="62b9f717-3e6b-46ca-913d-8b536fe6f529" testId="1ef79015-be26-1ae3-dc9b-55847521e584" testName="TinadecTools.Tests.StorageBoundaryTests.OnlyTheHostAssignedWorktreeIsASourceException" computerName="linstation" duration="00:00:00.0297477" startTime="2026-10-09T15:51:19.6595632+08:00" endTime="2026-10-09T15:51:19.6893619+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="62b9f717-3e6b-46ca-913d-8b536fe6f529" />
+    <UnitTestResult executionId="d023bc9a-f2fa-4144-8ebd-8b903e135a9a" testId="920c832c-8530-0750-7c85-1fe9c16f1ddb" testName="TinadecTools.Tests.StorageBoundaryTests.RealFileWritesAllowSourcesAndRejectEveryInternalCategory" computerName="linstation" duration="00:00:00.1943212" startTime="2026-10-09T15:51:19.3648267+08:00" endTime="2026-10-09T15:51:19.5602621+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d023bc9a-f2fa-4144-8ebd-8b903e135a9a" />
+    <UnitTestResult executionId="3022a355-a909-4a6d-b732-e2b3f13e58f6" testId="83b898ad-e987-8f8b-e531-00c7f08b353a" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup" computerName="linstation" duration="00:00:30.1056151" startTime="2026-10-09T15:50:48.6967531+08:00" endTime="2026-10-09T15:51:18.7746629+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3022a355-a909-4a6d-b732-e2b3f13e58f6">
+      <Output>
+        <ErrorInfo>
+          <Message>exit=137 stdout= stderr=/bin/sh: line 1: cannot redirect standard input from /dev/null: Permission denied
+</Message>
+          <StackTrace>   at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 186
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="73a54e20-f430-4a1b-add6-a10698a6b7cd" testId="358d8605-f5ce-4c49-ef7c-730d4076c5f6" testName="TinadecTools.Tests.PosixSandboxIntegrationTests.TheConfinementMechanismThisPlatformReliesOnIsPresent" computerName="linstation" duration="00:00:00.0014160" startTime="2026-10-09T15:51:18.9011663+08:00" endTime="2026-10-09T15:51:18.9025647+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="73a54e20-f430-4a1b-add6-a10698a6b7cd" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="9fb986c3-4a4b-e939-89d3-f5dd435e197b">
+      <Execution id="eb24be9e-083e-4a61-9df7-cece66ca12c8" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="AWriteOutsideEveryGrantedDirectoryIsDeniedByTheKernel" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.WindowsRealAclDenialSurvivesAConcurrentLeaseAndReleasesAtTheEnd" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="4b35f49b-8bd4-1820-6687-fda5621cde5e">
+      <Execution id="243f5d68-cfff-42d4-8566-dd8da66f41c7" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="WindowsRealAclDenialSurvivesAConcurrentLeaseAndReleasesAtTheEnd" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.OnlyTheHostAssignedWorktreeIsASourceException" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="1ef79015-be26-1ae3-dc9b-55847521e584">
+      <Execution id="62b9f717-3e6b-46ca-913d-8b536fe6f529" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="OnlyTheHostAssignedWorktreeIsASourceException" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.RealFileWritesAllowSourcesAndRejectEveryInternalCategory" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="920c832c-8530-0750-7c85-1fe9c16f1ddb">
+      <Execution id="d023bc9a-f2fa-4144-8ebd-8b903e135a9a" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="RealFileWritesAllowSourcesAndRejectEveryInternalCategory" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.WindowsIdentitySeparatesScopesAndPrivilegeTiers" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="0e451509-e264-a54f-203c-676c79e380bb">
+      <Execution id="e359242a-228b-4789-9a79-cbf12fc558c0" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="WindowsIdentitySeparatesScopesAndPrivilegeTiers" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="197a9a09-c2fa-9f71-9245-f9ae8d68b524">
+      <Execution id="1bfa22ff-bdcc-4479-9cac-d25734a7b740" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="AWriteInsideTheGrantedDirectorySucceeds" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="cad18fbc-1a53-22c3-c494-4a817c7e994e">
+      <Execution id="fc4c5ea5-ae59-4292-af2e-c14cfe234c2b" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="SeatbeltProfile_CarriesTheCanonicalFormOfEveryGrant" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TheChildSeesTheRetainedEnvironmentAndNothingElse" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="29570da0-cf7f-3839-ea85-0369284314de">
+      <Execution id="af724c8e-6654-4fc7-850f-f862d5037d07" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TheChildSeesTheRetainedEnvironmentAndNothingElse" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TheConfinementMechanismThisPlatformReliesOnIsPresent" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="358d8605-f5ce-4c49-ef7c-730d4076c5f6">
+      <Execution id="73a54e20-f430-4a1b-add6-a10698a6b7cd" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TheConfinementMechanismThisPlatformReliesOnIsPresent" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.HostFrozenWriteGrantCannotOpenAnotherScopeAndSelectedPackagesStayReadable" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="03daea56-b2c1-f05c-782f-bd64c41c0d21">
+      <Execution id="2a0911ee-f12f-4497-abf6-818f4ba828d4" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="HostFrozenWriteGrantCannotOpenAnotherScopeAndSelectedPackagesStayReadable" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.StorageBoundaryTests.ConcurrentScopesHaveSeparateScratchAndCannotInheritTheHostControlToken" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="8c8253e0-1346-aacd-c2f9-7a2aa8d05e54">
+      <Execution id="e7144a4d-20a7-4b2f-82ce-afb346879ca6" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.StorageBoundaryTests" name="ConcurrentScopesHaveSeparateScratchAndCannotInheritTheHostControlToken" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup" storage="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/tinadectools.tests/debug/tinadectools.tests.dll" id="83b898ad-e987-8f8b-e531-00c7f08b353a">
+      <Execution id="3022a355-a909-4a6d-b732-e2b3f13e58f6" />
+      <TestMethod codeBase="/var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.PosixSandboxIntegrationTests" name="TerminationReachesTheWholeProcessGroup" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="cad18fbc-1a53-22c3-c494-4a817c7e994e" executionId="fc4c5ea5-ae59-4292-af2e-c14cfe234c2b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0e451509-e264-a54f-203c-676c79e380bb" executionId="e359242a-228b-4789-9a79-cbf12fc558c0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4b35f49b-8bd4-1820-6687-fda5621cde5e" executionId="243f5d68-cfff-42d4-8566-dd8da66f41c7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="03daea56-b2c1-f05c-782f-bd64c41c0d21" executionId="2a0911ee-f12f-4497-abf6-818f4ba828d4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="29570da0-cf7f-3839-ea85-0369284314de" executionId="af724c8e-6654-4fc7-850f-f862d5037d07" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8c8253e0-1346-aacd-c2f9-7a2aa8d05e54" executionId="e7144a4d-20a7-4b2f-82ce-afb346879ca6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9fb986c3-4a4b-e939-89d3-f5dd435e197b" executionId="eb24be9e-083e-4a61-9df7-cece66ca12c8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="197a9a09-c2fa-9f71-9245-f9ae8d68b524" executionId="1bfa22ff-bdcc-4479-9cac-d25734a7b740" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1ef79015-be26-1ae3-dc9b-55847521e584" executionId="62b9f717-3e6b-46ca-913d-8b536fe6f529" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="920c832c-8530-0750-7c85-1fe9c16f1ddb" executionId="d023bc9a-f2fa-4144-8ebd-8b903e135a9a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="83b898ad-e987-8f8b-e531-00c7f08b353a" executionId="3022a355-a909-4a6d-b732-e2b3f13e58f6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="358d8605-f5ce-4c49-ef7c-730d4076c5f6" executionId="73a54e20-f430-4a1b-add6-a10698a6b7cd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="12" executed="12" passed="10" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.8)
+[xUnit.net 00:00:00.16]   Discovering: TinadecTools.Tests
+[xUnit.net 00:00:00.31]   Discovered:  TinadecTools.Tests
+[xUnit.net 00:00:00.35]   Starting:    TinadecTools.Tests
+[xUnit.net 00:00:00.66]       exit=137 stdout=started
+[xUnit.net 00:00:00.66]        stderr= error= profile=(version 1)
+[xUnit.net 00:00:00.66]       (allow default)
+[xUnit.net 00:00:00.66]       (deny file-write*)
+[xUnit.net 00:00:00.66]       (allow file-write*
+[xUnit.net 00:00:00.66]         (require-all
+[xUnit.net 00:00:00.66]           (require-any
+[xUnit.net 00:00:00.66]             (subpath "/tmp/tinadec-sbx-it-JNwKBM")
+[xUnit.net 00:00:00.66]           )
+[xUnit.net 00:00:00.66]         )
+[xUnit.net 00:00:00.66]       )
+[xUnit.net 00:00:00.66]       
+[xUnit.net 00:00:00.66]       Stack Trace:
+[xUnit.net 00:00:00.66]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(99,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds()
+[xUnit.net 00:00:00.66]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:30.77]       exit=137 stdout= stderr=/bin/sh: line 1: cannot redirect standard input from /dev/null: Permission denied
+[xUnit.net 00:00:30.77]       
+[xUnit.net 00:00:30.77]       Stack Trace:
+[xUnit.net 00:00:30.77]         /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs(186,0): at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup()
+[xUnit.net 00:00:30.77]         --- End of stack trace from previous location ---
+[xUnit.net 00:00:31.68]   Finished:    TinadecTools.Tests
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-09T15:50:48.6649373+08:00">
+        <Text>[xUnit.net 00:00:00.66]     TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="linstation" outcome="Error" timestamp="2026-10-09T15:51:18.7764641+08:00">
+        <Text>[xUnit.net 00:00:30.77]     TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

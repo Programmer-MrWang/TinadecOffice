@@ -4,6 +4,10 @@ import type { components } from '@/generated/schema'
 import type { MessageAttachmentDto, MessageDto, SseChunk } from '@/generated/client'
 import { createRunStream, runStreamDelta, type RunStreamHandle } from '@/lib/runStream'
 import { isAbortError } from '@/lib/isAbortError'
+import { captureStorageId, rememberStorageResult, normalizeStorageRequest, storageHeaders, storageFetch, sessionStorageId, selectionIdentity, type StorageRequestOptions } from '@/lib/storageScope'
+import type { StorageScopeDto, StorageStatsDto, StorageCleanupPreviewDto, StorageContentPreviewDto, StorageDeletePreviewDto, SessionTransferDto, ConfigurationDocumentDto, StorageConfigureInput } from '@/settings/storage'
+import { ScopedEventSource } from '@/lib/scopedEventSource'
+type StorageDiagnosticResult = { storage_id: string; scope: StorageScopeDto; diagnostics: Array<Record<string, unknown>>; configuration: { content_hash: string; documents: Record<string, string> } }
 import type { ToolSettingsDocument, ToolSettingsSchema, ToolSettingsEffective, ToolMcpResource, ToolMcpInput, ToolSkillResource, ToolCapabilities } from '@/settings/toolSettings'
 export type { ToolSettingsDocument, ToolSettingsSchema, ToolSettingsEffective, ToolMcpResource, ToolMcpInput, ToolSkillResource, ToolCapabilities } from '@/settings/toolSettings'
 
@@ -25,6 +29,7 @@ export type TinaChatExecution = components['schemas']['TinaChatExecutionDto']
 export type TinaChatWorkspacePolicy = components['schemas']['TinaChatWorkspacePolicyDto']
 
 export interface ProjectDto {
+  storage_id?: string;
   id: string;
   name: string;
   path: string;
@@ -34,6 +39,7 @@ export interface ProjectDto {
 }
 
 export interface SessionDto {
+  storage_id?: string;
   /** Creation-time conversation family. Older servers/rows default to flat. */
   view_mode?: 'flat' | 'space';
   id: string;
@@ -2573,16 +2579,18 @@ interface JsonRequestResult<T> {
   headers: Headers
 }
 
-async function requestResult<T>(path: string, init?: RequestInit): Promise<JsonRequestResult<T>> {
+async function requestResult<T>(path: string, init?: StorageRequestOptions): Promise<JsonRequestResult<T>> {
+  const storageId = captureStorageId(path, init)
+  const normalized = normalizeStorageRequest(path, init)
+  const headers = storageHeaders(path, { ...init, storageId })
+  if (!headers.has('accept')) headers.set('accept', 'application/json')
+  if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
   let response: Response;
   try {
-    response = await fetch(`${gatewayUrl}${path}`, {
+    response = await fetch(`${gatewayUrl}${normalized.path}`, {
       ...init,
-      headers: {
-        accept: 'application/json',
-        ...(init?.body ? { 'content-type': 'application/json' } : {}),
-        ...(init?.headers ?? {})
-      }
+      body: normalized.body,
+      headers,
     });
   } catch (err) {
     if (isAbortError(err)) throw err
@@ -2612,10 +2620,11 @@ async function requestResult<T>(path: string, init?: RequestInit): Promise<JsonR
     throw Object.assign(new Error(message), { code, status: response.status });
   }
 
+  rememberStorageResult(path, data, storageId)
   return { data: data as T, headers: response.headers };
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: StorageRequestOptions): Promise<T> {
   return (await requestResult<T>(path, init)).data;
 }
 
@@ -2655,7 +2664,7 @@ function extractErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
-export async function spawnRunAgent(runId: string, body: { parent_instance_id: string; goal: string; intent?: string; role?: string; allowed_tools?: string[]; allowed_resources?: string[]; success_criteria?: string[]; context_selectors?: string[]; model_route_purpose?: string; budget_tokens?: number }): Promise<unknown> { const r = await fetch(`${gatewayUrl}/api/v1/runs/${runId}/agents/spawn`, { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/json' }, body: JSON.stringify(body) }); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+export async function spawnRunAgent(runId: string, body: { parent_instance_id: string; goal: string; intent?: string; role?: string; allowed_tools?: string[]; allowed_resources?: string[]; success_criteria?: string[]; context_selectors?: string[]; model_route_purpose?: string; budget_tokens?: number }): Promise<unknown> { return request(`/api/v1/runs/${runId}/agents/spawn`, { method: 'POST', body: JSON.stringify(body) }); }
 
 /** Resolve the Core project identity for a desktop workspace path. */
 export async function createUserToolActionForPath(
@@ -2664,12 +2673,14 @@ export async function createUserToolActionForPath(
   params?: Record<string, unknown> | null,
   idempotencyKey?: string,
 ): Promise<UserToolActionDto> {
+  const capturedStorage = captureStorageId('/api/v1/user/tool-actions')
   const projects = await request<ProjectDto[]>('/api/v1/projects');
   const normalized = path.replace(/[\\/]+$/, '').toLowerCase();
   const project = projects.find((item) => item.path.replace(/[\\/]+$/, '').toLowerCase() === normalized);
   if (!project) throw new Error('The selected workspace is not registered in TinadecCore.');
   return request<UserToolActionDto>('/api/v1/user/tool-actions', {
     method: 'POST',
+    storageId: project.storage_id ?? capturedStorage,
     body: JSON.stringify({ project_id: project.id, tool_id: toolId, params, idempotency_key: idempotencyKey }),
   });
 }
@@ -2783,6 +2794,7 @@ function streamAdmittedInteraction(
   onChunk: (chunk: ModelStreamChunkDto) => void,
   onError?: (error: Error) => void,
 ): AbortController {
+  const storageId = sessionStorageId(sessionId)
   const controller = new AbortController()
   let handle: RunStreamHandle | null = null
   controller.signal.addEventListener('abort', () => handle?.disconnect())
@@ -2799,11 +2811,12 @@ function streamAdmittedInteraction(
       if (body.expected_context_revision != null) interactionBody.expected_context_revision = body.expected_context_revision
       const receipt = await request<{ run_id?: string; stream_cursor?: number }>(
         `/api/v1/sessions/${encodeURIComponent(sessionId)}/interactions`,
-        { method: 'POST', body: JSON.stringify(interactionBody), signal: controller.signal },
+        { method: 'POST', body: JSON.stringify(interactionBody), signal: controller.signal, storageId },
       )
       const runId = receipt.run_id
       if (!runId) throw new Error('Interaction admission did not return a run_id.')
       handle = createRunStream({
+        storageId,
         runId,
         cursor: receipt.stream_cursor ?? 0,
         // One-shot on purpose: these callers generate a commit message, and a
@@ -2827,6 +2840,30 @@ function streamAdmittedInteraction(
 
 export const api = {
   gatewayUrl,
+  listStorageScopes: () => request<StorageScopeDto[]>('/api/v1/storage/scopes', { storageId: 'user' }),
+  openStorageScope: (input: { project_path: string; name?: string } & Partial<StorageConfigureInput>) => request<StorageScopeDto>('/api/v1/storage/scopes/open', { method: 'POST', storageId: 'user', body: JSON.stringify(input) }),
+  getStorageDiagnostics: (storageId: string) => request<StorageDiagnosticResult>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/diagnostics`, { storageId: 'user' }),
+  getStorageStats: (storageId: string) => request<StorageStatsDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/stats`, { storageId: 'user' }),
+  previewStorageCleanup: (storageId: string, category: string) => request<StorageCleanupPreviewDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/cleanup-preview`, { method: 'POST', storageId: 'user', body: JSON.stringify({ category }) }),
+  cleanupStorage: (storageId: string, previewId: string) => request<unknown>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/cleanup`, { method: 'POST', storageId: 'user', body: JSON.stringify({ preview_id: previewId }) }),
+  previewContentCollection: (storageId: string) => request<StorageContentPreviewDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/content-preview`, { method: 'POST', storageId: 'user' }),
+  collectContent: (storageId: string, previewId: string) => request<unknown>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/content-collect`, { method: 'POST', storageId: 'user', body: JSON.stringify({ preview_id: previewId }) }),
+  previewStorageDeletion: (storageId: string) => request<StorageDeletePreviewDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/storage-delete-preview`, { method: 'POST', storageId: 'user' }),
+  deleteStorage: (storageId: string, previewId: string) => request<unknown>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/storage-delete`, { method: 'POST', storageId: 'user', body: JSON.stringify({ preview_id: previewId }) }),
+  unregisterStorageScope: (storageId: string) => request<void>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}`, { method: 'DELETE', storageId: 'user' }),
+  configureStorage: (storageId: string, input: StorageConfigureInput) => request<StorageScopeDto>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/configure`, { method: 'POST', storageId: 'user', body: JSON.stringify(input) }),
+  closeStorageScope: (storageId: string, signal?: AbortSignal) => request<void>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/close`, { method: 'POST', storageId: 'user', signal }),
+  exportStorageScope: async (storageId: string) => {
+    const response = await storageFetch(`${gatewayUrl}/api/v1/storage/scopes/${encodeURIComponent(storageId)}/export`, { method: 'POST', storageId: 'user' })
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw Object.assign(new Error(extractErrorMessage(data, response.statusText)), { status: response.status })
+    }
+    return { blob: await response.blob(), filename: response.headers.get('content-disposition')?.match(/filename="?([^";]+)"?/)?.[1] ?? `tinadec-${storageId}.zip` }
+  },
+  getConfigurationDocument: (storageId: string, documentId: string) => request<ConfigurationDocumentDto>(`/api/v1/configuration/documents/${encodeURIComponent(documentId)}`, { storageId }),
+  validateConfigurationDocument: (storageId: string, documentId: string, text: string) => request<{ valid: boolean; diagnostics: Array<Record<string, unknown>> }>(`/api/v1/configuration/documents/${encodeURIComponent(documentId)}/validate`, { method: 'POST', storageId, body: JSON.stringify({ text }) }),
+  saveConfigurationDocument: (storageId: string, documentId: string, text: string, hash: string) => request<ConfigurationDocumentDto>(`/api/v1/configuration/documents/${encodeURIComponent(documentId)}`, { method: 'PUT', storageId, headers: { 'if-match': `"${hash}"` }, body: JSON.stringify({ text }) }),
   getToolSettingsSchema: () => request<ToolSettingsSchema>('/api/v1/tools/settings/schema'),
   getToolSettingsDefaults: () => request<ToolSettingsDocument>('/api/v1/tools/settings/defaults'),
   saveToolSettingsDefaults: (settings: Record<string, unknown>, revision: number, projectId?: string) => request<ToolSettingsDocument>(`/api/v1/tools/settings/defaults${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'PUT', headers: { 'if-match': `"${revision}"` }, body: JSON.stringify({ settings }) }),
@@ -2919,10 +2956,11 @@ export const api = {
     if (viewMode === 'space' && session.view_mode !== 'space') throw new Error('无法创建空间会话：服务尚未支持独立会话类型，请更新服务后重试。')
     return session
   }),
-  migrateSession: (sessionId: string, payload: { target_project_id?: string; project_name?: string; project_path?: string }) => request<SessionDto>(`/api/v1/sessions/${sessionId}/migrate`, {
+  migrateSession: (sessionId: string, payload: { target_storage_id: string; target_project_id?: string }) => request<SessionTransferDto>(`/api/v1/sessions/${sessionId}/migrate`, {
     method: 'POST',
     body: JSON.stringify(payload)
   }),
+  getSessionTransfer: (transferId: string) => request<SessionTransferDto>(`/api/v1/session-transfers/${encodeURIComponent(transferId)}`, { storageId: 'user' }),
   updateSessionTitle: (sessionId: string, title: string) => request<SessionDto>(`/api/v1/sessions/${sessionId}`, {
     method: 'PATCH',
     body: JSON.stringify({ title })
@@ -3455,8 +3493,8 @@ export const api = {
   ),
 
   connectEvents(sessionId: string | null, onEvent: (event: EventEnvelope) => void): EventSource {
-    const params = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
-    const source = new EventSource(`${gatewayUrl}/api/v1/events${params}`);
+    const params = sessionId ? `?session_id=${encodeURIComponent(selectionIdentity(sessionId).id)}` : '';
+    const source = new ScopedEventSource(`${gatewayUrl}/api/v1/events${params}`, sessionStorageId(sessionId));
     const handle = (message: MessageEvent) => {
       try {
         onEvent(normalizeEventEnvelope(JSON.parse(message.data), message.lastEventId));
@@ -3472,7 +3510,7 @@ export const api = {
     for (const eventType of CORE_EVENT_TYPES) {
       source.addEventListener(eventType, handle as EventListener);
     }
-    return source;
+    return source as unknown as EventSource;
   },
 
   /** Terminal sessions Core has admitted for a run (agent terminal panel source). */

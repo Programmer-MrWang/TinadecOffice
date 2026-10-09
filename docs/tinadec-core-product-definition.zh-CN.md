@@ -4,6 +4,7 @@
 > 文档状态：持续维护的产品基线（不使用递增文档版本号）
 > 日期：2026-08-22
 > TinaChat 增量更新：2026-09-18；用户确认作为 `TinadecCore/TinaChat` 内部模块，后端首批已实现并通过下述验证，尚未发布。
+> 存储与配置增量更新：2026-10-09；用户根、独立项目作用域、权威 TOML、维护动作与可信宿主边界见 §21。属于当前工作树升级，验证层级与发布状态分别记录。
 > 适用范围：TinadecCore、DmaEA，以及 TinadecOffice 四产品之间的契约边界
 > 事实基线：截至 2026-08-22，当前工作树统一以 MAF `1.18.0` 为规范基线；实现状态仍须按本文标记区分，未提交工作树不等同于已发布能力。TinadecOffice 尚未发布首个正式版，公开 API 固定为 `/api/v1`。
 
@@ -535,6 +536,8 @@ spec:
 
 ### 9.3 配置解析顺序
 
+配置先绑定不可变的存储作用域。项目首次打开取得当时用户默认配置和资源的独立快照；以后用户默认变化不自动改变既有项目。模块 TOML 是可编辑配置的事实源，关系库是可重建投影；已发布版本与 run 冻结记录继续保持不可变。存储与配置发布的完整边界见 §21。
+
 功能配置按以下顺序解析：
 
 `内置基线 -> 租户发布策略 -> 工作区发布版本 -> 会话选择 -> run 临时参数`
@@ -894,7 +897,7 @@ stateDiagram-v2
 目标：消除事实源和术语冲突。
 
 - 固定本文的产品边界、`operation/execution` 和 DmaEA 定义。
-- 保持关系库发布版本为正式运行事实源；TOML 只提供无 App 专业知识的 fallback 与预算默认值，DevSeed 只保留通用开发启动资源。
+- 以作用域内模块 TOML 为可编辑配置的事实源，关系库保存可重建配置投影与运行业务状态；已发布版本和 run 冻结快照保持不可变。内置 runtime TOML 只提供通用初始基线，DevSeed 只保留通用开发启动资源。
 - 继续以 TinadecOffice 自带的 `OfficeAgentPack` 维护 Office 专业 roster；Core 不回引 Office 角色或 manifest 内容。
 - 将 AgentConfiguration 业务逻辑从 API endpoint 下沉到 service/domain 层。
 - 修正 Core/根解决方案项目清单、README、MAF 版本和过期文档。
@@ -1003,7 +1006,144 @@ TinadecCore 首个正式版至少需要满足：
 1. 已发布数据库版本和某个 run 的冻结快照决定该 run 的实际行为。
 2. 公开 API/事件契约与自动化测试决定当前可用能力。
 3. 本文决定目标产品边界和术语。
-4. `default-agent-runtime.toml` 提供通用 fallback 与预算基线，不是 Office 正式 roster 的发布事实源。
+4. 作用域内 `config/*.toml` 决定可编辑配置，数据库投影不能反过来覆盖较新的文件修订；`default-agent-runtime.toml` 仅在初始化时提供通用 runtime 基线，不是 Office 正式 roster 的发布事实源。
 5. 其它计划、设计稿和历史文档仅作参考。
 
 发现冲突时必须修正文档或实现，不能通过口头约定长期保留第二套事实源。
+
+## 21. 存储、文件保存与配置契约（2026-10-09）
+
+本节是四产品共用的存储产品契约。目录解析与数据库连接属于 Core/宿主；Gateway 只代理公开契约；Desktop 展示实际路径、来源和操作结果。当前实现仍在未提交工作树中，不等同于已发布或完成所有平台验收。这里的“会话迁移”是业务对象移动，不是旧版本兼容或历史目录导入入口。
+
+### 21.1 用户根与项目根
+
+用户存储根默认 `~/.tinadec`，Windows、Linux、macOS 使用相同逻辑分类。绝对路径 `TINADEC_HOME` 可覆盖用户根；相对路径不得被静默解释为安装目录。Desktop 的稳定启动文档是默认用户根中的 `config/desktop.toml`，可用 `user_root` 选择另一绝对根；显式环境根优先，且只解析一次，不递归追随新根中的另一份指针。安装目录和当前 shell 工作目录不得成为用户数据位置。
+
+用户作用域 ID 固定为 `user`。产品数据直接置于用户根的分类目录，不增加 `user.scope` 这一层。自由会话的可写源码工作目录与产品存储分离，默认 `~/TinadecProjects`，宿主可以显式配置；它是用户工作区，不能按缓存清理。受管 `worktrees/` 则属于对应存储作用域，并遵守工具授权和工作树生命周期。
+
+打开一个真实项目首先规范化源码根，再通过 Core `POST /api/v1/storage/scopes/open` 挂载。默认在源码目录创建 `.tinadec/`；这是明确的产品行为，首次初始化会写入下列布局。源码根不可写时，默认初始化可回退到用户根的 `projects/<storage_id>/`，API 与界面必须报告 `external=true` 和实际路径；显式选择的外部根失败时应直接报错，不能另选一个隐藏目录。
+
+```text
+~/.tinadec/                       # user；也可由环境/启动配置指定
+  config/desktop.toml             # Desktop 启动文档
+  config/{runtime,agents,models,tools,mcp,prompts,skills,storage,logging}.toml
+  skills/                         # 当前可管理的完整技能资源
+  packages/                       # 安装包、内容寻址/冻结资源版本
+  data/                           # 数据库、会话、事件、正文、向量、产物
+  state/                          # 宿主登记、恢复事务和 UI 状态
+  state/desktop/                  # Electron userData、UIE/panel/pets
+  logs/core.log                   # scope Core 观测日志
+  logs/host/                      # Electron 与托管子进程观测日志
+  cache/desktop/                  # Chromium sessionData
+  temp/                           # 可清理暂存、harness 工作文件
+  worktrees/                      # 受管工作树
+  security/                       # 本机凭据与受保护授权材料
+  projects/<storage_id>/          # 项目外部回退存储
+
+<源码项目>/.tinadec/               # 独立 project 作用域
+  project.toml                    # 初始化完成标记与稳定 product project_id
+  .gitignore
+  config/  skills/  packages/
+  data/  state/  logs/  cache/  temp/  worktrees/
+```
+
+上述 `data/` 的 SQLite 默认库为 `tinadec.db`，会话历史为 `sessions/<id>.json`，运行任务/事件/产物按 ID 分目录，正文引用位于 `content/tenants/.../<hash>`，项目向量库在 `vectors/`。PostgreSQL 改变关系持久化后端，不能消除本地正文、配置和资源文件的所有权。具体模块路径仍以 Core 返回的 `paths` 和其内容引用契约为准。
+
+`.tinadec/.gitignore` 默认排除 data、state、logs、cache、temp、worktrees、packages；config、skills 与 project.toml 可以作为项目配置共享。初始化采用同级暂存目录加原子发布，只有完成 manifest 才能作为有效项目存储复用。不得跟随受管树内的符号链接/junction 越过边界，也不得把不完整初始化目录当成已完成存储。
+
+### 21.2 项目初始化与作用域隔离
+
+新项目复制当时用户九个模块 TOML、skills、packages 的完整快照及其内容版本，不复制 Desktop 启动文档、自由会话、运行历史、浏览器状态或凭据。默认配置是创建时的模板，后续编辑用户默认仅影响以后初始化的项目；项目编辑仅影响该项目，重新打开已有项目读取自身 manifest 和配置。
+
+`project_id` 是可复制的产品身份；`storage_id` 是宿主为规范化项目位置授予的登记身份。真实移动项目且旧位置已不存在时可以复用原宿主 storage_id；复制项目允许保留同一 project_id，但两个同时存在的副本必须拥有不同 storage_id、数据库/连接工厂、服务图、日志、后台运行和事件流。用户登记与写范围存于用户 state，不能依赖项目文件自授予权限。项目复制至另一机器后，凭据引用保留名称，凭据必须重新绑定。
+
+每个 HTTP 请求、后台任务、run 和 SSE 连接在开始时捕获作用域；界面切换项目不能改变已开始的操作。业务 HTTP/SSE 转发 `X-Tinadec-Storage-Id`，重连保持来源 scope 与 cursor。项目/会话聚合列表由 user 宿主汇总并携带 storage_id；界面选择和缓存必须使用 scope 加实体 ID，不能以重复 product ID 覆盖副本。无项目上下文的配置与新自由会话默认进入 user。
+
+Desktop 无项目选择的模型、Agent、模式、提示词和 Pack 管理控件显示并固定为 user 默认配置，不因 Home 当前选中项目而隐式改变。项目配置通过“存储与配置”选择作用域后编辑相同模块 TOML；项目工具和资源通过 Tools 的明确项目选择维护。未来提供完整项目配置表单时，必须保留同样可见的来源、草稿离开保护和固定作用域请求。
+
+### 21.3 TOML 与发布事实
+
+可编辑配置统一按模块保存到 `config/`，其中 agents/models/tools/mcp/prompts/skills 为领域配置，runtime 为运行基线，storage/logging 为宿主配置。数据库保存解析投影、索引和业务状态，不再形成隐藏的第二套可编辑配置。GUI 保存与外部文本编辑必须进入相同校验、并发检查、原子替换和投影重建链路；外部文件变化可在投影协调/新运行准入时被重新读取，不保证既有 run 热更新。
+
+文档 API 返回实际 path、原始 text、content_hash、version 和带行列位置的 diagnostics。保存必须带 `If-Match`；缺少前置条件返回 428，内容 hash 冲突返回 412 并保留界面草稿。领域语义无效时不得替换原文件。发布版本 ID 对应的内容不可原地改变，必须建立新版本；run 同时冻结作用域、配置摘要、模式/Agent 版本和工具资源版本，准入过程发现配置已变则拒绝过期快照。
+
+以下示例展示当前宿主配置的最小格式；领域模块的表结构来自各模块 schema 和 GET 返回内容，不能把一个自造 JSON blob 当成完整 TOML 配置。
+
+```toml
+# 默认根/config/desktop.toml；环境覆盖时 root 由 TINADEC_HOME 管理
+gateway_url = "http://127.0.0.1:48730"
+# user_root = "D:/TinadecData"
+```
+
+```toml
+# <作用域>/config/storage.toml
+version = 1
+[storage]
+backend = "sqlite"
+# PostgreSQL 使用本机绑定的凭据引用，不保存明文 connection string
+# backend = "postgresql"
+# postgres_connection_reference = "office-postgres"
+```
+
+```toml
+# <作用域>/config/logging.toml；默认 10 MiB / 200 MiB
+version = 1
+[logging]
+rotation_bytes = 10485760
+total_bytes = 209715200
+```
+
+容量必须为整数且 `total_bytes >= rotation_bytes >= 4096`。Core 与 Desktop 同一用户作用域的日志递归共享预算，当前文件按 rotation_bytes 轮转，淘汰已关闭 rotated 文件；事件账本、会话历史、审计引用属于 data 而不是 logs，不能因日志轮转删除。200/10 MiB 是默认容量，可以通过权威 logging TOML 修改；宿主 logger 在重启后读取新值。
+
+活动工具配置使用原生 TOML 的领域值，不保存 JSON null 哨兵。在 `[[tool_settings]]` 的 settings 中，MCP 的 `mcp.binding` 与 Skills 的 `skills.binding` 使用 `mode = "inherit" | "all" | "none" | "selected"`，分别表示继承、全部、禁止全部、仅选择资源；缺省 binding 表示继承。只有 selected 可以携带 ids，且须为非空、唯一、非零的资源 UUID 数组，最多1000项；其他模式不得带 ids。GUI/API 中既有 null、空数组与资源数组由投影适配器转换为这些明确模式，不能直接把 JSON 字段写入权威 TOML。
+
+工具可选值的显式意图分别写成 `read.max_file_bytes = { mode = "unlimited" }`、`write.max_file_bytes = { mode = "unlimited" }`、`search.timeout_ms = { mode = "outer_deadline" }`、`search.rg_path = { mode = "host_search" }`；省略字段表示继承，明确数值或字符串仍使用原生标量。活动配置拒绝 `__tinadec_null` 以及旧 resource_ids/server_resource_ids 的 TOML 形状；历史 JSON 版本保持冻结，不因编辑格式改造而重写。
+
+MCP 的 server 定义、启动 argv、环境引用和绑定归 mcp.toml/工具配置；server 程序的实际安装位置由该安装方式决定，不能把一份 MCP JSON/TOML 定义称为已安装程序。当前 MCP server 是用户信任的外部进程，不处于 Agent 文件工具沙箱中；授予/拒绝 Agent 存储写范围不限制该程序本身的 OS 权限。Skills 必须保存完整包与固定版本，不只保存 SKILL.md；skills 管理当前资源，packages 保留准入/冻结运行需要的不可变包内容。运行对资源的可见性仍由 Agent 能力、工具表面、窄读取根和权限交集决定。
+
+### 21.4 凭据、Agent 文件范围与可信宿主
+
+模型、MCP、PostgreSQL 和其它敏感值以 user SecretStore 引用绑定，本机材料单独位于 user security；它们不写入项目 TOML、正文包、manifest、Git 文件或存储 ZIP。项目复制/配置导出携带引用名称，目标机器不能据此获得明文凭据；缺少绑定必须明确诊断或拒绝启动。切换用户根没有隐式搬运 security，因此新根的凭据绑定应由用户重新完成。
+
+Agent 对源码项目的文件授权与对产品存储的写范围是两项独立决定。源码及当前作用域的 config/skills 默认可写；data/state/logs/cache/temp/packages 等产品数据与宿主状态默认禁止 Agent 文件工具写入。用户可通过可信宿主授予整个当前项目存储的写范围。项目 TOML、模型、Agent、shell 和普通 HTTP 不能自行授予这项范围；其他项目存储、user security/state/registry 继续受保护。默认可写及用户扩大写范围都不改变 DmaEA 的能力/风险/PDP 审批要求。
+
+Desktop main 生成随机私有 host-control token，仅传给托管 Core/Gateway；开发统一启动器可在可信启动环境共享同一随机值。main 接收后立刻从 process.env 删除，Vite/plugins 的环境剥除此值，只有明确的受管服务启动参数继续携带。token 不暴露到 renderer、TOML、localStorage、普通终端或 Agent 工具子进程。Core 验证 token 并持久化策略；Gateway 不解释授权或从自己的环境为匿名请求签发。外部服务/复用宿主不持有本轮 token 时拒绝访问，不能用 UI 布尔值绕过。
+
+文件沙箱不能单独阻止网络调用的间接读写。scope-enabled Core 的全部 /api/v1 请求都要求 `X-Tinadec-Host-Control`；公开 GET health 仅给最小进程指纹，GET host-challenge 仅给 nonce/角色绑定的端点证明。读取/诊断/预览、普通配置、审批/预授权、会话/项目永久删除、迁移及存储 open/close/export/configure/清理均纳入同一边界。租约、活动运行和回收站状态检查保证一致性，不替代调用者授权。Agent shell 即使网络可达 localhost 也不能冒充用户经 HTTP 访问默认受保护目录或授予能力；Agent 合法能力仍通过 Core 内部治理和工具执行路径运行。
+
+固定 loopback 端口和公开 health 指纹不是端点身份。Desktop 在复用/新启动受管服务并签发任何私有请求前，对 Core/Gateway 分别请求公开 host-challenge：32随机字节转43字符 base64url nonce，返回 role、相同 nonce 和 HMAC-SHA256(token, UTF8 `tinadec-host-v1\0<role>\0<nonce>`) 小写hex。请求不携带 token，拒绝重定向；角色、nonce 与恒时证明校验均需通过，Core/Gateway 证明不可互换，没有启动 key 返回503。main 仅在两个端点均验证后开启签发；定期15秒重验失败即撤权，重新启动才能恢复。开发统一启动不默认开放匿名 CDP 端口；宿主代码与启动环境必须受信任，不能把允许 Agent 改写 Vite 宿主源码的开发环境宣称为稳定产品隔离边界。
+
+Desktop main 的 session.webRequest.onBeforeSendHeaders 仅为显式登记的 main、panel、debug 窗口签发。每次发送验证当前页面为 app://bundle/index.html 或启动时固定的本地 Vite 入口、请求来自该窗口主 frame、目标为已验证的 HTTP 127.0.0.1:48730/48731 且属于 /api/v1。localhost/IPv6 可对应不同监听，不能继承 IPv4 端点的证明或私有头。子 frame/预览、worker、pet、未知窗口不继承凭据；导航开始暂停，离开受信页面和销毁窗口后不再签发；其他目的地与重定向先剥除已有私有头。渲染器 HTTP 与 SSE 原有调用不接触 token，维护 IPC 也复核当前受信主 frame，只接受固定动作与合法 ID，不提供任意 URL/token 代理。Web/远程客户端须有另外显式绑定的可信宿主；本轮不向远程发送本地凭据，也不宣称未绑定的远程读取兼容，缺少绑定返回 host_authorization_required。
+
+### 21.5 用户动作与写入位置
+
+| 用户动作 | 必要写入 | 保留与准入要求 |
+|---|---|---|
+| 启动 Desktop/Core | 当前 user config 缺失文档、分类目录、state/UI 状态、日志 | 使用新布局；不读取或迁移旧平台根、settings.json 或旧 panel dotfile |
+| 打开新项目 | 项目 `.tinadec` 或明确报告的 fallback；user state/projects.toml 登记 | 原子初始化、默认配置/资源快照、源码目录不用于业务缓存 |
+| 打开已有项目 | 宿主登记、当前 scope 的运行连接和观测状态 | 复用完成的 manifest，不重新覆盖项目配置 |
+| 保存 Agent/模型/工具/MCP/Skills/提示配置 | 当前 scope 模块 TOML 与投影；安装/发布需要的资源版本 | CAS、语义校验、完整包、不可变发布 ID；已有 run 沿冻结配置 |
+| 保存 Desktop 连接/用户根 | 稳定 desktop.toml；所选根 storage.toml | 用户图不即时换根；重启应用后生效，外部环境根需在环境配置中更改 |
+| 切换 project backend/root | 项目 storage 配置/manifest 与 user 登记 | 仅空闲；显式切换；不自动复制旧数据库、历史或凭据 |
+| 发送/运行 | 来源 scope data、事件、产物、准入包与日志 | 绑定原 scope；迟到回执不得污染新选择 |
+| 自由会话迁移到项目 | user state/session-transfers.toml、目标数据图/正文/历史文件，验证后移除源数据图 | 明确 target_storage_id；当前 run terminal 后执行；已受理队列未排空返回 queued_interactions_pending |
+| 修改 Agent 存储写范围 | 可信 user state 的项目策略 | 主窗口 IPC 加 host-control；默认关闭，不接受项目自授予 |
+| 分类清理/内容回收 | 删除预览中允许的 scope 文件 | 使用本次 preview token；过期、变化、活动租约或引用变化则拒绝 |
+| 导出存储 ZIP | scope temp 中一致性数据库快照及下载文件 | 空闲与受管路径检查；不含凭据；临时快照清理，原存储保留 |
+| 关闭/取消登记/删除整个项目存储 | 分别释放运行图、移除 user 登记、删除拥有的存储树 | 三个动作独立；关闭停止新租约并等待既有运行、请求和 SSE 释放，取消时恢复可用状态；维护冲突或重复关闭返回409；删除必须先关闭图并复核预览，不删除源码根 |
+
+用户根/backend 变更只写新配置并返回 restart_required 和 requested_storage_root，当前 ScopeDto 仍报告正在使用的根。项目图可在空闲时关闭、独立挂载到显式选择的根。选择新根是配置切换，不是数据迁移或后端转换；旧数据保留，PostgreSQL 连接引用需在目标宿主重新绑定。未来自动转换/合并数据库属于独立目标态能力，本轮不提供。
+
+单独 CAS 编辑 storage.toml 不自动改变已挂载 backend 或凭据引用；与当前挂载不一致时新运行准入应阻止并提示显式应用配置/重启。文件不是 host 登记或授权事实源。关闭等待期间允许处理既有运行的审批与停止，拒绝创建新运行；用户可取消关闭后恢复正常操作。
+
+自由会话迁移返回 202 transfer receipt；Desktop 关闭该源 SSE 后通过 user 宿主轮询。worker 使用源/目标独占租约，先复制并校验正文、完整资源、会话及运行关联图，再清理源图，事务 journal 支持故障恢复。历史配置/版本作为历史事实保留在关系库，不能因配置 TOML 是编辑权威而清除历史审计证据；后续新运行选目标项目已发布默认。排队消息须先执行或取消；不得让队列跨作用域静默继续。
+
+### 21.6 清理、备份与验证层级
+
+cache、temp、logs 的清理、未被引用正文的回收、项目注销与整个项目存储删除必须分开。预览报告 storage_id、实际 path/引用、文件数、字节数、有效期和 preview_id；执行复核所有权、路径链接、内容变化和引用集合。活动运行、请求、SSE、安装/用户工具动作持有租约时不能执行破坏性维护。logs 清理保留当前文件；cache/temp 清理不删除 config/data/security。正文回收仅可处理已证明没有业务引用的对象，不可把 data 视为通用缓存。
+
+ZIP 导出是 scope 数据/配置的一致性备份，不是自动导入或凭据克隆；恢复、跨 backend 转换与导入向导仍须单独定义与验收。整个项目存储删除限已登记 project scope，关闭运行图后先原子移入删除暂存再删除受管树；user 根和源码目录不在该动作范围。
+
+本轮工作树已有目录/初始化、独立 scope 图、模块 TOML/CAS 与投影、迁移 journal、清理/回收/导出、可信策略 API、Gateway 薄代理和 Desktop 设置实现。可信 HTTP 边界已有 Electron43.3.0 隔离夹具验证：主/浮窗/Debug 路由与 SSE 签发，未知窗口和预览 iframe 拒绝，导航撤权与重定向剥离；这是传输边界证据，不能写成完整新功能 UI 走查或安装包验收。验证必须分层记录：路径/语义/并发单元测试，API/SQLite 集成测试，Gateway 字节/状态/header 契约，Desktop Vue/Node 测试与类型/构建，最后才是实际安装包、真实模型、PostgreSQL 实库和 Windows/Linux/macOS 验收。前四层通过不能被写成后三层已完成；最终执行证据写入本轮报告。本节中的跨平台默认布局和后端能力是产品契约，不是未取证的平台测试结论。
+
+实现入口：`Persistence/StorageScopePaths.cs`、`Runtime/StorageScopeInitializer.cs`、`Runtime/StorageScopeRegistry.cs`、`Persistence/Configuration/ScopeConfigurationDocuments.cs` 与投影协调器、`Runtime/SessionScopeTransferService.cs`、`Runtime/StorageMaintenanceService.cs`、`AspNetCore/Endpoints/StorageScopeEndpoints.cs`；Desktop/Gateway 模块说明见各自 STORAGE.md。五个本地参考项目的固定提交审计保存在工作区研究记录中，它们提供机制对照，不形成另一份正式产品契约。

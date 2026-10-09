@@ -1,0 +1,30 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  TinadecCore.Contracts -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Contracts\debug\TinadecCore.Contracts.dll
+  TinadecCore.Abstractions -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Abstractions\debug\TinadecCore.Abstractions.dll
+  TinadecCore.Strategies -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Strategies\debug\TinadecCore.Strategies.dll
+  TinadecCore.Persistence -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Persistence\debug\TinadecCore.Persistence.dll
+  TinadecCore.Context -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Context\debug\TinadecCore.Context.dll
+  TinadecCore.AgentConfiguration -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.AgentConfiguration\debug\TinadecCore.AgentConfiguration.dll
+  TinadecCore.DmaEA -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.DmaEA\debug\TinadecCore.DmaEA.dll
+  TinadecCore.Tenancy -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Tenancy\debug\TinadecCore.Tenancy.dll
+  TinadecCore.Governance -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Governance\debug\TinadecCore.Governance.dll
+  TinadecCore.Prompts -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Prompts\debug\TinadecCore.Prompts.dll
+  TinadecCore.VectorStore -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.VectorStore\debug\TinadecCore.VectorStore.dll
+  TinadecCore.TinaChat -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.TinaChat\debug\TinadecCore.TinaChat.dll
+  TinadecCore.Memory -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Memory\debug\TinadecCore.Memory.dll
+  TinadecCore.Skills -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Skills\debug\TinadecCore.Skills.dll
+  TinadecCore.Lifecycle -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Lifecycle\debug\TinadecCore.Lifecycle.dll
+  TinadecCore.AgentGraph -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.AgentGraph\debug\TinadecCore.AgentGraph.dll
+  TinadecCore.Tools -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Tools\debug\TinadecCore.Tools.dll
+  TinadecCore.LoopGuard -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.LoopGuard\debug\TinadecCore.LoopGuard.dll
+  TinadecCore.Models -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Models\debug\TinadecCore.Models.dll
+  TinadecCore.Storage.Migrations.PostgreSql -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Storage.Migrations.PostgreSql\debug\TinadecCore.Storage.Migrations.PostgreSql.dll
+  TinadecCore.Storage.Migrations.Sqlite -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Storage.Migrations.Sqlite\debug\TinadecCore.Storage.Migrations.Sqlite.dll
+  TinadecCore.Runtime -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\TinadecCore.Runtime\debug\TinadecCore.Runtime.dll
+  ConfigFile.Tests -> C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll
+C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll (.NETCoreApp,Version=v10.0)的测试运行
+总共 1 个测试文件与指定模式相匹配。
+结果文件: C:\git\agent\TinadecOffice\.tinadec_dev\reports\configuration-and-transfer-tests\runtime-source-selection.trx
+
+已通过! - 失败:     0，通过:     3，已跳过:     0，总计:     3，持续时间: 157 ms - TinadecCore.Api.Tests.dll (net10.0)

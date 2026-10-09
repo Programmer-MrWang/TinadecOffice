@@ -39,9 +39,11 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
     public bool IsSupported => OperatingSystem.IsLinux() || OperatingSystem.IsMacOS();
 
     /// <summary>No account, no elevation, no setup step: confinement is per-process.</summary>
-    public bool IsInitialized => true;
+    public bool IsInitialized => OperatingSystem.IsMacOS() ? File.Exists(SandboxExecPath) : BubblewrapLauncher.IsVerified;
 
-    public Task EnsureSetupAsync(CancellationToken ct) => Task.CompletedTask;
+    public Task EnsureSetupAsync(CancellationToken ct) => OperatingSystem.IsLinux()
+        ? BubblewrapLauncher.EnsureAvailableAsync(ct)
+        : File.Exists(SandboxExecPath) ? Task.CompletedTask : throw new PlatformNotSupportedException("The macOS command sandbox requires /usr/bin/sandbox-exec; the command was not started.");
 
     public async Task<SandboxRunnerResponse> ExecuteAsync(
         SandboxRunnerRequest request,
@@ -49,13 +51,14 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
         bool persistGrants,
         CancellationToken ct)
     {
+        await EnsureSetupAsync(ct);
         var stopwatch = Stopwatch.StartNew();
         var launch = BuildLaunch(request, permissions);
 
         using var process = new Process { StartInfo = launch };
         try
         {
-            process.Start();
+            await StartProcessAsync(process).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -109,20 +112,50 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
         };
     }
 
-    public Task<SandboxStreamingProcess> StartStreamingAsync(
+    public async Task<SandboxStreamingProcess> StartStreamingAsync(
         SandboxRunnerRequest request,
         SandboxPermissions permissions,
         CancellationToken ct)
     {
+        await EnsureSetupAsync(ct);
         var launch = BuildLaunch(request, permissions);
         var process = new Process { StartInfo = launch };
-        if (!process.Start())
+        try
+        {
+            await StartProcessAsync(process).ConfigureAwait(false);
+        }
+        catch
         {
             process.Dispose();
-            throw new InvalidOperationException("The sandboxed process did not start.");
+            throw;
         }
 
-        return Task.FromResult(new SandboxStreamingProcess(process, new ProcessTerminator(process)));
+        return new SandboxStreamingProcess(process, new ProcessTerminator(process));
+    }
+
+    private static Task StartProcessAsync(Process process)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            if (!process.Start()) throw new InvalidOperationException("The sandboxed process did not start.");
+            return Task.CompletedTask;
+        }
+
+        // PR_SET_PDEATHSIG observes the creating OS thread, not just its process.
+        // A request/await continuation can leave that thread while bwrap is alive.
+        // Keep its creator alive until exit so --die-with-parent remains reliable.
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        new Thread(() =>
+        {
+            try
+            {
+                if (!process.Start()) throw new InvalidOperationException("The sandboxed process did not start.");
+                started.TrySetResult();
+                process.WaitForExit();
+            }
+            catch (Exception error) { started.TrySetException(error); }
+        }) { IsBackground = true, Name = "Tinadec sandbox parent" }.Start();
+        return started.Task;
     }
 
     public Task ResetAsync(SandboxResetScope scope, CancellationToken ct) => Task.CompletedTask;
@@ -135,6 +168,8 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
     internal static ProcessStartInfo BuildLaunch(SandboxRunnerRequest request, SandboxPermissions permissions)
     {
         var environment = request.Environment ?? SandboxEnvironment.Build(null, permissions.EnvironmentVariableNames);
+        foreach (var entry in permissions.EnvironmentOverrides) environment[entry.Key] = entry.Value;
+        environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
         var writePaths = WriteTargets(request, permissions, environment);
 
         var psi = new ProcessStartInfo
@@ -151,7 +186,8 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
         {
             psi.FileName = SandboxExecPath;
             psi.ArgumentList.Add("-p");
-            psi.ArgumentList.Add(SeatbeltProfile.Build(writePaths));
+            psi.ArgumentList.Add(SeatbeltProfile.Build(writePaths, permissions.ProtectedPaths, permissions.ReadExceptions,
+                permissions.StorageWrite ? null : permissions.StorageRoot));
             psi.ArgumentList.Add("--");
             psi.ArgumentList.Add(request.Executable);
             foreach (var arg in request.Arguments)
@@ -172,11 +208,18 @@ internal sealed class PosixSandboxBackend : ISandboxBackend
             Environment = environment,
             WritePaths = writePaths
         };
-        psi.FileName = LauncherExecutable()
-            ?? throw new InvalidOperationException("Cannot resolve this process's executable path for the sandbox launcher.");
+        psi.FileName = BubblewrapLauncher.ResolvePath();
+        permissions.ReadExceptions.Add(AppContext.BaseDirectory);
+        BubblewrapLauncher.AddMountView(psi, permissions, writePaths);
+        psi.ArgumentList.Add("--chdir");
+        psi.ArgumentList.Add(request.WorkingDirectory);
+        psi.ArgumentList.Add("--");
+        psi.ArgumentList.Add(LauncherExecutable()
+            ?? throw new InvalidOperationException("Cannot resolve this process's executable path for the sandbox launcher."));
         psi.ArgumentList.Add(LinuxSandboxLauncher.ModeArg);
         psi.ArgumentList.Add(Convert.ToBase64String(
             JsonSerializer.SerializeToUtf8Bytes(payload, SandboxJsonContext.Default.LinuxSandboxPayload)));
+        ApplyEnvironment(psi, environment);
         return psi;
     }
 

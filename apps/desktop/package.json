@@ -12,7 +12,7 @@
     "prebuild": "node scripts/check-lockfile-natives.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "pretest": "node scripts/check-lockfile-natives.mjs",
-    "test": "vitest run && node --test electron/appBundle.test.cjs electron/localMedia.test.cjs electron/externalLinks.test.cjs electron/appConfig.test.cjs electron/layoutStore.test.cjs electron/serviceDiscovery.test.cjs electron/serviceManager.test.cjs electron/terminalManager.test.cjs scripts/viteCacheGuard.test.mjs scripts/runtimeTargets.test.mjs scripts/packageTargets.test.mjs scripts/officeChannel.test.mjs scripts/lockfileNatives.test.mjs scripts/smokePosix.test.mjs scripts/debPackage.test.mjs",
+    "test": "vitest run && node --test electron/appBundle.test.cjs electron/localMedia.test.cjs electron/externalLinks.test.cjs electron/appConfig.test.cjs electron/storagePaths.test.cjs electron/logSink.test.cjs electron/hostControl.test.cjs electron/hostIdentity.test.cjs electron/trustedHostRequests.test.cjs electron/layoutStore.test.cjs electron/serviceDiscovery.test.cjs electron/serviceManager.test.cjs electron/terminalManager.test.cjs scripts/developmentEnvironment.test.mjs scripts/viteCacheGuard.test.mjs scripts/runtimeTargets.test.mjs scripts/packageTargets.test.mjs scripts/officeChannel.test.mjs scripts/lockfileNatives.test.mjs scripts/smokePosix.test.mjs scripts/debPackage.test.mjs",
     "generate:client": "npx -y openapi-typescript@6 ../../TinadecGateway/tests/__snapshots__/openapi.external.json -o src/generated/schema.d.ts",
     "check:drift": "npm run generate:client && git diff --exit-code -- src/generated/",
     "rebuild:native": "electron-rebuild -f -w node-pty",
@@ -43,8 +43,14 @@
       "electron/**/*",
       "!electron/*.test.cjs",
       "!electron/**/*.test.cjs",
+      "!electron/*.probe.cjs",
       "dist/**/*",
       "!node_modules/**/*",
+      {
+        "from": "../../node_modules/smol-toml",
+        "to": "node_modules/smol-toml",
+        "filter": ["package.json", "dist/**/*", "LICENSE"]
+      },
       {
         "from": "../../node_modules/node-pty",
         "to": "node_modules/node-pty",
@@ -122,6 +128,20 @@
       "synopsis": "TinadecOffice desktop workbench",
       "artifactName": "TinadecOffice-${version}-linux-x64.${ext}"
     },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "libcap2"
+      ]
+    },
     "dmg": {
       "artifactName": "TinadecOffice-${version}-osx-arm64.${ext}",
       "title": "TinadecOffice"
@@ -163,6 +183,7 @@
     "recharts": "^3.8.0",
     "shadcn": "^4.7.0",
     "simple-icons": "^16.20.0",
+    "smol-toml": "^1.9.0",
     "tw-animate-css": "^1.4.0",
     "vue": "3.6.0-rc.10",
     "vue-i18n": "^11.4.13",

@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="1fc5daa6-7e90-4253-b4d0-f19d62d57c7c" name="lincu@LINSTATION 2026-10-09 16:29:06" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T16:29:06.8701553+08:00" queuing="2026-10-09T16:29:06.8701559+08:00" start="2026-10-09T16:29:01.5260499+08:00" finish="2026-10-09T16:29:08.6107449+08:00" />
+  <TestSettings name="default" id="aa9034c6-f9d2-434d-a8d8-7caa8019fa03">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_16_29_06" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="fe83afba-5f46-4053-8525-8c2acad86f94" testId="7cc7b489-6b0c-33a7-f0a1-6c1d20d33136" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingsRoundTripGuiWritesManualModesAndFrozenHistory" computerName="LINSTATION" duration="00:00:01.6786434" startTime="2026-10-09T16:29:06.8374064+08:00" endTime="2026-10-09T16:29:08.4944607+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fe83afba-5f46-4053-8525-8c2acad86f94" />
+    <UnitTestResult executionId="e09cc416-58b6-4e49-be5a-4cc4472c4e42" testId="3ed4a490-a6ef-bd3f-7ee4-63ea370e874d" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingErrorsAndNullSentinelsCannotChangeAuthoritativeBytes" computerName="LINSTATION" duration="00:00:03.9425726" startTime="2026-10-09T16:29:02.8471447+08:00" endTime="2026-10-09T16:29:06.8034499+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e09cc416-58b6-4e49-be5a-4cc4472c4e42" />
+    <UnitTestResult executionId="923bc9ca-bf78-4757-b078-c31397e84a4a" testId="c4a09a60-84e1-6a5b-abe6-254b9ac261d1" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeJsonValuesUseOmittedInheritanceAndRejectAmbiguousArrayNulls" computerName="LINSTATION" duration="00:00:00.0043812" startTime="2026-10-09T16:29:06.8360848+08:00" endTime="2026-10-09T16:29:06.8363276+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="923bc9ca-bf78-4757-b078-c31397e84a4a" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingErrorsAndNullSentinelsCannotChangeAuthoritativeBytes" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="3ed4a490-a6ef-bd3f-7ee4-63ea370e874d">
+      <Execution id="e09cc416-58b6-4e49-be5a-4cc4472c4e42" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="NativeBindingErrorsAndNullSentinelsCannotChangeAuthoritativeBytes" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeBindingsRoundTripGuiWritesManualModesAndFrozenHistory" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="7cc7b489-6b0c-33a7-f0a1-6c1d20d33136">
+      <Execution id="fe83afba-5f46-4053-8525-8c2acad86f94" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="NativeBindingsRoundTripGuiWritesManualModesAndFrozenHistory" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.NativeJsonValuesUseOmittedInheritanceAndRejectAmbiguousArrayNulls" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="c4a09a60-84e1-6a5b-abe6-254b9ac261d1">
+      <Execution id="923bc9ca-bf78-4757-b078-c31397e84a4a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="NativeJsonValuesUseOmittedInheritanceAndRejectAmbiguousArrayNulls" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="7cc7b489-6b0c-33a7-f0a1-6c1d20d33136" executionId="fe83afba-5f46-4053-8525-8c2acad86f94" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3ed4a490-a6ef-bd3f-7ee4-63ea370e874d" executionId="e09cc416-58b6-4e49-be5a-4cc4472c4e42" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c4a09a60-84e1-6a5b-abe6-254b9ac261d1" executionId="923bc9ca-bf78-4757-b078-c31397e84a4a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.19]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.27]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.31]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:06.01]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

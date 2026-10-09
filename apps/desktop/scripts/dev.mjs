@@ -3,6 +3,7 @@ import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import http from "http";
 import { ensureFreshViteCache, installedVersionResolver } from "./viteCacheGuard.mjs";
+import { developmentEnvironment } from "./developmentEnvironment.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
@@ -16,8 +17,8 @@ if (cacheDecision.action === "wiped") {
   console.log(`[dev] Cleared node_modules/.vite (dependency stamp ${cacheDecision.reason}).`);
 }
 
-function createSpawnOpts(extraEnv = {}) {
-  const env = { ...process.env, ...extraEnv };
+function createSpawnOpts(extraEnv = {}, trustedHost = false) {
+  const env = developmentEnvironment(extraEnv, trustedHost);
 
   // 从 Electron 宿主（VS Code / CodeBuddy / 任何 Electron 应用）的终端启动时，
   // ELECTRON_RUN_AS_NODE 会被继承下来。一旦存在，electron.exe 就退化成纯 Node
@@ -25,9 +26,6 @@ function createSpawnOpts(extraEnv = {}) {
   // app/BrowserWindow/protocol 全为 undefined，主进程在
   // protocol.registerSchemesAsPrivileged 处崩溃，窗口永远不出现。
   // 该变量对 Vite/Node 无意义，这里统一从子进程环境中剔除。
-  delete env.ELECTRON_RUN_AS_NODE;
-  delete env.ELECTRON_NO_ATTACH_CONSOLE;
-
   return {
     cwd: rootDir,
     shell: isWindows,
@@ -157,8 +155,8 @@ async function main() {
   console.log("[dev] Vite is ready, starting Electron...");
 
   const electronProcess = isWindows
-    ? spawn("npx electron . --remote-debugging-port=9222", [], createSpawnOpts({ VITE_DEV_SERVER_URL: "http://127.0.0.1:5173" }))
-    : spawn("npx", ["electron", ".", "--remote-debugging-port=9222"], createSpawnOpts({ VITE_DEV_SERVER_URL: "http://127.0.0.1:5173" }));
+    ? spawn("npx electron .", [], createSpawnOpts({ VITE_DEV_SERVER_URL: "http://127.0.0.1:5173" }, true))
+    : spawn("npx", ["electron", "."], createSpawnOpts({ VITE_DEV_SERVER_URL: "http://127.0.0.1:5173" }, true));
 
   electronProcess.stdout.on("data", (data) => {
     process.stdout.write(`[electron] ${data}`);

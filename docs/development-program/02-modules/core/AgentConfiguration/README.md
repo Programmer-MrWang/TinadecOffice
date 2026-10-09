@@ -2,12 +2,13 @@
 
 模块ID：`CORE-AGENT-CONFIG` · 初始基线：2026-10-05，b6115e6 + 当前工作树。
 
-本模块目前处于**初始源码清点**，还未完成逐功能审计；下列介绍继承总图中已核对的职责，初始状态区分源码能力、范围与缺口。
+本模块已完成配置文件权威、SQL 编辑投影和运行冻结链路的拆分，Windows/SQLite 及 Linux/真实 PostgreSQL 的定向验证均有本轮证据；包生命周期的完整审计、macOS 和发布产品验收仍未完成，范围分别记录在 STATUS 和 TODO。
 
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)
 - [功能与完成情况](STATUS.md) · [本模块TODO](TODO.md)
+- [Scope 配置文件契约](../Persistence/CONFIGURATION-FILES.md)
 - [全部模块](../../../MODULE-INDEX.md) · [总TODO](../../../01-program/MASTER-TODO.md)
 
 ## 功能介绍
@@ -18,6 +19,8 @@
 
 - agent / mode / pack 生命周期
 - 草稿→发布版本→run 冻结
+- 当前编辑配置保存到本 scope TOML，SQL 提供可重建编辑投影和不可变历史版本事实
+- 新 run 编译文件、校验可见版本与实际存储连接，冻结前复核配置摘要
 
 ## 源码入口
 

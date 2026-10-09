@@ -1,0 +1,8 @@
+VSTest version 18.6.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+WARNING: Overwriting results file: /var/tmp/tinadec-storage-validation/evidence/linux-posix-tools-final.trx
+Results File: /var/tmp/tinadec-storage-validation/evidence/linux-posix-tools-final.trx
+
+Passed!  - Failed:     0, Passed:    27, Skipped:     0, Total:    27, Duration: 10 s - TinadecTools.Tests.dll (net10.0)

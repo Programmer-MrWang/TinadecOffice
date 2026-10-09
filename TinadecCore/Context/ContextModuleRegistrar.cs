@@ -464,7 +464,7 @@ internal sealed class ContextProvider : IContextProvider
                     : x.SkillPath.Replace('\\', '/'))).ToArray(), [],
                 budget, Math.Max(0, frozen.SkillResources.Count - selected.Length));
             if (string.IsNullOrWhiteSpace(text)) return null;
-            text = text.Replace("Workspace skills, discovered under skills/ in this run's workspace root.",
+            text = text.Replace($"Workspace skills, discovered under {WorkspaceSkillPolicy.SkillRoots[0]}/ in this run's workspace root.",
                 "Skills provided to this Agent by its frozen shared and project resource bindings.", StringComparison.Ordinal);
             text = AddBodyAccessSentence(text, request.AllowedToolIds, frozen.AllowedToolIds, frozen.Settings);
             return new ContextEvidence

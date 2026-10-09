@@ -64,3 +64,19 @@ flowchart LR
 ```
 
 箭头依据：[资源服务](../../../../../TinadecCore/Skills/ToolSkillResourceService.cs)、[发现](../../../../../TinadecCore/Abstractions/Ports/WorkspaceSkillDiscovery.cs)、[Context接线](../../../../../TinadecCore/Context/ContextModuleRegistrar.cs)、[配置解析](../../../../../TinadecCore/Tools/ToolConfigurationResolver.cs)。精确绑定失效不给同名替代；项目写入保留审批和哈希，共享正文/资产保留旧版本供运行继续读取。
+
+## 2026-10-09 源码、版本与安装分离
+
+```mermaid
+flowchart LR
+  Market["市场或资源编辑"] -->|"预览完整包、revision与文件摘要"| Review["治理审批"]
+  Review -->|"预条件仍匹配"| Live["当前scope skills源码"]
+  Live -->|"项目仅.tinadec/skills；共享用scope Skills"| Catalog["验证与目录查询"]
+  Live -->|"替换失败恢复原文件；卸载删除真实源"| Config["config/integrations.toml权威；DB投影"]
+  Catalog -->|"准入enabled且selected完整包"| Versions["scope packages/skills或project-skills"]
+  Versions -->|"不可变路径和hash"| Frozen["本run冻结索引与只读根"]
+  Update["下一次源码更新或卸载"] -->|"历史版本保留"| Versions
+  Catalog -->|"MCP登记只是配置"| Program["Tools独立程序安装审批"]
+```
+
+管理读取 live 文件，Agent 可编辑配置与技能源码；源码字节变化更新条件修订，旧审阅不得覆盖新内容。运行准入才生成不可变副本，不从 live 目录继续读取。资源路径取 `IScopeStorageLocations.Root/Skills/Packages/Temp`，不将 `StoragePaths.Root`（Data）当包源。MCP程序目录和安装manifest由Tools拥有，市场预览不下载依赖。详见[实施与验证](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。

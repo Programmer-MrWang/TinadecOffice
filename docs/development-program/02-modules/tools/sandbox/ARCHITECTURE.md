@@ -20,6 +20,29 @@ flowchart LR
   scope ---|"职责关联，方向待精化"| r1
 ```
 
+## 2026-10-09 存储执行数据流
+
+```mermaid
+flowchart LR
+  H["Core 准入冻结 storage ID/root/host ceiling"] --> C["可信 execution_context"]
+  C --> P["WorkspaceStoragePolicy 分类"]
+  P --> F["File / ls / ripgrep 过滤"]
+  P --> G["CommandSandboxRuntime 窄 grants"]
+  G --> W["Windows scope/tier account + ACL lease"]
+  G --> L["Linux bwrap 0.13.0 mount view + Landlock"]
+  G --> M["macOS Seatbelt 每保护根排除例外"]
+  C --> E["SandboxEnvironment scope scratch + token scrub"]
+  E --> W
+  E --> L
+  E --> M
+```
+
+`WorkingDirectory` 由 host 已验证 assignment 填入；仅该 worktree checkout 是源码例外，不能开放同scope其它检出。config/skills 默认可写，内部运行分类默认拒绝；user security/state 和其它scope永久保护。源码依据为 `ToolConfigurationResolver`、`ToolDispatcher`、`WorkspaceStoragePolicy`、`CommandSandboxRuntime` 及三个后端。平台缺失拒绝启动；MCP SDK server 属单独的可信程序执行边界。
+
+`SandboxPolicyStore`仅管理独立Tools已审批运行历史，写入`state/sandbox-grants.toml`，不是Agent可编辑的config。严格固定schema和预算、拒链接及过宽/永久host域写授权，原子替换；Core冻结execution_context绕开此文件，persist/reset不能影响后续或当前受治理授权。TOML读写使用Tomlyn显式source-generated typeinfo，不启用反射兜底。
+
+Linux 的 bwrap 保留 `--die-with-parent`。启动 bwrap 的专用后台线程持续 `WaitForExit`，避免 `PR_SET_PDEATHSIG` 随短命请求线程结束而提前杀死命令。`/dev/null` 只用精确设备 `--dev-bind`，普通 `--bind` 的 nodev 限制会拒绝该设备读写；不增加 `/dev` 父目录授权。PID 命名空间中的 `$!` 不能用于宿主 `kill(pid, 0)`；终止回归在超时前通过 NSpid、父 shell 唯一脚本和启动时间确定实际宿主子进程，随后核对该身份消失或已退出的 zombie 状态。
+
 ## 模块边界与输入/输出
 
 | 职责 | 当前边界 | 来源 |

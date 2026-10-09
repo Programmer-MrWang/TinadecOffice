@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Camera, RotateCcw } from '@lucide/vue'
 import {
-  api,
+  api as baseApi,
   type SnapshotDto,
   type WorkspaceFileChangeDto,
   type WorkspaceFileDiffDto,
@@ -11,6 +11,7 @@ import {
 import { homeController } from '@/controllers/HomeController'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 import DiffViewer from '@/components/git/DiffViewer.vue'
+import { projectStorageId, scopedApi, selectionKey } from '@/lib/storageScope'
 
 /**
  * Workspace snapshot list + restore (docs/app-core-ui.md §4.6).
@@ -24,6 +25,7 @@ const { t } = useI18n()
 
 const snapshots = ref<SnapshotDto[]>([])
 const selectedProjectId = ref<string>('')
+const api = scopedApi(baseApi, () => projectStorageId(selectedProjectId.value))
 const loading = ref(false)
 const loadError = ref<string | null>(null)
 const restoring = ref<string | null>(null)
@@ -94,7 +96,7 @@ async function restore(snapshot: SnapshotDto): Promise<void> {
 // the page opens on the project the user is working in.
 onMounted(() => homeController.start())
 watch(
-  () => homeController.selectedProjectId.value ?? projects.value[0]?.id ?? null,
+  () => homeController.currentProject?.value ? selectionKey(homeController.currentProject.value) : homeController.selectedProjectId.value ?? (projects.value[0] ? selectionKey(projects.value[0]) : null),
   (id) => { if (id && !selectedProjectId.value) selectProject(id) },
   { immediate: true },
 )
@@ -199,7 +201,7 @@ async function undoFile(change: WorkspaceFileChangeDto): Promise<void> {
           data-testid="snapshot-project-select"
           @change="selectProject(($event.target as HTMLSelectElement).value)"
         >
-          <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+          <option v-for="p in projects" :key="selectionKey(p)" :value="selectionKey(p)">{{ p.name }}</option>
         </select>
         <button type="button" class="detail-dialog__btn" :disabled="loading || !selectedProjectId" @click="load">
           {{ loading ? t('common.loading', 'Loading…') : t('common.refresh', 'Refresh') }}

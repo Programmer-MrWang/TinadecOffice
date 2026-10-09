@@ -48,7 +48,7 @@ describe('useDetachedTabs', () => {
       expect(ok).toBe(true)
       expect(detachPanel).toHaveBeenCalledWith('uie-9', 'browser', '浏览器', expect.objectContaining({ url: 'http://x' }))
       // The floating window is its own renderer: the session context rides along.
-      expect(detachPanel.mock.calls[0][3]).toEqual({ url: 'http://x', sessionId: 'session-1', projectPath: 'C:/work/project' })
+      expect(detachPanel.mock.calls[0][3]).toEqual({ url: 'http://x', sessionId: 'session-1', projectPath: 'C:/work/project', storageId: 'user' })
       expect(detachedTabs.value).toEqual([{ tabId: 'uie-9', type: 'browser', title: '浏览器', windowId: 7 }])
     })
 

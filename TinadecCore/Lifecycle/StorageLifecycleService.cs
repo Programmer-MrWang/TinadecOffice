@@ -12,7 +12,7 @@ namespace TinadecCore.Lifecycle;
 
 public sealed class StorageLifecycleService : IStorageMigrationParticipant
 {
-    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> RunLocks = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> RunLocks = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const int StreamAppendMaxAttempts = 8;
     private readonly IDbContextFactory<LifecycleDbContext> _dbFactory;

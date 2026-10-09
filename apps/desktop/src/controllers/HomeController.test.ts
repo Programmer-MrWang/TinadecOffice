@@ -22,6 +22,8 @@ const h = vi.hoisted(() => ({
   cancelInteraction: vi.fn(async () => ({ status: 'cancelled' })),
   updateSessionTitle: vi.fn(async (id: string, title: string) => ({ id, title })),
   updateSessionSettings: vi.fn(async (id: string, settings: Record<string, unknown>) => ({ id, ...settings, settings_revision: Number(settings.expected_settings_revision ?? 0) + 1 })),
+  migrateSession: vi.fn(), getSessionTransfer: vi.fn(),
+  task: vi.fn(() => ({ id: 'transfer-task', update: vi.fn(), succeed: vi.fn(), fail: vi.fn(), dismiss: vi.fn() })),
   notifyError: vi.fn(),
   bannerError: vi.fn(),
   dismissByKey: vi.fn(),
@@ -72,13 +74,14 @@ vi.mock('@/api', () => ({
     cancelInteraction: h.cancelInteraction,
     updateSessionTitle: h.updateSessionTitle,
     updateSessionSettings: h.updateSessionSettings,
+    migrateSession: h.migrateSession, getSessionTransfer: h.getSessionTransfer,
   },
   createUserToolActionForPath: h.createUserToolActionForPath,
 }))
 
 vi.mock('@/composables/useNotifications', () => ({
   useNotifications: () => ({
-    notify: { error: h.notifyError, info: vi.fn() },
+    notify: { error: h.notifyError, info: vi.fn(), task: h.task },
     banner: { error: h.bannerError },
     dismissByKey: h.dismissByKey,
   }),
@@ -728,5 +731,50 @@ describe('HomeController initial load', () => {
 
     expect(h.bannerError).not.toHaveBeenCalled()
     expect(h.dismissByKey).toHaveBeenCalledWith('home-load')
+  })
+})
+
+describe('HomeController independent storage scopes', () => {
+  it('applies a late settings receipt to its source clone only', async () => {
+    let finish!: (result: { id: string; settings_revision: number; permission_mode: string }) => void
+    const original = { id: 'clone-project', storage_id: 'original-scope', path: 'C:/original', name: 'original' }
+    const copy = { ...original, storage_id: 'copy-scope', path: 'C:/copy', name: 'copy' }
+    homeController.projects.value = [original, copy] as never
+    homeController.sessions.value = [
+      { id: 'clone-session', project_id: original.id, storage_id: original.storage_id, settings_revision: 1, permission_mode: 'default' },
+      { id: 'clone-session', project_id: copy.id, storage_id: copy.storage_id, settings_revision: 1, permission_mode: 'default' },
+    ] as never
+    homeController.setSelectedSession('original-scope::clone-session')
+    h.updateSessionSettings.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    const writing = homeController.updateComposerSettings({ permission_mode: 'full' })
+    homeController.setSelectedSession('copy-scope::clone-session')
+    finish({ id: 'clone-session', settings_revision: 2, permission_mode: 'full' })
+    expect(await writing).toBe(true)
+    expect(homeController.sessions.value.find(row => row.storage_id === 'original-scope')?.permission_mode).toBe('full')
+    expect(homeController.sessions.value.find(row => row.storage_id === 'copy-scope')?.permission_mode).toBe('default')
+    expect(homeController.currentSession.value?.storage_id).toBe('copy-scope')
+    homeController.setSelectedProject(null)
+  })
+  it('selects the target scope after an accepted asynchronous transfer completes', async () => {
+    vi.useFakeTimers()
+    try {
+      const target = { id: 'transfer-project', storage_id: 'target-scope', path: 'C:/target', name: 'target' }
+      const source = { id: 'transfer-session', storage_id: 'user', project_id: null, settings_revision: 1, title: 'free', view_mode: 'flat' }
+      homeController.projects.value = [target] as never
+      homeController.sessions.value = [source] as never
+      homeController.setSelectedSession('user::transfer-session')
+      await nextTick()
+      const receipt = { transfer_id: 'transfer-1', session_id: source.id, source_storage_id: 'user', storage_id: target.storage_id, project_id: target.id, status: 'pending' }
+      h.migrateSession.mockResolvedValueOnce(receipt)
+      h.getSessionTransfer.mockResolvedValueOnce({ ...receipt, status: 'completed' })
+      const targetSessions = [{ ...source, storage_id: target.storage_id, project_id: target.id }] as never
+      h.listSessions.mockResolvedValueOnce(targetSessions).mockResolvedValueOnce(targetSessions)
+      await homeController.migrateSession('user::transfer-session', 'target-scope::transfer-project')
+      expect(h.migrateSession).toHaveBeenCalledWith(source.id, { target_storage_id: 'target-scope', target_project_id: target.id })
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(h.getSessionTransfer).toHaveBeenCalledWith('transfer-1')
+      expect(homeController.currentSession.value?.storage_id).toBe('target-scope')
+      expect(h.task.mock.results.at(-1)?.value.succeed).toHaveBeenCalled()
+    } finally { vi.useRealTimers(); homeController.setSelectedProject(null) }
   })
 })

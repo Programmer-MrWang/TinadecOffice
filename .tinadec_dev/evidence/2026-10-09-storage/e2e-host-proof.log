@@ -1,0 +1,5 @@
+PASS: real Node HMAC accepted by PowerShell host probe
+PASS: wrong-role rejected
+PASS: wrong-proof rejected
+PASS: redirect rejected
+PASS: all public challenge requests omitted the private header

@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Models;
 
-public sealed class ModelControlDbContext : DbContext
+public sealed class ModelControlDbContext : ConfigurationProjectionDbContext
 {
     public ModelControlDbContext(DbContextOptions<ModelControlDbContext> options) : base(options) { }
     public DbSet<ModelProviderRecord> Providers => Set<ModelProviderRecord>();

@@ -120,6 +120,7 @@ internal sealed class OpencodeServeProcessManager : IOpencodeServeProcessManager
             CreateNoWindow = true
         };
         if (!string.IsNullOrWhiteSpace(config.HomePath)) psi.Environment["HOME"] = config.HomePath;
+        psi.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
 
         var logPath = Path.Combine(_logDirectory, $"opencode-serve-{Environment.ProcessId}-{port}.log");
         var process = new Process { StartInfo = psi };

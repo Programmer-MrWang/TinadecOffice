@@ -1,0 +1,32 @@
+  Determining projects to restore...
+  Restored /mnt/c/git/agent/TinadecOffice/TinadecTools.Generators/TinadecTools.Generators.csproj (in 391 ms).
+  Restored /mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj (in 391 ms).
+  1 of 3 projects are up-to-date for restore.
+  TinadecTools.Generators -> /var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Generators/debug/TinadecTools.Generators.dll
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(325,78): warning CS8604: Possible null reference argument for parameter 'baseUri' in 'Uri.Uri(Uri baseUri, Uri relativeUri)'. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(328,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(341,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(353,58): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(365,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(378,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(390,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(397,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Git/GitDiscardTools.cs(72,136): warning CS8620: Argument of type 'List<string?>' cannot be used for parameter 'conflicted' of type 'List<string>' in 'GitDiscardResult GitDiscardTools.Failure(string error, string? errorCode, List<string> conflicted)' due to differences in the nullability of reference types. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+  TinadecTools -> /var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools/debug/TinadecTools.dll
+  TinadecTools.Tests -> /var/tmp/tinadec-storage-validation/tools-artifacts/bin/TinadecTools.Tests/debug/TinadecTools.Tests.dll
+
+Build succeeded.
+
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(325,78): warning CS8604: Possible null reference argument for parameter 'baseUri' in 'Uri.Uri(Uri baseUri, Uri relativeUri)'. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(328,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(341,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(353,58): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(365,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(378,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(390,27): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Web/WebFetchTool.cs(397,23): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecTools/Tools/Git/GitDiscardTools.cs(72,136): warning CS8620: Argument of type 'List<string?>' cannot be used for parameter 'conflicted' of type 'List<string>' in 'GitDiscardResult GitDiscardTools.Failure(string error, string? errorCode, List<string> conflicted)' due to differences in the nullability of reference types. [/mnt/c/git/agent/TinadecOffice/TinadecTools/TinadecTools.csproj]
+    9 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:16.33

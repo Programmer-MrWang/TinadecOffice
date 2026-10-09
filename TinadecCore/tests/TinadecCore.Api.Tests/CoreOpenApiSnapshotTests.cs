@@ -61,16 +61,33 @@ public sealed class CoreOpenApiSnapshotTests
     private sealed class SnapshotFactory : WebApplicationFactory<Program>
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "tinadec-openapi-snap", Guid.NewGuid().ToString("N"));
-        public SnapshotFactory() => Directory.CreateDirectory(_root);
+        private readonly bool _managed;
+        public SnapshotFactory(bool managed = true)
+        {
+            _managed = managed;
+            Directory.CreateDirectory(_root);
+        }
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
-            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            builder.UseEnvironment(_managed ? "StorageTesting" : "Testing");
+            var settings = new Dictionary<string, string?> { ["Logging:LogLevel:Default"] = "Warning" };
+            if (_managed)
             {
-                ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),
-                ["TinadecPersistence:DataRoot"] = Path.Combine(_root, "data"),
-                ["Logging:LogLevel:Default"] = "Warning"
-            }));
+                builder.UseSetting("TinadecStorage:Enabled", "true");
+                builder.UseSetting("TinadecStorage:UserRoot", _root);
+                builder.UseSetting("TinadecTools:DefaultWorkspaceRoot", Path.Combine(_root, "workspace"));
+                settings["TinadecStorage:Enabled"] = "true";
+                settings["TinadecStorage:UserRoot"] = _root;
+                settings["TinadecTools:DefaultWorkspaceRoot"] = Path.Combine(_root, "workspace");
+            }
+            else
+            {
+                // Keep the original Testing host contract: persistence injects
+                // locations, but no managed scope or hand-created runtime file.
+                settings["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db");
+                settings["TinadecPersistence:DataRoot"] = Path.Combine(_root, "data");
+            }
+            builder.ConfigureAppConfiguration((_, cfg) => cfg.AddInMemoryCollection(settings));
         }
         protected override void Dispose(bool disposing)
         {
@@ -78,6 +95,16 @@ public sealed class CoreOpenApiSnapshotTests
             Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi()
+    {
+        using var factory = new SnapshotFactory(managed: false);
+        using var client = factory.CreateClient();
+        Assert.NotNull(factory.Services.GetService(typeof(TinadecCore.Abstractions.Ports.IScopeStorageLocations)));
+        Assert.Null(factory.Services.GetService(typeof(TinadecCore.Abstractions.Ports.IScopeConfigurationDocuments)));
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/openapi/core.json")).StatusCode);
     }
 
     [Fact]
@@ -99,8 +126,20 @@ public sealed class CoreOpenApiSnapshotTests
         Assert.Contains("TinadecCore", title, StringComparison.OrdinalIgnoreCase);
         Assert.True(root.TryGetProperty("paths", out var paths) && paths.ValueKind == JsonValueKind.Object, "paths must be an object");
         Assert.True(paths.EnumerateObject().Any(), "openapi.paths must be non-empty");
-        Assert.DoesNotContain("\"nonce\"", body, StringComparison.OrdinalIgnoreCase);
+        // The public host challenge uses a non-secret nonce. Keep its query
+        // contract while rejecting approval secrets from public schemas.
+        var hostChallenge = paths.GetProperty("/api/v1/host-challenge").GetProperty("get");
+        Assert.Contains(hostChallenge.GetProperty("parameters").EnumerateArray(), parameter =>
+            parameter.GetProperty("name").GetString() == "nonce"
+            && parameter.GetProperty("in").GetString() == "query");
         Assert.DoesNotContain("nonce_secret_reference", body, StringComparison.OrdinalIgnoreCase);
+        foreach (var schema in root.GetProperty("components").GetProperty("schemas").EnumerateObject()
+            .Where(schema => schema.Name.Contains("Approval", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (schema.Value.TryGetProperty("properties", out var properties))
+                Assert.DoesNotContain(properties.EnumerateObject(), property =>
+                    property.Name.Equals("nonce", StringComparison.OrdinalIgnoreCase));
+        }
 
         var snapshotPath = ResolveSnapshotPath();
         Directory.CreateDirectory(Path.GetDirectoryName(snapshotPath)!);

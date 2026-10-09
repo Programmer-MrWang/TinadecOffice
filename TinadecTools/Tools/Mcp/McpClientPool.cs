@@ -4,6 +4,7 @@ using System.Diagnostics;
 using TinadecTools.Runtime;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
+using TinadecTools.Runtime.Sandbox;
 
 namespace TinadecTools.Tools.Mcp;
 
@@ -174,14 +175,40 @@ internal sealed class McpClientPool : IAsyncDisposable
 
     private static Task<McpClient> CreateAsync(McpServerConfig config, CancellationToken cancellationToken)
     {
+        if (ToolExecutionContext.Current is not null && (config.ProgramStatus is "not_installed" or "outdated" or "invalid" or "needs_reinstall"
+            || Path.GetFileNameWithoutExtension(config.Command).ToLowerInvariant() is "npx" or "uvx"))
+            throw new InvalidOperationException("This MCP resource is registered, but its pinned program has not been explicitly installed. Review and approve the program installation first; no dependency was downloaded.");
+        IDictionary<string, string?>? environment = SandboxEnvironment.Build(null, null).ToDictionary(x => x.Key, x => (string?)x.Value,
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        if (config.Env is not null) foreach (var entry in config.Env) environment[entry.Key] = entry.Value;
+        environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
+        var governed = ToolExecutionContext.Current is { StorageRoot: { } };
+        if (ToolExecutionContext.Current is { StorageRoot: { } root } context)
+        {
+            var variables = SandboxEnvironment.Build(null, null).ToDictionary(x => x.Key, x => (string?)x.Value,
+                OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            if (config.Env is not null) foreach (var entry in config.Env) variables[entry.Key] = entry.Value;
+            var cache = Path.Combine(root, "cache", "mcp");
+            var temporary = Path.Combine(root, "temp", "mcp");
+            Directory.CreateDirectory(cache);
+            Directory.CreateDirectory(temporary);
+            // Registry credentials may configure the server; they cannot redirect owned caches.
+            variables["NPM_CONFIG_CACHE"] = Path.Combine(cache, "npm");
+            variables["UV_CACHE_DIR"] = Path.Combine(cache, "uv");
+            variables["PIP_CACHE_DIR"] = Path.Combine(cache, "pip");
+            variables["NUGET_PACKAGES"] = Path.Combine(cache, "nuget");
+            variables["TMPDIR"] = variables["TEMP"] = variables["TMP"] = temporary;
+            variables.Remove("TINADEC_HOST_CONTROL_TOKEN");
+            environment = variables;
+        }
         var transport = new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = string.IsNullOrWhiteSpace(config.Name) ? config.Id : config.Name,
             Command = config.Command,
             Arguments = config.Args.ToArray(),
             WorkingDirectory = config.Cwd,
-            InheritEnvironmentVariables = true,
-            EnvironmentVariables = config.Env
+            InheritEnvironmentVariables = false,
+            EnvironmentVariables = environment
         });
 
         return McpClient.CreateAsync(transport, cancellationToken: cancellationToken);
@@ -210,6 +237,10 @@ internal sealed class McpClientPool : IAsyncDisposable
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
+            writer.WriteString("storage_id", ToolExecutionContext.Current?.StorageId);
+            writer.WriteString("storage_root", ToolExecutionContext.Current?.StorageRoot);
+            writer.WriteString("program_root", config.ProgramRoot);
+            writer.WriteString("program_hash", config.ProgramHash);
             writer.WriteString("resource_id", config.ResourceId ?? config.Id);
             writer.WriteNumber("revision", config.Revision);
             writer.WriteString("command", config.Command);

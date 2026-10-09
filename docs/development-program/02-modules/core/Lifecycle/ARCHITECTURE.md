@@ -35,6 +35,8 @@ flowchart LR
 
 ## 模块边界与输入/输出
 
+2026-10-09：事件索引、checkpoint、approval、工具执行、模型调用和冻结配置归 mounted scope 的数据库与 `data/`；诊断日志另存 `logs/`，不把运行事实按容量轮转。跨模块永久删除和转移由 Runtime 组合，不让 Lifecycle 擅自删除共享资源。run 锁与恢复 worker 属于同一个 scope 服务图。
+
 | 职责 | 当前边界 | 来源 |
 | --- | --- | --- |
 | Lifecycle · 运行事实与恢复 | 保存运行事实、事件与控制记录，支撑SSE回放和恢复判断；turn表属于Memory。父子run存储/级联控制基础已有，完整执行子run与恢复计划UX仍未闭环。 | [TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs](../../../../../TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs) |

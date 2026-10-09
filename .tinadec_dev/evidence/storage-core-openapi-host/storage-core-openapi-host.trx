@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="06567a97-c6ac-4871-9908-cbfde33f619c" name="lincu@LINSTATION 2026-10-09 16:54:51" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T16:54:51.5669127+08:00" queuing="2026-10-09T16:54:51.5669137+08:00" start="2026-10-09T16:54:39.7571510+08:00" finish="2026-10-09T16:55:29.4005747+08:00" />
+  <TestSettings name="default" id="95b5095d-6208-4329-9d3d-3437c6a59a12">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_16_54_51" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="940d3e27-8f49-4aed-b7f1-533c82975d60" testId="5239a213-a8e9-e522-91b5-ccc2cc49f714" testName="TinadecCore.Api.Tests.StorageScopeApiTests.PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" computerName="LINSTATION" duration="00:00:07.2046118" startTime="2026-10-09T16:54:59.5480003+08:00" endTime="2026-10-09T16:55:06.7809794+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="940d3e27-8f49-4aed-b7f1-533c82975d60" />
+    <UnitTestResult executionId="e57257d6-a7d2-4036-9ed3-059026419a56" testId="ca1c6533-e73b-11ab-ce1f-be81273a3736" testName="TinadecCore.Api.Tests.StorageScopeApiTests.Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" computerName="LINSTATION" duration="00:00:22.3833259" startTime="2026-10-09T16:55:06.7822524+08:00" endTime="2026-10-09T16:55:29.2765437+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e57257d6-a7d2-4036-9ed3-059026419a56" />
+    <UnitTestResult executionId="ab6d6ef6-cf6e-4f86-9282-6b4722d82dbf" testId="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4" testName="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" computerName="LINSTATION" duration="00:00:10.6368311" startTime="2026-10-09T16:54:40.8810529+08:00" endTime="2026-10-09T16:54:51.5318866+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ab6d6ef6-cf6e-4f86-9282-6b4722d82dbf" />
+    <UnitTestResult executionId="e64bc759-f501-465e-87c4-eb87ab69e582" testId="724637fb-6350-5262-8f2e-bc87bb60adc6" testName="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" computerName="LINSTATION" duration="00:00:07.9920339" startTime="2026-10-09T16:54:51.5491314+08:00" endTime="2026-10-09T16:54:59.5418230+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e64bc759-f501-465e-87c4-eb87ab69e582" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4">
+      <Execution id="ab6d6ef6-cf6e-4f86-9282-6b4722d82dbf" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests" name="ScopelessTestingHost_UsesPackagedRuntimeAndPublishesOpenApi" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="724637fb-6350-5262-8f2e-bc87bb60adc6">
+      <Execution id="e64bc759-f501-465e-87c4-eb87ab69e582" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests" name="CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="5239a213-a8e9-e522-91b5-ccc2cc49f714">
+      <Execution id="940d3e27-8f49-4aed-b7f1-533c82975d60" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="ca1c6533-e73b-11ab-ce1f-be81273a3736">
+      <Execution id="e57257d6-a7d2-4036-9ed3-059026419a56" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="5239a213-a8e9-e522-91b5-ccc2cc49f714" executionId="940d3e27-8f49-4aed-b7f1-533c82975d60" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ca1c6533-e73b-11ab-ce1f-be81273a3736" executionId="e57257d6-a7d2-4036-9ed3-059026419a56" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6c3bc0e6-a61c-e90a-56ea-d5a8443cd4e4" executionId="ab6d6ef6-cf6e-4f86-9282-6b4722d82dbf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="724637fb-6350-5262-8f2e-bc87bb60adc6" executionId="e64bc759-f501-465e-87c4-eb87ab69e582" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="4" passed="4" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.21]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.36]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.39]   Starting:    TinadecCore.Api.Tests&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      System.InvalidOperationException: Storage scope is closing or undergoing maintenance.&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireCoreAsync(String storageId, Boolean allowClosing, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 165&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireAsync(String storageId, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 129&#xD;
+         at TinadecCore.AspNetCore.StorageScopeHttpExtensions.&lt;&gt;c.&lt;&lt;UseTinadecStorageScopes&gt;b__2_0&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\StorageScopeHttpExtensions.cs:line 50&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+[xUnit.net 00:00:48.83]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

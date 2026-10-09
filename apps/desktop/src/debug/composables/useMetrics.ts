@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { storageFetch as fetch } from '@/lib/storageScope'
 import type { MetricsResponse, DiagnosticsReport } from '../types/metrics'
 import { useNotifications } from '@/composables/useNotifications'
 

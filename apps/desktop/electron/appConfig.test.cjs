@@ -19,7 +19,7 @@ test('normalizes and validates Gateway URLs', () => {
 
 test('persists a Gateway URL while the environment remains authoritative', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tinadec-app-config-'));
-  const configFile = path.join(root, 'settings.json');
+  const configFile = path.join(root, 'desktop.toml');
   try {
     assert.equal(loadAppConfig(configFile, {}).gateway_url, DEFAULT_GATEWAY_URL);
     assert.equal(saveGatewayUrl(configFile, 'https://office.example.com/api/', {}).gateway_url, 'https://office.example.com/api');
@@ -30,4 +30,20 @@ test('persists a Gateway URL while the environment remains authoritative', () =>
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('TOML is authoritative and malformed configuration is never silently replaced', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tinadec-app-toml-'));
+  const file = path.join(root, 'desktop.toml');
+  try {
+    fs.writeFileSync(file, 'gateway_url = "https://office.example.com"\n[appearance]\nmode = "dark"\n');
+    saveGatewayUrl(file, 'https://other.example.com', {});
+    assert.match(fs.readFileSync(file, 'utf8'), /mode = "dark"/);
+    resetGatewayUrl(file, {});
+    assert.match(fs.readFileSync(file, 'utf8'), /mode = "dark"/);
+    fs.writeFileSync(file, 'gateway_url = "unterminated');
+    assert.throws(() => loadAppConfig(file, {}));
+    assert.throws(() => saveGatewayUrl(file, 'https://valid.example.com', {}));
+    assert.equal(fs.readFileSync(file, 'utf8'), 'gateway_url = "unterminated');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

@@ -111,6 +111,8 @@ public static class TinadecCoreHttpExtensions
                 // invalid_request, context_conflict, model_not_configured, run_not_found, forbidden, conflict
                 var (status, code, detail) = exception switch
                 {
+                    TinadecCore.Abstractions.Ports.ConfigurationDocumentException configuration =>
+                        (configuration.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400, configuration.Code, configuration.Message),
                     TinadecCore.Abstractions.Ports.ToolSettingsException toolSettings => (toolSettings.StatusCode, toolSettings.Code, toolSettings.Message),
                     TinadecCore.Abstractions.Ports.TinaChatException chat => (chat.StatusCode, chat.Code, chat.Message),
                     TinadecCore.AgentConfiguration.AgentPackDomainException ape => (ape.StatusCode, ape.Code, ape.Message),
@@ -143,6 +145,8 @@ public static class TinadecCoreHttpExtensions
                         .Record(context, exception, status, code);
                 problem.Extensions["code"] = code;
                 problem.Extensions["trace_id"] = context.TraceIdentifier;
+                if (exception is TinadecCore.Abstractions.Ports.ConfigurationDocumentException configurationError)
+                    problem.Extensions["diagnostics"] = configurationError.Diagnostics;
                 context.Response.StatusCode = status;
                 await context.Response.WriteAsJsonAsync(
                     problem,

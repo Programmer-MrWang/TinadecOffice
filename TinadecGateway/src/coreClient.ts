@@ -42,6 +42,7 @@ export async function proxyRaw(path: string, options: ProxyOptions = {}): Promis
       },
       body,
       signal: options.signal,
+      redirect: 'manual',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network request failed';
@@ -54,13 +55,19 @@ export async function proxyRaw(path: string, options: ProxyOptions = {}): Promis
 
 function proxyBaseHeaders(incoming?: HeadersInit): Record<string, string> {
   let incomingRequestId: string | null = null;
+  let storageId: string | null = null;
+  let hostControl: string | null = null;
   if (incoming) {
     const h = new Headers(incoming as HeadersInit);
     incomingRequestId = h.get('x-request-id') ?? h.get('X-Request-Id');
+    storageId = h.get('x-tinadec-storage-id');
+    hostControl = h.get('x-tinadec-host-control');
   }
   return {
     'x-request-id': ensureRequestId(incomingRequestId),
     'x-tinadec-principal': PRINCIPAL_VALUE,
+    ...(storageId ? { 'x-tinadec-storage-id': storageId } : {}),
+    ...(hostControl ? { 'x-tinadec-host-control': hostControl } : {}),
   };
 }
 
@@ -100,6 +107,7 @@ export async function proxyJson(path: string, options: ProxyOptions = {}): Promi
       },
       body,
       signal: options.signal,
+      redirect: 'manual',
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Network request failed';
@@ -146,6 +154,7 @@ export async function proxySse(path: string, init?: RequestInit): Promise<Respon
   try {
     return await fetch(url, {
       ...init,
+      redirect: 'manual',
       headers: {
         accept: 'text/event-stream',
         ...baseHeaders,
@@ -178,6 +187,7 @@ export async function proxySseWithCursor(
   try {
     return await fetch(endpoint, {
       ...extraInit,
+      redirect: 'manual',
       headers: {
         ...headers,
         ...(extraInit?.headers as Record<string, string> | undefined)
@@ -198,6 +208,7 @@ export async function proxyStream(path: string, init?: RequestInit): Promise<Res
   try {
     return await fetch(url, {
       ...init,
+      redirect: 'manual',
       headers: {
         ...baseHeaders,
         ...(init?.headers as Record<string, string> | undefined)

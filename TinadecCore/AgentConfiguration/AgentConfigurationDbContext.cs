@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.AgentConfiguration;
 
@@ -14,7 +15,7 @@ namespace TinadecCore.AgentConfiguration;
 /// the startup EnsureTables fallback remains for databases created by older
 /// Core builds (see DbContextSchemaBootstrapper).
 /// </summary>
-public sealed class AgentConfigurationDbContext : DbContext
+public sealed class AgentConfigurationDbContext : ConfigurationProjectionDbContext
 {
     public AgentConfigurationDbContext(DbContextOptions<AgentConfigurationDbContext> options) : base(options) { }
 
@@ -730,7 +731,8 @@ public sealed class AgentPackOperationRecord
 // ModeBinding (per-mode duty file ref, tool switches, narrowing-only envelope,
 // instance naming) → runtime instances live in DmaEA. Tool definitions are the
 // controlled import registry: names/references only — secret values never land
-// in these rows (ISecretStore / .tinadec/sandbox.json carry values).
+// in these rows (only the user ISecretStore carries values; sandbox grant history
+// contains approved path/environment names, never credential values).
 // ─────────────────────────────────────────────
 
 public sealed class AgentTemplateRecord

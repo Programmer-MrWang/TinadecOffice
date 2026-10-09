@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { api, type SessionDto } from '@/api'
+import { selectionKey, selectionIdentity, setSelectedStorage } from '@/lib/storageScope'
 
 const { t } = useI18n()
-const gatewayUrl = window.tinadec?.gatewayUrl?.() ?? 'http://127.0.0.1:48730'
-
-const sessions = ref<Array<{ id: string; title: string }>>([])
+const sessions = ref<SessionDto[]>([])
 const selectedSessionId = ref('')
 
 async function fetchSessions() {
   try {
-    const res = await fetch(`${gatewayUrl}/api/v1/sessions`)
-    const data = await res.json()
-    sessions.value = data.map((s: any) => ({ id: s.id, title: s.title || s.id }))
+    sessions.value = await api.listSessions()
   } catch {
     sessions.value = []
   }
@@ -22,10 +20,10 @@ onMounted(fetchSessions)
 </script>
 
 <template>
-  <select v-model="selectedSessionId" class="session-selector">
+  <select v-model="selectedSessionId" class="session-selector" @change="setSelectedStorage(selectionIdentity(selectedSessionId).storageId ?? 'user')">
     <option value="">{{ t('debugStudio.allSessions') }}</option>
-    <option v-for="session in sessions" :key="session.id" :value="session.id">
-      {{ session.title }}
+    <option v-for="session in sessions" :key="selectionKey(session)" :value="selectionKey(session)">
+      {{ session.title || session.id }}
     </option>
   </select>
 </template>

@@ -44,10 +44,10 @@ test("The log directory follows the data root the app itself would choose", () =
 	const linuxRoot = posixDataRoot("/p", linux);
 	const macRoot = posixDataRoot("/p", mac);
 
-	assert.equal(linuxRoot, join("/p", ".local", "share", "TinadecOffice"));
-	assert.equal(macRoot, join("/p", "Library", "Application Support", "TinadecOffice"));
-	assert.match(serviceManager, /Library/, "serviceManager still names the macOS location");
-	assert.match(serviceManager, /\.local/, "serviceManager still names the XDG fallback location");
+  assert.equal(linuxRoot, join("/p", ".tinadec"));
+  assert.equal(macRoot, join("/p", ".tinadec"));
+  assert.match(serviceManager, /storagePaths\(/, "serviceManager uses the unified path resolver");
+  assert.match(posixScript, /"logs", "host"/, "smoke reads the host child-stream sink");
 });
 
 test("Only Linux is started without the renderer sandbox", () => {
@@ -67,6 +67,7 @@ test("The child sees a throwaway profile and the loopback topology", () => {
 	const env = sanitizedPosixEnvironment({ profile: "/p", temporary: "/t", inheritedPath: "/usr/bin:/bin", display: ":99" });
 
 	assert.equal(env.HOME, "/p");
+  assert.equal(env.TINADEC_HOME, join("/p", ".tinadec"));
 	assert.equal(env.XDG_DATA_HOME, join("/p", ".local", "share"));
 	assert.equal(env.TMPDIR, "/t");
 	assert.equal(env.TINADEC_GATEWAY_URL, "http://127.0.0.1:48730", "the packaged app only owns services on that exact URL");

@@ -11,6 +11,12 @@
 | CORE-SKILLS-F003 | 本地导入与市场安装统一审批落盘 | 已验收 | 共享导入/PUT 返回 `skill_resource_update` 待审批回执，审批前不可读、拒绝后无残留；市场 76/76、Skills 27/27、联合 116/116 | PostgreSQL 未实库；项目包继续走 `skill_project_package` | [专项报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md) |
 | CORE-SKILLS-F004 | Skills 包发现、审批、安装与 Agent 调用闭环 | 已验收 | 市场 76/76、Skills 27/27、联合 116/116；固定提交 GitHub 来源、完整包清单与摘要、项目准入快照 | PostgreSQL 实库与 POSIX 沙箱未验证；对应 CORE-SKILLS-102 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md) |
 
+## 2026-10-09 存储作用域专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| CORE-SKILLS-F005 | Skill 源目录与真实更新卸载 | 已验收 | 2026-10-09 Windows f8b233d+工作树；资源联合与差分复查、真实 live 更新卸载/旧版本保留/源码修改条件冲突 | project .tinadec/skills、scope live source；仅选中包冻结、完整旧资产审核与物理删除；真实网络和非Windows平台独立验证 | [实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

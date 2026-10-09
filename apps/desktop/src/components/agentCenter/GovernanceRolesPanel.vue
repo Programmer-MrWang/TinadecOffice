@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { GitBranch, ShieldCheck } from '@lucide/vue'
-import { api, type AgentDefinitionDto, type WorkspaceDefaultsDto } from '@/api'
+import { api as baseApi, type AgentDefinitionDto, type WorkspaceDefaultsDto } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 
 /**
  * Governance roles panel (docs/app-core-ui.md §4.7).

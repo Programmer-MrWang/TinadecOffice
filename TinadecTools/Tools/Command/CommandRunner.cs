@@ -98,7 +98,7 @@ public static class CommandRunner
             if (args.PersistGrants)
             {
                 if (ToolExecutionContext.Current is not null)
-                    throw new InvalidOperationException("Governed calls use frozen grants; persistent grants must be changed in Tools settings.");
+                    throw new InvalidOperationException("Governed calls use frozen grants and cannot persist standalone sandbox grant history.");
                 SandboxPolicyStore.MergeAndPersist(requestedPermissions);
             }
 

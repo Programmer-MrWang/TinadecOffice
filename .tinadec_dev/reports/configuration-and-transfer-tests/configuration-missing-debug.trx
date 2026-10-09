@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="894cb619-afc0-4ed1-a1c3-bfc9ffcd635a" name="lincu@LINSTATION 2026-10-09 15:15:27" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T15:15:27.9387590+08:00" queuing="2026-10-09T15:15:27.9387601+08:00" start="2026-10-09T15:15:14.9566236+08:00" finish="2026-10-09T15:15:27.9613996+08:00" />
+  <TestSettings name="default" id="42c85bc9-2e8e-4e53-9427-3e2fa9115047">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_15_15_27" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="34326b22-c862-461e-8337-66cdc6a944c3" testId="e395a1d6-45b3-cda8-e391-7952b81ca34c" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" computerName="LINSTATION" duration="00:00:09.6967168" startTime="2026-10-09T15:15:17.8180577+08:00" endTime="2026-10-09T15:15:27.5499627+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="34326b22-c862-461e-8337-66cdc6a944c3" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="e395a1d6-45b3-cda8-e391-7952b81ca34c">
+      <Execution id="34326b22-c862-461e-8337-66cdc6a944c3" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="e395a1d6-45b3-cda8-e391-7952b81ca34c" executionId="34326b22-c862-461e-8337-66cdc6a944c3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.01] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.47]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.70]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.82]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:10.68]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

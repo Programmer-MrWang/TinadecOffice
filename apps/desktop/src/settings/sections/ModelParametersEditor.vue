@@ -2,7 +2,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UiButton, UiInput } from '@/components/ui'
-import { api, type ModelParametersDto, type ModelProviderInstanceDto } from '@/api'
+import { api as baseApi, type ModelParametersDto, type ModelProviderInstanceDto } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 
 const props = defineProps<{ provider: ModelProviderInstanceDto; model: string }>()
 const emit = defineEmits<{ saved: []; cancel: []; reload: [] }>()

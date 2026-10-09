@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+vi.mock('@/lib/scopedEventSource', () => ({ ScopedEventSource: class { constructor(url: string) { return new EventSource(url) } } }))
 import { effectScope, nextTick, ref, type EffectScope } from 'vue'
 import { api } from '@/api'
 import { useAgentActivity } from './useAgentActivity'

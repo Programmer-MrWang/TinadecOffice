@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { parse, stringify } = require('smol-toml');
 
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:48730';
 
@@ -28,15 +29,24 @@ function normalizeGatewayUrl(value) {
 function loadAppConfig(configFile, env = process.env) {
   const managedUrl = env.TINADEC_GATEWAY_URL?.trim();
   if (managedUrl) {
-    return { gateway_url: normalizeGatewayUrl(managedUrl), source: 'environment', managed: true };
+    return { gateway_url: normalizeGatewayUrl(managedUrl), source: 'environment', managed: true, path: configFile };
   }
 
-  try {
-    const stored = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-    return { gateway_url: normalizeGatewayUrl(stored.gateway_url), source: 'user', managed: false };
-  } catch {
-    return { gateway_url: DEFAULT_GATEWAY_URL, source: 'default', managed: false };
-  }
+  const stored = readDocument(configFile);
+  return { gateway_url: stored.gateway_url ? normalizeGatewayUrl(stored.gateway_url) : DEFAULT_GATEWAY_URL,
+    source: stored.gateway_url ? 'user' : 'default', managed: false, path: configFile };
+}
+
+function readDocument(configFile) {
+  try { return parse(fs.readFileSync(configFile, 'utf8')); }
+  catch (error) { if (error.code === 'ENOENT') return {}; throw error; }
+}
+
+function writeDocument(configFile, document) {
+  fs.mkdirSync(path.dirname(configFile), { recursive: true });
+  const temporary = `${configFile}.${process.pid}.tmp`;
+  try { fs.writeFileSync(temporary, stringify(document), { encoding: 'utf8', mode: 0o600 }); fs.renameSync(temporary, configFile); }
+  finally { fs.rmSync(temporary, { force: true }); }
 }
 
 function saveGatewayUrl(configFile, value, env = process.env) {
@@ -45,23 +55,29 @@ function saveGatewayUrl(configFile, value, env = process.env) {
   }
 
   const gatewayUrl = normalizeGatewayUrl(value);
-  fs.mkdirSync(path.dirname(configFile), { recursive: true });
-  const temporary = `${configFile}.${process.pid}.tmp`;
-  try {
-    fs.writeFileSync(temporary, JSON.stringify({ gateway_url: gatewayUrl }, null, 2), 'utf8');
-    fs.renameSync(temporary, configFile);
-  } finally {
-    if (fs.existsSync(temporary)) fs.rmSync(temporary, { force: true });
-  }
-  return { gateway_url: gatewayUrl, source: 'user', managed: false };
+  const document = readDocument(configFile);
+  document.gateway_url = gatewayUrl;
+  writeDocument(configFile, document);
+  return loadAppConfig(configFile, env);
 }
 
 function resetGatewayUrl(configFile, env = process.env) {
   if (env.TINADEC_GATEWAY_URL?.trim()) {
     return loadAppConfig(configFile, env);
   }
-  fs.rmSync(configFile, { force: true });
+  const document = readDocument(configFile);
+  delete document.gateway_url;
+  writeDocument(configFile, document);
   return loadAppConfig(configFile, env);
+}
+
+function saveUserStorageRoot(configFile, root, env = process.env) {
+  if (env.TINADEC_HOME?.trim()) throw new Error('User storage root is managed by TINADEC_HOME.');
+  if (typeof root !== 'string' || !path.isAbsolute(root)) throw new Error('User storage root must be an absolute path.');
+  const document = readDocument(configFile);
+  document.user_root = path.resolve(root);
+  writeDocument(configFile, document);
+  return { user_root: document.user_root, path: configFile, restart_required: true };
 }
 
 module.exports = {
@@ -70,4 +86,5 @@ module.exports = {
   normalizeGatewayUrl,
   resetGatewayUrl,
   saveGatewayUrl,
+  saveUserStorageRoot,
 };

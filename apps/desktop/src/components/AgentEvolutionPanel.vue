@@ -3,11 +3,13 @@ import { Check, Cpu, Dna, ThumbsDown, Workflow } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  api,
+  api as baseApi,
   type AgentEvolutionProposalDto,
   type AgentModeDto,
   type PromoteAgentCandidateInput
 } from '../api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { UiBadge, UiButton, UiCard, UiInput, UiLabel, UiSheet, UiSkeleton } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
 

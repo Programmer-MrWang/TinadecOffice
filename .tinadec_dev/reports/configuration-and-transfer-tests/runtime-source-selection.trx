@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="ec9508b7-a30a-4121-bdef-203ef3e3e855" name="lincu@LINSTATION 2026-10-09 16:51:59" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T16:51:59.3020817+08:00" queuing="2026-10-09T16:51:59.3020822+08:00" start="2026-10-09T16:51:57.8357881+08:00" finish="2026-10-09T16:51:59.3103633+08:00" />
+  <TestSettings name="default" id="cc5b581b-2837-44a1-8cfc-e5d769cbcd58">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_16_51_59" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="30eb4ec8-807a-4082-adaf-3c9b527a941e" testId="2dfb13a4-cbfa-6788-1573-d479e450f768" testName="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline(enabled: null)" computerName="LINSTATION" duration="00:00:00.0089307" startTime="2026-10-09T16:51:59.1206969+08:00" endTime="2026-10-09T16:51:59.1263942+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="30eb4ec8-807a-4082-adaf-3c9b527a941e" />
+    <UnitTestResult executionId="a278d8e9-90db-43cc-94cb-42c4f5de9b80" testId="8191937c-f0d9-6f0f-8f26-c5336b353122" testName="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline(enabled: &quot;false&quot;)" computerName="LINSTATION" duration="00:00:00.0107985" startTime="2026-10-09T16:51:59.1196716+08:00" endTime="2026-10-09T16:51:59.1197742+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a278d8e9-90db-43cc-94cb-42c4f5de9b80" />
+    <UnitTestResult executionId="4002c254-bfe5-4c65-b5dc-0be97ef2b983" testId="dad90a8c-a9ac-000c-50fe-5095f93df97f" testName="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EditingAuthorityRequiresScopeRuntimeAndNeverFallsBackToPackagedOrExplicitProfile" computerName="LINSTATION" duration="00:00:00.1234653" startTime="2026-10-09T16:51:58.9686510+08:00" endTime="2026-10-09T16:51:59.1044031+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4002c254-bfe5-4c65-b5dc-0be97ef2b983" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EditingAuthorityRequiresScopeRuntimeAndNeverFallsBackToPackagedOrExplicitProfile" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="dad90a8c-a9ac-000c-50fe-5095f93df97f">
+      <Execution id="4002c254-bfe5-4c65-b5dc-0be97ef2b983" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests" name="EditingAuthorityRequiresScopeRuntimeAndNeverFallsBackToPackagedOrExplicitProfile" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline(enabled: &quot;false&quot;)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="8191937c-f0d9-6f0f-8f26-c5336b353122">
+      <Execution id="a278d8e9-90db-43cc-94cb-42c4f5de9b80" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests" name="EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests.EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline(enabled: null)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="2dfb13a4-cbfa-6788-1573-d479e450f768">
+      <Execution id="30eb4ec8-807a-4082-adaf-3c9b527a941e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.AgentRuntimeConfigurationSourceTests" name="EmbeddedLocationsWithoutEditingAuthorityUsePackagedOrExplicitBaseline" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="2dfb13a4-cbfa-6788-1573-d479e450f768" executionId="30eb4ec8-807a-4082-adaf-3c9b527a941e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8191937c-f0d9-6f0f-8f26-c5336b353122" executionId="a278d8e9-90db-43cc-94cb-42c4f5de9b80" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dad90a8c-a9ac-000c-50fe-5095f93df97f" executionId="4002c254-bfe5-4c65-b5dc-0be97ef2b983" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.14]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.22]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.27]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.47]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

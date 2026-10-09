@@ -47,6 +47,10 @@ test('openapi external snapshot — title contains Gateway, paths non-empty, fil
   assert.ok(paths && typeof paths === 'object', 'openapi.paths should be an object');
   assert.ok(Object.keys(paths).length > 0, 'openapi.paths should be non-empty');
   assert.ok(typeof doc.openapi === 'string' || typeof (doc as Record<string, unknown>).swagger === 'string', 'openapi version field should exist');
+  assert.deepEqual(doc.security, [{ TinadecHostControl: [] }]);
+  assert.equal(valueAt(doc, 'components', 'securitySchemes', 'TinadecHostControl', 'name'), 'X-Tinadec-Host-Control');
+  assert.deepEqual(valueAt(doc, 'paths', '/api/v1/health', 'get', 'security'), []);
+  assert.deepEqual(valueAt(doc, 'paths', '/api/v1/host-challenge', 'get', 'security'), []);
 
   const requiredPackSchemas = [
     'AgentPackEnvelope',

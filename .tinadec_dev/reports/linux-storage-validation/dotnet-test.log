@@ -1,0 +1,42 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  TinadecCore.Contracts -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Contracts/debug/TinadecCore.Contracts.dll
+  TinadecCore.Abstractions -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Abstractions/debug/TinadecCore.Abstractions.dll
+  TinadecCore.Strategies -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Strategies/debug/TinadecCore.Strategies.dll
+  TinadecCore.LoopGuard -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.LoopGuard/debug/TinadecCore.LoopGuard.dll
+  TinadecCore.Context -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Context/debug/TinadecCore.Context.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/DbContextMigrationParticipant.cs(135,39): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/TinadecCore.Persistence.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/DbContextMigrationParticipant.cs(277,31): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/TinadecCore.Persistence.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/DbContextMigrationParticipant.cs(281,31): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Persistence/TinadecCore.Persistence.csproj]
+  TinadecCore.Persistence -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Persistence/debug/TinadecCore.Persistence.dll
+  TinadecCore.VectorStore -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.VectorStore/debug/TinadecCore.VectorStore.dll
+  TinadecCore.Prompts -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Prompts/debug/TinadecCore.Prompts.dll
+  TinadecCore.Memory -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Memory/debug/TinadecCore.Memory.dll
+  TinadecCore.Tenancy -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Tenancy/debug/TinadecCore.Tenancy.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Lifecycle/StorageLifecycleService.cs(1212,31): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Lifecycle/TinadecCore.Lifecycle.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Lifecycle/StorageLifecycleService.cs(1245,31): warning EF1002: Method 'ExecuteSqlRawAsync' inserts interpolated strings directly into the SQL, without any protection against SQL injection. Consider using 'ExecuteSqlAsync' instead, which protects against SQL injection, or make sure that the value is sanitized and suppress the warning. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Lifecycle/TinadecCore.Lifecycle.csproj]
+  TinadecCore.Tools -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Tools/debug/TinadecCore.Tools.dll
+  TinadecCore.Lifecycle -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Lifecycle/debug/TinadecCore.Lifecycle.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Models/Harness/Acp/AcpSession.cs(187,48): warning CS0420: 'AcpSession._fault': a reference to a volatile field will not be treated as volatile [/mnt/c/git/agent/TinadecOffice/TinadecCore/Models/TinadecCore.Models.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Models/Harness/Acp/AcpSession.cs(189,50): warning CS0420: 'AcpSession._fault': a reference to a volatile field will not be treated as volatile [/mnt/c/git/agent/TinadecOffice/TinadecCore/Models/TinadecCore.Models.csproj]
+  TinadecCore.Models -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Models/debug/TinadecCore.Models.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/AgentConfiguration/GraphValidation.cs(57,44): warning CS8602: Dereference of a possibly null reference. [/mnt/c/git/agent/TinadecOffice/TinadecCore/AgentConfiguration/TinadecCore.AgentConfiguration.csproj]
+  TinadecCore.AgentConfiguration -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.AgentConfiguration/debug/TinadecCore.AgentConfiguration.dll
+  TinadecCore.Skills -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Skills/debug/TinadecCore.Skills.dll
+  TinadecCore.Governance -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Governance/debug/TinadecCore.Governance.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/DmaEA/ApprovalGateJudge.cs(84,13): warning CS8604: Possible null reference argument for parameter 'ParametersJson' in 'ApprovalGateQuestion.ApprovalGateQuestion(string GateKind, string ToolId, string Risk, string ParametersJson, string? TaskTitle, string? TaskDescription, string? WorkerHandle, IReadOnlyList<string> WriteScope, string? WorkspaceRoot, IReadOnlyList<string> HeldResources, string PermissionMode, string? UserGoal)'. [/mnt/c/git/agent/TinadecOffice/TinadecCore/DmaEA/TinadecCore.DmaEA.csproj]
+  TinadecCore.DmaEA -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.DmaEA/debug/TinadecCore.DmaEA.dll
+  TinadecCore.AgentGraph -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.AgentGraph/debug/TinadecCore.AgentGraph.dll
+  TinadecCore.TinaChat -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.TinaChat/debug/TinadecCore.TinaChat.dll
+  TinadecCore.Storage.Migrations.PostgreSql -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Storage.Migrations.PostgreSql/debug/TinadecCore.Storage.Migrations.PostgreSql.dll
+  TinadecCore.Storage.Migrations.Sqlite -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Storage.Migrations.Sqlite/debug/TinadecCore.Storage.Migrations.Sqlite.dll
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Runtime/FormalModeResolver.cs(355,33): warning CS8603: Possible null reference return. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Runtime/TinadecCore.Runtime.csproj]
+/mnt/c/git/agent/TinadecOffice/TinadecCore/Runtime/FormalModeResolver.cs(402,17): warning CS8604: Possible null reference argument for parameter 'VersionHash' in 'DeclaredSpawnableTemplate.DeclaredSpawnableTemplate(string Slug, Guid AgentDefinitionId, Guid AgentVersionId, string VersionHash, string Role, IReadOnlyList<string> ToolScope, IReadOnlyList<string> Capabilities)'. [/mnt/c/git/agent/TinadecOffice/TinadecCore/Runtime/TinadecCore.Runtime.csproj]
+  TinadecCore.Runtime -> /tmp/tinadec-storage-validation/artifacts/bin/TinadecCore.Runtime/debug/TinadecCore.Runtime.dll
+  ConfigFile.Tests -> /tmp/tinadec-storage-validation/artifacts/bin/ConfigFile.Tests/debug/TinadecCore.Api.Tests.dll
+Test run for /tmp/tinadec-storage-validation/artifacts/bin/ConfigFile.Tests/debug/TinadecCore.Api.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+WARNING: Overwriting results file: /tmp/tinadec-storage-validation/evidence/linux-configuration-transfer-postgresql.trx
+Results File: /tmp/tinadec-storage-validation/evidence/linux-configuration-transfer-postgresql.trx
+
+Passed!  - Failed:     0, Passed:    22, Skipped:     0, Total:    22, Duration: 33 s - TinadecCore.Api.Tests.dll (net10.0)

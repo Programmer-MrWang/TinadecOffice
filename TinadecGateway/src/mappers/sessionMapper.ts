@@ -10,6 +10,7 @@ export interface SpaceOptionsDto {
 
 /** Session mapper */
 export interface ExternalSessionDto {
+  storage_id?: string;
   id: string;
   /**
    * Null for a projectless (free-conversation) session. Core omits the field via
@@ -53,6 +54,7 @@ export function mapSession(core: unknown): ExternalSessionDto | null {
     : null;
   const rawLifecycle = core.lifecycle_status ?? core.lifecycleStatus;
   return {
+    ...(typeof core.storage_id === 'string' ? { storage_id: core.storage_id } : {}),
     id,
     project_id: nullableId(core.project_id ?? core.projectId),
     title: (core.title as string) ?? null,

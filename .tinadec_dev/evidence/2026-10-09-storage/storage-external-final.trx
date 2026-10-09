@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="be221e6a-a085-45a5-8904-09a39e110d5f" name="lincu@LINSTATION 2026-10-09 15:26:35" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T15:26:35.0972250+08:00" queuing="2026-10-09T15:26:35.0972259+08:00" start="2026-10-09T15:25:56.4470711+08:00" finish="2026-10-09T15:26:35.1242270+08:00" />
+  <TestSettings name="default" id="ba32c503-d9e8-4e58-98e4-314ee37ed4ca">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_15_26_35" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="eb88a7ef-f6a0-4fb6-b8ba-f96367ac4f70" testId="7fd573ab-79db-9448-984d-55e9c18d9470" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" computerName="LINSTATION" duration="00:00:34.2832661" startTime="2026-10-09T15:26:00.0387265+08:00" endTime="2026-10-09T15:26:34.6579346+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eb88a7ef-f6a0-4fb6-b8ba-f96367ac4f70" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7fd573ab-79db-9448-984d-55e9c18d9470">
+      <Execution id="eb88a7ef-f6a0-4fb6-b8ba-f96367ac4f70" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="7fd573ab-79db-9448-984d-55e9c18d9470" executionId="eb88a7ef-f6a0-4fb6-b8ba-f96367ac4f70" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="1" executed="1" passed="1" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.77]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:01.18]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:01.31]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:36.40]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

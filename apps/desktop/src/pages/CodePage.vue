@@ -22,6 +22,7 @@ import { UiButton, UiSelect } from '@/components/ui'
 import { codeController } from '@/controllers/CodeController'
 import { consumeRequest, pendingWorkspaceFile, type WorkspaceFileRequest } from '@/lib/pageRequests'
 import { useNotifications } from '@/composables/useNotifications'
+import { selectionKey } from '@/lib/storageScope'
 
 const router = useRouter()
 const c = codeController
@@ -41,7 +42,7 @@ consumeRequest(pendingWorkspaceFile, (file) => {
 watch([requestedFile, c.projects, controllerStarted], () => {
   const file = requestedFile.value
   if (!file || !controllerStarted.value) return
-  if (file.projectId && !c.projects.value.some((project) => project.id === file.projectId)) return
+  if (file.projectId && !c.projects.value.some((project) => selectionKey(project) === file.projectId)) return
   if (!file.projectId && !c.currentProject.value) return
   requestedFile.value = null
   if (file.projectId) c.setProject(file.projectId)
@@ -50,7 +51,7 @@ watch([requestedFile, c.projects, controllerStarted], () => {
 watch([requestedFile, c.busy, controllerStarted, refreshingNavigation], () => {
   if (!requestedFile.value || !controllerStarted.value || c.busy.value || refreshingNavigation.value) return
   const projectId = requestedFile.value.projectId
-  if (projectId ? c.projects.value.some((item) => item.id === projectId) : c.currentProject.value) return
+  if (projectId ? c.projects.value.some((item) => selectionKey(item) === projectId) : c.currentProject.value) return
   if (refreshedGeneration !== navigationGeneration) {
     refreshedGeneration = navigationGeneration
     refreshingNavigation.value = true
@@ -89,10 +90,10 @@ onMounted(() => {
             <template #default="{ select, selectedValue }">
               <button
                 v-for="project in c.projects.value"
-                :key="project.id"
+                :key="selectionKey(project)"
                 class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
-                :class="{ 'bg-accent': selectedValue === project.id }"
-                @click="select(project.id)"
+                :class="{ 'bg-accent': selectedValue === selectionKey(project) }"
+                @click="select(selectionKey(project))"
               >
                 <span>{{ project.name }}</span>
                 <span class="ml-auto text-xs text-muted-foreground">{{ project.path }}</span>

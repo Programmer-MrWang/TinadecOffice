@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import zh from '@/locales/zh-CN'
 import { api } from '@/api'
 import ToolsOverviewPanel from './ToolsOverviewPanel.vue'
+import { captureStorageId, setSelectedStorage } from '@/lib/storageScope'
 
 vi.mock('@/components/ui', () => ({ UiButton: { template: '<button><slot /></button>' }, UiBadge: { template: '<span><slot /></span>' }, UiInput: { template: '<input />' } }))
 vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ notify: { error: vi.fn() } }) }))
@@ -12,6 +13,18 @@ vi.mock('@/api', () => ({ api: { getToolLayerReadiness: vi.fn(), getHarnessManif
 const tools = ['read_file', 'write_file'].map(id => ({ id, display_name: id, description: id, source: 'native', risk: 'low', capabilities: [], requires_approval: false }))
 
 describe('Tools effective overview', () => {
+  it('captures its explicit project scope while Home selects another project', async () => {
+    const storage: string[] = []
+    setSelectedStorage('home-project')
+    vi.mocked(api.getToolLayerReadiness).mockResolvedValue(null as never)
+    vi.mocked(api.getHarnessManifest).mockResolvedValue({ tools: [] } as never)
+    vi.mocked(api.listTools).mockImplementation(async () => { storage.push(captureStorageId('/api/v1/tools')); return tools as never })
+    vi.mocked(api.searchTools).mockResolvedValue([])
+    const wrapper = mount(ToolsOverviewPanel, { props: { projectId: 'tools-project::project-a' }, global: { plugins: [createI18n({ legacy: false, locale: 'zh-CN', messages: { 'zh-CN': zh } })] } })
+    await flushPromises()
+    expect(storage).toEqual(['tools-project'])
+    wrapper.unmount(); setSelectedStorage('user'); vi.mocked(api.listTools).mockClear()
+  })
   it('uses the live tool inventory when the harness manifest is empty and filters the selected Agent grants', async () => {
     vi.mocked(api.getToolLayerReadiness).mockResolvedValue(null as never)
     vi.mocked(api.getHarnessManifest).mockResolvedValue({ tools: [] } as never)

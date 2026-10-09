@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { storageFetch as fetch } from '@/lib/storageScope'
 import type {
   SimulateMessageRequest,
   SimulateMessageResponse,

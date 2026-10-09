@@ -78,6 +78,7 @@ internal sealed class ProcessHeadlessHarnessRunner : IHeadlessHarnessRunner
             }
         }
 
+        startInfo.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
         using var process = Start(startInfo, request.FileName);
         using var registration = cancellationToken.Register(
             static state => KillQuietly((Process)state!),

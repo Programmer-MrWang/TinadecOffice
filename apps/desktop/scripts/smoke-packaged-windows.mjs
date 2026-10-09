@@ -156,6 +156,7 @@ function sanitizedEnvironment(profile, temporary) {
 		COMSPEC:
 			process.env.COMSPEC ?? join(systemRoot, "System32", "cmd.exe"),
 		HOME: profile,
+    TINADEC_HOME: join(profile, ".tinadec"),
 		HOMEDRIVE: profileRoot.slice(0, Math.max(2, profileRoot.length - 1)),
 		HOMEPATH: profile.slice(profileRoot.length) || "\\",
 		LOCALAPPDATA: join(profile, "AppData", "Local"),
@@ -251,7 +252,8 @@ export async function runPackagedWindowsSmoke(options = {}) {
 	const userData = join(smokeRoot, "user-data");
 	const profile = join(smokeRoot, "profile");
 	const temporary = join(smokeRoot, "temp");
-	const logsDir = join(profile, "AppData", "Local", "TinadecOffice", "logs");
+  const dataRoot = join(profile, ".tinadec");
+  const logsDir = join(dataRoot, "logs", "host");
 	const logPaths = {
 		core: join(logsDir, "core.log"),
 		gateway: join(logsDir, "gateway.log"),
@@ -283,9 +285,10 @@ export async function runPackagedWindowsSmoke(options = {}) {
 	for (const directory of [userData, profile, temporary, logsDir]) {
 		mkdirSync(directory, { recursive: true });
 	}
+  mkdirSync(join(dataRoot, "config"), { recursive: true });
 	writeFileSync(
-		join(userData, "settings.json"),
-		`${JSON.stringify({ gateway_url: "http://127.0.0.1:48730" }, null, 2)}\n`,
+    join(dataRoot, "config", "desktop.toml"),
+    'gateway_url = "http://127.0.0.1:48730"\n',
 	);
 	writeFileSync(logPaths.electronStdout, "");
 	writeFileSync(logPaths.electronStderr, "");

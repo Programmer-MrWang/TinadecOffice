@@ -1,13 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="555" viewBox="0 0 1500 555" role="img"><title>AgentConfiguration模块职责图</title><style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148}.title{font-size:28px;font-weight:700}.text{font-size:19px}.small{font-size:16px;fill:#526177}</style><rect width="1500" height="555" fill="#fff"/><text class="title" x="40" y="52">AgentConfiguration</text><text class="small" x="40" y="85">CORE-AGENT-CONFIG · 2026-10-05 · 初始职责投影；关联线无调用方向，详细运行流待逐功能审计</text><rect x="40" y="120" width="670" height="385" rx="16" fill="#f3f6fb" stroke="#7353ae"/><text class="text" x="64" y="152">本模块职责 / 总图子节点</text><text class="text" x="890" y="152">相关模块 / 共同完成的职责</text>
-<path d="M710,205 C810,205 790,205 870,205" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
-<path d="M710,205 C810,205 790,330 870,330" fill="none" stroke="#b8c5d6" stroke-width="1.5"/>
-<rect x="64" y="175" width="620" height="104" rx="10" fill="#fff" stroke="#7353ae"/><text class="text" x="84" y="205" style="font-weight:650;fill:#7353ae">AgentConfiguration</text><text class="small" x="84" y="233">agent / mode / pack 生命周期</text><text class="small" x="84" y="255">草稿→发布版本→run 冻结</text>
-
-
-<rect x="870" y="175" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
-<text class="text" x="892" y="205">Runtime · 唯一组合根</text>
-<text class="small" x="892" y="253">CORE-RUNTIME</text>
-<rect x="870" y="300" width="580" height="96" rx="10" fill="#fff" stroke="#b8c5d6"/>
-<text class="text" x="892" y="330">Models · 模型与 Harness</text>
-<text class="small" x="892" y="378">CORE-MODELS</text>
-<text class="small" x="40" y="530">完整源码入口、已核对的编译依赖、可编辑Mermaid与缺口在同目录ARCHITECTURE / STATUS / TODO。</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="560" viewBox="0 0 1400 560" role="img">
+<title>AgentConfiguration scope 配置权威与冻结链路</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10" fill="#566b83"/></marker></defs>
+<style>text{font-family:'Segoe UI','Microsoft YaHei',sans-serif;fill:#223148} .title{font-size:28px;font-weight:700}.label{font-size:19px;font-weight:600}.note{font-size:16px;fill:#526177}.node{fill:#f3f6fb;stroke:#7353ae;stroke-width:1.5}.flow{fill:none;stroke:#566b83;stroke-width:2;marker-end:url(#arrow)}</style>
+<rect width="1400" height="560" fill="#fff"/>
+<text class="title" x="32" y="45">AgentConfiguration：scope TOML → 编辑投影 → 运行冻结</text>
+<text class="note" x="32" y="76">2026-10-09 · 当前源码调用流；Windows/SQLite 与 Linux/实库 PostgreSQL 定向验证；macOS / 完整桌面尚待验收</text>
+<rect class="node" x="32" y="120" width="260" height="86" rx="10"/><text class="label" x="50" y="152">GUI / API 配置编辑</text><text class="note" x="50" y="179">配置 DbContext.SaveChanges</text>
+<rect class="node" x="366" y="120" width="292" height="86" rx="10"/><text class="label" x="383" y="152">投影协调器 / 文档端口</text><text class="note" x="383" y="179">校验 → CAS → 原子写入</text>
+<rect class="node" x="744" y="120" width="286" height="86" rx="10"/><text class="label" x="761" y="152">当前 scope config/*.toml</text><text class="note" x="761" y="179">唯一编辑权威，保留注释</text>
+<path class="flow" d="M292 163H366"/><path class="flow" d="M658 163H744"/>
+<rect class="node" x="744" y="290" width="286" height="86" rx="10"/><text class="label" x="761" y="322">scope SQL 编辑投影</text><text class="note" x="761" y="349">文件变化时可重建</text>
+<path class="flow" d="M887 206V290"/><text class="note" x="897" y="256">Reconcile</text>
+<rect class="node" x="366" y="290" width="292" height="86" rx="10"/><text class="label" x="383" y="322">编译有效快照 / 冻结前复核</text><text class="note" x="383" y="349">文件摘要、可见版本、实际 backend</text>
+<path class="flow" d="M744 190L693 190V315H658"/>
+<rect class="node" x="32" y="290" width="260" height="86" rx="10"/><text class="label" x="50" y="322">不可变运行配置与历史</text><text class="note" x="50" y="349">新 run 固定引用与摘要</text><path class="flow" d="M366 333H292"/>
+<rect class="node" x="1080" y="120" width="285" height="256" rx="10"/><text class="label" x="1097" y="151">Host 注入 scope</text><text class="note" x="1097" y="191">Config：文件根</text><text class="note" x="1097" y="225">State：writer lock</text><text class="note" x="1097" y="259">Data：内容 / SQL</text><text class="note" x="1097" y="293">独立 DbContextFactory</text><text class="note" x="1097" y="327">用户凭据共享引用</text>
+<path class="flow" d="M1080 166H1030"/><path class="flow" d="M1080 332H1030"/>
+<text class="note" x="32" y="440">历史边界：删除 TOML 版本不删除运行事实；新 default/current 不得引用文件内隐藏的 SQL 历史版本。</text>
+<text class="note" x="32" y="477">恢复边界：文件先保存、SQL 后投影；SQL 失败时下次按文件重建。文件与数据库不宣称跨介质事务。</text>
+<text class="note" x="32" y="514">项目复制：文件嵌入正文在本 scope 内容库重新物化；当前 backend/ref 不符时拒绝准入，由 Host 显式 apply/reopen。</text>
+</svg>

@@ -10,12 +10,12 @@ public static class WorkspaceSkillDiscovery
     public sealed record Entry(string Name, string Description, string RelativePath, string FullPath,
         string? Content, string ContentHash, bool Enabled, bool Valid, string? Reason);
 
-    public static IReadOnlyList<Entry> Discover(string rootPath)
+    public static IReadOnlyList<Entry> Discover(string rootPath, IReadOnlyList<string>? skillRoots = null)
     {
         var entries = new List<Entry>();
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var skillRoot in WorkspaceSkillPolicy.SkillRoots)
-            Walk(Path.Combine(rootPath, skillRoot), 0);
+        foreach (var skillRoot in skillRoots ?? WorkspaceSkillPolicy.SkillRoots)
+            Walk(Path.GetFullPath(Path.Combine(rootPath, skillRoot)), 0);
         return entries;
 
         void Walk(string directory, int depth)

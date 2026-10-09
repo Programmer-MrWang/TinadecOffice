@@ -62,8 +62,12 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
     /// inside one of the declared read-only roots.
     /// </summary>
     public bool IsAllowed(string path, bool writable = false) =>
-        IsWithin(WritableRoot, path)
-        || (!writable && ReadOnlyRoots.Any(root => IsWithin(root, path)));
+        (IsWithin(WritableRoot, path)
+            || (ToolExecutionContext.Current?.StorageRoot is not null && WorkspaceStoragePolicy.IsPublicScopePath(WritableRoot, path))
+            || (!writable && ReadOnlyRoots.Any(root => IsWithin(root, path)))
+            || (ToolExecutionContext.Current is { ProjectStorageWrite: true, StorageRoot: { } storage }
+                && IsWithin(storage, path)))
+        && WorkspaceStoragePolicy.CanAccess(WritableRoot, path, writable, ReadOnlyRoots);
 
     /// <summary>
     /// Resolves a path against the writable root (absolute paths pass through) and
@@ -79,7 +83,8 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
 
     /// <summary>The allowed root that contains the path, so link walking starts at that root.</summary>
     public (string Root, string Relative) OwningRoot(string path) =>
-        OwningRootIn(path, new[] { WritableRoot }.Concat(ReadOnlyRoots).ToList(),
+        OwningRootIn(path, new[] { WritableRoot }.Concat(ReadOnlyRoots)
+            .Concat(ToolExecutionContext.Current is { StorageRoot: { } storage } ? [storage] : Array.Empty<string>()).ToList(),
             static candidate => WorkspacePathForm.Canonical(candidate));
 
     /// <summary>

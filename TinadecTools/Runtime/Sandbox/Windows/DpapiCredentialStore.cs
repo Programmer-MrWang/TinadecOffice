@@ -6,10 +6,10 @@ namespace TinadecTools.Runtime.Sandbox.Windows;
 internal static class DpapiCredentialStore
 {
     private static readonly string StoreDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "TinadecTools", "Sandbox");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        ".tinadec", "security", "sandbox");
 
-    private static string CredentialPath => Path.Combine(StoreDir, "sandbox-account.dat");
+    private static string CredentialPath => Path.Combine(StoreDir, SandboxAccountManager.AccountName + ".dat");
 
     internal static void SavePassword(string password)
     {

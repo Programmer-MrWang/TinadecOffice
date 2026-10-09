@@ -6,10 +6,18 @@
 
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
-| TOOLS-SANDBOX-F001 | 三平台命令与流式 shell 沙箱入口 | 源码可见 | 本轮静态核对；未做功能验收 | Windows 低权限账户/ACL/DPAPI/JobObject，Linux Landlock，macOS Seatbelt/sandbox-exec；不能沿用 Linux/macOS 未实现的历史标签。 | [TinadecTools/Runtime/Sandbox/CommandSandboxRuntime.cs](../../../../../TinadecTools/Runtime/Sandbox/CommandSandboxRuntime.cs)<br>[TinadecTools/Runtime/Sandbox/Windows/WindowsSandboxBackend.cs](../../../../../TinadecTools/Runtime/Sandbox/Windows/WindowsSandboxBackend.cs)<br>[TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs](../../../../../TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs)<br>[tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs](../../../../../tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs) |
+| TOOLS-SANDBOX-F001 | 三平台命令与流式 shell 沙箱入口 | 源码可见 | 2026-10-09 Linux WSL2 6条真实命令内核回归通过；Windows真实ACL另列 | Linux self-contained Debug managed；NativeAOT、macOS与Windows新账户/UAC未验收。请求线程生命周期和/dev/null修复后正向写、越界拒写、环境及超时终止通过。 | [Linux日志](../../../../../.tinadec_dev/reports/linux-storage-validation/dotnet-tools-final-test.log)<br>[TRX](../../../../../.tinadec_dev/reports/linux-storage-validation/linux-posix-tools-final.trx)<br>[tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs](../../../../../tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs) |
 | TOOLS-SANDBOX-F002 | 主要限制写入而非全面隔离 | 范围边界 | 本轮静态核对；未做功能验收 | POSIX 读、执行和网络未全面隔离；sandbox-exec 不是公开稳定 Apple API；Linux 进程组终止与 macOS 的进程树终止实现不同。 | [TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs](../../../../../TinadecTools/Runtime/Sandbox/Posix/PosixSandboxBackend.cs)<br>[TinadecTools/Runtime/Sandbox/Posix/SeatbeltProfile.cs](../../../../../TinadecTools/Runtime/Sandbox/Posix/SeatbeltProfile.cs)<br>[TinadecTools/Runtime/Sandbox/Posix/LandlockApi.cs](../../../../../TinadecTools/Runtime/Sandbox/Posix/LandlockApi.cs) |
 
+## 2026-10-09 存储作用域专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| TOOLS-SANDBOX-F003 | 存储分类与 scope 沙箱身份 | 源码可见 | 2026-10-09 Windows f8b233d+工作树；Tools定向59/59与最终22/22，Node bwrap staging4/4；Linux27/27（6命令内核、4存储行为、17构造） | 当前用户真实ACL、scope/tier账号身份构造；Linux基本命令边界实测；新账户/UAC、Linux NativeAOT、内部读取屏障完整命令矩阵与macOS仍未验收 | [实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md) |
+
 ## 状态词汇
+
+2026-10-09追加：独立grant历史移到state原生TOML，Windows定向47/47、禁反射store12/12；Linux libcap2与bwrap/runtime归档检查、小型真实归档Node13/13。发布TOML/作用域门禁已接入代码但未执行CI，packaging依赖检查不等同产品实包或NativeAOT验收，详见[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。
 
 - 待核查：尚不能判断是否实现或缺失。
 - 源码可见：找到实现路径，仍需验证真实行为。

@@ -12,6 +12,7 @@ import { UiButton } from '@/components/ui'
 import AppHeader from '@/components/AppHeader.vue'
 import { homeController } from '@/controllers/HomeController'
 import { codeController } from '@/controllers/CodeController'
+import { selectionKey } from '@/lib/storageScope'
 import { closePalette, useCommandPalette } from '@/composables/useCommandPalette'
 import { availableCommands, implicitArgument, type AppCommand, type CommandHost } from '@/lib/appCommands'
 import {
@@ -104,7 +105,7 @@ const spotlightHost: SpotlightHost = {
   },
   loadedSessions: () => homeController.sessions.value,
   workspaceRoot: () => searchProject.value?.path ?? '',
-  workspaceProjectId: () => searchProject.value?.id,
+  workspaceProjectId: () => searchProject.value ? selectionKey(searchProject.value) : undefined,
 }
 
 const filteredGroups = computed(() => groups.value.filter((group) => activeKind.value === 'all' || group.kind === activeKind.value))

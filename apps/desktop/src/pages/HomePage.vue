@@ -8,6 +8,7 @@ import { consumeRequest, pendingConversationId, pendingProjectId } from '@/lib/p
 import { useUiePage } from '@/lib/uiEngine'
 import { useHomeEntrance } from '@/composables/useHomeEntrance'
 import { useNotifications } from '@/composables/useNotifications'
+import { selectionKey } from '@/lib/storageScope'
 
 // The UIE store is a module singleton shared by every UIE route; entering Home
 // switches it back to the home layout (restoring the user's saved home layout).
@@ -66,23 +67,23 @@ consumeRequest(pendingConversationId, (sessionId) => {
 })
 watch([requestedProjectId, homeController.projects], () => {
   const projectId = requestedProjectId.value
-  if (!projectId || !homeController.projects.value.some((project) => project.id === projectId)) return
+  if (!projectId || !homeController.projects.value.some((project) => selectionKey(project) === projectId)) return
   requestedProjectId.value = null
   homeController.setSelectedProject(projectId)
 }, { immediate: true })
 watch([requestedConversationId, homeController.sessions], () => {
-  const session = homeController.sessions.value.find((item) => item.id === requestedConversationId.value)
+  const session = homeController.sessions.value.find((item) => selectionKey(item) === requestedConversationId.value)
   if (!session) return
   requestedConversationId.value = null
   homeController.setViewMode(session.view_mode ?? 'flat')
-  homeController.setSelectedProject(session.project_id ?? null)
-  homeController.setSelectedSession(session.id)
+  homeController.setSelectedProject(session.project_id ? selectionKey({ id: session.project_id, storage_id: session.storage_id }) : null)
+  homeController.setSelectedSession(selectionKey(session))
   if (session.view_mode === 'space') void router.push('/space')
 }, { immediate: true })
 watch([controllerStarted, homeController.busy, requestedProjectId, requestedConversationId, refreshingNavigation], () => {
   if (!controllerStarted.value || homeController.busy.value || refreshingNavigation.value) return
-  const missingProject = requestedProjectId.value && !homeController.projects.value.some((item) => item.id === requestedProjectId.value)
-  const missingSession = requestedConversationId.value && !homeController.sessions.value.some((item) => item.id === requestedConversationId.value)
+  const missingProject = requestedProjectId.value && !homeController.projects.value.some((item) => selectionKey(item) === requestedProjectId.value)
+  const missingSession = requestedConversationId.value && !homeController.sessions.value.some((item) => selectionKey(item) === requestedConversationId.value)
   if (!missingProject && !missingSession) return
   if (refreshedGeneration !== navigationGeneration) {
     refreshedGeneration = navigationGeneration

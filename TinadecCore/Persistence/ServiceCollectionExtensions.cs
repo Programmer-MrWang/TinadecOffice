@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using TinadecCore.Abstractions.Ports;
 
 namespace TinadecCore.Persistence;
 
@@ -28,6 +29,15 @@ public static class ServiceCollectionExtensions
             .ValidateOnStart();
 
         var root = contentRootPath ?? Directory.GetCurrentDirectory();
+        services.TryAddSingleton<IScopeStorageLocations>(sp =>
+        {
+            var data = sp.GetRequiredService<IOptions<TinadecPersistenceOptions>>().Value.DataRoot;
+            var absoluteData = Path.GetFullPath(Path.IsPathRooted(data) ? data : Path.Combine(root, data));
+            return new StorageScopeDescriptor("user", "user",
+                string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(absoluteData)), "data", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetDirectoryName(absoluteData)! : absoluteData);
+        });
+        services.TryAddSingleton<IProjectStorageWritePolicy, DefaultProjectStorageWritePolicy>();
 
         services.TryAddSingleton<IDatabaseConnectionInfo>(sp =>
         {
@@ -38,7 +48,8 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ITinadecDatabaseConfigurer, TinadecDatabaseConfigurer>();
         services.TryAddSingleton<IDatabaseReadiness, DatabaseReadiness>();
         services.TryAddSingleton<StoragePaths>(sp =>
-            new StoragePaths(root, sp.GetRequiredService<IOptions<TinadecPersistenceOptions>>()));
+            new StoragePaths(root, sp.GetRequiredService<IOptions<TinadecPersistenceOptions>>(), sp.GetRequiredService<IScopeStorageLocations>()));
+        services.TryAddSingleton<IContentLeaseRegistry, ContentLeaseRegistry>();
         services.TryAddSingleton<IContentStore, LocalFileContentStore>();
         services.TryAddSingleton<IProjectVectorDatabase>(sp =>
         {
@@ -53,6 +64,11 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<INonceMaterialStore, NonceMaterialStore>();
         services.TryAddSingleton<IStorageMigrationRunner, StorageMigrationRunner>();
         return services;
+    }
+
+    private sealed class DefaultProjectStorageWritePolicy : IProjectStorageWritePolicy
+    {
+        public bool AllowStorageWrite => false;
     }
 
     /// <summary>
@@ -101,7 +117,10 @@ public static class ServiceCollectionExtensions
 
         var connectionString = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
         {
-            DataSource = fullPath
+            DataSource = fullPath,
+            // A closed scope must release its database file immediately. Process-wide
+            // pooling can outlive its service graph and keep a moved/copied project locked.
+            Pooling = false
         }.ToString();
 
         return new DatabaseConnectionInfo(DatabaseProvider.Sqlite, connectionString);

@@ -8,6 +8,7 @@ import ComposerCommandPanel from './ComposerCommandPanel.vue'
 import type { PermissionLevel } from '@/types/mode'
 import type { MeetingModelOverrideDto, ProjectDto, SpaceOptionsDto } from '@/api'
 import { homeController } from '@/controllers/HomeController'
+import { selectionKey, selectedStorage } from '@/lib/storageScope'
 import { getDispatchPref, type DispatchPref } from '@/lib/dispatchPref'
 import { isCommandAvailable, parseSlashCommand, type AppCommand, type CommandHost } from '@/lib/appCommands'
 import { composerSlashQuery, composerSettings, permissionChoices, type ComposerPage } from '@/lib/composerCommands'
@@ -227,7 +228,7 @@ function handleCommandEnter(): boolean {
 }
 
 const selectedProject = computed(() =>
-  props.projects?.find((p) => p.id === props.selectedProjectId) ?? null
+  props.projects?.find((p) => p.id === props.selectedProjectId && (!p.storage_id || p.storage_id === selectedStorage.value)) ?? null
 )
 
 /**
@@ -773,10 +774,10 @@ function confirmSteer(id: string, interrupt = false) {
             </button>
             <button
               v-for="project in projects"
-              :key="project.id"
+              :key="selectionKey(project)"
               class="project-dropdown-item"
-              :class="{ active: project.id === selectedProjectId }"
-              @click="selectProject(project.id)"
+              :class="{ active: project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) }"
+              @click="selectProject(selectionKey(project))"
             >
               <FolderOpen :size="12" />
               <span>{{ project.name }}</span>

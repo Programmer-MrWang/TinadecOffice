@@ -2,8 +2,13 @@ using Microsoft.Extensions.Options;
 using TinadecCore.AspNetCore;
 using TinadecCore.Persistence;
 using TinadecCore.Runtime;
+using TinadecCore.Abstractions.Ports;
 
 var builder = WebApplication.CreateBuilder(args);
+var scopesEnabled = builder.Configuration.GetValue<bool?>("TinadecStorage:Enabled") ?? !builder.Environment.IsEnvironment("Testing");
+var initialConfiguration = scopesEnabled && !File.Exists(Path.Combine(StorageScopePaths.UserRoot(builder.Configuration["TinadecStorage:UserRoot"]), "config", "agents.toml"));
+var userScope = scopesEnabled ? StorageHostBootstrap.Configure(builder.Configuration) : null;
+if (userScope is not null) builder.Services.AddSingleton<IScopeStorageLocations>(userScope);
 
 // Logging is a side channel. Console/Debug by default; the Windows Event Log
 // provider is opt-in — without elevation its first Warning write throws when
@@ -11,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+if (userScope is not null) builder.Logging.AddProvider(new ScopeDiagnosticLoggerProvider(userScope));
 if (builder.Configuration.GetValue<bool>("Logging:EventLog:Enabled"))
 {
     builder.Logging.AddEventLog();
@@ -20,16 +26,27 @@ if (builder.Configuration.GetValue<bool>("Logging:EventLog:Enabled"))
 builder.Services.AddTinadecPersistence(builder.Configuration, builder.Environment.ContentRootPath);
 
 // Register all TinadecCore modules, then the mountable HTTP layer.
+if (scopesEnabled) builder.Services.AddHostedService<StorageHostShutdownService>();
 builder.Services.AddTinadecCore();
 builder.Services.AddTinadecCoreHttp();
+if (scopesEnabled)
+{
+    builder.Services.AddTinadecConfigurationFiles();
+    builder.Services.AddTinadecStorageScopes();
+    builder.Services.AddTinadecSessionTransfers();
+    builder.Services.AddSingleton<UserStorageHostLease>();
+    builder.Services.AddSingleton<IProtectedStorageRoots>(sp => new HostProtectedRoots(sp.GetRequiredService<IStorageScopeRegistry>(), "user"));
+}
 
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+if (scopesEnabled) _ = app.Services.GetRequiredService<UserStorageHostLease>();
 
 // RFC 9457 + snake_case ProblemDetails with trace_id/code extension.
 app.UseTinadecCoreExceptionHandler();
 app.UseStatusCodePages();
+if (scopesEnabled) app.UseTinadecStorageScopes();
 
 // Core-internal OpenAPI is the source of truth; Gateway generates its own external OpenAPI.
 app.MapOpenApi("/openapi/core.json").WithSummary("TinadecCore internal OpenAPI");
@@ -43,13 +60,17 @@ using (var scope = app.Services.CreateScope())
     {
         await scope.ServiceProvider.GetRequiredService<IStorageMigrationRunner>().RunAsync();
         await scope.ServiceProvider.GetRequiredService<TinadecCore.Lifecycle.StorageLifecycleService>().ReconcileAsync();
+        if (scopesEnabled) await scope.ServiceProvider.GetRequiredService<ProjectSessionLifecycleService>().RecoverPendingPurgesAsync();
     }
 }
 
 // Idempotent dev bootstrap: chat route + planner/executor agents when missing.
 using (var seedScope = app.Services.CreateScope())
 {
-    await TinadecCore.Runtime.DevSeed.SeedIfMissingAsync(seedScope.ServiceProvider, CancellationToken.None);
+    if (!scopesEnabled || initialConfiguration)
+        await TinadecCore.Runtime.DevSeed.SeedIfMissingAsync(seedScope.ServiceProvider, CancellationToken.None);
+    if (scopesEnabled)
+        await seedScope.ServiceProvider.GetRequiredService<IConfigurationProjectionCoordinator>().ReconcileAsync();
 }
 
 // Complete /api/v1 route surface lives in the packable TinadecCore.AspNetCore layer.

@@ -19,9 +19,39 @@ if (typeof electron !== 'object' || !electron.app) {
 
 const { app, BrowserWindow, clipboard, dialog, ipcMain, protocol, screen, shell } = electron;
 const path = require('node:path');
-const { loadAppConfig, resetGatewayUrl, saveGatewayUrl } = require('./appConfig.cjs');
+const { configureElectronStorage } = require('./storagePaths.cjs');
+const { createLogSink } = require('./logSink.cjs');
+const hostPaths = (() => {
+  try { return configureElectronStorage(app); }
+  catch (error) { dialog.showErrorBox('Desktop storage configuration error', error.message); app.exit(1); throw error; }
+})();
+const hostLogSink = (() => {
+  try { return createLogSink(hostPaths.hostLogs); }
+  catch (error) { dialog.showErrorBox('Logging configuration error', error.message); app.exit(1); throw error; }
+})();
+for (const level of ['log', 'info', 'warn', 'error']) {
+  const original = console[level].bind(console);
+  console[level] = (...values) => {
+    original(...values);
+    try { hostLogSink.write('electron', `${new Date().toISOString()} ${level} ${require('node:util').format(...values)}\n`); } catch { /* stderr remains available if disk writes fail */ }
+  };
+}
+const { loadAppConfig, resetGatewayUrl, saveGatewayUrl, saveUserStorageRoot } = require('./appConfig.cjs');
 const { discoverServices } = require('./serviceDiscovery.cjs');
-const { ensureLocalServices, stopLocalServices } = require('./serviceManager.cjs');
+const { ensureLocalServices, stopLocalServices, canonicalLocalGatewayUrl } = require('./serviceManager.cjs');
+const { createHostControl } = require('./hostControl.cjs');
+const { verifyManagedHost } = require('./hostIdentity.cjs');
+let trustedHostReady = false;
+let hostIdentityTimer;
+const hostControl = createHostControl({ startupToken: process.env.TINADEC_HOST_CONTROL_TOKEN, isTrustedHost: () => trustedHostReady });
+// The development orchestrator can share a launch credential; keep it out of later renderer/terminal children.
+delete process.env.TINADEC_HOST_CONTROL_TOKEN;
+const { initializeTrustedHostRequests, registerTrustedHostWindow, isTrustedHostSender } = require('./trustedHostRequests.cjs');
+initializeTrustedHostRequests({
+  token: hostControl.serviceToken,
+  devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  isManagedHost: () => trustedHostReady && Boolean(canonicalLocalGatewayUrl(process.env.TINADEC_RESOLVED_GATEWAY_URL)),
+});
 const layoutStore = require('./layoutStore.cjs');
 const { createDebugStudioWindow, getDebugStudioWindow } = require('./debug-studio.cjs');
 const {
@@ -92,7 +122,7 @@ if (process.platform === 'win32') {
 }
 
 function appConfigFile() {
-  return path.join(app.getPath('userData'), 'settings.json');
+  return hostPaths.desktopConfig;
 }
 
 async function createWindow() {
@@ -122,6 +152,7 @@ async function createWindow() {
   // Tag this window as the main TinadecOffice window so panelWindow.cjs
   // can reliably distinguish it from the Debug Studio window.
   tagMainWindow(win);
+  registerTrustedHostWindow(win);
 
   attachExternalLinkGuards(win.webContents);
 
@@ -159,9 +190,24 @@ ipcMain.handle('tinadec:open-project', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('tinadec:app-config', () => loadAppConfig(appConfigFile()));
+ipcMain.handle('tinadec:app-config', () => ({ ...loadAppConfig(appConfigFile()), storage: {
+  root: hostPaths.root, source: hostPaths.source, bootstrap_config: hostPaths.desktopConfig,
+  managed: hostPaths.source === 'environment', local_services: Boolean(canonicalLocalGatewayUrl(process.env.TINADEC_RESOLVED_GATEWAY_URL)),
+} }));
 ipcMain.handle('tinadec:gateway-url-save', (_event, gatewayUrl) => saveGatewayUrl(appConfigFile(), gatewayUrl));
 ipcMain.handle('tinadec:gateway-url-reset', () => resetGatewayUrl(appConfigFile()));
+ipcMain.handle('tinadec:storage-write-policy', (event, storageId, allow) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostSender(event)) throw new Error('Storage policy changes require the trusted main host page.');
+  return hostControl.setStorageWritePolicy(process.env.TINADEC_RESOLVED_GATEWAY_URL, storageId, allow);
+});
+ipcMain.handle('tinadec:storage-action', (event, storageId, action, input) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostSender(event)) throw new Error('Storage changes require the trusted main host page.');
+  return hostControl.storageAction(process.env.TINADEC_RESOLVED_GATEWAY_URL, storageId, action, input);
+});
+ipcMain.handle('tinadec:user-storage-root-save', (event, root) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostSender(event)) throw new Error('User storage changes require the trusted main host page.');
+  return saveUserStorageRoot(appConfigFile(), root);
+});
 ipcMain.handle('tinadec:discover-services', () =>
   discoverServices({ currentGatewayUrl: process.env.TINADEC_RESOLVED_GATEWAY_URL })
 );
@@ -438,6 +484,8 @@ registerTerminalIpc({
 
 // Persist panel states before quit and clean up terminals
 app.on('before-quit', () => {
+  trustedHostReady = false;
+  clearInterval(hostIdentityTimer);
   void stopLocalServices().catch(() => {});
   destroyAllTerminals();
   persistPanelStatesForQuit();
@@ -445,15 +493,34 @@ app.on('before-quit', () => {
 });
 
 app.whenReady().then(async () => {
-  const gatewayUrl = loadAppConfig(appConfigFile()).gateway_url;
+  let gatewayUrl;
+  try { gatewayUrl = loadAppConfig(appConfigFile()).gateway_url; }
+  catch (error) {
+    dialog.showErrorBox('TinadecOffice', `无法读取 TOML 配置 ${appConfigFile()}：${error.message}`);
+    app.quit(); return;
+  }
   process.env.TINADEC_RESOLVED_GATEWAY_URL = gatewayUrl;
   try {
     await ensureLocalServices({
       isPackaged: app.isPackaged,
       gatewayUrl,
       resourcesPath: process.resourcesPath,
+      userStorageRoot: hostPaths.root,
+      hostControlToken: hostControl.serviceToken,
       localAppDataPath: process.env.LOCALAPPDATA,
     });
+    if (canonicalLocalGatewayUrl(gatewayUrl)) {
+      trustedHostReady = await verifyManagedHost(hostControl.serviceToken);
+      let verifying = false;
+      hostIdentityTimer = setInterval(async () => {
+        if (verifying || !trustedHostReady) return;
+        verifying = true;
+        try { await verifyManagedHost(hostControl.serviceToken); }
+        catch (error) { trustedHostReady = false; console.error('[tinadec] trusted local host identity revoked:', error.message); }
+        finally { verifying = false; }
+      }, 15_000);
+      hostIdentityTimer.unref();
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error('[tinadec] packaged service startup failed:', message);

@@ -26,17 +26,20 @@ public sealed class ProjectSessionLifecycleService
     private readonly IDbContextFactory<LifecycleDbContext> _lifecycleFactory;
     private readonly StoragePaths _paths;
     private readonly ISessionOrganization? _organization;
+    private readonly IServiceProvider? _services;
 
     public ProjectSessionLifecycleService(
         ProjectSessionStore store,
         IDbContextFactory<LifecycleDbContext> lifecycleFactory,
         StoragePaths paths,
-        ISessionOrganization? organization = null)
+        ISessionOrganization? organization = null,
+        IServiceProvider? services = null)
     {
         _store = store;
         _lifecycleFactory = lifecycleFactory;
         _paths = paths;
         _organization = organization;
+        _services = services;
     }
 
     public Task<ProjectRecord> ArchiveProjectAsync(Guid projectId, CancellationToken ct = default) =>
@@ -90,6 +93,11 @@ public sealed class ProjectSessionLifecycleService
     /// <summary>Permanently deletes a trashed session: lifecycle rows, memory rows, and Core-owned run files.</summary>
     public async Task PurgeSessionAsync(Guid sessionId, CancellationToken ct = default)
     {
+        // Recovery uses the original closure even if a previous module transaction
+        // already removed the session row or its relationships.
+        var pending = PurgeJournal(sessionId);
+        if (_services is not null && File.Exists(pending))
+        { await CompletePurgeAsync(await ScopeSessionDataGraph.ReadSnapshotAsync(_services, pending, ct).ConfigureAwait(false), pending, ct).ConfigureAwait(false); return; }
         var session = await _store.GetSessionAnyStatusAsync(sessionId, ct).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Session was not found.");
         if (session.LifecycleStatus != LifecycleStatuses.Trashed)
@@ -114,6 +122,21 @@ public sealed class ProjectSessionLifecycleService
 
     private async Task PurgeSessionDataAsync(Guid sessionId, CancellationToken ct)
     {
+        if (_services is not null)
+        {
+            await using var admission = _services.GetService(typeof(ISessionStorageAdmissionGuard)) is ISessionStorageAdmissionGuard guard
+                ? await guard.AcquireAsync(sessionId, _paths.Locations.StorageId, false, ct).ConfigureAwait(false) : null;
+            if (_services.GetService(typeof(ISessionScopeTransferService)) is ISessionScopeTransferService transfers)
+                transfers.EnsurePurgeAllowed(sessionId, _paths.Locations.StorageId);
+            await ThrowIfAnyActiveRunAsync([sessionId], ct).ConfigureAwait(false);
+            var graph = await ScopeSessionDataGraph.ReadAsync(_services, sessionId, ct).ConfigureAwait(false);
+            var journal = PurgeJournal(sessionId);
+            StorageScopePaths.RejectLinks(_paths.Locations.Root, journal);
+            Directory.CreateDirectory(Path.GetDirectoryName(journal)!);
+            await ScopeSessionDataGraph.WriteSnapshotAsync(journal, graph, ct).ConfigureAwait(false);
+            await CompletePurgeAsync(graph, journal, ct).ConfigureAwait(false);
+            return;
+        }
         var runIds = new List<Guid>();
         await using (var lifecycle = await _lifecycleFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
         {
@@ -128,6 +151,52 @@ public sealed class ProjectSessionLifecycleService
             TryDeleteFile(_paths.TaskSnapshot(runId));
             try { Directory.Delete(_paths.Artifacts(runId), recursive: true); } catch { /* best-effort file cleanup */ }
         }
+    }
+
+    public async Task RecoverPendingPurgesAsync(CancellationToken ct = default)
+    {
+        if (_services is null) return;
+        var root = Path.Combine(_paths.Locations.State, "session-purges");
+        StorageScopePaths.RejectLinks(_paths.Locations.Root, root);
+        if (!Directory.Exists(root)) return;
+        foreach (var journal in Directory.EnumerateFiles(root, "*.toml"))
+        {
+            StorageScopePaths.RejectLinks(root, journal);
+            var graph = await ScopeSessionDataGraph.ReadSnapshotAsync(_services, journal, ct).ConfigureAwait(false);
+            if (Path.GetFileNameWithoutExtension(journal) != graph.SessionId.ToString("N"))
+                throw new InvalidDataException("Session purge journal identity does not match its filename: " + journal);
+            await CompletePurgeAsync(graph, journal, ct).ConfigureAwait(false);
+        }
+    }
+
+    private string PurgeJournal(Guid sessionId) => Path.Combine(_paths.Locations.State, "session-purges", sessionId.ToString("N") + ".toml");
+
+    private async Task CompletePurgeAsync(SessionDataGraph graph, string journal, CancellationToken ct)
+    {
+        if (_services is null) throw new InvalidOperationException("Session purge participants are unavailable.");
+        if (_services.GetService(typeof(ISessionScopeTransferService)) is ISessionScopeTransferService transfers)
+            transfers.EnsurePurgeAllowed(graph.SessionId, _paths.Locations.StorageId);
+        await ScopeSessionDataGraph.DeleteAsync(_services, graph, ct).ConfigureAwait(false);
+        foreach (var runId in graph.RunIds) DeleteOwnedRunFiles(runId);
+        DeleteOptionalOwnedFile(_paths.SessionHistory(graph.SessionId));
+        if (_services.GetService(typeof(ISessionScopeTransferService)) is ISessionScopeTransferService completedTransfers)
+            await completedTransfers.PurgeCompletedAsync(graph.SessionId, _paths.Locations.StorageId, ct).ConfigureAwait(false);
+        File.Delete(journal);
+    }
+
+    private void DeleteOwnedRunFiles(Guid runId)
+    {
+        foreach (var file in new[] { _paths.EventLog(runId), _paths.TaskSnapshot(runId) })
+        { StorageScopePaths.RejectLinks(_paths.Root, file); DeleteOptionalOwnedFile(file); }
+        var artifacts = _paths.Artifacts(runId);
+        StorageScopePaths.RejectLinks(_paths.Root, artifacts);
+        if (Directory.Exists(artifacts)) Directory.Delete(artifacts, recursive: true);
+    }
+
+    private static void DeleteOptionalOwnedFile(string path)
+    {
+        try { File.Delete(path); }
+        catch (DirectoryNotFoundException) { /* This run may never have written an event or snapshot. */ }
     }
 
     private async Task ThrowIfAnyActiveRunAsync(IEnumerable<Guid> sessionIds, CancellationToken ct)

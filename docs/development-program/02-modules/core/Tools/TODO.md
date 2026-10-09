@@ -6,6 +6,24 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+<a id="core-tools-102"></a>
+
+### CORE-TOOLS-102 MCP 程序安装与运行存储身份
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：CORE-TOOLS
+- 关联功能：CORE-TOOLS-F004
+- 范围：登记/安装拆分；固定版本、审批、immutable 包/manifest、pointer、本地复制与旧scope授权拒绝。
+- 验收：实际文件副作用、冻结边界、拒绝与取消清理；平台证据独立。
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。2026-10-09 Windows 当前工作树；安装provider测试有真实manifest/pointer副作用，真实网络包下载与非Windows内核保持独立边界。
+
+**验收条件**
+
+- [x] 登记与明确安装分离；manifest/pointer、历史保留、本地复制和冻结身份校验已接线。
+- [x] 完成受影响 Core 联合回归与失败修复复查，记录真实安装与平台边界。
+
 <a id="core-tools-001"></a>
 
 ### CORE-TOOLS-001 完成 Tools · 工具治理与适配 的逐功能审计与模块图精化

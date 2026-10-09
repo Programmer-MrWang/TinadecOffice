@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="dc80eea7-d554-420d-af21-b05bd90afa9e" name="lincu@LINSTATION 2026-10-09 15:18:11" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T15:18:11.6345084+08:00" queuing="2026-10-09T15:18:11.6345092+08:00" start="2026-10-09T15:18:07.9647253+08:00" finish="2026-10-09T15:19:05.7359203+08:00" />
+  <TestSettings name="default" id="83651bf5-b13b-496d-b946-303fd0d296ee">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_15_18_11" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="63a9e9ce-b6f1-420b-88c5-b6f6b2700d4e" testId="1dfb6127-5505-90e4-edbf-ec71598cf4b0" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.AgentPackEnvelopeBytesAndSemanticDigestRebuildInAnIndependentScope" computerName="LINSTATION" duration="00:00:03.6224908" startTime="2026-10-09T15:18:32.3255912+08:00" endTime="2026-10-09T15:18:35.9513959+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="63a9e9ce-b6f1-420b-88c5-b6f6b2700d4e" />
+    <UnitTestResult executionId="4b6b12ee-b837-4934-a3c4-c0e3c5d36b9b" testId="990df82a-00bb-673e-ecaa-c6d6dc9a7a14" testName="TinadecCore.Api.Tests.SessionScopeTransferTests.HostWorkspaceBinderLeavesAnActiveSessionInUserStorageUntilTransferCompletes" computerName="LINSTATION" duration="00:00:05.4983719" startTime="2026-10-09T15:18:39.6154958+08:00" endTime="2026-10-09T15:18:45.1140314+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4b6b12ee-b837-4934-a3c4-c0e3c5d36b9b" />
+    <UnitTestResult executionId="de6679c8-7426-4c5e-b351-8d7ab62476ec" testId="367b7e74-b14b-eeb0-0468-3cd681e037b8" testName="TinadecCore.Api.Tests.SessionScopeTransferTests.AcceptedQueueMustDrainBeforeTransferAndItsFrozenSelectionIsUnchanged" computerName="LINSTATION" duration="00:00:20.0803315" startTime="2026-10-09T15:18:10.8917663+08:00" endTime="2026-10-09T15:18:31.0014250+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="de6679c8-7426-4c5e-b351-8d7ab62476ec" />
+    <UnitTestResult executionId="b43b9616-85c8-418f-bc1a-82e3955fabfc" testId="288bd30a-edf1-9595-656b-277f70c3a574" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.RetiredFileVersionRemainsHistoryAndCannotSupplyAnActiveDefault" computerName="LINSTATION" duration="00:00:01.6640067" startTime="2026-10-09T15:18:39.3598199+08:00" endTime="2026-10-09T15:18:41.0252518+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b43b9616-85c8-418f-bc1a-82e3955fabfc" />
+    <UnitTestResult executionId="588516dd-9de1-4b16-8a71-dac563187bea" testId="ddc2ab2e-1fe3-38de-a23e-6b30f98d154d" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.CompileDigestRejectsAnEditAfterAdmissionStarted" computerName="LINSTATION" duration="00:00:01.7921077" startTime="2026-10-09T15:18:26.7934967+08:00" endTime="2026-10-09T15:18:28.5859202+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="588516dd-9de1-4b16-8a71-dac563187bea" />
+    <UnitTestResult executionId="2672349c-e283-4607-b3f7-e7d41740f4d6" testId="e7682092-dc1d-4442-49da-1ec3f64692a0" testName="TinadecCore.Api.Tests.PostgreSqlScopeValidationTests.IndependentSchemasKeepTheSameIdsAndTomlProjectionsIsolatedAcrossTwelveContexts" computerName="LINSTATION" duration="00:00:00.0010000" startTime="2026-10-09T15:18:10.8884126+08:00" endTime="2026-10-09T15:18:10.8950914+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2672349c-e283-4607-b3f7-e7d41740f4d6">
+      <Output>
+        <ErrorInfo>
+          <Message>A real isolated PostgreSQL service must be explicitly configured.</Message>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="d77d7160-c484-4372-b4e8-c1cedf2999b7" testId="e643374e-cc6e-048e-45c2-3b7fe027efa8" testName="TinadecCore.Api.Tests.SessionScopeTransferTests.RestartReplaysTheSameTargetFactsAfterAPartialModuleCommit" computerName="LINSTATION" duration="00:00:07.6208172" startTime="2026-10-09T15:18:45.1145255+08:00" endTime="2026-10-09T15:18:52.7363914+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d77d7160-c484-4372-b4e8-c1cedf2999b7" />
+    <UnitTestResult executionId="76381edf-3758-48e0-9886-498f6f711ca0" testId="5bfe2cee-03b7-4ed6-f506-abcc2830f67a" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.StorageAndLoggingValidateAndChangedBackendBlocksAdmissionUntilApplied" computerName="LINSTATION" duration="00:00:01.8086583" startTime="2026-10-09T15:18:30.5092736+08:00" endTime="2026-10-09T15:18:32.3250474+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="76381edf-3758-48e0-9886-498f6f711ca0" />
+    <UnitTestResult executionId="69b50167-fbd9-49b5-87e6-be37cea765a6" testId="55a50f38-fb39-f5d7-4262-ed22a144a256" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.EmptyConfigurationCannotEraseTheFileProjection" computerName="LINSTATION" duration="00:00:01.0094076" startTime="2026-10-09T15:18:42.2428793+08:00" endTime="2026-10-09T15:18:43.2591149+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="69b50167-fbd9-49b5-87e6-be37cea765a6" />
+    <UnitTestResult executionId="eeacad04-1420-4c97-8240-827b193d3585" testId="ea7e5d06-1262-773c-f3ec-2a8dca0230bd" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.CopiedConfigurationMaterializesProviderContentInIndependentProjectDatabase" computerName="LINSTATION" duration="00:00:03.7590856" startTime="2026-10-09T15:18:23.0232748+08:00" endTime="2026-10-09T15:18:26.7917345+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eeacad04-1420-4c97-8240-827b193d3585" />
+    <UnitTestResult executionId="392fb2ea-aa17-406b-959c-54c2db4d08e9" testId="c7a0df45-135a-5e43-d6f8-a68ddd34432a" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.ConditionalSaveRejectsStaleHashAndInvalidTomlWithoutChangingBytes" computerName="LINSTATION" duration="00:00:00.1710641" startTime="2026-10-09T15:18:22.7927117+08:00" endTime="2026-10-09T15:18:23.0227993+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="392fb2ea-aa17-406b-959c-54c2db4d08e9" />
+    <UnitTestResult executionId="3f8d6c10-4c08-4301-ad65-019eb1a71860" testId="a0d3f395-07db-0ffb-ccce-0c2c9cda9186" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.AnEditCreatedBeforeExternalFileChangeCannotOverwriteIt" computerName="LINSTATION" duration="00:00:01.2119171" startTime="2026-10-09T15:18:41.0255743+08:00" endTime="2026-10-09T15:18:42.2424274+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3f8d6c10-4c08-4301-ad65-019eb1a71860" />
+    <UnitTestResult executionId="aeced553-ac49-4fd8-8712-8a6eb62bca8e" testId="609821c8-96ff-4f4a-bfb5-6696e0e96eb9" testName="TinadecCore.Api.Tests.SessionScopeTransferTests.TransferCopiesMixedGraphAndFrozenBytesThenDeletesOnlyTheSourceSession" computerName="LINSTATION" duration="00:00:12.7420387" startTime="2026-10-09T15:18:52.7383637+08:00" endTime="2026-10-09T15:19:05.4814249+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="aeced553-ac49-4fd8-8712-8a6eb62bca8e" />
+    <UnitTestResult executionId="84b6d571-fcff-474f-b818-18eaad192b30" testId="a1333d9e-2623-5222-4653-5dc1334d1b07" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.SaveValidatesFieldTypesBeforeCommittingTheFile" computerName="LINSTATION" duration="00:00:02.1136231" startTime="2026-10-09T15:18:20.6627890+08:00" endTime="2026-10-09T15:18:22.7910449+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="84b6d571-fcff-474f-b818-18eaad192b30" />
+    <UnitTestResult executionId="842a0b9a-09e2-48f0-be21-19f1410e2f14" testId="716b0afa-53ba-f1e5-2cd9-769c93c01385" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.HostBootstrapCannotReseedDeletedRuntimeStorageOrLoggingFiles" computerName="LINSTATION" duration="00:00:00.4246668" startTime="2026-10-09T15:18:10.8918624+08:00" endTime="2026-10-09T15:18:11.3425175+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="842a0b9a-09e2-48f0-be21-19f1410e2f14" />
+    <UnitTestResult executionId="3bd6b03e-c3b2-4852-b76b-a7782082a015" testId="a71a623e-db5a-2055-74a9-8df5085a877e" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.GuiWritesTomlAndManualEditRebuildsProjectionWithCommentsPreserved" computerName="LINSTATION" duration="00:00:01.9198331" startTime="2026-10-09T15:18:35.9529618+08:00" endTime="2026-10-09T15:18:37.8722452+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3bd6b03e-c3b2-4852-b76b-a7782082a015" />
+    <UnitTestResult executionId="f8b43fd9-4bae-425d-8376-db0210a1c267" testId="6e7053a8-6eb5-4ac2-53f2-0fd1d591191b" testName="TinadecCore.Api.Tests.SessionScopeTransferTests.ActiveRunPersistsPendingAcrossRestartAndBlocksNewAdmissionUntilTerminal" computerName="LINSTATION" duration="00:00:08.6122482" startTime="2026-10-09T15:18:31.0075180+08:00" endTime="2026-10-09T15:18:39.6151247+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f8b43fd9-4bae-425d-8376-db0210a1c267" />
+    <UnitTestResult executionId="12e4c59e-073c-4326-8fba-45ac1225221e" testId="b6f5b400-17d4-1629-538e-a66016fb8923" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingStorageConfigurationBlocksCompilation" computerName="LINSTATION" duration="00:00:09.2786657" startTime="2026-10-09T15:18:11.3461798+08:00" endTime="2026-10-09T15:18:20.6486580+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="12e4c59e-073c-4326-8fba-45ac1225221e" />
+    <UnitTestResult executionId="b10de220-f755-4a60-8a90-50f36f978e0a" testId="0ad6f18b-ba54-c2d7-a20e-3d54e98676da" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.DuplicateLogicalIdentityIsRejectedBeforeTheFileCommit" computerName="LINSTATION" duration="00:00:01.4857130" startTime="2026-10-09T15:18:37.8735730+08:00" endTime="2026-10-09T15:18:39.3595499+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b10de220-f755-4a60-8a90-50f36f978e0a" />
+    <UnitTestResult executionId="7f6d4426-40ca-4126-a2ae-70cf9115ba26" testId="e395a1d6-45b3-cda8-e391-7952b81ca34c" testName="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" computerName="LINSTATION" duration="00:00:01.9114489" startTime="2026-10-09T15:18:28.5882056+08:00" endTime="2026-10-09T15:18:30.5066597+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7f6d4426-40ca-4126-a2ae-70cf9115ba26" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.EmptyConfigurationCannotEraseTheFileProjection" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="55a50f38-fb39-f5d7-4262-ed22a144a256">
+      <Execution id="69b50167-fbd9-49b5-87e6-be37cea765a6" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="EmptyConfigurationCannotEraseTheFileProjection" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.SessionScopeTransferTests.RestartReplaysTheSameTargetFactsAfterAPartialModuleCommit" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="e643374e-cc6e-048e-45c2-3b7fe027efa8">
+      <Execution id="d77d7160-c484-4372-b4e8-c1cedf2999b7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.SessionScopeTransferTests" name="RestartReplaysTheSameTargetFactsAfterAPartialModuleCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.ConditionalSaveRejectsStaleHashAndInvalidTomlWithoutChangingBytes" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="c7a0df45-135a-5e43-d6f8-a68ddd34432a">
+      <Execution id="392fb2ea-aa17-406b-959c-54c2db4d08e9" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="ConditionalSaveRejectsStaleHashAndInvalidTomlWithoutChangingBytes" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.SessionScopeTransferTests.HostWorkspaceBinderLeavesAnActiveSessionInUserStorageUntilTransferCompletes" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="990df82a-00bb-673e-ecaa-c6d6dc9a7a14">
+      <Execution id="4b6b12ee-b837-4934-a3c4-c0e3c5d36b9b" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.SessionScopeTransferTests" name="HostWorkspaceBinderLeavesAnActiveSessionInUserStorageUntilTransferCompletes" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.SaveValidatesFieldTypesBeforeCommittingTheFile" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="a1333d9e-2623-5222-4653-5dc1334d1b07">
+      <Execution id="84b6d571-fcff-474f-b818-18eaad192b30" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="SaveValidatesFieldTypesBeforeCommittingTheFile" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.DuplicateLogicalIdentityIsRejectedBeforeTheFileCommit" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="0ad6f18b-ba54-c2d7-a20e-3d54e98676da">
+      <Execution id="b10de220-f755-4a60-8a90-50f36f978e0a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="DuplicateLogicalIdentityIsRejectedBeforeTheFileCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.HostBootstrapCannotReseedDeletedRuntimeStorageOrLoggingFiles" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="716b0afa-53ba-f1e5-2cd9-769c93c01385">
+      <Execution id="842a0b9a-09e2-48f0-be21-19f1410e2f14" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="HostBootstrapCannotReseedDeletedRuntimeStorageOrLoggingFiles" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.RetiredFileVersionRemainsHistoryAndCannotSupplyAnActiveDefault" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="288bd30a-edf1-9595-656b-277f70c3a574">
+      <Execution id="b43b9616-85c8-418f-bc1a-82e3955fabfc" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="RetiredFileVersionRemainsHistoryAndCannotSupplyAnActiveDefault" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.GuiWritesTomlAndManualEditRebuildsProjectionWithCommentsPreserved" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="a71a623e-db5a-2055-74a9-8df5085a877e">
+      <Execution id="3bd6b03e-c3b2-4852-b76b-a7782082a015" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="GuiWritesTomlAndManualEditRebuildsProjectionWithCommentsPreserved" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.SessionScopeTransferTests.TransferCopiesMixedGraphAndFrozenBytesThenDeletesOnlyTheSourceSession" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="609821c8-96ff-4f4a-bfb5-6696e0e96eb9">
+      <Execution id="aeced553-ac49-4fd8-8712-8a6eb62bca8e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.SessionScopeTransferTests" name="TransferCopiesMixedGraphAndFrozenBytesThenDeletesOnlyTheSourceSession" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.SessionScopeTransferTests.AcceptedQueueMustDrainBeforeTransferAndItsFrozenSelectionIsUnchanged" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="367b7e74-b14b-eeb0-0468-3cd681e037b8">
+      <Execution id="de6679c8-7426-4c5e-b351-8d7ab62476ec" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.SessionScopeTransferTests" name="AcceptedQueueMustDrainBeforeTransferAndItsFrozenSelectionIsUnchanged" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.CopiedConfigurationMaterializesProviderContentInIndependentProjectDatabase" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="ea7e5d06-1262-773c-f3ec-2a8dca0230bd">
+      <Execution id="eeacad04-1420-4c97-8240-827b193d3585" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="CopiedConfigurationMaterializesProviderContentInIndependentProjectDatabase" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.AgentPackEnvelopeBytesAndSemanticDigestRebuildInAnIndependentScope" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="1dfb6127-5505-90e4-edbf-ec71598cf4b0">
+      <Execution id="63a9e9ce-b6f1-420b-88c5-b6f6b2700d4e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="AgentPackEnvelopeBytesAndSemanticDigestRebuildInAnIndependentScope" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingStorageConfigurationBlocksCompilation" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="b6f5b400-17d4-1629-538e-a66016fb8923">
+      <Execution id="12e4c59e-073c-4326-8fba-45ac1225221e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="MissingStorageConfigurationBlocksCompilation" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.SessionScopeTransferTests.ActiveRunPersistsPendingAcrossRestartAndBlocksNewAdmissionUntilTerminal" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="6e7053a8-6eb5-4ac2-53f2-0fd1d591191b">
+      <Execution id="f8b43fd9-4bae-425d-8376-db0210a1c267" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.SessionScopeTransferTests" name="ActiveRunPersistsPendingAcrossRestartAndBlocksNewAdmissionUntilTerminal" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.StorageAndLoggingValidateAndChangedBackendBlocksAdmissionUntilApplied" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="5bfe2cee-03b7-4ed6-f506-abcc2830f67a">
+      <Execution id="76381edf-3758-48e0-9886-498f6f711ca0" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="StorageAndLoggingValidateAndChangedBackendBlocksAdmissionUntilApplied" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.CompileDigestRejectsAnEditAfterAdmissionStarted" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="ddc2ab2e-1fe3-38de-a23e-6b30f98d154d">
+      <Execution id="588516dd-9de1-4b16-8a71-dac563187bea" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="CompileDigestRejectsAnEditAfterAdmissionStarted" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="e395a1d6-45b3-cda8-e391-7952b81ca34c">
+      <Execution id="7f6d4426-40ca-4126-a2ae-70cf9115ba26" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="MissingEstablishedFileCannotBeRegeneratedFromSqlAfterRestart" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ConfigurationDocumentTests.AnEditCreatedBeforeExternalFileChangeCannotOverwriteIt" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="a0d3f395-07db-0ffb-ccce-0c2c9cda9186">
+      <Execution id="3f8d6c10-4c08-4301-ad65-019eb1a71860" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ConfigurationDocumentTests" name="AnEditCreatedBeforeExternalFileChangeCannotOverwriteIt" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.PostgreSqlScopeValidationTests.IndependentSchemasKeepTheSameIdsAndTomlProjectionsIsolatedAcrossTwelveContexts" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\config-file-artifacts\bin\configfile.tests\debug\tinadeccore.api.tests.dll" id="e7682092-dc1d-4442-49da-1ec3f64692a0">
+      <Execution id="2672349c-e283-4607-b3f7-e7d41740f4d6" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\config-file-artifacts\bin\ConfigFile.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.PostgreSqlScopeValidationTests" name="IndependentSchemasKeepTheSameIdsAndTomlProjectionsIsolatedAcrossTwelveContexts" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1dfb6127-5505-90e4-edbf-ec71598cf4b0" executionId="63a9e9ce-b6f1-420b-88c5-b6f6b2700d4e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="990df82a-00bb-673e-ecaa-c6d6dc9a7a14" executionId="4b6b12ee-b837-4934-a3c4-c0e3c5d36b9b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="367b7e74-b14b-eeb0-0468-3cd681e037b8" executionId="de6679c8-7426-4c5e-b351-8d7ab62476ec" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="288bd30a-edf1-9595-656b-277f70c3a574" executionId="b43b9616-85c8-418f-bc1a-82e3955fabfc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ddc2ab2e-1fe3-38de-a23e-6b30f98d154d" executionId="588516dd-9de1-4b16-8a71-dac563187bea" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e7682092-dc1d-4442-49da-1ec3f64692a0" executionId="2672349c-e283-4607-b3f7-e7d41740f4d6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e643374e-cc6e-048e-45c2-3b7fe027efa8" executionId="d77d7160-c484-4372-b4e8-c1cedf2999b7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5bfe2cee-03b7-4ed6-f506-abcc2830f67a" executionId="76381edf-3758-48e0-9886-498f6f711ca0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="55a50f38-fb39-f5d7-4262-ed22a144a256" executionId="69b50167-fbd9-49b5-87e6-be37cea765a6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ea7e5d06-1262-773c-f3ec-2a8dca0230bd" executionId="eeacad04-1420-4c97-8240-827b193d3585" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c7a0df45-135a-5e43-d6f8-a68ddd34432a" executionId="392fb2ea-aa17-406b-959c-54c2db4d08e9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a0d3f395-07db-0ffb-ccce-0c2c9cda9186" executionId="3f8d6c10-4c08-4301-ad65-019eb1a71860" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="609821c8-96ff-4f4a-bfb5-6696e0e96eb9" executionId="aeced553-ac49-4fd8-8712-8a6eb62bca8e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a1333d9e-2623-5222-4653-5dc1334d1b07" executionId="84b6d571-fcff-474f-b818-18eaad192b30" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="716b0afa-53ba-f1e5-2cd9-769c93c01385" executionId="842a0b9a-09e2-48f0-be21-19f1410e2f14" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a71a623e-db5a-2055-74a9-8df5085a877e" executionId="3bd6b03e-c3b2-4852-b76b-a7782082a015" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6e7053a8-6eb5-4ac2-53f2-0fd1d591191b" executionId="f8b43fd9-4bae-425d-8376-db0210a1c267" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b6f5b400-17d4-1629-538e-a66016fb8923" executionId="12e4c59e-073c-4326-8fba-45ac1225221e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0ad6f18b-ba54-c2d7-a20e-3d54e98676da" executionId="b10de220-f755-4a60-8a90-50f36f978e0a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e395a1d6-45b3-cda8-e391-7952b81ca34c" executionId="7f6d4426-40ca-4126-a2ae-70cf9115ba26" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="20" executed="19" passed="19" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.40]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.59]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.67]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.76]       A real isolated PostgreSQL service must be explicitly configured.&#xD;
+在测试运行中跳过测试“TinadecCore.Api.Tests.PostgreSqlScopeValidationTests.IndependentSchemasKeepTheSameIdsAndTomlProjectionsIsolatedAcrossTwelveContexts”。&#xD;
+[xUnit.net 00:00:55.34]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Warning" timestamp="2026-10-09T15:18:10.9096969+08:00">
+        <Text>[xUnit.net 00:00:00.75]     TinadecCore.Api.Tests.PostgreSqlScopeValidationTests.IndependentSchemasKeepTheSameIdsAndTomlProjectionsIsolatedAcrossTwelveContexts [SKIP]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

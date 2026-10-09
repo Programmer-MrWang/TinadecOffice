@@ -2,7 +2,8 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UiBadge, UiButton, UiInput } from '@/components/ui'
-import { api, type ToolMcpResource, type ToolMcpInput, type ToolSkillResource } from '@/api'
+import { api as baseApi, type ToolMcpResource, type ToolMcpInput, type ToolSkillResource } from '@/api'
+import { scopedApi, projectStorageId, selectionIdentity } from '@/lib/storageScope'
 import { useNotifications } from '@/composables/useNotifications'
 import { formatSettings, validateSettings, type ToolJsonSchema } from '@/settings/toolSettings'
 import { decodeSkillAsset, skillNameFromDocument, SKILL_ASSET_MAX_BYTES, SKILL_PACKAGE_MAX_BYTES, validateSkillPackagePaths } from '@/settings/skillPackage'
@@ -10,6 +11,7 @@ import { isUserToolActionTerminal } from '@/userToolAction'
 const ToolJsonEditor = defineAsyncComponent(() => import('./ToolJsonEditor.vue'))
 const ToolDraftDialog = defineAsyncComponent(() => import('./ToolDraftDialog.vue'))
 const props = defineProps<{ kind: 'mcp' | 'skills'; projectId: string; selection: string[] | null; inherited?: boolean; agentScope?: boolean; effectiveSelection?: string[] | null; canBind: boolean }>()
+const api = scopedApi(baseApi, () => projectStorageId(props.projectId))
 const emit = defineEmits<{ binding: [ids: string[] | null, inherit?: boolean]; dirty: [value: boolean]; changed: [] }>()
 const { t } = useI18n()
 const { confirm, notify } = useNotifications()
@@ -38,7 +40,7 @@ let actionTimer: ReturnType<typeof setTimeout> | null = null
 let actionStartedAt = 0
 const draftDialog = ref(false)
 let chooseDraft: ((value: 'save' | 'discard' | 'cancel') => void) | null = null
-const visibleRows = computed(() => rows.value.filter(row => scope.value === 'project' ? row.project_id === props.projectId : !row.project_id))
+const visibleRows = computed(() => rows.value.filter(row => scope.value === 'project' ? row.project_id === selectionIdentity(props.projectId).id : !row.project_id))
 const activeIds = computed(() => props.selection ?? (props.inherited ? props.effectiveSelection : null) ?? rows.value.filter(row => row.enabled && (!('valid' in row) || row.valid !== false)).map(row => row.resource_id))
 const dirty = computed(() => editing.value && (content.value !== baseline.value || enabled.value !== (selected.value?.enabled ?? true) || name.value !== (selected.value?.name ?? '') || JSON.stringify(files.value) !== baselineFiles.value))
 watch(dirty, value => emit('dirty', value), { immediate: true })

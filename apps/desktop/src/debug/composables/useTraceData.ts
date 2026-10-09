@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { storageFetch as fetch } from '@/lib/storageScope'
 import type { TraceSummary, TraceDetail, SpanNode } from '../types/trace'
 import type { GetTracesRequest } from '../types/debug-api'
 import { useNotifications } from '@/composables/useNotifications'

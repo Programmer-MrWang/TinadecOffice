@@ -53,6 +53,7 @@ public sealed record SpaceRunOptionsDto(
 
 public sealed class MigrateSessionRequest
 {
+    public string? TargetStorageId { get; set; }
     public string? TargetProjectId { get; set; }
     public string? ProjectName { get; set; }
     public string? ProjectPath { get; set; }

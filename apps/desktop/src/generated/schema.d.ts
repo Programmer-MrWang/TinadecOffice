@@ -189,6 +189,20 @@ export interface paths {
      */
     post: operations["postApiV1CodeToolsByToolIdExecute"];
   };
+  "/api/v1/configuration/documents": {
+    /** GET /api/v1/configuration/documents */
+    get: operations["getApiV1ConfigurationDocuments"];
+  };
+  "/api/v1/configuration/documents/{documentId}": {
+    /** GET /api/v1/configuration/documents/:documentId */
+    get: operations["getApiV1ConfigurationDocumentsByDocumentId"];
+    /** PUT /api/v1/configuration/documents/:documentId */
+    put: operations["putApiV1ConfigurationDocumentsByDocumentId"];
+  };
+  "/api/v1/configuration/documents/{documentId}/validate": {
+    /** POST /api/v1/configuration/documents/:documentId/validate */
+    post: operations["postApiV1ConfigurationDocumentsByDocumentIdValidate"];
+  };
   "/api/v1/debug/breakpoints": {
     /** List breakpoints */
     get: operations["getApiV1DebugBreakpoints"];
@@ -344,6 +358,10 @@ export interface paths {
   "/api/v1/health": {
     /** Health probe */
     get: operations["getApiV1Health"];
+  };
+  "/api/v1/host-challenge": {
+    /** Prove the managed Gateway endpoint identity without sending a credential */
+    get: operations["getApiV1Host-challenge"];
   };
   "/api/v1/market/catalog": {
     /** Get market catalog */
@@ -631,6 +649,10 @@ export interface paths {
     /** Run-scoped tool execution (Core-owned) */
     post: operations["postApiV1RunsByRunIdToolsByToolIdExecute"];
   };
+  "/api/v1/session-transfers/{transferId}": {
+    /** GET /api/v1/session-transfers/:transferId */
+    get: operations["getApiV1Session-transfersByTransferId"];
+  };
   "/api/v1/sessions": {
     /** List sessions */
     get: operations["getApiV1Sessions"];
@@ -698,7 +720,7 @@ export interface paths {
     post: operations["postApiV1SessionsBySessionIdMessagesByMessageIdRevert"];
   };
   "/api/v1/sessions/{sessionId}/migrate": {
-    /** Migrate session onto a project workspace (find-or-create by root path) */
+    /** Queue a free conversation transfer to a project storage scope */
     post: operations["postApiV1SessionsBySessionIdMigrate"];
   };
   "/api/v1/sessions/{sessionId}/orchestration": {
@@ -747,6 +769,66 @@ export interface paths {
   "/api/v1/sessions/{sessionId}/trash": {
     /** Move session to trash */
     post: operations["postApiV1SessionsBySessionIdTrash"];
+  };
+  "/api/v1/storage/scopes": {
+    /** GET /api/v1/storage/scopes */
+    get: operations["getApiV1StorageScopes"];
+  };
+  "/api/v1/storage/scopes/open": {
+    /** POST /api/v1/storage/scopes/open */
+    post: operations["postApiV1StorageScopesOpen"];
+  };
+  "/api/v1/storage/scopes/{storageId}": {
+    /** DELETE /api/v1/storage/scopes/:storageId */
+    delete: operations["deleteApiV1StorageScopesByStorageId"];
+  };
+  "/api/v1/storage/scopes/{storageId}/cleanup": {
+    /** POST /api/v1/storage/scopes/:storageId/cleanup */
+    post: operations["postApiV1StorageScopesByStorageIdCleanup"];
+  };
+  "/api/v1/storage/scopes/{storageId}/cleanup-preview": {
+    /** POST /api/v1/storage/scopes/:storageId/cleanup-preview */
+    post: operations["postApiV1StorageScopesByStorageIdCleanup-preview"];
+  };
+  "/api/v1/storage/scopes/{storageId}/close": {
+    /** POST /api/v1/storage/scopes/:storageId/close */
+    post: operations["postApiV1StorageScopesByStorageIdClose"];
+  };
+  "/api/v1/storage/scopes/{storageId}/configure": {
+    /** POST /api/v1/storage/scopes/:storageId/configure */
+    post: operations["postApiV1StorageScopesByStorageIdConfigure"];
+  };
+  "/api/v1/storage/scopes/{storageId}/content-collect": {
+    /** POST /api/v1/storage/scopes/:storageId/content-collect */
+    post: operations["postApiV1StorageScopesByStorageIdContent-collect"];
+  };
+  "/api/v1/storage/scopes/{storageId}/content-preview": {
+    /** POST /api/v1/storage/scopes/:storageId/content-preview */
+    post: operations["postApiV1StorageScopesByStorageIdContent-preview"];
+  };
+  "/api/v1/storage/scopes/{storageId}/diagnostics": {
+    /** GET /api/v1/storage/scopes/:storageId/diagnostics */
+    get: operations["getApiV1StorageScopesByStorageIdDiagnostics"];
+  };
+  "/api/v1/storage/scopes/{storageId}/export": {
+    /** POST /api/v1/storage/scopes/:storageId/export */
+    post: operations["postApiV1StorageScopesByStorageIdExport"];
+  };
+  "/api/v1/storage/scopes/{storageId}/stats": {
+    /** GET /api/v1/storage/scopes/:storageId/stats */
+    get: operations["getApiV1StorageScopesByStorageIdStats"];
+  };
+  "/api/v1/storage/scopes/{storageId}/storage-delete": {
+    /** POST /api/v1/storage/scopes/:storageId/storage-delete */
+    post: operations["postApiV1StorageScopesByStorageIdStorage-delete"];
+  };
+  "/api/v1/storage/scopes/{storageId}/storage-delete-preview": {
+    /** POST /api/v1/storage/scopes/:storageId/storage-delete-preview */
+    post: operations["postApiV1StorageScopesByStorageIdStorage-delete-preview"];
+  };
+  "/api/v1/storage/scopes/{storageId}/write-policy": {
+    /** POST /api/v1/storage/scopes/:storageId/write-policy */
+    post: operations["postApiV1StorageScopesByStorageIdWrite-policy"];
   };
   "/api/v1/terminals": {
     /** Terminal sessions for a run */
@@ -1220,6 +1302,25 @@ export interface components {
       status: string;
       task_node_id: string;
       [key: string]: unknown;
+    };
+    ConfigurationDocument: {
+      content_hash: string;
+      diagnostics: {
+          [key: string]: unknown;
+        }[];
+      document_id: string;
+      path: string;
+      text: string;
+      version: number;
+    };
+    ConfigurationTextRequest: {
+      text: string;
+    };
+    ConfigurationValidation: {
+      diagnostics: {
+          [key: string]: unknown;
+        }[];
+      valid: boolean;
     };
     ContextVersion: {
       base_revision: number | null;
@@ -1701,6 +1802,7 @@ export interface components {
       lifecycle_status: "active" | "archived" | "trashed";
       name: string;
       path: string;
+      storage_id?: string;
       trashed_at: string | null;
       updated_at: string | null;
       [key: string]: unknown;
@@ -1738,6 +1840,7 @@ export interface components {
       settings_revision: string | number;
       space_options: components["schemas"]["SpaceOptions"] | null;
       status: string | null;
+      storage_id?: string;
       summary: string | null;
       title: string | null;
       trashed_at: string | null;
@@ -1853,6 +1956,19 @@ export interface components {
       worker_instance_id: string | null;
       write_scope: string[];
     };
+    SessionTransfer: {
+      project_id: string;
+      session_id: string;
+      source_storage_id: string;
+      status: string;
+      storage_id: string;
+      transfer_id: string;
+      [key: string]: unknown;
+    };
+    SessionTransferRequest: {
+      target_project_id?: string;
+      target_storage_id: string;
+    };
     SpaceOptions: {
       bulletin_board: boolean;
       multi_agent: boolean;
@@ -1860,6 +1976,94 @@ export interface components {
       spec_enabled: boolean;
       workflow_mode_version_id: string | null;
       worktree: boolean;
+    };
+    StorageCleanupPreview: {
+      category: string;
+      /** Format: date-time */
+      expires_at: string;
+      file_count: number;
+      path: string;
+      preview_id: string;
+      size_bytes: number;
+      storage_id: string;
+    };
+    StorageCleanupRequest: {
+      /** @enum {string} */
+      category: "cache" | "temp" | "logs";
+    };
+    StorageConfigureRequest: {
+      backend: string;
+      postgres_connection_reference?: string;
+      storage_root?: string;
+    };
+    StorageContentPreview: {
+      /** Format: date-time */
+      expires_at: string;
+      file_count: number;
+      preview_id: string;
+      references: string[];
+      size_bytes: number;
+      storage_id: string;
+    };
+    StorageDiagnostics: {
+      configuration: {
+        [key: string]: unknown;
+      };
+      diagnostics: {
+          [key: string]: unknown;
+        }[];
+      scope: components["schemas"]["StorageScope"];
+      storage_id: string;
+    };
+    StorageOpenRequest: {
+      backend?: string;
+      name?: string;
+      postgres_connection_reference?: string;
+      project_path: string;
+      storage_root?: string;
+    };
+    StoragePreviewApplyRequest: {
+      preview_id: string;
+    };
+    StorageScope: {
+      allow_storage_write?: boolean;
+      backend: string;
+      diagnostics?: {
+          [key: string]: unknown;
+        }[];
+      external: boolean;
+      paths: {
+        [key: string]: string;
+      };
+      postgres_connection_reference?: string | null;
+      project_id?: string | null;
+      project_root?: string | null;
+      requested_storage_root?: string;
+      restart_required?: boolean;
+      scope_kind: string;
+      storage_id: string;
+      storage_root: string;
+    };
+    StorageScopeList: components["schemas"]["StorageScope"][];
+    StorageStatistics: {
+      categories: {
+          category: string;
+          clearable: boolean;
+          file_count: number;
+          path: string;
+          size_bytes: number;
+        }[];
+      diagnostics: {
+          [key: string]: unknown;
+        }[];
+      storage_id: string;
+    };
+    StorageWritePolicy: {
+      allow_storage_write: boolean;
+      storage_id: string;
+    };
+    StorageWritePolicyRequest: {
+      allow_storage_write: boolean;
     };
     SupervisionFinding: {
       category: string;
@@ -3197,6 +3401,96 @@ export interface operations {
       };
     };
   };
+  /** GET /api/v1/configuration/documents */
+  getApiV1ConfigurationDocuments: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** GET /api/v1/configuration/documents/:documentId */
+  getApiV1ConfigurationDocumentsByDocumentId: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        documentId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ConfigurationDocument"];
+        };
+      };
+    };
+  };
+  /** PUT /api/v1/configuration/documents/:documentId */
+  putApiV1ConfigurationDocumentsByDocumentId: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+        "If-Match": string;
+      };
+      path: {
+        documentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ConfigurationTextRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ConfigurationDocument"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/configuration/documents/:documentId/validate */
+  postApiV1ConfigurationDocumentsByDocumentIdValidate: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        documentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ConfigurationTextRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ConfigurationValidation"];
+        };
+      };
+    };
+  };
   /** List breakpoints */
   getApiV1DebugBreakpoints: {
     responses: {
@@ -3617,6 +3911,35 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["Health"];
         };
+      };
+    };
+  };
+  /** Prove the managed Gateway endpoint identity without sending a credential */
+  "getApiV1Host-challenge": {
+    parameters: {
+      query: {
+        nonce: string;
+      };
+    };
+    responses: {
+      /** @description Role-bound HMAC-SHA256 proof. */
+      200: {
+        content: {
+          "application/json": {
+            nonce: string;
+            proof: string;
+            /** @enum {string} */
+            role: "gateway";
+          };
+        };
+      };
+      /** @description Invalid nonce. */
+      400: {
+        content: never;
+      };
+      /** @description No trusted startup credential is configured. */
+      503: {
+        content: never;
       };
     };
   };
@@ -4625,6 +4948,27 @@ export interface operations {
       };
     };
   };
+  /** GET /api/v1/session-transfers/:transferId */
+  "getApiV1Session-transfersByTransferId": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        transferId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["SessionTransfer"];
+        };
+      };
+    };
+  };
   /** List sessions */
   getApiV1Sessions: {
     responses: {
@@ -4912,16 +5256,24 @@ export interface operations {
       };
     };
   };
-  /** Migrate session onto a project workspace (find-or-create by root path) */
+  /** Queue a free conversation transfer to a project storage scope */
   postApiV1SessionsBySessionIdMigrate: {
     parameters: {
       path: {
         sessionId: string;
       };
     };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SessionTransferRequest"];
+      };
+    };
     responses: {
-      200: {
-        content: never;
+      /** @description Durable asynchronous transfer receipt; poll session-transfers until completed. */
+      202: {
+        content: {
+          "application/json": components["schemas"]["SessionTransfer"];
+        };
       };
     };
   };
@@ -5163,6 +5515,340 @@ export interface operations {
     responses: {
       200: {
         content: never;
+      };
+    };
+  };
+  /** GET /api/v1/storage/scopes */
+  getApiV1StorageScopes: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageScopeList"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/open */
+  postApiV1StorageScopesOpen: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StorageOpenRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageScope"];
+        };
+      };
+    };
+  };
+  /** DELETE /api/v1/storage/scopes/:storageId */
+  deleteApiV1StorageScopesByStorageId: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Scope closed or unregistered; files retained. */
+      204: {
+        content: never;
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/cleanup */
+  postApiV1StorageScopesByStorageIdCleanup: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StoragePreviewApplyRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/cleanup-preview */
+  "postApiV1StorageScopesByStorageIdCleanup-preview": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StorageCleanupRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageCleanupPreview"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/close */
+  postApiV1StorageScopesByStorageIdClose: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Scope closed or unregistered; files retained. */
+      204: {
+        content: never;
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/configure */
+  postApiV1StorageScopesByStorageIdConfigure: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StorageConfigureRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageScope"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/content-collect */
+  "postApiV1StorageScopesByStorageIdContent-collect": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StoragePreviewApplyRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/content-preview */
+  "postApiV1StorageScopesByStorageIdContent-preview": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageContentPreview"];
+        };
+      };
+    };
+  };
+  /** GET /api/v1/storage/scopes/:storageId/diagnostics */
+  getApiV1StorageScopesByStorageIdDiagnostics: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageDiagnostics"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/export */
+  postApiV1StorageScopesByStorageIdExport: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Consistent scope archive without credentials. */
+      200: {
+        content: {
+          "application/zip": string;
+        };
+      };
+    };
+  };
+  /** GET /api/v1/storage/scopes/:storageId/stats */
+  getApiV1StorageScopesByStorageIdStats: {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageStatistics"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/storage-delete */
+  "postApiV1StorageScopesByStorageIdStorage-delete": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StoragePreviewApplyRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: never;
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/storage-delete-preview */
+  "postApiV1StorageScopesByStorageIdStorage-delete-preview": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageCleanupPreview"];
+        };
+      };
+    };
+  };
+  /** POST /api/v1/storage/scopes/:storageId/write-policy */
+  "postApiV1StorageScopesByStorageIdWrite-policy": {
+    parameters: {
+      header: {
+        "X-Tinadec-Storage-Id"?: string;
+        /** @description Scope-enabled Core requires a private trusted host credential for reads, previews, writes, and lifecycle actions. Never expose it to an Agent or renderer. */
+        "X-Tinadec-Host-Control": string;
+      };
+      path: {
+        storageId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["StorageWritePolicyRequest"];
+      };
+    };
+    responses: {
+      /** @description Core storage/configuration result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["StorageWritePolicy"];
+        };
       };
     };
   };

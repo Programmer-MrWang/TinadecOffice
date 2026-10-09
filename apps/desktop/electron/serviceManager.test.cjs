@@ -9,10 +9,19 @@ const {
   DEFAULT_GATEWAY_URL,
   bundledRuntimePaths,
   canonicalLocalGatewayUrl,
-  createServiceManager,
+  createServiceManager: createActualServiceManager,
   officeRootFor,
   shouldManageLocalServices,
 } = require('./serviceManager.cjs');
+const { createHmac } = require('node:crypto');
+const testHostToken = 'a'.repeat(43);
+// Existing process-lifecycle fixtures isolate identity verification; the following dedicated tests exercise real proofs.
+function createServiceManager(options) {
+  const manager = createActualServiceManager({ verifyHostIdentityImpl: async () => true, ...options });
+  const ensure = manager.ensureLocalServices;
+  manager.ensureLocalServices = args => ensure({ hostControlToken: testHostToken, ...args });
+  return manager;
+}
 
 const coreHealth = {
   name: 'tinadec-core',
@@ -111,7 +120,8 @@ test('packaged localhost starts Core then Gateway with explicit runtime paths an
   let nextPid = 100;
   const manager = createServiceManager({
     platform: 'win32',
-    environment: { Path: 'C:\\Windows' },
+    environment: { TINADEC_HOME: path.join(root, '.tinadec'), Path: 'C:\\Windows' },
+    homedirImpl: () => root,
     startupTimeoutMs: 100,
     pollIntervalMs: 1,
     fetchImpl: async (url) => {
@@ -149,18 +159,19 @@ test('packaged localhost starts Core then Gateway with explicit runtime paths an
     assert.equal(launches[0].options.cwd, runtime.paths.coreDir);
     assert.equal(launches[1].options.cwd, runtime.paths.gatewayDir);
     assert.equal(launches[0].options.env.ASPNETCORE_URLS, CORE_URL);
-    assert.equal(launches[0].options.env.TinadecPersistence__DataRoot, path.join(runtime.localAppDataPath, 'TinadecOffice', 'data'));
-    assert.equal(launches[0].options.env.TinadecPersistence__Sqlite__DatabasePath, path.join(runtime.localAppDataPath, 'TinadecOffice', 'data', 'tinadec.db'));
+    assert.equal(launches[0].options.env.TINADEC_HOME, path.join(root, '.tinadec'));
+    assert.equal(launches[0].options.env.TinadecPersistence__Provider, undefined);
+    assert.equal(launches[0].options.env.TinadecPersistence__Sqlite__DatabasePath, undefined);
     assert.equal(launches[0].options.env.TinadecTools__ExecutablePath, runtime.paths.tools);
-    assert.equal(launches[0].options.env.TinadecTools__DefaultWorkspaceRoot, path.join(runtime.localAppDataPath, 'TinadecOffice', 'workspaces', 'default'));
+    assert.equal(launches[0].options.env.TinadecTools__DefaultWorkspaceRoot, path.join(root, 'TinadecProjects'));
     assert.equal(launches[1].options.env.TINADEC_GATEWAY_MODE, 'local');
     assert.equal(launches[1].options.env.TINADEC_GATEWAY_PORT, '48730');
     assert.equal(launches[1].options.env.TINADEC_CORE_URL, CORE_URL);
     assert.equal(launches[0].options.env.Path, `${runtime.paths.toolsDir};${runtime.paths.gitCmdDir};${runtime.paths.gitBinDir};C:\\Windows`);
     assert.ok(probes.every((url) => url === `${CORE_URL}/api/v1/health` || url === `${DEFAULT_GATEWAY_URL}/api/v1/health`));
-    assert.ok(existsSync(path.join(runtime.localAppDataPath, 'TinadecOffice', 'logs', 'core.log')));
-    assert.ok(existsSync(path.join(runtime.localAppDataPath, 'TinadecOffice', 'logs', 'gateway.log')));
-    assert.ok(existsSync(path.join(runtime.localAppDataPath, 'TinadecOffice', 'workspaces', 'default')));
+    assert.ok(existsSync(path.join(root, '.tinadec', 'logs', 'host', 'core.log')));
+    assert.ok(existsSync(path.join(root, '.tinadec', 'logs', 'host', 'gateway.log')));
+    assert.ok(existsSync(path.join(root, 'TinadecProjects')));
   } finally {
     await manager.stopLocalServices();
     rmSync(root, { recursive: true, force: true });
@@ -195,6 +206,31 @@ test('compatible existing Core and Gateway are reused without spawning or stoppi
   assert.deepEqual(manager.ownedServiceLabels(), []);
 });
 
+test('public compatible fingerprints with a false HMAC are rejected without sending a private header or spawning', async () => {
+  const requests = []; let spawned = false;
+  const manager = createActualServiceManager({ fetchImpl: async (url, init) => {
+    requests.push({ url, headers: new Headers(init.headers) });
+    if (url.includes('host-challenge')) return Response.json({ role: 'core', nonce: new URL(url).searchParams.get('nonce'), proof: '0'.repeat(64) });
+    return healthResponse(url.startsWith(CORE_URL) ? coreHealth : gatewayHealth);
+  }, spawnImpl: () => { spawned = true; throw new Error('must not spawn'); } });
+  await assert.rejects(manager.ensureLocalServices({ isPackaged: true, gatewayUrl: DEFAULT_GATEWAY_URL, hostControlToken: testHostToken }), /invalid trusted host identity proof/);
+  assert.equal(spawned, false);
+  assert.equal(requests.every(call => !call.headers.has('x-tinadec-host-control')), true);
+});
+
+test('existing services are reused only after both roles prove the same trusted startup key', async () => {
+  const requests = [];
+  const manager = createActualServiceManager({ fetchImpl: async (url, init) => {
+    requests.push({ url, headers: new Headers(init.headers) });
+    if (!url.includes('host-challenge')) return healthResponse(url.startsWith(CORE_URL) ? coreHealth : gatewayHealth);
+    const nonce = new URL(url).searchParams.get('nonce'); const role = url.startsWith(CORE_URL) ? 'core' : 'gateway';
+    return Response.json({ role, nonce, proof: createHmac('sha256', testHostToken).update(`tinadec-host-v1\0${role}\0${nonce}`).digest('hex') });
+  }, spawnImpl: () => { throw new Error('authenticated services must be reused'); } });
+  assert.deepEqual(await manager.ensureLocalServices({ isPackaged: true, gatewayUrl: DEFAULT_GATEWAY_URL, hostControlToken: testHostToken }), { started: false, ownsCore: false, ownsGateway: false });
+  assert.equal(requests.filter(call => call.url.includes('host-challenge')).length, 2);
+  assert.equal(requests.every(call => !call.headers.has('x-tinadec-host-control')), true);
+});
+
 test('startup failure rolls back only the processes launched by the failed attempt', async () => {
   const root = mkdtempSync(path.join(os.tmpdir(), 'tinadec-service-rollback-'));
   const runtime = createRuntime(root);
@@ -204,7 +240,8 @@ test('startup failure rolls back only the processes launched by the failed attem
   let nextPid = 300;
   const manager = createServiceManager({
     platform: 'win32',
-    environment: {},
+    environment: { TINADEC_HOME: path.join(root, '.tinadec') },
+    homedirImpl: () => root,
     startupTimeoutMs: 100,
     pollIntervalMs: 1,
     fetchImpl: async (url) => {
@@ -256,7 +293,8 @@ test('stop uses tree kill for owned processes and never targets a reused Core', 
   let nextPid = 500;
   const manager = createServiceManager({
     platform: 'win32',
-    environment: {},
+    environment: { TINADEC_HOME: path.join(root, '.tinadec') },
+    homedirImpl: () => root,
     startupTimeoutMs: 100,
     pollIntervalMs: 1,
     fetchImpl: async (url) => {
@@ -304,7 +342,8 @@ test('non-Windows shutdown signals the process group and never escalates', async
   const groupSignals = [];
   const manager = createServiceManager({
     platform: 'linux',
-    environment: { PATH: '/usr/bin' },
+    environment: { TINADEC_HOME: path.join(root, '.tinadec'), PATH: '/usr/bin' },
+    homedirImpl: () => root,
     startupTimeoutMs: 100,
     pollIntervalMs: 1,
     // The default seam is `process.kill(-pid, signal)`, and these pids are invented. Whether
@@ -365,32 +404,12 @@ test('non-Windows shutdown signals the process group and never escalates', async
 
 // ── cross-platform data root and process-tree termination ────────────────────
 
-test('the data root follows each platform’s own convention', () => {
-  const home = path.join(path.sep, 'home', 'tester');
-  assert.equal(
-    officeRootFor({ platform: 'win32', localAppDataPath: 'C:\Users\t\AppData\Local', environment: {} }),
-    path.join('C:\Users\t\AppData\Local', 'TinadecOffice'));
-  assert.equal(
-    officeRootFor({ platform: 'darwin', environment: {}, homedirImpl: () => home }),
-    path.join(home, 'Library', 'Application Support', 'TinadecOffice'));
-  assert.equal(
-    officeRootFor({ platform: 'linux', environment: { XDG_DATA_HOME: '/xdg/data' }, homedirImpl: () => home }),
-    path.join('/xdg/data', 'TinadecOffice'));
-  assert.equal(
-    officeRootFor({ platform: 'linux', environment: {}, homedirImpl: () => home }),
-    path.join(home, '.local', 'share', 'TinadecOffice'));
-});
-
-test('an unset XDG_DATA_HOME falls back to $HOME instead of failing startup', () => {
-  // A desktop session launched from a non-login context legitimately has no XDG variable.
-  const root = officeRootFor({ platform: 'linux', environment: { HOME: '/srv/tinadec' }, homedirImpl: () => '' });
-  assert.equal(root, path.join('/srv/tinadec', '.local', 'share', 'TinadecOffice'));
-});
-
-test('Windows still requires LOCALAPPDATA and never guesses a home directory', () => {
-  assert.throws(
-    () => officeRootFor({ platform: 'win32', localAppDataPath: '', environment: {}, homedirImpl: () => '/home/x' }),
-    /LOCALAPPDATA/);
+test('the data root is shared across platforms and ignores legacy platform roots', () => {
+  const home = path.resolve(path.sep, 'home', 'tester');
+  for (const platform of ['win32', 'darwin', 'linux']) {
+    assert.equal(officeRootFor({ platform, localAppDataPath: 'ignored', environment: { XDG_DATA_HOME: 'ignored' }, homedirImpl: () => home }), path.join(home, '.tinadec'));
+  }
+  assert.equal(officeRootFor({ environment: { TINADEC_HOME: home }, homedirImpl: () => 'ignored' }), home);
 });
 
 test('Linux starts services detached and terminates the process group, not just the child', async () => {
@@ -457,8 +476,8 @@ test('Linux starts services detached and terminates the process group, not just 
     assert.equal(existsSync(runtime.paths.gitCmdDir), false);
     assert.equal(launches[0].options.detached, true);
     assert.equal(
-      launches[0].options.env.TinadecPersistence__DataRoot,
-      path.join(xdgData, 'TinadecOffice', 'data'));
+      launches[0].options.env.TINADEC_HOME,
+      path.join(root, '.tinadec'));
     assert.equal(launches[0].options.env.PATH, `${runtime.paths.toolsDir}:/usr/bin`);
 
     await manager.stopLocalServices();

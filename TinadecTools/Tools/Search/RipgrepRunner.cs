@@ -251,6 +251,23 @@ internal static class RipgrepRunner
             psi.ArgumentList.Add(args.Type);
         }
 
+        var protectedPaths = ToolExecutionContext.Current?.ProjectStorageWrite == true
+            ? WorkspaceStoragePolicy.ForbiddenRoots(WorkspacePathResolver.WorkspaceRoot)
+            : WorkspaceStoragePolicy.ProtectedPaths(WorkspacePathResolver.WorkspaceRoot);
+        {
+            // Appended after user globs so --hidden/--no-ignore and a positive glob cannot
+            // accidentally expose runtime databases, logs or retained package contents.
+            foreach (var path in protectedPaths)
+            {
+                if (!WorkspaceRootSet.IsWithin(searchPath, path)) continue;
+                var relative = Path.GetRelativePath(searchPath, path).Replace('\\', '/');
+                psi.ArgumentList.Add("-g");
+                psi.ArgumentList.Add("!" + relative);
+                psi.ArgumentList.Add("-g");
+                psi.ArgumentList.Add("!" + relative + "/**");
+            }
+        }
+
         psi.ArgumentList.Add("--"); // 防止 pattern 被解析为 flag
         psi.ArgumentList.Add(args.Pattern);
         psi.ArgumentList.Add(searchPath);
@@ -265,6 +282,7 @@ internal static class RipgrepRunner
         var content    = data.Lines?.Text?.TrimEnd('\n', '\r');
         var lineNumber = data.LineNumber;
         if (filePath is null || content is null || lineNumber is null) return null;
+        if (!WorkspacePathResolver.IsAllowed(filePath)) return null;
 
         var result = new FileSearchLine
         {

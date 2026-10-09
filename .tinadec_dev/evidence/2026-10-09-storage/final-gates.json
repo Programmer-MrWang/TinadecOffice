@@ -1,0 +1,18 @@
+{
+  "implementation_base": "f8b233d41601744258773c090cbaa4bd79f30677",
+  "working_tree": "uncommitted",
+  "work_date": "2026-10-09",
+  "diff_check_exit_code": 0,
+  "git_status_exit_code": 0,
+  "tracked_changes": 211,
+  "untracked_files": 136,
+  "documentation": {
+    "modules": 55,
+    "markdown_files": 240,
+    "checked_links": 2010,
+    "errors": 0,
+    "scope": "documentation and source index checks only; no product tests rerun"
+  },
+  "final_release_build": "not validated",
+  "remote_ci": "not executed"
+}

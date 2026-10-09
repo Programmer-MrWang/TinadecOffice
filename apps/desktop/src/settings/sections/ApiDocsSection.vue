@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { api } from '@/api'
+import { api as baseApi } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 
 /** API docs section: embeds the Gateway OpenAPI viewer (D7.2). */
 const { t } = useI18n()

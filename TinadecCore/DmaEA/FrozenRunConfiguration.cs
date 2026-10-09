@@ -268,6 +268,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
     private readonly ISessionLocator _sessions;
     private readonly IPolicySnapshotProvider? _policySnapshots;
     private readonly IToolConfigurationResolver? _toolSettings;
+    private readonly IConfigurationProjectionCoordinator? _configurationFiles;
 
     public AgentRuntimeConfigurationResolver(
         IAgentRuntimeConfiguration baseline,
@@ -275,7 +276,8 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         IAgentModelResolver models,
         ISessionLocator sessions,
         IPolicySnapshotProvider? policySnapshots = null,
-        IToolConfigurationResolver? toolSettings = null)
+        IToolConfigurationResolver? toolSettings = null,
+        IConfigurationProjectionCoordinator? configurationFiles = null)
     {
         _baseline = baseline;
         _formal = formal;
@@ -283,6 +285,7 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         _sessions = sessions;
         _policySnapshots = policySnapshots;
         _toolSettings = toolSettings;
+        _configurationFiles = configurationFiles;
     }
 
     public Task<FrozenRunConfigurationV1> ResolveAsync(
@@ -319,6 +322,12 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
         SpaceRunOptions? spaceOptions = null,
         bool useSessionModelOverride = true)
     {
+        EffectiveConfigurationSnapshot? fileSnapshot = null;
+        if (_configurationFiles is not null)
+        {
+            try { fileSnapshot = await _configurationFiles.CompileAsync(cancellationToken).ConfigureAwait(false); }
+            catch (ConfigurationDocumentException ex) { throw new RunAdmissionException(ex.Code, ex.Message); }
+        }
         var session = await _sessions.FindAsync(sessionId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Session was not found.");
         if (spaceOptions is not null && session.ViewMode != "space")
@@ -345,6 +354,8 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             // makes it visible to lifecycle audit without inventing a mutable record.
             new("agent_runtime_baseline", DeterministicGuid(snapshot.ContentHash), DeterministicGuid(snapshot.ContentHash + ":" + snapshot.Version), snapshot.ContentHash)
         };
+        if (fileSnapshot is not null)
+            bindings.Add(new("scope_configuration_files", DeterministicGuid(fileSnapshot.StorageId), DeterministicGuid(fileSnapshot.ContentHash), fileSnapshot.ContentHash));
         var relational = spaceOptions is { WorkflowModeVersionId: null }
             ? await _formal.ResolveSpaceBaseAsync(sessionId, cancellationToken).ConfigureAwait(false)
                 ?? throw new RunAdmissionException("space_base_unavailable", "Publish a directly executable mode with a writable conversation identity before using spatial composition.")
@@ -492,6 +503,11 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             SpaceOptions = spaceOptions,
             SpacePreparationToolIds = preparationTools.Length == 0 ? null : preparationTools
         };
+        if (fileSnapshot is not null && _configurationFiles is not null)
+        {
+            try { await _configurationFiles.VerifyAsync(fileSnapshot, cancellationToken).ConfigureAwait(false); }
+            catch (ConfigurationDocumentException ex) { throw new RunAdmissionException(ex.Code, ex.Message); }
+        }
         return frozen;
     }
 

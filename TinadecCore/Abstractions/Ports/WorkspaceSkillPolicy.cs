@@ -43,7 +43,7 @@ public static class WorkspaceSkillPolicy
     public const string DisabledKey = "disabled";
 
     /// <summary>Directory names searched for skills, relative to the workspace root, in order.</summary>
-    public static readonly IReadOnlyList<string> SkillRoots = ["skills"];
+    public static readonly IReadOnlyList<string> SkillRoots = [".tinadec/skills"];
 
     /// <summary>
     /// How many directory levels below a skills root a SKILL.md may sit. Two matches the reference:

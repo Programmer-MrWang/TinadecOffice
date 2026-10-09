@@ -7,17 +7,19 @@ namespace TinadecTools.Runtime.Sandbox.Windows;
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 internal sealed class WindowsSandboxBackend : ISandboxBackend
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> SetupGates = new();
     public bool IsSupported => OperatingSystem.IsWindows();
 
     public bool IsInitialized => SandboxAccountManager.AccountExists();
 
-    public Task EnsureSetupAsync(CancellationToken ct)
+    public async Task EnsureSetupAsync(CancellationToken ct)
     {
         if (!IsSupported)
             throw new PlatformNotSupportedException("Windows sandbox is only supported on Windows.");
-        if (!IsInitialized)
-            WindowsSandboxSetup.EnsureSetup();
-        return Task.CompletedTask;
+        var gate = SetupGates.GetOrAdd(SandboxAccountManager.AccountName, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try { if (!IsInitialized) WindowsSandboxSetup.EnsureSetup(); }
+        finally { gate.Release(); }
     }
 
     public async Task<SandboxRunnerResponse> ExecuteAsync(
@@ -40,6 +42,8 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
                 ["Cache"] = SandboxAccountManager.GetSandboxCacheDir()
             },
             permissions.EnvironmentVariableNames);
+        foreach (var entry in permissions.EnvironmentOverrides) request.Environment[entry.Key] = entry.Value;
+        request.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
 
         try
         {
@@ -73,6 +77,8 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
                     ["Cache"] = SandboxAccountManager.GetSandboxCacheDir()
                 },
                 permissions.EnvironmentVariableNames);
+            foreach (var entry in permissions.EnvironmentOverrides) request.Environment[entry.Key] = entry.Value;
+            request.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
 
             var psi = new ProcessStartInfo(request.Executable)
             {
@@ -127,26 +133,44 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
 
     private static void ApplyAcls(AclManager aclManager, SandboxPermissions permissions)
     {
-        var workspaceRoot = WorkspacePathResolver.WorkspaceRoot;
-        aclManager.GrantWrite(workspaceRoot);
-
-        var sandboxDir = Path.Combine(workspaceRoot, ".tinadec");
-        Directory.CreateDirectory(sandboxDir);
-        aclManager.DenyAll(sandboxDir);
-
         foreach (var path in permissions.ReadPaths)
         {
             var full = SandboxPaths.NormalizeGrantPath(path);
-            if (!SandboxPaths.IsWithinWorkspace(full))
-                aclManager.GrantRead(full);
+            if (Directory.Exists(full) || File.Exists(full)) aclManager.GrantRead(full);
         }
 
         foreach (var path in permissions.WritePaths)
         {
             var full = SandboxPaths.NormalizeGrantPath(path);
             SandboxPaths.EnsureNotBroadWriteTarget(full);
-            if (!SandboxPaths.IsWithinWorkspace(full))
-                aclManager.GrantWrite(full);
+            if (Directory.Exists(full) || File.Exists(full)) aclManager.GrantWrite(full);
+        }
+        foreach (var path in permissions.ProtectedPaths)
+            if (Directory.Exists(path) || File.Exists(path)) aclManager.DenyAll(path);
+        if (!permissions.StorageWrite && permissions.StorageRoot is { } root && Directory.Exists(root))
+        {
+            aclManager.DenyWrite(root);
+            foreach (var name in new[] { "config", "skills" })
+            {
+                var source = Path.Combine(root, name);
+                if (Directory.Exists(source) && permissions.WritePaths.Any(grant => WorkspaceRootSet.IsWithin(grant, source)))
+                    aclManager.AllowWriteException(source);
+            }
+        }
+        foreach (var path in permissions.ReadExceptions)
+            if (Directory.Exists(path)) aclManager.AllowReadException(path);
+        foreach (var path in permissions.WritePaths)
+            if (Directory.Exists(path) && permissions.ProtectedPaths.Any(root => root != path && WorkspaceRootSet.IsWithin(root, path)))
+                aclManager.AllowWriteException(path);
+
+        var cache = SandboxAccountManager.GetSandboxCacheDir();
+        Directory.CreateDirectory(cache);
+        aclManager.AllowWriteException(cache);
+        if (ToolExecutionContext.Current?.StorageRoot is { } storage)
+        {
+            var temporary = Path.Combine(storage, "temp", "sandbox", SandboxAccountManager.AccountName);
+            Directory.CreateDirectory(temporary);
+            aclManager.AllowWriteException(temporary);
         }
     }
 

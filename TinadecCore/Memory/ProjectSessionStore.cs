@@ -8,7 +8,7 @@ namespace TinadecCore.Memory;
 
 public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolver, IConversationStore, IStorageMigrationParticipant, ISessionWorkspaceBinder
 {
-    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> SessionLocks = new();
+    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> SessionLocks = new();
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
     private readonly IDbContextFactory<MemoryDbContext> _dbFactory;
     private readonly StoragePaths _paths;
@@ -30,7 +30,7 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         _tenantContext = tenantContext;
     }
 
-    public async Task<ProjectRecord> CreateProjectAsync(string name, string path, CancellationToken cancellationToken = default)
+    public async Task<ProjectRecord> CreateProjectAsync(string name, string path, CancellationToken cancellationToken = default, Guid? stableProjectId = null)
     {
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(path))
         {
@@ -51,7 +51,7 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         var scope = _tenantContext.Current;
         var project = new ProjectRecord
         {
-            Id = Guid.NewGuid(),
+            Id = stableProjectId ?? Guid.NewGuid(),
             TenantId = scope.TenantId,
             WorkspaceId = scope.WorkspaceId,
             Name = name.Trim(),
@@ -70,6 +70,16 @@ public sealed class ProjectSessionStore : ISessionLocator, IWorkspaceRootResolve
         db.Projects.Add(project);
         await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return project;
+    }
+
+    public async Task RebindProjectRootAsync(Guid projectId, string path, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+        var tenant = _tenantContext.Current;
+        var project = await db.Projects.SingleAsync(x => x.Id == projectId && x.TenantId == tenant.TenantId && x.WorkspaceId == tenant.WorkspaceId, cancellationToken).ConfigureAwait(false);
+        project.RootPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        project.NormalizedRootPath = NormalizeRootPath(project.RootPath);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<ProjectRecord>> ListProjectsAsync(string lifecycleStatus = LifecycleStatuses.Active, CancellationToken cancellationToken = default)

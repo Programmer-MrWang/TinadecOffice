@@ -160,10 +160,7 @@ internal sealed class ConPtyTerminalSession : IHarnessTerminalSession
             }
 
             commandLine = Marshal.StringToHGlobalUni(Win32CommandLine.Build(request.Executable, request.ArgumentList));
-            if (request.Environment is { } environment)
-            {
-                environmentBlock = Marshal.StringToHGlobalUni(BuildEnvironmentBlock(environment));
-            }
+            environmentBlock = Marshal.StringToHGlobalUni(BuildEnvironmentBlock(request.Environment ?? new Dictionary<string, string?>()));
 
             var startupInfo = new STARTUPINFOEX
             {
@@ -253,6 +250,7 @@ internal sealed class ConPtyTerminalSession : IHarnessTerminalSession
             merged[name] = value;
         }
 
+        merged.Remove("TINADEC_HOST_CONTROL_TOKEN");
         var builder = new StringBuilder();
         foreach (var (name, value) in merged)
         {

@@ -21,8 +21,10 @@ public sealed class ToolsModuleRegistrar : IModuleRegistrar
         builder.Services.AddDbContextFactory<ToolsSettingsDbContext>((sp, options) => options.UseTinadecDatabase(sp));
         builder.Services.AddSingleton<IStorageMigrationParticipant, DbContextMigrationParticipant<ToolsSettingsDbContext>>();
         builder.Services.AddSingleton<IToolSettingsStore, ToolSettingsStore>();
+        builder.Services.AddSingleton<IConfigurationDocumentValidator, ToolSettingsDocumentValidator>();
         builder.Services.AddSingleton<IMcpResourceRegistry, McpResourceRegistry>();
         builder.Services.AddSingleton<IToolConfigurationResolver, ToolConfigurationResolver>();
+        builder.Services.AddSingleton<IManagedMcpProgramService, ManagedMcpProgramService>();
         builder.Services.AddSingleton<TinadecToolsProcessManager>();
         builder.Services.AddSingleton<IToolExecutionContextLifecycle>(sp => sp.GetRequiredService<TinadecToolsProcessManager>());
         // Keep the old process-manager port available for existing embedders;

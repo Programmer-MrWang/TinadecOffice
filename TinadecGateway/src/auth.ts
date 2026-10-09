@@ -29,6 +29,7 @@ export interface AuthResult {
 /** 不需要认证的公共路径 */
 const PUBLIC_PATHS = new Set([
   '/api/v1/health',
+  '/api/v1/host-challenge',
   '/docs',
   '/docs/',
   '/docs/json',

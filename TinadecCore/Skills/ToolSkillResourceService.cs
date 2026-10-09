@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -19,6 +20,7 @@ public sealed class ToolSkillResourceService(
     IServiceProvider services,
     IToolProvider provider) : IToolSkillResourceService, IToolSkillCatalog
 {
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> PackageWrites = new(StringComparer.Ordinal);
     public async Task<ToolSkillListDto> ListAsync(Guid? projectId, CancellationToken cancellationToken = default)
     {
         var scope = tenants.Current;
@@ -27,8 +29,16 @@ public sealed class ToolSkillResourceService(
         var rows = await db.SharedSkills.AsNoTracking().Where(x => x.TenantId == scope.TenantId
             && x.WorkspaceId == scope.WorkspaceId && x.DeletedAt == null).ToArrayAsync(cancellationToken);
         var found = rows.Select(Shared).ToList();
+        var knownPaths = found.Select(x => x.Path).ToHashSet(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var liveSourcesAreProjectSources = project is not null && string.Equals(
+            WorkspacePathSpelling.Canonical(Path.Combine(project.RootPath, WorkspaceSkillPolicy.SkillRoots[0])),
+            WorkspacePathSpelling.Canonical(storage.Locations.Skills),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+        if (!liveSourcesAreProjectSources)
+            foreach (var entry in WorkspaceSkillDiscovery.Discover(storage.Locations.Root, ["skills"]))
+                if (!knownPaths.Contains(entry.FullPath)) found.Add(SharedSource(entry));
         if (project is not null)
-            found.AddRange(WorkspaceSkillDiscovery.Discover(project.RootPath).Select(x => ProjectDto(project, x)));
+            found.AddRange(WorkspaceSkillDiscovery.Discover(project.RootPath).Where(x => !knownPaths.Contains(x.FullPath)).Select(x => ProjectDto(project, x)));
         var projectNames = found.Where(x => x.Scope == "project").Select(x => x.Name).ToHashSet(StringComparer.Ordinal);
         found = found.Select(x => x.Scope == "shared" && projectNames.Contains(x.Name)
             ? x with { Reason = x.Reason ?? "shadowed by a project skill with the same name for inherited bindings" } : x).ToList();
@@ -100,18 +110,25 @@ public sealed class ToolSkillResourceService(
         }).ToArray();
     }
 
-    public async Task<ToolSkillCatalogSnapshot> CaptureAsync(Guid? projectId, CancellationToken cancellationToken = default)
+    public Task<ToolSkillCatalogSnapshot> CaptureAsync(Guid? projectId, CancellationToken cancellationToken = default)
+        => CaptureSelectedCoreAsync(projectId, null, cancellationToken);
+
+    public Task<ToolSkillCatalogSnapshot> CaptureSelectedAsync(Guid? projectId, IReadOnlyCollection<Guid> resourceIds, CancellationToken cancellationToken = default)
+        => CaptureSelectedCoreAsync(projectId, resourceIds, cancellationToken);
+
+    private async Task<ToolSkillCatalogSnapshot> CaptureSelectedCoreAsync(Guid? projectId, IReadOnlyCollection<Guid>? resourceIds, CancellationToken cancellationToken)
     {
         var resources = (await ListAsync(projectId, cancellationToken)).Skills;
         var snapshots = new List<ToolSkillSnapshotDto>();
-        foreach (var resource in resources.Where(x => x.Valid))
+        foreach (var resource in resources.Where(x => x.Valid && x.Enabled && (resourceIds is null || resourceIds.Contains(x.ResourceId))))
         {
             var root = Path.GetDirectoryName(resource.Path)!;
             var hash = resource.ContentHash;
-            if (resource.Scope == "project")
             {
+                var expectedBodyHash = WorkspaceSkillDiscovery.Read(root, resource.Path).ContentHash;
                 var capture = await ProjectSkillPackageCapture.CaptureAsync(storage, tenants.Current.TenantId,
-                    tenants.Current.WorkspaceId, resource.Name, root, resource.ContentHash, cancellationToken);
+                    tenants.Current.WorkspaceId, resource.Name, root, expectedBodyHash, cancellationToken,
+                    resource.Scope == "project" ? "project-skills" : "skills");
                 root = capture.RootPath;
                 hash = capture.ContentHash;
             }
@@ -216,6 +233,14 @@ public sealed class ToolSkillResourceService(
 
     public async Task<ToolSkillResourceDto> SaveAsync(Guid? resourceId, Guid? projectId, ToolSkillWriteDto input, long expectedRevision, CancellationToken cancellationToken = default)
     {
+        var gate = PackageWrites.GetOrAdd(storage.Locations.StorageId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try { return await SaveCoreAsync(resourceId, projectId, input, expectedRevision, cancellationToken); }
+        finally { gate.Release(); }
+    }
+
+    private async Task<ToolSkillResourceDto> SaveCoreAsync(Guid? resourceId, Guid? projectId, ToolSkillWriteDto input, long expectedRevision, CancellationToken cancellationToken)
+    {
         projectId ??= input.ProjectId;
         var existing = resourceId is { } id ? await GetAsync(id, projectId, cancellationToken) : null;
         if (resourceId is not null && existing is null) throw new ToolSettingsException("skill_not_found", "Skill resource not found.", 404);
@@ -272,7 +297,7 @@ public sealed class ToolSkillResourceService(
         await using var db = await database.CreateDbContextAsync(cancellationToken);
         var row = resourceId is { } sharedId ? await db.SharedSkills.SingleOrDefaultAsync(x => x.Id == sharedId && x.TenantId == scope.TenantId
             && x.WorkspaceId == scope.WorkspaceId && x.DeletedAt == null, cancellationToken) : null;
-        if (row?.Revision != expectedRevision && resourceId is not null) throw Conflict();
+        if (resourceId is not null && existing?.Source != "source" && (row is null || Shared(row).Revision != expectedRevision)) throw Conflict();
         if (row is null && await db.SharedSkills.AnyAsync(x => x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId
             && x.Name == name && x.DeletedAt == null, cancellationToken)) throw new ToolSettingsException("duplicate_skill", "A shared skill already has this name.", 409);
         var files = new SortedDictionary<string, byte[]>(StringComparer.Ordinal) { ["SKILL.md"] = Encoding.UTF8.GetBytes(content) };
@@ -304,11 +329,11 @@ public sealed class ToolSkillResourceService(
         var hash = PackageDigest(files);
         if (input.ExpectedPackageDigest is { Length: > 0 } reviewed && !string.Equals(reviewed, hash, StringComparison.Ordinal))
             throw new ToolSettingsException("skill_hash_conflict", "The reviewed package digest no longer matches the bytes being written.", 412);
-        var reference = storage.ContentReference(scope.TenantId, scope.WorkspaceId, "skills", hash) + "/" + name;
-        var destination = storage.ResolveContentReference(reference);
+        var reference = $"packages/skills/{hash}/{name}";
+        var destination = Path.Combine(storage.Locations.Packages, "skills", hash, name);
         if (!Directory.Exists(destination))
         {
-            var temp = storage.ContentTemporary(scope.TenantId, scope.WorkspaceId, "skills");
+            var temp = Path.Combine(storage.Locations.Temp, "skills", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(temp);
             try
             {
@@ -324,28 +349,50 @@ public sealed class ToolSkillResourceService(
             }
             catch { if (Directory.Exists(temp)) Directory.Delete(temp, true); throw; }
         }
-        if (row is null) { row = new() { Id = input.ReservedResourceId ?? Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId, Name = name }; db.SharedSkills.Add(row); }
+        if (row is null) { row = new() { Id = resourceId ?? input.ReservedResourceId ?? Guid.NewGuid(), TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId, Name = name }; db.SharedSkills.Add(row); }
         row.Description = skill!.Description; row.Enabled = WorkspaceSkillPolicy.TryRead(content, name, "SKILL.md", out _, out _);
         row.Source = input.Source == "manual" && existing is not null ? existing.Source : NormalizeSource(input.Source);
         row.Version = input.Version is null ? existing?.Version : NormalizeMetadata(input.Version, 128);
         row.Commit = input.Commit is null ? existing?.Commit : NormalizeMetadata(input.Commit, 64);
-        row.Revision = expectedRevision + 1; row.ContentHash = hash; row.PackageReference = reference; row.UpdatedAt = DateTimeOffset.UtcNow;
-        try { await db.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { throw Conflict(); }
+        row.Revision++; row.ContentHash = hash; row.PackageReference = reference; row.UpdatedAt = DateTimeOffset.UtcNow;
+        await ReplaceLivePackageAsync(name, files, async () =>
+        {
+            try { await db.SaveChangesAsync(cancellationToken); }
+            catch (DbUpdateConcurrencyException) { throw Conflict(); }
+        }, cancellationToken);
         return Shared(row) with { Content = content, PackageFiles = PackageFiles(destination) };
     }
 
     public async Task DeleteAsync(Guid resourceId, Guid? projectId, long expectedRevision, CancellationToken cancellationToken = default)
+    {
+        var gate = PackageWrites.GetOrAdd(storage.Locations.StorageId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken);
+        try { await DeleteCoreAsync(resourceId, projectId, expectedRevision, cancellationToken); }
+        finally { gate.Release(); }
+    }
+
+    private async Task DeleteCoreAsync(Guid resourceId, Guid? projectId, long expectedRevision, CancellationToken cancellationToken)
     {
         var resource = await GetAsync(resourceId, projectId, cancellationToken) ?? throw new ToolSettingsException("skill_not_found", "Skill resource not found.", 404);
         if (resource.Revision != expectedRevision) throw Conflict();
         if (resource.Scope == "project") throw new ToolSettingsException("project_skill_delete_requires_file_tools", "Remove project skills with governed project file tools, or disable the skill here.");
         var scope = tenants.Current;
         await using var db = await database.CreateDbContextAsync(cancellationToken);
-        var row = await db.SharedSkills.SingleAsync(x => x.Id == resourceId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken);
-        if (row.Revision != expectedRevision) throw Conflict();
-        row.DeletedAt = DateTimeOffset.UtcNow; row.Enabled = false; row.Revision++;
-        try { await db.SaveChangesAsync(cancellationToken); } catch (DbUpdateConcurrencyException) { throw Conflict(); }
+        var row = await db.SharedSkills.SingleOrDefaultAsync(x => x.Id == resourceId && x.TenantId == scope.TenantId && x.WorkspaceId == scope.WorkspaceId, cancellationToken);
+        if (row is not null && Shared(row).Revision != expectedRevision) throw Conflict();
+        if (row is not null) { row.DeletedAt = DateTimeOffset.UtcNow; row.Enabled = false; row.Revision++; }
+        var live = Path.Combine(storage.Locations.Skills, resource.Name);
+        var removed = Path.Combine(storage.Locations.Temp, "skills-source", Guid.NewGuid().ToString("N"));
+        if (!WorkspaceSkillDiscovery.IsContained(storage.Locations.Skills, live)) throw new ToolSettingsException("skill_path_escape", "The live skill path leaves the scope.");
+        Directory.CreateDirectory(Path.GetDirectoryName(removed)!);
+        if (Directory.Exists(live)) Directory.Move(live, removed);
+        try { await db.SaveChangesAsync(cancellationToken); }
+        catch
+        {
+            if (Directory.Exists(removed)) Directory.Move(removed, live);
+            throw;
+        }
+        if (Directory.Exists(removed)) Directory.Delete(removed, true);
     }
 
     public async Task<ToolSkillResourceDto> RequestDeleteAsync(Guid resourceId, Guid? projectId, long expectedRevision, CancellationToken cancellationToken = default)
@@ -371,16 +418,60 @@ public sealed class ToolSkillResourceService(
 
     private ToolSkillResourceDto Shared(SharedSkillResourceRecord row)
     {
-        var root = storage.ResolveContentReference(row.PackageReference);
+        var root = Path.Combine(storage.Locations.Skills, row.Name);
         var entry = WorkspaceSkillDiscovery.Read(root, Path.Combine(root, "SKILL.md"));
         var packageFiles = PackageFiles(root);
         var actualHash = Directory.Exists(root) ? ActualPackageHash(root) : "";
-        var integrity = actualHash == row.ContentHash;
-        return new() { ResourceId = row.Id, Scope = "shared", Name = row.Name, Description = row.Description,
-            Enabled = row.Enabled && entry.Enabled, Valid = entry.Valid && integrity, Reason = !integrity ? "Skill package bytes changed outside Core; reinstall the reviewed package." : entry.Valid ? row.Enabled ? entry.Reason : "disabled in Core" : entry.Reason,
-            Path = entry.FullPath, Revision = row.Revision, ContentHash = row.ContentHash, PackageHash = row.ContentHash,
+        return new() { ResourceId = row.Id, Scope = "shared", Name = row.Name, Description = entry.Description ?? row.Description,
+            Enabled = row.Enabled && entry.Enabled, Valid = entry.Valid, Reason = entry.Valid ? row.Enabled ? entry.Reason : "disabled in Core" : entry.Reason,
+            Path = entry.FullPath, Revision = string.Equals(actualHash, row.ContentHash, StringComparison.Ordinal) ? row.Revision : Revision(actualHash), ContentHash = actualHash, PackageHash = actualHash,
             PackageReference = row.PackageReference, Source = row.Source, Version = row.Version, Commit = row.Commit,
-            Availability = entry.Valid && integrity ? row.Enabled ? "available" : "disabled" : "invalid", PackageFiles = packageFiles };
+            Availability = entry.Valid ? row.Enabled ? "available" : "disabled" : "invalid", PackageFiles = packageFiles };
+    }
+
+    private ToolSkillResourceDto SharedSource(WorkspaceSkillDiscovery.Entry entry)
+    {
+        var seed = $"{tenants.Current.TenantId:N}/{tenants.Current.WorkspaceId:N}/shared/{entry.RelativePath}";
+        var id = new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(seed)).AsSpan(0, 16));
+        var root = Path.GetDirectoryName(entry.FullPath)!;
+        var hash = entry.Valid ? ActualPackageHash(root) : entry.ContentHash;
+        return new() { ResourceId = id, Scope = "shared", Name = entry.Name, Description = entry.Description,
+            Enabled = entry.Enabled, Valid = entry.Valid, Reason = entry.Reason, Path = entry.FullPath,
+            Revision = Revision(hash), ContentHash = hash, PackageHash = hash,
+            Availability = entry.Valid ? entry.Enabled ? "available" : "disabled" : "invalid", Source = "source",
+            PackageFiles = entry.Valid ? PackageFiles(root) : [] };
+    }
+
+    private async Task ReplaceLivePackageAsync(string name, IReadOnlyDictionary<string, byte[]> files, Func<Task> commit, CancellationToken ct)
+    {
+        var root = storage.Locations.Skills;
+        var destination = Path.Combine(root, name);
+        if (!WorkspaceSkillDiscovery.IsContained(root, destination)) throw new ToolSettingsException("skill_path_escape", "The live skill path leaves the scope.");
+        var temporary = Path.Combine(storage.Locations.Temp, "skills-source", Guid.NewGuid().ToString("N"));
+        var backup = Path.Combine(storage.Locations.Temp, "skills-source", Guid.NewGuid().ToString("N"));
+        try
+        {
+            foreach (var file in files)
+            {
+                var output = Path.Combine(temporary, file.Key.Replace('/', Path.DirectorySeparatorChar));
+                Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+                await File.WriteAllBytesAsync(output, file.Value, ct);
+            }
+            Directory.CreateDirectory(root);
+            if (Directory.Exists(destination)) Directory.Move(destination, backup);
+            try { Directory.Move(temporary, destination); await commit(); }
+            catch
+            {
+                if (Directory.Exists(destination)) Directory.Delete(destination, true);
+                if (Directory.Exists(backup)) Directory.Move(backup, destination);
+                throw;
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(temporary)) Directory.Delete(temporary, true);
+            if (Directory.Exists(backup)) Directory.Delete(backup, true);
+        }
     }
 
     private static ToolSkillResourceDto ProjectDto(ProjectReference project, WorkspaceSkillDiscovery.Entry entry)

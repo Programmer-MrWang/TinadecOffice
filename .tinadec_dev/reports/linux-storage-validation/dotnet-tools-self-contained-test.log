@@ -1,0 +1,33 @@
+VSTest version 18.6.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.66]     TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds [FAIL]
+  Failed TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds [204 ms]
+  Error Message:
+   exit=137 stdout=started
+ stderr= error= profile=(version 1)
+(allow default)
+(deny file-write*)
+(allow file-write*
+  (require-all
+    (require-any
+      (subpath "/tmp/tinadec-sbx-it-JNwKBM")
+    )
+  )
+)
+
+  Stack Trace:
+     at TinadecTools.Tests.PosixSandboxIntegrationTests.AWriteInsideTheGrantedDirectorySucceeds() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 99
+--- End of stack trace from previous location ---
+[xUnit.net 00:00:30.77]     TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [FAIL]
+  Failed TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [30 s]
+  Error Message:
+   exit=137 stdout= stderr=/bin/sh: line 1: cannot redirect standard input from /dev/null: Permission denied
+
+  Stack Trace:
+     at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 186
+--- End of stack trace from previous location ---
+Results File: /var/tmp/tinadec-storage-validation/evidence/linux-posix-tools-self-contained.trx
+
+Failed!  - Failed:     2, Passed:    10, Skipped:     0, Total:    12, Duration: 31 s - TinadecTools.Tests.dll (net10.0)

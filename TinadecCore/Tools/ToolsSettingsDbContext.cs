@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Tools;
 
-public sealed class ToolsSettingsDbContext(DbContextOptions<ToolsSettingsDbContext> options) : DbContext(options)
+public sealed class ToolsSettingsDbContext(DbContextOptions<ToolsSettingsDbContext> options) : ConfigurationProjectionDbContext(options)
 {
     public DbSet<ToolSettingsRecord> Settings => Set<ToolSettingsRecord>();
     public DbSet<ToolSettingsVersionRecord> SettingVersions => Set<ToolSettingsVersionRecord>();

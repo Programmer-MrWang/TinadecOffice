@@ -18,6 +18,7 @@ import {
   type SessionDto,
 } from '@/api'
 import { scoreMatch } from '@/lib/appCommands'
+import { selectionKey } from '@/lib/storageScope'
 import { searchedFilePaths, toWorkspaceRelative, type FileSearchDataDto } from '@/lib/workspaceSearch'
 
 export type SpotlightKind = 'command' | 'project' | 'conversation' | 'model' | 'agent' | 'mode' | 'prompt' | 'tool' | 'setting' | 'resource'
@@ -201,26 +202,26 @@ function projectItems(projects: ProjectDto[], host: SpotlightHost): SpotlightIte
   return projects
     .filter((project) => (project.lifecycle_status ?? 'active') === 'active')
     .map((project) => ({
-      id: `project.${project.id}`,
+      id: `project.${selectionKey(project)}`,
       kind: 'project' as const,
       label: project.name || project.path,
       detail: project.path,
       keywords: '项目 工作区 project workspace folder',
-      action: () => host.openProject(project.id),
+      action: () => host.openProject(selectionKey(project)),
     }))
 }
 
 function conversationItems(sessions: SessionDto[], projects: ProjectDto[], host: SpotlightHost, t: (key: string) => string): SpotlightItem[] {
-  const projectNames = new Map(projects.map((project) => [project.id, project.name]))
+  const projectNames = new Map(projects.map((project) => [selectionKey(project), project.name]))
   return sessions
     .filter((session) => (session.lifecycle_status ?? 'active') === 'active')
     .map((session) => ({
-      id: `conversation.${session.id}`,
+      id: `conversation.${selectionKey(session)}`,
       kind: 'conversation' as const,
       label: session.title || t('palette.untitledSession'),
-      detail: [projectNames.get(session.project_id ?? ''), new Date(session.updated_at).toLocaleDateString()].filter(Boolean).join(' · '),
+      detail: [projectNames.get(selectionKey({ id: session.project_id ?? '', storage_id: session.storage_id })), new Date(session.updated_at).toLocaleDateString()].filter(Boolean).join(' · '),
       keywords: '会话 对话 session conversation thread',
-      action: () => host.openSession(session.id),
+      action: () => host.openSession(selectionKey(session)),
     }))
 }
 

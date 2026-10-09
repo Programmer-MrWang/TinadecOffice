@@ -3,7 +3,8 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { useI18n } from 'vue-i18n'
 import { Braces, FileText, GitBranch, Globe, Package, Search, Server, Terminal, Wrench } from '@lucide/vue'
 import { UiBadge, UiButton } from '@/components/ui'
-import { api, type AgentDefinitionDto, type ProjectDto, type ToolDescriptorDto, type ToolSettingsDocument, type ToolSettingsSchema, type ToolSettingsEffective, type ToolCapabilities } from '@/api'
+import { api as baseApi, type AgentDefinitionDto, type ProjectDto, type ToolDescriptorDto, type ToolSettingsDocument, type ToolSettingsSchema, type ToolSettingsEffective, type ToolCapabilities } from '@/api'
+import { scopedApi, projectStorageId, selectionKey } from '@/lib/storageScope'
 import { useNotifications } from '@/composables/useNotifications'
 import { consumeRequest, pendingToolId, pendingToolAgentId, requestAgent } from '@/lib/pageRequests'
 import { effectiveSettings, formatSettings, settingsDiff, validateSettings, type ToolJsonSchema } from '@/settings/toolSettings'
@@ -30,6 +31,7 @@ const agents = ref<AgentDefinitionDto[]>([])
 const catalogTools = ref<ToolDescriptorDto[]>([])
 const agentId = ref('')
 const projectId = ref('')
+const api = scopedApi(baseApi, () => projectStorageId(projectId.value))
 const document = ref<ToolSettingsDocument | null>(null)
 const schema = ref<ToolSettingsSchema | null>(null)
 const effective = ref<ToolSettingsEffective | null>(null)
@@ -195,14 +197,14 @@ onBeforeUnmount(() => { ++generation; chooseLeave?.('cancel'); window.removeEven
     <div class="model-center-heading"><div><h2>{{ t('toolsSettings.title') }}</h2><p>{{ t('toolsSettings.subtitle') }}</p></div><UiButton variant="outline" size="sm" :disabled="loading || saving" @click="refresh">{{ t('common.refresh') }}</UiButton></div>
     <div class="tools-context-bar">
       <label>{{ t('toolsSettings.agent') }}<select :value="agentId" class="settings-select" :disabled="loading || saving" @change="selectContext('agent', $event)"><option value="">{{ t('toolsSettings.sharedDefaults') }}</option><option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.display_name || agent.slug }}</option></select></label>
-      <label>{{ t('toolsSettings.project') }}<select :value="projectId" class="settings-select" :disabled="loading || saving" @change="selectContext('project', $event)"><option value="">{{ t('toolsSettings.sharedOnly') }}</option><option v-for="project in projects" :key="project.id" :value="project.id">{{ project.name }}</option></select></label>
+      <label>{{ t('toolsSettings.project') }}<select :value="projectId" class="settings-select" :disabled="loading || saving" @change="selectContext('project', $event)"><option value="">{{ t('toolsSettings.sharedOnly') }}</option><option v-for="project in projects" :key="selectionKey(project)" :value="selectionKey(project)">{{ project.name }}</option></select></label>
       <UiButton v-if="agentId" variant="ghost" size="sm" @click="openAgentCenter">{{ t('toolsSettings.editAuthorization') }}</UiButton>
     </div>
     <p class="quiet">{{ t('toolsSettings.nextRun') }}</p><p v-if="error" class="tools-field-error" role="alert">{{ error }}</p>
     <div class="tools-tabs" role="tablist" :aria-label="t('toolsSettings.title')"><button v-for="(item, index) in tabs" :id="`tools-tab-${item.id}`" :key="item.id" role="tab" :aria-selected="tab === item.id" :aria-controls="`tools-panel-${item.id}`" :tabindex="tab === item.id ? 0 : -1" :class="{ active: tab === item.id }" @click="selectTab(item.id)" @keydown.right.prevent="selectTab(tabs[(index + 1) % tabs.length]!.id, true)" @keydown.left.prevent="selectTab(tabs[(index + tabs.length - 1) % tabs.length]!.id, true)" @keydown.home.prevent="selectTab('overview', true)" @keydown.end.prevent="selectTab('advanced', true)"><component :is="item.icon" :size="15" />{{ t(`toolsSettings.tabs.${item.id}`) }}</button></div>
     <div :id="`tools-panel-${tab}`" role="tabpanel" :aria-labelledby="`tools-tab-${tab}`" class="tools-stage">
       <div v-if="effective?.resource_diagnostics?.length" class="tools-validation" role="status"><strong>{{ t('toolsSettings.resourceDiagnostics') }}</strong><p v-for="item in effective.resource_diagnostics" :key="`${item.kind}:${item.resource_id}:${item.status}`">{{ item.kind }} · {{ item.resource_id || '—' }} · {{ item.status }} · {{ item.reason }}</p></div>
-      <template v-if="tab === 'overview'"><div v-if="selectedAgent" class="tools-effective-card"><strong>{{ selectedAgent.display_name }}</strong><p>{{ t('toolsSettings.authorizationHint') }}</p><div class="model-capability-row"><span v-for="toolId in (effectiveToolIds ?? [])" :key="toolId">{{ toolId }}</span></div></div><ToolsOverviewPanel ref="overview" :agents="agents" :agent-id="agentId" :project-id="projectId" :effective-tool-ids="effectiveToolIds" :capabilities="capabilities" :host-settings="schema?.host_settings" :effective="effective" /></template>
+      <template v-if="tab === 'overview'"><div v-if="selectedAgent" class="tools-effective-card"><strong>{{ selectedAgent.display_name }}</strong><p>{{ t('toolsSettings.authorizationHint') }}</p><div class="model-capability-row"><span v-for="toolId in (effectiveToolIds ?? [])" :key="toolId">{{ toolId }}</span></div></div><ToolsOverviewPanel ref="overview" :key="`${projectId}:${agentId}`" :agents="agents" :agent-id="agentId" :project-id="projectId" :effective-tool-ids="effectiveToolIds" :capabilities="capabilities" :host-settings="schema?.host_settings" :effective="effective" /></template>
       <template v-else-if="tab === 'advanced'">
         <div class="tools-command-bar"><div><h3>{{ t('toolsSettings.advanced') }}</h3><p class="quiet">{{ t(agentId ? 'toolsSettings.overrideHint' : 'toolsSettings.advancedHint') }}</p><p v-if="focusPath" class="quiet">{{ t('toolsSettings.categoryFocus', { category: focusPath }) }}</p></div><UiBadge variant="outline">Schema {{ schema?.schema_version ?? '—' }} · {{ t('toolsSettings.revision') }} {{ document?.revision ?? '—' }}</UiBadge></div>
         <ToolJsonEditor v-if="document" v-model="draft" :schema="editorSchema" :label="t('toolsSettings.advanced')" :readonly="saving || loading" :focus-path="focusPath" @save="save" />

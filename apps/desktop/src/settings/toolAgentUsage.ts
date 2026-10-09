@@ -1,5 +1,6 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
-import { api } from '@/api'
+import { api as baseApi } from '@/api'
+import { scopedApi, projectStorageId } from '@/lib/storageScope'
 
 export interface ToolUsageAgent {
   id: string
@@ -27,6 +28,8 @@ export function useToolAgentUsage(
     loading.value = false
     if (selectedAgentId()) return
     const project = projectId() || undefined
+    const storageId = projectStorageId(project)
+    const api = scopedApi(baseApi, () => storageId)
     const visibleAgents = [...new Map(agents().filter(agent => agent.enabled !== false).map(agent => [agent.id, { ...agent }])).values()]
     if (!visibleAgents.length) return
     loading.value = true

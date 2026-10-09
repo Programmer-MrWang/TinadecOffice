@@ -14,6 +14,9 @@ public sealed class McpServerConfig
     [JsonPropertyName("resource_id")] public string? ResourceId { get; set; }
     [JsonPropertyName("revision")] public long Revision { get; set; }
     [JsonPropertyName("configuration_hash")] public string? ConfigurationHash { get; set; }
+    [JsonPropertyName("program_root")] public string? ProgramRoot { get; set; }
+    [JsonPropertyName("program_hash")] public string? ProgramHash { get; set; }
+    [JsonPropertyName("program_status")] public string ProgramStatus { get; set; } = "external";
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("command")] public string Command { get; set; } = string.Empty;

@@ -92,7 +92,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task SkillsAreAdvertisedByNameAndDescriptionAndNothingElse()
     {
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("index",
-            ("skills/release-notes/SKILL.md",
+            (".tinadec/skills/release-notes/SKILL.md",
                 Skill("release-notes", "Summarise what changed since the last tag.",
                     "BODY-MUST-NOT-TRAVEL-9d2a: open the changelog and diff the tags.")));
 
@@ -101,7 +101,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         Assert.NotNull(evidence);
         Assert.Contains("release-notes", evidence!.Content);
         Assert.Contains("Summarise what changed since the last tag.", evidence.Content);
-        Assert.Contains("skills/release-notes/SKILL.md", evidence.Content);
+        Assert.Contains(".tinadec/skills/release-notes/SKILL.md", evidence.Content);
         // The whole economy of the format rests on this: an index that inlined bodies would charge
         // every turn of every run for skills it never used.
         Assert.DoesNotContain("BODY-MUST-NOT-TRAVEL-9d2a", evidence.Content);
@@ -113,7 +113,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task TheIndexTellsTheModelTheBodyIsSomewhereElseAndWhereItRanks()
     {
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("framing",
-            ("skills/one/SKILL.md", Skill("one", "First skill.")));
+            (".tinadec/skills/one/SKILL.md", Skill("one", "First skill.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
@@ -129,20 +129,20 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task FlatAndGroupedLayoutsAreBothFoundWhileASkillsOwnSubtreeIsNot()
     {
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("layout",
-            ("skills/flat/SKILL.md", Skill("flat", "At one level.")),
-            ("skills/grouped/nested/SKILL.md", Skill("nested", "Under a grouping directory.")),
+            (".tinadec/skills/flat/SKILL.md", Skill("flat", "At one level.")),
+            (".tinadec/skills/grouped/nested/SKILL.md", Skill("nested", "Under a grouping directory.")),
             // Inside a skill package: references/ and its own deeper files belong to that skill, and
             // advertising them as separate skills would turn one package into several index rows.
-            ("skills/flat/references/deep/SKILL.md", Skill("deep", "Should not be a skill.")),
+            (".tinadec/skills/flat/references/deep/SKILL.md", Skill("deep", "Should not be a skill.")),
             // Not a skill location at all.
             ("docs/SKILL.md", Skill("docs", "In the wrong place.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
         Assert.NotNull(evidence);
-        Assert.Contains("skills/flat/SKILL.md", evidence!.Content);
-        Assert.Contains("skills/grouped/nested/SKILL.md", evidence.Content);
-        Assert.DoesNotContain("skills/flat/references/deep/SKILL.md", evidence.Content);
+        Assert.Contains(".tinadec/skills/flat/SKILL.md", evidence!.Content);
+        Assert.Contains(".tinadec/skills/grouped/nested/SKILL.md", evidence.Content);
+        Assert.DoesNotContain(".tinadec/skills/flat/references/deep/SKILL.md", evidence.Content);
         Assert.DoesNotContain("In the wrong place.", evidence.Content);
         Assert.Equal("2", evidence.Metadata["skill_count"]);
     }
@@ -175,15 +175,15 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         // for the person who wrote the file, and "I added a skill and the agent ignores it" is
         // otherwise undiagnosable.
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("refused",
-            ("skills/broken/SKILL.md", "---\nname: broken\n---\n\nNo description declared."),
-            ("skills/healthy/SKILL.md", Skill("healthy", "Fine.")));
+            (".tinadec/skills/broken/SKILL.md", "---\nname: broken\n---\n\nNo description declared."),
+            (".tinadec/skills/healthy/SKILL.md", Skill("healthy", "Fine.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
         Assert.NotNull(evidence);
-        Assert.Contains("skills/broken/SKILL.md", evidence!.Content);
+        Assert.Contains(".tinadec/skills/broken/SKILL.md", evidence!.Content);
         Assert.Contains("frontmatter has no 'description'", evidence.Content);
-        Assert.Contains("skills/healthy/SKILL.md", evidence.Content);
+        Assert.Contains(".tinadec/skills/healthy/SKILL.md", evidence.Content);
         Assert.Equal("1", evidence.Metadata["skill_count"]);
         Assert.Equal("1", evidence.Metadata["skill_refused"]);
     }
@@ -195,7 +195,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         // name and the directory disagree, "use the skill called X" and "open path Y" stop naming one
         // thing — which is how a copied skill directory keeps describing its original.
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("mismatch",
-            ("skills/actual-dir/SKILL.md", Skill("other-dir", "Named after somewhere else.")));
+            (".tinadec/skills/actual-dir/SKILL.md", Skill("other-dir", "Named after somewhere else.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
@@ -211,8 +211,8 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         // because a skill's name has to match its own directory. Which one wins is decided by the
         // ordinal order of the group names, not by the order the filesystem happens to hand back.
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("duplicate",
-            ("skills/writing/probe/SKILL.md", Skill("probe", "Later in the walk.")),
-            ("skills/reviewing/probe/SKILL.md", Skill("probe", "First in the walk.")));
+            (".tinadec/skills/writing/probe/SKILL.md", Skill("probe", "Later in the walk.")),
+            (".tinadec/skills/reviewing/probe/SKILL.md", Skill("probe", "First in the walk.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
@@ -222,7 +222,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         // an index that advertised both would be asking which "probe" was meant.
         Assert.DoesNotContain("Later in the walk.", evidence.Content);
         Assert.Contains(
-            "skills/writing/probe/SKILL.md: another skill already claims the name 'probe'",
+            ".tinadec/skills/writing/probe/SKILL.md: another skill already claims the name 'probe'",
             evidence.Content);
         Assert.Equal("1", evidence.Metadata["skill_count"]);
     }
@@ -233,7 +233,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         // "UTF-8 with BOM" is a default in some Windows editors. Refusing it would make one directory
         // work on one machine and not on another, with no difference the author can see.
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("bom",
-            ("skills/bommed/SKILL.md", "﻿" + Skill("bommed", "Described past the byte-order mark.")));
+            (".tinadec/skills/bommed/SKILL.md", "﻿" + Skill("bommed", "Described past the byte-order mark.")));
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot));
 
@@ -248,7 +248,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task ATinyBudgetDropsTheIndexInsteadOfAnnouncingNothing()
     {
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("budget",
-            ("skills/only/SKILL.md", Skill("only", "The one skill.")));
+            (".tinadec/skills/only/SKILL.md", Skill("only", "The one skill.")));
 
         // 40 characters cannot fit the framing sentence plus a row. Emitting the header alone would
         // spend the run's budget telling it to look for skills the pack refused to name.
@@ -256,39 +256,39 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
 
         var evidence = await SkillEvidenceAsync(sessionId, BindingOf(projectId, workspaceRoot), tokenBudget: 20_000);
         Assert.NotNull(evidence);
-        Assert.Contains("skills/only/SKILL.md", evidence!.Content);
+        Assert.Contains(".tinadec/skills/only/SKILL.md", evidence!.Content);
     }
 
     [Fact]
     public async Task OneRunKeepsItsIndexAndTheNextRunSeesANewSkill()
     {
         var (workspaceRoot, sessionId, projectId) = await OpenWorkspaceAsync("stability",
-            ("skills/first/SKILL.md", Skill("first", "There at admission.")));
+            (".tinadec/skills/first/SKILL.md", Skill("first", "There at admission.")));
         var binding = BindingOf(projectId, workspaceRoot);
 
         var before = await SkillEvidenceAsync(sessionId, binding, runId: "run-stable-1");
         Assert.NotNull(before);
         Assert.Contains("first", before!.Content);
 
-        var added = Path.Combine(workspaceRoot, "skills", "second", "SKILL.md");
+        var added = Path.Combine(workspaceRoot, ".tinadec", "skills", "second", "SKILL.md");
         Directory.CreateDirectory(Path.GetDirectoryName(added)!);
         File.WriteAllText(added, Skill("second", "Added while the run was in flight."));
 
         var during = await SkillEvidenceAsync(sessionId, binding, runId: "run-stable-1");
         Assert.NotNull(during);
         Assert.Contains("first", during!.Content);
-        Assert.DoesNotContain("skills/second/SKILL.md", during.Content);
+        Assert.DoesNotContain(".tinadec/skills/second/SKILL.md", during.Content);
 
         var after = await SkillEvidenceAsync(sessionId, binding, runId: "run-stable-2");
         Assert.NotNull(after);
-        Assert.Contains("skills/second/SKILL.md", after!.Content);
+        Assert.Contains(".tinadec/skills/second/SKILL.md", after!.Content);
     }
 
     [Fact]
     public async Task SharedPackagesUseExactBindingsImmutableVersionsAndConditionalSaves()
     {
         var (_, _, projectId) = await OpenWorkspaceAsync("shared-shadow",
-            ("skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
+            (".tinadec/skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
         var client = _factory!.CreateClient();
         var input = new
         {
@@ -320,6 +320,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         var explicitShared = Assert.Single(await catalog.ResolveAsync(projectId, [id]));
         Assert.Equal("Shared procedure.", explicitShared.Description);
         Assert.Equal("asset-body", await File.ReadAllTextAsync(Path.Combine(explicitShared.RootPath, "references", "example.txt")));
+        var retainedBefore = Assert.Single((await catalog.CaptureSelectedAsync(projectId, [id])).Skills);
         Assert.Empty(await catalog.ResolveAsync(projectId, []));
         await Assert.ThrowsAsync<ToolSettingsException>(() => catalog.ResolveAsync(projectId, [Guid.NewGuid()]));
 
@@ -337,8 +338,10 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         var updated = await ApproveSkillAsync(id, updateReceipt.GetProperty("user_action_id").GetGuid());
         Assert.NotNull(updated);
         var next = Assert.Single(await catalog.ResolveAsync(projectId, [id]));
-        Assert.NotEqual(explicitShared.RootPath, next.RootPath);
-        Assert.Contains("old-body", await File.ReadAllTextAsync(explicitShared.SkillPath));
+        var retainedAfter = Assert.Single((await catalog.CaptureSelectedAsync(projectId, [id])).Skills);
+        Assert.Equal(explicitShared.RootPath, next.RootPath);
+        Assert.NotEqual(retainedBefore.RootPath, retainedAfter.RootPath);
+        Assert.Contains("old-body", await File.ReadAllTextAsync(retainedBefore.SkillPath));
         Assert.Contains("new-body", await File.ReadAllTextAsync(next.SkillPath));
         Assert.Equal("asset-body", await File.ReadAllTextAsync(Path.Combine(next.RootPath, "references", "example.txt")));
         using var stale = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/tools/skills/{id}") { Content = JsonContent.Create(new { enabled = false }) };
@@ -347,6 +350,16 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         var list = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tools/skills?project_id={projectId}");
         Assert.Equal(2, list.GetProperty("skills").GetArrayLength());
         Assert.Contains("shadowed", list.GetProperty("skills").EnumerateArray().Single(x => x.GetProperty("scope").GetString() == "shared").GetProperty("reason").GetString());
+
+        // Source edits are allowed; management must notice them and refuse a stale review.
+        var beforeEdit = (await _factory.Services.GetRequiredService<IToolSkillResourceService>().GetAsync(id, projectId))!;
+        await File.WriteAllTextAsync(next.SkillPath, Skill("probe", "Source edited procedure.", "edited-body"));
+        var afterEdit = (await _factory.Services.GetRequiredService<IToolSkillResourceService>().GetAsync(id, projectId))!;
+        Assert.NotEqual(beforeEdit.Revision, afterEdit.Revision); Assert.Equal("Source edited procedure.", afterEdit.Description);
+        using var staleSource = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/tools/skills/{id}") { Content = JsonContent.Create(new { enabled = false }) };
+        staleSource.Headers.TryAddWithoutValidation("If-Match", $"\"{beforeEdit.Revision}\"");
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(staleSource)).StatusCode);
+        Assert.Contains("new-body", await File.ReadAllTextAsync(retainedAfter.SkillPath));
     }
 
     [Fact]
@@ -416,8 +429,8 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task FrozenAgentSkillIndexesDoNotCrossContaminateWithinOneRun()
     {
         var (root, sessionId, projectId) = await OpenWorkspaceAsync("agent-index",
-            ("skills/coding/SKILL.md", Skill("coding", "Code procedure.")),
-            ("skills/research/SKILL.md", Skill("research", "Research procedure.")));
+            (".tinadec/skills/coding/SKILL.md", Skill("coding", "Code procedure.")),
+            (".tinadec/skills/research/SKILL.md", Skill("research", "Research procedure.")));
         var resources = await _factory!.Services.GetRequiredService<IToolSkillCatalog>().ResolveAsync(projectId, null);
         var context = _factory.Services.GetRequiredService<IContextProvider>();
         async Task<ContextEvidence?> Index(string name)
@@ -458,7 +471,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task FrozenSkillIndexNamesOnlyEnabledBodyReaders(string tool, bool readEnabled, bool shellEnabled, string? expected)
     {
         var (root, sessionId, projectId) = await OpenWorkspaceAsync("body-readers-" + Guid.NewGuid().ToString("N"),
-            ("skills/probe/SKILL.md", Skill("probe", "One procedure.", "BODY-MUST-STAY-ON-DISK")));
+            (".tinadec/skills/probe/SKILL.md", Skill("probe", "One procedure.", "BODY-MUST-STAY-ON-DISK")));
         var resources = await _factory!.Services.GetRequiredService<IToolSkillCatalog>().ResolveAsync(projectId, null);
         var pack = await _factory.Services.GetRequiredService<IContextProvider>().BuildContextAsync(new ContextBuildRequest(sessionId.ToString(), null)
         {
@@ -486,7 +499,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task SkillProviderDiscoversOnlyTheExplicitlyBoundProject()
     {
         var (_, _, projectId) = await OpenWorkspaceAsync("provider-project",
-            ("skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
+            (".tinadec/skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
         var (_, _, otherProjectId) = await OpenWorkspaceAsync("provider-other");
         var provider = _factory!.Services.GetRequiredService<ISkillProvider>();
         Assert.Empty(await provider.ListSkillsAsync());
@@ -501,15 +514,15 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task ProjectAdmissionRetainsBodyAndAssetsWhileManagementUsesLiveFiles()
     {
         var (root, _, projectId) = await OpenWorkspaceAsync("retained-project",
-            ("skills/probe/SKILL.md", Skill("probe", "Original procedure.", "old-body")),
-            ("skills/probe/references/guide.txt", "old-asset"));
+            (".tinadec/skills/probe/SKILL.md", Skill("probe", "Original procedure.", "old-body")),
+            (".tinadec/skills/probe/references/guide.txt", "old-asset"));
         var resolver = _factory!.Services.GetRequiredService<IToolConfigurationResolver>();
         var first = await resolver.ResolveForRunAsync(projectId, []);
         var original = Assert.Single(first.SharedContext.SkillResources);
         Assert.False(WorkspaceSkillDiscovery.IsContained(root, original.RootPath));
         Assert.Contains("old-body", await File.ReadAllTextAsync(original.SkillPath));
-        var liveBody = Path.Combine(root, "skills", "probe", "SKILL.md");
-        var liveAsset = Path.Combine(root, "skills", "probe", "references", "guide.txt");
+        var liveBody = Path.Combine(root, ".tinadec", "skills", "probe", "SKILL.md");
+        var liveAsset = Path.Combine(root, ".tinadec", "skills", "probe", "references", "guide.txt");
         await File.WriteAllTextAsync(liveBody, Skill("probe", "Updated procedure.", "new-body"));
         await File.WriteAllTextAsync(liveAsset, "new-asset");
         var second = await resolver.ResolveForRunAsync(projectId, []);
@@ -528,11 +541,11 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
     public async Task ProjectAdmissionCapturesAssetOnlyChangesAsAnotherVersion()
     {
         var (root, _, projectId) = await OpenWorkspaceAsync("retained-assets",
-            ("skills/probe/SKILL.md", Skill("probe", "Same procedure.")),
-            ("skills/probe/references/guide.txt", "first"));
+            (".tinadec/skills/probe/SKILL.md", Skill("probe", "Same procedure.")),
+            (".tinadec/skills/probe/references/guide.txt", "first"));
         var catalog = _factory!.Services.GetRequiredService<IToolSkillCatalog>();
         var first = Assert.Single((await catalog.CaptureAsync(projectId)).Skills);
-        await File.WriteAllTextAsync(Path.Combine(root, "skills", "probe", "references", "guide.txt"), "second");
+        await File.WriteAllTextAsync(Path.Combine(root, ".tinadec", "skills", "probe", "references", "guide.txt"), "second");
         var second = Assert.Single((await catalog.CaptureAsync(projectId)).Skills);
         Assert.NotEqual(first.RootPath, second.RootPath);
         Assert.NotEqual(first.ContentHash, second.ContentHash);
@@ -577,6 +590,7 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("TinadecStorage:Enabled", "false");
             builder.UseSetting(WebHostDefaults.EnvironmentKey, "Testing");
             builder.ConfigureLogging(logging =>
             {

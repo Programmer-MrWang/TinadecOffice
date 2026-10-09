@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using System.Text.Json;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
@@ -7,9 +6,9 @@ using TinadecCore.Persistence;
 
 namespace TinadecCore.Tools;
 
-/// <summary>Managed MCP authority. Legacy files are imported once and retained untouched.</summary>
+/// <summary>Managed MCP resources projected from the scope mcp.toml configuration.</summary>
 public sealed class McpResourceRegistry(IDbContextFactory<ToolsSettingsDbContext> factory, ITenantContextAccessor tenant,
-    ISecretStore secrets, ISessionLocator sessions, IConfiguration configuration) : IMcpResourceRegistry
+    ISecretStore secrets, ISessionLocator sessions) : IMcpResourceRegistry
 {
     private const string Mask = "********";
     private readonly SemaphoreSlim _importGate = new(1, 1);
@@ -90,74 +89,8 @@ public sealed class McpResourceRegistry(IDbContextFactory<ToolsSettingsDbContext
         if (resourceIds is not null && resourceIds.Any(id => rows.All(x => x.Id != id))) throw new ToolSettingsException("mcp_binding_not_found", "An MCP binding is outside this project or no longer exists.");
         return effective.Select(ToSnapshot).ToArray();
     }
-    public async Task EnsureImportedAsync(Guid? projectId, CancellationToken cancellationToken = default)
-    {
-        await ValidateProjectAsync(projectId, cancellationToken);
-        await _importGate.WaitAsync(cancellationToken);
-        try
-        {
-            await ImportScopeAsync(null, cancellationToken);
-            if (projectId is not null) await ImportScopeAsync(projectId, cancellationToken);
-        }
-        finally { _importGate.Release(); }
-    }
-    private async Task ImportScopeAsync(Guid? projectId, CancellationToken ct)
-    {
-        var actor = tenant.Current;
-        var scope = Scope(projectId);
-        await using var db = await factory.CreateDbContextAsync(ct);
-        var receipt = await db.McpImports.SingleOrDefaultAsync(x => x.TenantId == actor.TenantId && x.WorkspaceId == actor.WorkspaceId && x.ScopeKey == scope, ct);
-        if (receipt is { Error: null }) return; // A successful import never becomes a second live authority.
-        var root = projectId is { } id ? (await sessions.FindProjectAsync(id, ct))!.RootPath : configuration["TinadecTools:DefaultWorkspaceRoot"] ?? Directory.GetCurrentDirectory();
-        var path = projectId is null ? Environment.GetEnvironmentVariable("TINADEC_TOOLS_MCP_CONFIG") ?? Path.Combine(root, "mcp_servers.json") : Path.Combine(root, "mcp_servers.json");
-        string raw;
-        try
-        {
-            if (File.Exists(path) && new FileInfo(path).Length > 16777216) throw new IOException("Legacy MCP config exceeds the 16 MiB import limit.");
-            raw = File.Exists(path) ? await File.ReadAllTextAsync(path, ct) : "{\"servers\":[]}";
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            receipt ??= new() { Id = Guid.NewGuid(), TenantId = actor.TenantId, WorkspaceId = actor.WorkspaceId, ScopeKey = scope };
-            if (db.Entry(receipt).State == EntityState.Detached) db.McpImports.Add(receipt);
-            receipt.SourcePath = path; receipt.Error = "Legacy MCP configuration could not be read: " + ex.Message; receipt.ImportedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(ct);
-            throw new ToolSettingsException("mcp_import_failed", receipt.Error, 409);
-        }
-        var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
-        if (receipt is not null && receipt.ContentHash == hash && receipt.Error is not null) throw new ToolSettingsException("mcp_import_failed", receipt.Error, 409);
-        receipt ??= new() { Id = Guid.NewGuid(), TenantId = actor.TenantId, WorkspaceId = actor.WorkspaceId, ScopeKey = scope };
-        if (db.Entry(receipt).State == EntityState.Detached) db.McpImports.Add(receipt);
-        receipt.SourcePath = path; receipt.ContentHash = hash; receipt.ImportedAt = DateTimeOffset.UtcNow;
-        try
-        {
-            using var parsed = JsonDocument.Parse(raw);
-            var rootNode = parsed.RootElement;
-            var servers = rootNode.ValueKind == JsonValueKind.Array ? rootNode : rootNode.GetProperty("servers");
-            var pending = new List<McpResourceWriteDto>();
-            foreach (var server in servers.EnumerateArray())
-            {
-                var input = server.Deserialize<McpResourceWriteDto>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? throw new InvalidDataException("Invalid server.");
-                pending.Add(new() { ProjectId = projectId, Id = input.Id, Name = input.Name, Enabled = input.Enabled, Command = input.Command, Args = input.Args, Env = input.Env, Cwd = input.Cwd });
-            }
-            foreach (var input in pending) ValidateInput(input);
-            if (pending.Select(x => x.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != pending.Count) throw new InvalidDataException("Legacy config contains duplicate server ids.");
-            foreach (var input in pending)
-            {
-                if (await db.McpResources.AnyAsync(x => x.TenantId == actor.TenantId && x.WorkspaceId == actor.WorkspaceId && x.ScopeKey == scope && x.ServerId == input.Id && x.DeletedAt == null, ct)) continue;
-                var saved = await SaveAsync(null, input, 0, ct);
-                var stored = await db.McpResources.SingleAsync(x => x.Id == saved.ResourceId, ct);
-                stored.ImportSource = path;
-            }
-            receipt.Error = null;
-        }
-        catch (Exception ex) when (ex is JsonException or InvalidDataException or KeyNotFoundException or ToolSettingsException or InvalidOperationException)
-        {
-            receipt.Error = "Legacy MCP configuration could not be imported. Fix the source file before retrying, or remove it to use the managed registry. " + ex.Message;
-        }
-        await db.SaveChangesAsync(ct);
-        if (receipt.Error is not null) throw new ToolSettingsException("mcp_import_failed", receipt.Error, 409);
-    }
+    public Task EnsureImportedAsync(Guid? projectId, CancellationToken cancellationToken = default) =>
+        ValidateProjectAsync(projectId, cancellationToken);
     private async Task<IReadOnlyList<McpResourceRecord>> RowsAsync(Guid? projectId, CancellationToken ct)
     {
         await ValidateProjectAsync(projectId, ct);

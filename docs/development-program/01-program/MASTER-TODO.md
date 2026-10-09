@@ -4,13 +4,13 @@
 
 | 状态 | 数量 |
 | --- | --- |
-| 待核查 | 74 |
+| 待核查 | 72 |
 | 未开始 | 16 |
 | 待方案 | 10 |
-| 进行中 | 2 |
+| 进行中 | 3 |
 | 阻塞 | 0 |
-| 待验收 | 0 |
-| 已完成 | 10 |
+| 待验收 | 2 |
+| 已完成 | 16 |
 | 不做 | 0 |
 | 已被替代 | 0 |
 
@@ -18,6 +18,7 @@
 
 | Task ID | 任务 | 类型 | 状态 | 优先级 | 主责 |
 | --- | --- | --- | --- | --- | --- |
+| [X-DATA-104](../02-modules/cross-cutting/data-security/TODO.md#x-data-104) | 作用域存储、TOML 配置和资源生命周期重构及平台验收 | 实现 | 进行中 | P0 | X-DATA |
 | [APP-CODE-001](../02-modules/app/code/TODO.md#app-code-001) | 完成 Code / 编程工作台 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | APP-CODE |
 | [APP-CODE-101](../02-modules/app/code/TODO.md#app-code-101) | 复验并修复生产构建的 Monaco worker 加载 | 核查 | 待核查 | P1 | APP-CODE |
 | [APP-HOME-101](../02-modules/app/home/TODO.md#app-home-101) | 验收真实消息投递、并行活动与监督决策 | 验收 | 未开始 | P1 | APP-HOME |
@@ -33,23 +34,29 @@
 | [APP-SETTINGS-101](../02-modules/app/settings/TODO.md#app-settings-101) | 验收配置发布到真实供应商与冻结 run 的生效范围 | 验收 | 未开始 | P1 | APP-SETTINGS |
 | [APP-SETTINGS-102](../02-modules/app/settings/TODO.md#app-settings-102) | 提供工具及 Agent 工具配置设置 | 实现 | 已完成 | P1 | APP-SETTINGS |
 | [APP-SETTINGS-103](../02-modules/app/settings/TODO.md#app-settings-103) | Skills 包安装与资源管理界面 | 实现 | 已完成 | P1 | APP-SETTINGS |
+| [CORE-AGENT-CONFIG-002](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-002) | 将 scope TOML 建立为配置编辑唯一权威 | 实现 | 已完成 | P1 | CORE-AGENT-CONFIG |
+| [CORE-AGENT-CONFIG-003](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-003) | 完成 Linux 与真实 PostgreSQL 配置 scope 验收 | 验收 | 待验收 | P1 | CORE-AGENT-CONFIG |
 | [CORE-AGENT-GRAPH-101](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-101) | 将证据全文与检索摘要分离保存 | 实现 | 未开始 | P1 | CORE-AGENT-GRAPH |
 | [CORE-CONTEXT-101](../02-modules/core/Context/TODO.md#core-context-101) | 定义预算驱动的上下文压缩与恢复协议 | 方案 | 待方案 | P1 | CORE-CONTEXT |
 | [CORE-DMAEA-001](../02-modules/core/DmaEA/TODO.md#core-dmaea-001) | 完成 DmaEA / 双层调用与持久运行引擎 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | CORE-DMAEA |
 | [CORE-DMAEA-101](../02-modules/core/DmaEA/TODO.md#core-dmaea-101) | 把 task_dispatch 接入持久执行子 run | 实现 | 未开始 | P1 | CORE-DMAEA |
 | [CORE-GOVERNANCE-001](../02-modules/core/Governance/TODO.md#core-governance-001) | 完成 Governance · 授权与审批 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | CORE-GOVERNANCE |
-| [CORE-SKILLS-102](../02-modules/core/Skills/TODO.md#core-skills-102) | Skills 包发现、审批、安装与 Agent 调用闭环 | 实现 | 进行中 | P1 | CORE-SKILLS |
+| [CORE-SKILLS-102](../02-modules/core/Skills/TODO.md#core-skills-102) | Skills 包发现、审批、安装与 Agent 调用闭环 | 实现 | 已完成 | P1 | CORE-SKILLS |
+| [CORE-SKILLS-103](../02-modules/core/Skills/TODO.md#core-skills-103) | Skill 源目录与真实更新卸载 | 实现 | 已完成 | P1 | CORE-SKILLS |
 | [CORE-TOOLS-101](../02-modules/core/Tools/TODO.md#core-tools-101) | 实现共享及 Agent 工具配置、托管 MCP 与冻结执行上下文 | 实现 | 已完成 | P1 | CORE-TOOLS |
+| [CORE-TOOLS-102](../02-modules/core/Tools/TODO.md#core-tools-102) | MCP 程序安装与运行存储身份 | 实现 | 已完成 | P1 | CORE-TOOLS |
 | [GW-HTTP-101](../02-modules/gateway/http-auth/TODO.md#gw-http-101) | 验收云端身份与跨租户传输链路 | 验收 | 未开始 | P1 | GW-HTTP |
 | [GW-SESSIONS-101](../02-modules/gateway/session-control/TODO.md#gw-sessions-101) | 验收 run 控制与 SSE 续接透传 | 验收 | 未开始 | P1 | GW-SESSIONS |
 | [GW-STREAMING-101](../02-modules/gateway/streaming/TODO.md#gw-streaming-101) | 建立长期连接与 Bun 版本升级的稳定性验收 | 验收 | 未开始 | P1 | GW-STREAMING |
 | [TOOLS-COMMAND-101](../02-modules/tools/commands-terminals/TODO.md#tools-command-101) | 验收智能体一次性和长驻命令生命周期 | 验收 | 待核查 | P1 | TOOLS-COMMAND |
 | [TOOLS-FILES-101](../02-modules/tools/files-search/TODO.md#tools-files-101) | 核查文件工具边界与跨平台真实操作矩阵 | 验收 | 待核查 | P1 | TOOLS-FILES |
+| [TOOLS-FILES-102](../02-modules/tools/files-search/TODO.md#tools-files-102) | 文件和搜索共享存储分类 | 实现 | 已完成 | P1 | TOOLS-FILES |
 | [TOOLS-GIT-101](../02-modules/tools/git/TODO.md#tools-git-101) | 用临时仓库与临时远端验收 Git 全部操作类别 | 验收 | 待核查 | P1 | TOOLS-GIT |
 | [TOOLS-MCP-102](../02-modules/tools/mcp/TODO.md#tools-mcp-102) | 按 Core 资源版本绑定 MCP 连接 | 实现 | 已完成 | P1 | TOOLS-MCP |
 | [TOOLS-PROTOCOL-101](../02-modules/tools/protocol-host/TODO.md#tools-protocol-101) | 验收真实工具进程的协议、并发与故障返回 | 验收 | 待核查 | P1 | TOOLS-PROTOCOL |
 | [TOOLS-PROTOCOL-102](../02-modules/tools/protocol-host/TODO.md#tools-protocol-102) | 承接 Core 冻结的每调用工具配置 | 实现 | 已完成 | P1 | TOOLS-PROTOCOL |
-| [TOOLS-SANDBOX-101](../02-modules/tools/sandbox/TODO.md#tools-sandbox-101) | 复验三平台真实内核沙箱与缺失机制行为 | 验收 | 待核查 | P1 | TOOLS-SANDBOX |
+| [TOOLS-SANDBOX-101](../02-modules/tools/sandbox/TODO.md#tools-sandbox-101) | 复验三平台真实内核沙箱与缺失机制行为 | 验收 | 待验收 | P1 | TOOLS-SANDBOX |
+| [TOOLS-SANDBOX-102](../02-modules/tools/sandbox/TODO.md#tools-sandbox-102) | 存储分类与 scope 沙箱身份 | 实现 | 已完成 | P1 | TOOLS-SANDBOX |
 | [TOOLS-WEB-101](../02-modules/tools/web-fetch/TODO.md#tools-web-101) | 复现 WebFetch deadline 分类并形成可验证归因 | 核查 | 待核查 | P1 | TOOLS-WEB |
 | [X-DATA-101](../02-modules/cross-cutting/data-security/TODO.md#x-data-101) | 形成 SQLite 与 PostgreSQL 同场景持久化验收矩阵 | 验收 | 待核查 | P1 | X-DATA |
 | [X-DATA-102](../02-modules/cross-cutting/data-security/TODO.md#x-data-102) | 验收内容文件引用一致性与异常后的真实状态 | 验收 | 待核查 | P1 | X-DATA |
@@ -80,7 +87,7 @@
 | [APP-WEB-001](../02-modules/app/web/TODO.md#app-web-001) | 完成 Web / 浏览器平台适配 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-WEB |
 | [APP-WEB-101](../02-modules/app/web/TODO.md#app-web-101) | 明确 Web 平台能力与布局持久化范围 | 方案 | 待方案 | P2 | APP-WEB |
 | [CORE-ABSTRACTIONS-001](../02-modules/core/Abstractions/TODO.md#core-abstractions-001) | 完成 Abstractions · 跨模块端口 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-ABSTRACTIONS |
-| [CORE-AGENT-CONFIG-001](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-001) | 完成 AgentConfiguration 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-AGENT-CONFIG |
+| [CORE-AGENT-CONFIG-001](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-001) | 完成 AgentConfiguration 的逐功能审计与模块图精化 | 核查 | 进行中 | P2 | CORE-AGENT-CONFIG |
 | [CORE-AGENT-GRAPH-001](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-001) | 完成 AgentGraph · 图与资源 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-AGENT-GRAPH |
 | [CORE-AGENT-GRAPH-102](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-102) | 设计任务级多目标资源与远程 provider 契约 | 方案 | 待方案 | P2 | CORE-AGENT-GRAPH |
 | [CORE-API-001](../02-modules/core/Api/TODO.md#core-api-001) | 完成 Api · 可执行宿主 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-API |

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertBinaryFormat } from "./binaryFormat.mjs";
+import { verifyBubblewrap } from "../../../scripts/bubblewrap-pin.mjs";
 import {
 	hostRuntimeTarget,
 	resolveRuntimeTarget,
@@ -91,6 +92,11 @@ const binaries = [
 	[requireFile(join(native, "rg", rgName), "Native ripgrep executable"), "Native ripgrep executable"],
 	[requireFile(join(tools, rgName), "Tools ripgrep executable"), "Tools ripgrep executable"],
 ];
+if (target.platform === "linux") {
+	const bubblewrap = requireFile(join(tools, "bwrap"), "Reviewed bubblewrap executable");
+	verifyBubblewrap(bubblewrap);
+	binaries.push([bubblewrap, "Reviewed bubblewrap executable"]);
+}
 
 // PortableGit is a Windows packaging artifact; on Linux and macOS git comes from the system and is
 // probed by the service host at runtime. Requiring this directory on a POSIX package would reject a

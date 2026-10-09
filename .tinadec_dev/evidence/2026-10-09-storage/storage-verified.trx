@@ -1,0 +1,132 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="b65228fd-3639-4d6a-88a7-f5dde4353c36" name="lincu@LINSTATION 2026-10-09 15:59:10" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T15:59:10.5250114+08:00" queuing="2026-10-09T15:59:10.5250119+08:00" start="2026-10-09T15:58:49.2820667+08:00" finish="2026-10-09T16:03:42.5371315+08:00" />
+  <TestSettings name="default" id="41564a2a-3bc6-4417-ab34-04a69d24a752">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_15_59_10" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="535613d4-4d61-4bc0-9ba7-f3bd450bac6e" testId="4cfd5703-009b-f2e9-f13e-f863ef3c4084" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ProjectRequests_AreIsolated_AndUnknownScopeCannotSelectArbitraryStorage" computerName="LINSTATION" duration="00:00:41.2241956" startTime="2026-10-09T16:01:06.2179733+08:00" endTime="2026-10-09T16:01:47.5236988+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="535613d4-4d61-4bc0-9ba7-f3bd450bac6e" />
+    <UnitTestResult executionId="2738e2fb-ca6a-4bde-8c29-fc6923573524" testId="c169852d-77a5-43af-8d36-ac4b69c1a2b3" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ChangingStorageRoot_CreatesIndependentData_AndRetainsOldStoreAndProjectIdentity" computerName="LINSTATION" duration="00:00:31.2358898" startTime="2026-10-09T16:01:57.1174615+08:00" endTime="2026-10-09T16:02:28.5733426+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2738e2fb-ca6a-4bde-8c29-fc6923573524" />
+    <UnitTestResult executionId="98014fd3-0efd-4223-80e5-61b76e2e8e6c" testId="293c8933-eea0-a13e-08db-2ff54c5467ea" testName="TinadecCore.Api.Tests.StorageScopeApiTests.HostShutdownAwaitsConcurrentDisposalAndReleasesOwnedFileHandles" computerName="LINSTATION" duration="00:00:19.2200243" startTime="2026-10-09T16:00:46.9539466+08:00" endTime="2026-10-09T16:01:06.2155830+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="98014fd3-0efd-4223-80e5-61b76e2e8e6c" />
+    <UnitTestResult executionId="3ed40f3f-a0a1-48b6-b835-62e264c5c073" testId="1a911373-9cb7-6248-7eaa-09dca20340d7" testName="TinadecCore.Api.Tests.StorageScopeApiTests.CacheCleanup_RequiresPreview_AndPreservesDataConfigAndCredentials" computerName="LINSTATION" duration="00:00:19.7939926" startTime="2026-10-09T15:58:50.5862297+08:00" endTime="2026-10-09T15:59:10.4729766+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3ed40f3f-a0a1-48b6-b835-62e264c5c073" />
+    <UnitTestResult executionId="2b5f9eab-37b4-4938-a57f-a7f526fa321b" testId="c9e916cd-55ad-977a-01ad-29c880456f91" testName="TinadecCore.Api.Tests.StorageScopeApiTests.DeletingProjectStorage_RequiresItsPreview_AndPreservesCode" computerName="LINSTATION" duration="00:00:13.9146465" startTime="2026-10-09T15:59:32.8296823+08:00" endTime="2026-10-09T15:59:46.7657247+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2b5f9eab-37b4-4938-a57f-a7f526fa321b" />
+    <UnitTestResult executionId="4ef08185-ce2e-4ef8-a971-0121924d2618" testId="83b1b9ce-6ec1-80d8-b0d9-95817aa14463" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ConflictingOrCorruptStorage_IsReportedAndNeverOverwritten" computerName="LINSTATION" duration="00:00:09.5690439" startTime="2026-10-09T16:01:47.5244228+08:00" endTime="2026-10-09T16:01:57.1157513+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4ef08185-ce2e-4ef8-a971-0121924d2618" />
+    <UnitTestResult executionId="e790923b-75f0-4c42-9c6c-dbed5549e074" testId="5239a213-a8e9-e522-91b5-ccc2cc49f714" testName="TinadecCore.Api.Tests.StorageScopeApiTests.PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" computerName="LINSTATION" duration="00:00:07.0393581" startTime="2026-10-09T15:59:10.5004324+08:00" endTime="2026-10-09T15:59:17.5576117+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e790923b-75f0-4c42-9c6c-dbed5549e074" />
+    <UnitTestResult executionId="9848f1b5-feb4-4981-91be-bb76c437566a" testId="3b3c8904-0b0a-8503-246f-49e015a5a102" testName="TinadecCore.Api.Tests.VectorPersistenceTests.ProjectVectorDatabase_SearchesWithinProjectAndDeletesSources" computerName="LINSTATION" duration="00:00:05.9660689" startTime="2026-10-09T16:03:36.3052596+08:00" endTime="2026-10-09T16:03:42.2882393+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9848f1b5-feb4-4981-91be-bb76c437566a" />
+    <UnitTestResult executionId="f17acb3c-5016-4669-9619-64a7d11289a4" testId="24422926-8e90-36c6-8386-2df511eb57a9" testName="TinadecCore.Api.Tests.StorageScopeApiTests.UntrustedLoopbackCannotReadDataInitializeStorageOrApproveActions" computerName="LINSTATION" duration="00:00:07.8272640" startTime="2026-10-09T16:00:39.1089040+08:00" endTime="2026-10-09T16:00:46.9532517+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f17acb3c-5016-4669-9619-64a7d11289a4" />
+    <UnitTestResult executionId="a9767c1c-0fd6-4098-b489-049ffd436fc7" testId="a33f4e36-0ce3-bd81-c650-344f356e129b" testName="TinadecCore.Api.Tests.StorageScopeApiTests.Move_RebindsHostIdentity_WhileCopyGetsIndependentStorageIdentity" computerName="LINSTATION" duration="00:00:35.4216685" startTime="2026-10-09T15:59:46.7662949+08:00" endTime="2026-10-09T16:00:22.2777753+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a9767c1c-0fd6-4098-b489-049ffd436fc7" />
+    <UnitTestResult executionId="d5798027-8290-40c2-ab0e-6a4fe5efba47" testId="e5d14ae3-ffa3-ef61-a700-64000a45384b" testName="TinadecCore.Api.Tests.ScopeLoggingTests.CombinedBudgetRotatesAndRemovesOnlyRecognizedClosedLogs" computerName="LINSTATION" duration="00:00:00.0576331" startTime="2026-10-09T16:03:36.2418203+08:00" endTime="2026-10-09T16:03:36.3021102+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d5798027-8290-40c2-ab0e-6a4fe5efba47" />
+    <UnitTestResult executionId="96a2395d-c0c8-42db-b5f6-dce9b1c47165" testId="ca1c6533-e73b-11ab-ce1f-be81273a3736" testName="TinadecCore.Api.Tests.StorageScopeApiTests.Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" computerName="LINSTATION" duration="00:00:30.7705968" startTime="2026-10-09T16:02:28.5740448+08:00" endTime="2026-10-09T16:02:59.4004174+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="96a2395d-c0c8-42db-b5f6-dce9b1c47165" />
+    <UnitTestResult executionId="199e693a-91fc-46d2-bb04-45dd236fb004" testId="d4395ac7-ef3f-3f1c-4079-a1cd283f1741" testName="TinadecCore.Api.Tests.StorageScopeApiTests.DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" computerName="LINSTATION" duration="00:00:16.7937288" startTime="2026-10-09T16:00:22.2786511+08:00" endTime="2026-10-09T16:00:39.1082187+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="199e693a-91fc-46d2-bb04-45dd236fb004" />
+    <UnitTestResult executionId="92e88fd4-00f9-4304-8d85-31a379990342" testId="7fd573ab-79db-9448-984d-55e9c18d9470" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" computerName="LINSTATION" duration="00:00:36.6285996" startTime="2026-10-09T16:02:59.4018692+08:00" endTime="2026-10-09T16:03:36.2266320+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="92e88fd4-00f9-4304-8d85-31a379990342" />
+    <UnitTestResult executionId="56514c22-e4e2-43dd-a7c9-9dcc0b9ba0e5" testId="6db3ae40-a08b-65c7-bcfc-041e7a2f5235" testName="TinadecCore.Api.Tests.StorageScopeApiTests.ConcurrentOpen_IsIdempotent_AndDoesNotOverwriteProjectConfiguration" computerName="LINSTATION" duration="00:00:15.0986783" startTime="2026-10-09T15:59:17.5596313+08:00" endTime="2026-10-09T15:59:32.8286615+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="56514c22-e4e2-43dd-a7c9-9dcc0b9ba0e5" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.VectorPersistenceTests.ProjectVectorDatabase_SearchesWithinProjectAndDeletesSources" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="3b3c8904-0b0a-8503-246f-49e015a5a102">
+      <Execution id="9848f1b5-feb4-4981-91be-bb76c437566a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.VectorPersistenceTests" name="ProjectVectorDatabase_SearchesWithinProjectAndDeletesSources" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ChangingStorageRoot_CreatesIndependentData_AndRetainsOldStoreAndProjectIdentity" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="c169852d-77a5-43af-8d36-ac4b69c1a2b3">
+      <Execution id="2738e2fb-ca6a-4bde-8c29-fc6923573524" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ChangingStorageRoot_CreatesIndependentData_AndRetainsOldStoreAndProjectIdentity" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ConcurrentOpen_IsIdempotent_AndDoesNotOverwriteProjectConfiguration" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6db3ae40-a08b-65c7-bcfc-041e7a2f5235">
+      <Execution id="56514c22-e4e2-43dd-a7c9-9dcc0b9ba0e5" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ConcurrentOpen_IsIdempotent_AndDoesNotOverwriteProjectConfiguration" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.UntrustedLoopbackCannotReadDataInitializeStorageOrApproveActions" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="24422926-8e90-36c6-8386-2df511eb57a9">
+      <Execution id="f17acb3c-5016-4669-9619-64a7d11289a4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="UntrustedLoopbackCannotReadDataInitializeStorageOrApproveActions" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.Move_RebindsHostIdentity_WhileCopyGetsIndependentStorageIdentity" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="a33f4e36-0ce3-bd81-c650-344f356e129b">
+      <Execution id="a9767c1c-0fd6-4098-b489-049ffd436fc7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="Move_RebindsHostIdentity_WhileCopyGetsIndependentStorageIdentity" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="5239a213-a8e9-e522-91b5-ccc2cc49f714">
+      <Execution id="e790923b-75f0-4c42-9c6c-dbed5549e074" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="PublicChallengeProvesTheCoreRoleAndRejectsInvalidNonces" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ProjectRequests_AreIsolated_AndUnknownScopeCannotSelectArbitraryStorage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="4cfd5703-009b-f2e9-f13e-f863ef3c4084">
+      <Execution id="535613d4-4d61-4bc0-9ba7-f3bd450bac6e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ProjectRequests_AreIsolated_AndUnknownScopeCannotSelectArbitraryStorage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.CacheCleanup_RequiresPreview_AndPreservesDataConfigAndCredentials" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="1a911373-9cb7-6248-7eaa-09dca20340d7">
+      <Execution id="3ed40f3f-a0a1-48b6-b835-62e264c5c073" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="CacheCleanup_RequiresPreview_AndPreservesDataConfigAndCredentials" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ConflictingOrCorruptStorage_IsReportedAndNeverOverwritten" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="83b1b9ce-6ec1-80d8-b0d9-95817aa14463">
+      <Execution id="4ef08185-ce2e-4ef8-a971-0121924d2618" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ConflictingOrCorruptStorage_IsReportedAndNeverOverwritten" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="d4395ac7-ef3f-3f1c-4079-a1cd283f1741">
+      <Execution id="199e693a-91fc-46d2-bb04-45dd236fb004" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="DeletionPreviewRejectsChangedDatabaseFactsAndPreservesProjectStorage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="ca1c6533-e73b-11ab-ce1f-be81273a3736">
+      <Execution id="96a2395d-c0c8-42db-b5f6-dce9b1c47165" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="Close_WaitsForAnExistingLease_AndCancellationRestoresAdmission" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.HostShutdownAwaitsConcurrentDisposalAndReleasesOwnedFileHandles" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="293c8933-eea0-a13e-08db-2ff54c5467ea">
+      <Execution id="98014fd3-0efd-4223-80e5-61b76e2e8e6c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="HostShutdownAwaitsConcurrentDisposalAndReleasesOwnedFileHandles" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ScopeLoggingTests.CombinedBudgetRotatesAndRemovesOnlyRecognizedClosedLogs" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="e5d14ae3-ffa3-ef61-a700-64000a45384b">
+      <Execution id="d5798027-8290-40c2-ab0e-6a4fe5efba47" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ScopeLoggingTests" name="CombinedBudgetRotatesAndRemovesOnlyRecognizedClosedLogs" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7fd573ab-79db-9448-984d-55e9c18d9470">
+      <Execution id="92e88fd4-00f9-4304-8d85-31a379990342" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="ExternalMode_RecoversItsRegistration_WithoutWritingProjectStorage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.StorageScopeApiTests.DeletingProjectStorage_RequiresItsPreview_AndPreservesCode" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\storage-debug-build\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="c9e916cd-55ad-977a-01ad-29c880456f91">
+      <Execution id="2b5f9eab-37b4-4938-a57f-a7f526fa321b" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\storage-debug-build\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.StorageScopeApiTests" name="DeletingProjectStorage_RequiresItsPreview_AndPreservesCode" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="4cfd5703-009b-f2e9-f13e-f863ef3c4084" executionId="535613d4-4d61-4bc0-9ba7-f3bd450bac6e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c169852d-77a5-43af-8d36-ac4b69c1a2b3" executionId="2738e2fb-ca6a-4bde-8c29-fc6923573524" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="293c8933-eea0-a13e-08db-2ff54c5467ea" executionId="98014fd3-0efd-4223-80e5-61b76e2e8e6c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1a911373-9cb7-6248-7eaa-09dca20340d7" executionId="3ed40f3f-a0a1-48b6-b835-62e264c5c073" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c9e916cd-55ad-977a-01ad-29c880456f91" executionId="2b5f9eab-37b4-4938-a57f-a7f526fa321b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="83b1b9ce-6ec1-80d8-b0d9-95817aa14463" executionId="4ef08185-ce2e-4ef8-a971-0121924d2618" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5239a213-a8e9-e522-91b5-ccc2cc49f714" executionId="e790923b-75f0-4c42-9c6c-dbed5549e074" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3b3c8904-0b0a-8503-246f-49e015a5a102" executionId="9848f1b5-feb4-4981-91be-bb76c437566a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="24422926-8e90-36c6-8386-2df511eb57a9" executionId="f17acb3c-5016-4669-9619-64a7d11289a4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a33f4e36-0ce3-bd81-c650-344f356e129b" executionId="a9767c1c-0fd6-4098-b489-049ffd436fc7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e5d14ae3-ffa3-ef61-a700-64000a45384b" executionId="d5798027-8290-40c2-ab0e-6a4fe5efba47" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ca1c6533-e73b-11ab-ce1f-be81273a3736" executionId="96a2395d-c0c8-42db-b5f6-dce9b1c47165" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d4395ac7-ef3f-3f1c-4079-a1cd283f1741" executionId="199e693a-91fc-46d2-bb04-45dd236fb004" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7fd573ab-79db-9448-984d-55e9c18d9470" executionId="92e88fd4-00f9-4304-8d85-31a379990342" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6db3ae40-a08b-65c7-bcfc-041e7a2f5235" executionId="56514c22-e4e2-43dd-a7c9-9dcc0b9ba0e5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="15" executed="15" passed="15" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.31]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.48]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.52]   Starting:    TinadecCore.Api.Tests&#xD;
+warn: TinadecCore.Runtime.StorageScopeRecoveryWorker[0]&#xD;
+      Registered storage scope 91d83252db75434cb36d55803e449cba could not recover; other scopes remain available&#xD;
+      System.IO.DirectoryNotFoundException: The registered project directory is unavailable.&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.MountAsync(Registration registration) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 331&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireCoreAsync(String storageId, Boolean allowClosing, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 156&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireAsync(String storageId, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 129&#xD;
+         at TinadecCore.Runtime.StorageScopeRecoveryWorker.ExecuteAsync(CancellationToken stoppingToken) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRecoveryWorker.cs:line 18&#xD;
+warn: TinadecCore.Runtime.StorageScopeRecoveryWorker[0]&#xD;
+      Registered storage scope e7795edf88bc4148a6fce05067a5f16d could not recover; other scopes remain available&#xD;
+      System.IO.DirectoryNotFoundException: The registered project directory is unavailable.&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.MountAsync(Registration registration) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 331&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireCoreAsync(String storageId, Boolean allowClosing, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 156&#xD;
+         at TinadecCore.Runtime.StorageScopeRegistry.AcquireAsync(String storageId, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRegistry.cs:line 129&#xD;
+         at TinadecCore.Runtime.StorageScopeRecoveryWorker.ExecuteAsync(CancellationToken stoppingToken) in C:\git\agent\TinadecOffice\TinadecCore\Runtime\StorageScopeRecoveryWorker.cs:line 18&#xD;
+[xUnit.net 00:04:52.28]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

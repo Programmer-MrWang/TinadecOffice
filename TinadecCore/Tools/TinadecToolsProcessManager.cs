@@ -297,6 +297,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
             StandardInputEncoding = Utf8NoBom,
             CreateNoWindow = true
         };
+        startInfo.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
 
         // The child is scoped to its working directory as the single writable root;
         // extra readable roots travel as an environment variable the tool-side

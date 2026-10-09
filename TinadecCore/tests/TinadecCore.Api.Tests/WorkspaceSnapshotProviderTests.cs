@@ -7,6 +7,26 @@ namespace TinadecCore.Api.Tests;
 public sealed class WorkspaceSnapshotProviderTests
 {
     [Fact]
+    public async Task SourceConfigurationAndSkillsRestoreWhileRuntimeStorageRemainsUntouched()
+    {
+        var root = CreateTempDirectory();
+        try
+        {
+            var paths = new[] { ".tinadec/config/tools.toml", ".tinadec/skills/example/SKILL.md", ".tinadec/data/database.bin", ".tinadec/logs/runtime.log", ".tinadec/packages/retained/file" };
+            foreach (var relative in paths)
+            { var path = Path.Combine(root, relative); Directory.CreateDirectory(Path.GetDirectoryName(path)!); await File.WriteAllTextAsync(path, "initial"); }
+            var provider = new FileSystemWorkspaceSnapshotProvider();
+            var snapshot = await provider.CaptureAsync(new WorkspaceSnapshotCaptureRequest(root));
+            Assert.Equal(2, snapshot.Files.Count);
+            foreach (var relative in paths) await File.WriteAllTextAsync(Path.Combine(root, relative), "changed");
+            await provider.RestoreAsync(root, snapshot, new WorkspaceSnapshotProviderRestoreRequest(AllowConflicts: true));
+            Assert.Equal("initial", await File.ReadAllTextAsync(Path.Combine(root, paths[0])));
+            Assert.Equal("initial", await File.ReadAllTextAsync(Path.Combine(root, paths[1])));
+            foreach (var relative in paths.Skip(2)) Assert.Equal("changed", await File.ReadAllTextAsync(Path.Combine(root, relative)));
+        }
+        finally { DeleteTempDirectory(root); }
+    }
+    [Fact]
     public async Task FilesystemProviderCapturesAndRestoresWithConflictGuard()
     {
         var root = CreateTempDirectory();

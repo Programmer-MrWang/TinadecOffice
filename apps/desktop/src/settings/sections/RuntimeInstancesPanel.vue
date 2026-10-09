@@ -3,8 +3,11 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Info, Search } from '@lucide/vue'
 import { UiBadge, UiButton, UiInput, UiLabel, UiSheet } from '@/components/ui'
-import { api, type AgentRuntimeInstanceDto } from '@/api'
-import { generatedApi } from '@/generated/client'
+import { api as baseApi, type AgentRuntimeInstanceDto } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
+import { generatedApi as baseGeneratedApi } from '@/generated/client'
+const generatedApi = scopedApi(baseGeneratedApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
 
 const { t } = useI18n()

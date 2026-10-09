@@ -21,6 +21,12 @@ internal sealed class ToolExecutionContext
     public string SettingsHash { get; }
     public string? RunId { get; }
     public string? ToolId { get; }
+    public string? StorageId { get; }
+    public string? StorageRoot { get; }
+    public string? ProjectRoot { get; }
+    public string? WorkingDirectory { get; }
+    public bool ProjectStorageWrite { get; }
+    public IReadOnlyList<string> ProtectedStorageRoots { get; }
 
     private ToolExecutionContext(JsonElement document, string? toolId)
     {
@@ -33,6 +39,22 @@ internal sealed class ToolExecutionContext
             throw new InvalidOperationException("Invalid trusted execution_context schema.");
         SettingsHash = Text(_document, "settings_hash") ?? string.Empty;
         RunId = Text(_document, "run_id");
+        StorageId = Text(_document, "storage_id");
+        StorageRoot = AbsolutePath(_document, "storage_root");
+        ProjectRoot = AbsolutePath(_document, "project_root");
+        WorkingDirectory = AbsolutePath(_document, "working_directory");
+        if (WorkingDirectory is not null && !string.Equals(WorkingDirectory, WorkspaceRootSet.Normalize(WorkspacePathResolver.WorkspaceRoot),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new InvalidOperationException("The trusted working_directory does not match this tool process's workspace.");
+        ProjectStorageWrite = _document.TryGetProperty("project_storage_write", out var storageWrite)
+            && storageWrite.ValueKind == JsonValueKind.True;
+        ProtectedStorageRoots = _document.TryGetProperty("protected_storage_roots", out var protectedRoots)
+            ? protectedRoots.EnumerateArray().Select(item =>
+                item.ValueKind == JsonValueKind.String && Path.IsPathFullyQualified(item.GetString()!)
+                    ? WorkspaceRootSet.Normalize(item.GetString()!) : throw new InvalidOperationException("protected_storage_roots requires absolute paths.")).ToArray()
+            : [];
+        if (ProjectStorageWrite && (string.IsNullOrWhiteSpace(StorageId) || StorageRoot is null))
+            throw new InvalidOperationException("Storage write access requires a trusted scope identity and storage root.");
         if (RunId is not null && string.IsNullOrWhiteSpace(RunId))
             throw new InvalidOperationException("execution_context.run_id must be non-empty when provided.");
         _allowedTools = new HashSet<string>(tools.EnumerateArray().Select(item => item.GetString()
@@ -175,6 +197,13 @@ internal sealed class ToolExecutionContext
 
     private static string? Text(JsonElement value, string name) => value.TryGetProperty(name, out var text)
         && text.ValueKind == JsonValueKind.String ? text.GetString() : null;
+    private static string? AbsolutePath(JsonElement value, string name)
+    {
+        var path = Text(value, name);
+        if (path is null) return null;
+        if (!Path.IsPathFullyQualified(path)) throw new InvalidOperationException($"execution_context.{name} must be absolute.");
+        return WorkspaceRootSet.Normalize(path);
+    }
     private static string? Category(string toolId) => toolId.ToLowerInvariant() switch
     {
         "shell" or "command_run" or "sandbox_status" or "sandbox_reset" => "shell",

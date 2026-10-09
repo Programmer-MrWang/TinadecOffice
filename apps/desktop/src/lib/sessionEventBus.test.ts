@@ -59,6 +59,29 @@ afterEach(() => {
 })
 
 describe('sessionEventBus', () => {
+  it('releases only its captured scope while closing and can resume on failure', () => {
+    bus.followSession('original::same-session')
+    const release = bus.subscribeToSessionEvents(() => {})
+    const unrelated = bus.suspendFollowingStorage('copy'); unrelated()
+    expect(liveSources[0]?.closed).toBe(0)
+    const resume = bus.suspendFollowingStorage('original')
+    expect(liveSources[0]?.closed).toBe(1)
+    resume()
+    expect(liveSources).toHaveLength(2)
+    release()
+  })
+  it('suspends a transfer source without reopening it for subscribers and resumes on selection', () => {
+    bus.followSession('user::source')
+    const release = bus.subscribeToSessionEvents(() => {})
+    bus.suspendFollowingSession('user::source')
+    expect(liveSources[0]!.closed).toBe(1)
+    const releaseSecond = bus.subscribeToSessionEvents(() => {})
+    expect(connect).toHaveBeenCalledTimes(1)
+    bus.followSession('target::source')
+    expect(connect).toHaveBeenCalledTimes(2)
+    expect(connect.mock.calls[1]![0]).toBe('target::source')
+    release(); releaseSecond()
+  })
   it('carries one connection however many owners subscribe', () => {
     bus.followSession('s-1')
     const releaseA = bus.subscribeToSessionEvents(() => {})

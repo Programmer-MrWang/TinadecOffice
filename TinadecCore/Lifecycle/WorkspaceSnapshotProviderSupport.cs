@@ -125,8 +125,17 @@ internal static class WorkspaceSnapshotProviderSupport
     internal static bool IsExcluded(string relative, bool includeHidden)
     {
         var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Any(x => string.Equals(x, ".git", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(x, ".tinadec", StringComparison.OrdinalIgnoreCase))) return true;
+        if (segments.Any(x => string.Equals(x, ".git", StringComparison.OrdinalIgnoreCase))) return true;
+        var storageIndex = Array.FindIndex(segments, x => string.Equals(x, ".tinadec", StringComparison.OrdinalIgnoreCase));
+        if (storageIndex >= 0)
+        {
+            // Config and skill sources belong to the project; runtime state and retained packages
+            // are owned by the host and can never be restored from an Agent snapshot.
+            if (storageIndex != 0 || segments.Length < 3
+                || !(segments[1].Equals("config", StringComparison.OrdinalIgnoreCase)
+                    || segments[1].Equals("skills", StringComparison.OrdinalIgnoreCase))) return true;
+            return !includeHidden && segments.Skip(2).Any(x => x.Length > 0 && x[0] == '.');
+        }
         return !includeHidden && segments.Any(x => x.Length > 0 && x[0] == '.');
     }
 

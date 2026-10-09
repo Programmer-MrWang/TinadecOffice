@@ -121,3 +121,31 @@
 - [TinadecCore/Persistence/EncryptedFileSecretStore.cs](../../../../../TinadecCore/Persistence/EncryptedFileSecretStore.cs)
 - [TinadecCore/tests/TinadecCore.Governance.Tests/SecretStorePlatformTests.cs](../../../../../TinadecCore/tests/TinadecCore.Governance.Tests/SecretStorePlatformTests.cs)
 
+<a id="x-data-104"></a>
+
+### X-DATA-104 作用域存储、TOML 配置和资源生命周期重构及平台验收
+
+- 类型：实现
+- 状态：进行中
+- 优先级：P0
+- 主责模块：X-DATA
+- 前置依赖：用户已确定目录、配置权威、权限和不迁移旧数据的产品契约；关联 X-DATA-101/102/103 的专项验收，不复制其任务
+- 关联功能：X-DATA-F004/005/006；CORE-PERSISTENCE-F002/003、CORE-RUNTIME-F004/005、CORE-MEMORY-F004、CORE-LIFECYCLE-F003
+- 完成证据：[源码与验收对账](../../../../../.tinadec_dev/reports/2026-10-09-storage-reconstruction.zh-CN.md)、[产品契约 §21](../../../../tinadec-core-product-definition.zh-CN.md)
+
+**问题与目的**
+
+把每次用户动作的配置、资源、事实、日志和缓存落点统一为稳定产品契约。每个 scope 独立服务图与数据库，配置文件是唯一编辑来源；宿主权限不由项目内容自行授权。源码实施与真实运行验收分别记账。
+
+**验收条件**
+
+- [x] 实现统一目录分类、原子初始化、宿主登记、请求固定作用域及独立 Core 服务图。
+- [x] 实现 TOML 校验/诊断、摘要条件保存、数据库投影及新运行配置冻结。
+- [x] 分离 MCP 登记/安装/连接/凭据，保留 Skill 历史包；取消 `.tinadec` 整体禁止规则。
+- [x] 实现日志容量预算、手动清理预览、内容引用 GC、会话关联删除恢复和安全导出。
+- [x] 同步 Desktop 存储设置、Gateway/OpenAPI/客户端和正式产品文档、固定提交同类项目对照。
+- [x] 记录并复核 Windows 定向最终测试及真实文件/ACL结果，异常用例不得以编译替代；作用域/日志/向量15/15，密钥24/24，资源差分见[验收账本](../../../../../.tinadec_dev/evidence/2026-10-09-storage/VALIDATION.md)。
+- [x] 提供 Linux 内核 Tools27/27、配置/迁移/真实PG22/22与增强PG删除预览1/1证据，明确未实际销毁项目；见[平台报告](../../../../../.tinadec_dev/reports/2026-10-09-linux-postgresql-validation.zh-CN.md)。
+- [ ] 提供 macOS 实际内核与各平台完整打包验收，以及PG完整业务/销毁/导出恢复；已有定向证据不折算为这些场景完成。
+- [ ] 真实运行覆盖并发双项目、切换后的 SSE/审批、移动/复制、只读外部模式及硬退出恢复；据证据逐项关闭剩余问题。
+

@@ -11,10 +11,12 @@ internal static class WindowsSandboxSetup
     internal static bool IsSetupMode(string[] args)
         => args.Length > 0 && args[0] == SetupModeArg;
 
-    internal static int RunSetup()
+    internal static int RunSetup(string[] args)
     {
         try
         {
+            if (args.Length != 2) throw new InvalidOperationException("Sandbox setup requires a scope identity.");
+            SandboxAccountManager.SetSetupIdentity(args[1]);
             CreateSandboxAccount();
             Console.WriteLine("Sandbox setup completed successfully.");
             return 0;
@@ -44,6 +46,7 @@ internal static class WindowsSandboxSetup
     internal static void TriggerUacSetup()
     {
         var psi = CreateSelfStartInfo(SetupModeArg, useShellExecute: true);
+        psi.ArgumentList.Add(SandboxAccountManager.AccountName);
         psi.Verb = "runas";
         psi.CreateNoWindow = false;
 

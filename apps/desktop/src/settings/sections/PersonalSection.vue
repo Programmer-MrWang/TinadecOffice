@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { Briefcase, Check, Pencil, Share2, UserRound, X } from '@lucide/vue'
 import { UiAvatar, UiButton, UiCard, UiInput, UiTextarea } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
-import { api } from '@/api'
+import { api as baseApi } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import {
   AVATAR_MAX_BYTES,
   WORK_ROLES,

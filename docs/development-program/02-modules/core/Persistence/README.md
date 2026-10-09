@@ -6,7 +6,10 @@
 
 ## 文档入口
 
+2026-10-09：存储与配置重构已加入作用域路径、独立数据库/schema、TOML 文档权威、投影和历史版本边界。各平台与真实数据库的验收单独记账，见 [本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-reconstruction.zh-CN.md) 和 [X-DATA-104](../../cross-cutting/data-security/TODO.md#x-data-104)。
+
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)
+- [配置文件权威、投影和历史事实](CONFIGURATION-FILES.md)
 - [功能与完成情况](STATUS.md) · [本模块TODO](TODO.md)
 - [全部模块](../../../MODULE-INDEX.md) · [总TODO](../../../01-program/MASTER-TODO.md)
 

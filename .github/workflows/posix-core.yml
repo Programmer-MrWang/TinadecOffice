@@ -45,6 +45,23 @@ jobs:
         with:
           dotnet-version: 10.0.300
 
+      - name: Build reviewed Bubblewrap 0.13.0 (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build libcap-dev
+          BWRAP_ROOT="$RUNNER_TEMP/tinadec-bwrap"
+          mkdir -p "$BWRAP_ROOT"
+          curl --fail --location https://codeload.github.com/containers/bubblewrap/tar.gz/719a4fd474d44b26906bcf2b1b0fb6eddd8d56d0 --output "$BWRAP_ROOT/source.tar.gz"
+          echo "e55bdb06f051664ecd3297d449a8b679b7cd1c73adb292b73a81d9b03c5fc462  $BWRAP_ROOT/source.tar.gz" | sha256sum --check
+          tar -xzf "$BWRAP_ROOT/source.tar.gz" -C "$BWRAP_ROOT"
+          meson setup "$BWRAP_ROOT/build" "$BWRAP_ROOT/bubblewrap-719a4fd474d44b26906bcf2b1b0fb6eddd8d56d0" -Dtests=false
+          ninja -C "$BWRAP_ROOT/build"
+          "$BWRAP_ROOT/build/bwrap" --version
+          echo "TINADEC_TOOLS_BWRAP_PATH=$BWRAP_ROOT/build/bwrap" >> "$GITHUB_ENV"
+
       # Stages the pinned ripgrep for THIS runner's platform (scripts/setup-ripgrep.mjs
       # resolves the target itself). The real-platform download is also the first
       # end-to-end check of the cross-platform staging code below.

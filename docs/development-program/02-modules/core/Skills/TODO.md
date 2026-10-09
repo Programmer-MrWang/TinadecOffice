@@ -6,6 +6,24 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+<a id="core-skills-103"></a>
+
+### CORE-SKILLS-103 Skill 源目录与真实更新卸载
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：CORE-SKILLS
+- 关联功能：CORE-SKILLS-F005
+- 范围：project .tinadec/skills、scope live source；仅选中包冻结、完整旧资产审核与物理删除。
+- 验收：实际文件副作用、冻结边界、拒绝与取消清理；平台证据独立。
+
+**验收条件**
+
+- [x] Skill 源码、不可变版本和运行冻结分离；真实更新卸载具有文件副作用。
+- [x] 完成 Skills/市场联合回归与失败修复复查，记录平台范围和证据。
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。2026-10-09 Windows 当前工作树，资源联合及差分复查通过相关用例；不沿用历史平台验收。
+
 <a id="core-skills-001"></a>
 
 ### CORE-SKILLS-001 完成 Skills · 市场与集成配置 的逐功能审计与模块图精化
@@ -75,7 +93,7 @@
 - 主责模块：CORE-SKILLS
 - 前置依赖：CORE-SKILLS-101、CORE-TOOLS-101、TOOLS-MCP-102
 - 范围：共享/项目完整包、固定提交 GitHub 来源、预览与审批、包文件/哈希/可用状态、项目准入快照、删除与二进制资产边界。
-- 证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md)、[运行时证据](../../../../../.tinadec_dev/evidence/2026-10-09-skills-management/runtime-tests.txt)
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md)、[运行时证据](../../../../../.tinadec_dev/evidence/2026-10-09-skills-management/runtime-tests.txt)
 
 **状态说明**：共享无项目安装、更新保留附件、项目包治理写入与工具能力索引已接线；本地导入与市场安装统一为审批后落盘。市场 76/76、Skills 27/27、联合 116/116 通过；PostgreSQL 实库及非 Windows 沙箱保持边界。
 

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest'
-import { createRunStream, parseRunSseBlock, runStreamDelta, type RunStreamOptions } from './runStream'
+import { createRunStream, parseRunSseBlock, runStreamDelta, suspendStorageRunStreams, type RunStreamOptions } from './runStream'
 
 function sseEvent(seq: number, kind: string, extra: Record<string, unknown> = {}): string {
   const body = { run_id: 'run-1', turn_id: 'turn-1', message_id: null, seq, kind, occurred_at: '2026-01-01T00:00:00Z', ...extra }
@@ -89,6 +89,32 @@ describe('parseRunSseBlock', () => {
 })
 
 describe('createRunStream', () => {
+  it('resumes a cancelled close after the aborted fetch settles without delivering stale frames', async () => {
+    let resolve!: (value: Response) => void
+    const callback = vi.fn(); const cancel = vi.fn()
+    const fetchImpl = vi.fn< typeof fetch >().mockImplementationOnce(() => new Promise<Response>(done => { resolve = done }))
+      .mockResolvedValueOnce(new Response(sseEvent(2, 'done')))
+    const source = createRunStream({ runId: 'resumed', storageId: 'resume-source', fetchImpl, onChunk: callback })
+    source.connect(); const resume = suspendStorageRunStreams('resume-source'); resume()
+    resolve(new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(sseEvent(1, 'delta'))) }, cancel })))
+    await new Promise(done => setTimeout(done, 10))
+    expect(fetchImpl).toHaveBeenCalledTimes(2); expect(cancel).toHaveBeenCalledOnce()
+    expect(callback.mock.calls.map(([chunk]) => chunk.kind)).toEqual(['done'])
+    expect(source.status.value).toBe('closed')
+  })
+  it('releases only the requested scope and discards a response arriving after disconnect', async () => {
+    let resolve!: (value: Response) => void
+    const callback = vi.fn(); const cancel = vi.fn()
+    const source = createRunStream({ runId: 'late', storageId: 'original', fetchImpl: vi.fn(() => new Promise<Response>(done => { resolve = done })), onChunk: callback })
+    const copy = createRunStream({ runId: 'late', storageId: 'copy', fetchImpl: vi.fn(() => new Promise<Response>(() => {})) })
+    source.connect(); copy.connect()
+    suspendStorageRunStreams('original')
+    resolve(new Response(new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode(sseEvent(1, 'delta'))) }, cancel })))
+    await new Promise(done => setTimeout(done, 5))
+    expect(source.status.value).toBe('closed'); expect(copy.status.value).toBe('connecting')
+    expect(callback).not.toHaveBeenCalled(); expect(cancel).toHaveBeenCalledOnce()
+    copy.disconnect()
+  })
   it('delivers chunks in order, dedups run_id+seq, and stops after terminal event', async () => {
     const seen: unknown[] = []
     const { handle, requestCount } = makeHandle({

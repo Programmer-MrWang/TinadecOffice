@@ -22,6 +22,14 @@ public sealed class PosixSandboxTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { }
     }
 
+    [Fact]
+    public void BubblewrapWritableDeviceBindStaysAtTheExactNullDevice()
+    {
+        Assert.Equal("--dev-bind", BubblewrapLauncher.WritableBindOption("/dev/null"));
+        Assert.Equal("--bind", BubblewrapLauncher.WritableBindOption("/dev"));
+        Assert.Equal("--bind", BubblewrapLauncher.WritableBindOption("/tmp/granted"));
+    }
+
     // ── seatbelt profile (macOS) ──────────────────────────────────────────────
 
     /// <summary>

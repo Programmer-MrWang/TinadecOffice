@@ -70,6 +70,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
     /// <summary>Per-member visibility into run internals (todo E5). Optional; an absent organization answers "unrestricted".</summary>
     private readonly ISessionOrganization? _organization;
     private readonly IToolConfigurationResolver? _toolSettings;
+    private readonly IScopeStorageLocations? _storageLocations;
 
     public ToolDispatcher(
         IToolProvider provider,
@@ -92,7 +93,8 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         IEnvironmentRegistry? environments = null,
         IApprovalRules? approvalRules = null,
         ISessionOrganization? organization = null,
-        IToolConfigurationResolver? toolSettings = null)
+        IToolConfigurationResolver? toolSettings = null,
+        IScopeStorageLocations? storageLocations = null)
     {
         _provider = provider;
         _scopeResolver = scopeResolver;
@@ -115,6 +117,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         _approvalRules = approvalRules;
         _organization = organization;
         _toolSettings = toolSettings;
+        _storageLocations = storageLocations;
     }
 
     public Task<ToolDispatchResultDto> ExecuteAsync(ToolDispatchRequestDto request, CancellationToken cancellationToken = default) =>
@@ -129,6 +132,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         {
             var scope = await _scopeResolver.ResolveAsync(
                 new ToolInvocationScopeRequest(runId, taskId, agentId, request.ToolId), cancellationToken).ConfigureAwait(false);
+            if (!MatchesStorageScope(scope)) return Blocked("The frozen run belongs to a different storage scope. Start a new run.", errorCategory: "frozen_storage_scope_mismatch");
             var descriptor = await FindV2ToolAsync(scope, request.ToolId, cancellationToken).ConfigureAwait(false);
             if (descriptor.Entry is null) return Blocked(descriptor.Error!);
             if (scope.SpaceOptions is { MultiAgent: false } && CoreVirtualToolPolicy.IsTaskDispatch(request.ToolId))
@@ -402,6 +406,12 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         {
             scope = await _scopeResolver.ResolveAsync(
                 new ToolInvocationScopeRequest(execution.RunId, execution.TaskId, execution.AgentInstanceId, execution.ToolId), cancellationToken).ConfigureAwait(false);
+            if (!MatchesStorageScope(scope))
+            {
+                const string scopeFailureMessage = "The frozen run belongs to a different storage scope. Its previous approval cannot be resumed here.";
+                await _executions.FailAsync(execution.Id, "failed", "frozen_storage_scope_mismatch", scopeFailureMessage, cancellationToken).ConfigureAwait(false);
+                return Blocked(scopeFailureMessage, execution, "frozen_storage_scope_mismatch");
+            }
             var found = await FindV2ToolAsync(scope, execution.ToolId, cancellationToken).ConfigureAwait(false);
             if (found.Entry is null)
             {
@@ -660,7 +670,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
                     Params = parameters,
                     ExecutionContext = scope.ToolExecutionContext is not null && _toolSettings is not null
                         ? await _toolSettings.MaterializeForCallAsync(scope.ToolExecutionContext,
-                            (scope.AuthorizedToolManifest ?? []).Where(t => scope.AllowedTools.Contains("*") || scope.AllowedTools.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).Select(t => t.Id).ToArray(), callToken, scope.RunId.ToString(), descriptor.Id).ConfigureAwait(false)
+                            (scope.AuthorizedToolManifest ?? []).Where(t => scope.AllowedTools.Contains("*") || scope.AllowedTools.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).Select(t => t.Id).ToArray(), callToken, scope.RunId.ToString(), descriptor.Id, scope.ExecutionRoot).ConfigureAwait(false)
                         : null
                 };
 
@@ -1423,7 +1433,9 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
                     session_id = scope.SessionId,
                     project_id = binding.ProjectId,
                     root_path = binding.RootPath,
-                    project_created = binding.ProjectCreated
+                    project_created = binding.ProjectCreated,
+                    storage_id = binding.StorageId,
+                    transfer_status = binding.TransferStatus
                 }, cancellationToken, scope.TaskId, CoreWorkspaceTool.ToolId).ConfigureAwait(false);
             var result = JsonSerializer.SerializeToElement(new
             {
@@ -1432,7 +1444,11 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
                 path = binding.RootPath,
                 project_id = binding.ProjectId,
                 project_created = binding.ProjectCreated,
-                message = $"Workspace '{binding.ProjectName}' is ready at '{binding.RootPath}'; this conversation is now bound to it. New interactions run with the full tool set of that workspace."
+                storage_id = binding.StorageId,
+                transfer_status = binding.TransferStatus,
+                message = binding.TransferStatus == "pending"
+                    ? $"Workspace '{binding.ProjectName}' is ready at '{binding.RootPath}'. This run continues in its frozen user scope; the conversation transfers after the run reaches a terminal state."
+                    : $"Workspace '{binding.ProjectName}' is ready at '{binding.RootPath}'. New runs use its storage scope."
             });
             return new ToolWireResponseDto { CallId = wire.ToolCallId, IsSuccess = true, Result = result };
         }
@@ -1656,6 +1672,9 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
         return new Guid(bytes);
     }
+
+    private bool MatchesStorageScope(ToolInvocationScope scope) => _storageLocations is null
+        || scope.ToolExecutionContext is { } frozen && frozen.StorageId == _storageLocations.StorageId && frozen.StorageRoot == _storageLocations.Root;
 
     private async Task AppendEventAsync(Guid runId, string type, string summary, object payload, CancellationToken cancellationToken, Guid taskId, string toolId, string severity = "info")
     {

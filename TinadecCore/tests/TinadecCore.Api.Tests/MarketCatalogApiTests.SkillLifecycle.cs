@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using TinadecCore.Abstractions.Ports;
 
 namespace TinadecCore.Api.Tests;
@@ -7,7 +8,7 @@ namespace TinadecCore.Api.Tests;
 public sealed partial class MarketCatalogApiTests
 {
     [Fact]
-    public async Task SharedSkillWithoutProjectUsesStableIdAndCanBeDisabledAfterApproval()
+    public async Task SharedSkillWithoutProjectUsesStableIdAndUninstallDeletesLiveFiles()
     {
         var source = await CreateSkillSourceAsync();
         var entry = await RefreshedSkillEntryAsync(source, new SkillRow("shared-lifecycle"));
@@ -18,6 +19,8 @@ public sealed partial class MarketCatalogApiTests
         var applied = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id")}/apply");
         Assert.Equal("completed", await ApproveAsync(applied.GetProperty("install_action_id").GetString()!));
         var resource = await GetJsonAsync($"/api/v1/tools/skills/{id}");
+        var liveRoot = Path.GetDirectoryName(resource.GetProperty("path").GetString()!)!;
+        Assert.True(Directory.Exists(liveRoot));
         Assert.True(resource.GetProperty("enabled").GetBoolean());
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("shared-lifecycle") + "\nUpdated body"));
         var updated = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { scope = "shared" });
@@ -29,6 +32,7 @@ public sealed partial class MarketCatalogApiTests
         var removal = await PostAsync($"/api/v1/market/installations/{installed.GetProperty("id")}/uninstall-preview");
         var removing = await PostAsync($"/api/v1/market/install-proposals/{removal.GetProperty("id")}/apply");
         Assert.Equal("completed", await ApproveAsync(removing.GetProperty("uninstall_action_id").GetString()!));
-        Assert.False((await GetJsonAsync($"/api/v1/tools/skills/{id}")).GetProperty("enabled").GetBoolean());
+        Assert.False(Directory.Exists(liveRoot));
+        Assert.Null(await _factory!.Services.GetRequiredService<IToolSkillResourceService>().GetAsync(id, null));
     }
 }

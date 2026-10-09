@@ -227,40 +227,7 @@ public sealed class MarketInstallService : IMarketInstallService
                 (managed?.Revision ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture), managed?.Command,
                 "The reviewed resource revision is saved through Core approval. Subsequent runs use the new connection; active runs retain their frozen version.");
         }
-        var configPath = await ConfigPathAsync(project.RootPath, cancellationToken).ConfigureAwait(false);
-        if (!IsInsideWorkspace(configPath, project.RootPath))
-        {
-            throw new MarketCatalogException(
-                MarketErrorCodes.TargetUnresolved,
-                $"The tool provider reads its server config from '{configPath}', which is not inside "
-                + $"the project root '{project.RootPath}'. Core will not write a file nothing reads.");
-        }
-
-        var (current, currentHash, unreadable) = await CurrentConfigAsync(
-            project.RootPath, configPath, cancellationToken).ConfigureAwait(false);
-
-        var merge = action == MarketInstallActions.Install
-            ? MergeInstall(current, subject)
-            : MergeUninstall(current, subject.ServerId);
-
-        if (merge.Content is null)
-        {
-            throw new MarketCatalogException(
-                action == MarketInstallActions.Install
-                    ? MarketErrorCodes.TargetUnresolved
-                    : MarketErrorCodes.NotExpressible,
-                merge.Error ?? "Nothing was proposed.");
-        }
-
-        if (merge.Content.Length > MarketInstallPolicy.MaxConfigChars)
-        {
-            throw new MarketCatalogException(
-                MarketErrorCodes.TargetUnresolved,
-                $"The resulting server config is larger than the {MarketInstallPolicy.MaxConfigChars} "
-                + "characters Core will freeze into a proposal.");
-        }
-
-        return new Plan(configPath, merge.Content, unreadable ? null : currentHash, merge.ReplacesCommand, null, null, null);
+        throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The Core managed MCP registry is required to review resource registration.");
     }
 
     /// <summary>
@@ -280,10 +247,10 @@ public sealed class MarketInstallService : IMarketInstallService
         string scope,
         CancellationToken cancellationToken)
     {
-        var tenant = _tenantContext.Current;
-        var fetchRoot = project?.RootPath ?? _storage?.ResolveContentReference($"market-fetch/{tenant.TenantId:N}/{tenant.WorkspaceId:N}")
+        var fetchRoot = project?.RootPath ?? _storage?.Locations.Root
             ?? throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The Core market fetch root is unavailable.");
-        Directory.CreateDirectory(fetchRoot);
+        if (!Directory.Exists(fetchRoot))
+            throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The selected scope has not been initialized by the host.");
         Dictionary<string, string>? package = null;
         string? body = null;
         string? error = null;
@@ -347,6 +314,13 @@ public sealed class MarketInstallService : IMarketInstallService
               + "write's own snapshot.";
 
         var hashes = new Dictionary<string,string?> { ["SKILL.md"] = existingHash };
+        var packageRoot = Path.GetDirectoryName(target)!;
+        foreach (var file in SafePackageFiles(packageRoot))
+        {
+            var key = Path.GetRelativePath(packageRoot, file).Replace('\\', '/');
+            hashes[key] = await FileHash(project.RootPath, file, cancellationToken);
+            if (string.IsNullOrWhiteSpace(hashes[key])) throw new MarketCatalogException(MarketErrorCodes.NotExpressible, "Every existing package asset must be readable before replacement.");
+        }
         foreach (var asset in package.Keys.Where(x => x != "SKILL.md"))
         {
             var assetPath = Path.Combine(Path.GetDirectoryName(target)!, asset.Replace('/', Path.DirectorySeparatorChar));
@@ -357,6 +331,25 @@ public sealed class MarketInstallService : IMarketInstallService
         return new Plan(target, body, existingHash, null, warning, packageFiles, packageHash, ExpectedFileHashesJson: JsonSerializer.Serialize(hashes));
     }
 
+    private static IEnumerable<string> SafePackageFiles(string root)
+    {
+        if (!Directory.Exists(root)) yield break;
+        var pending = new Stack<string>(); pending.Push(root); var count = 0; long bytes = 0;
+        while (pending.TryPop(out var directory))
+        {
+            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) throw new MarketCatalogException(MarketErrorCodes.NotExpressible, "Skill packages cannot contain links.");
+            foreach (var path in Directory.EnumerateFileSystemEntries(directory))
+            {
+                var attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0) throw new MarketCatalogException(MarketErrorCodes.NotExpressible, "Skill packages cannot contain links.");
+                if ((attributes & FileAttributes.Directory) != 0) { pending.Push(path); continue; }
+                bytes += new FileInfo(path).Length;
+                if (++count > 256 || bytes > 16 * 1024 * 1024) throw new MarketCatalogException(MarketErrorCodes.NotExpressible, "Skill package exceeds the review budget.");
+                yield return path;
+            }
+        }
+    }
+
     private async Task<Plan> PlanSkillDisableAsync(ProposalSubject subject, Guid projectId, CancellationToken ct)
     {
         if (_skillResources is null) throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The installed Skill resource is unavailable.");
@@ -365,11 +358,11 @@ public sealed class MarketInstallService : IMarketInstallService
         if (resource.Scope == "project")
         {
             var hashes = new Dictionary<string,string?>();
-            foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(resource.Path)!, "*", SearchOption.AllDirectories)) hashes[Path.GetRelativePath(Path.GetDirectoryName(resource.Path)!, file).Replace('\\','/')] = await FileHash((await ResolveProjectAsync(projectId, _tenantContext.Current, ct)).RootPath, file, ct);
+            foreach (var file in SafePackageFiles(Path.GetDirectoryName(resource.Path)!)) hashes[Path.GetRelativePath(Path.GetDirectoryName(resource.Path)!, file).Replace('\\','/')] = await FileHash((await ResolveProjectAsync(projectId, _tenantContext.Current, ct)).RootPath, file, ct);
             return new Plan($"skill-project://{resource.Name}", "", null, null, "Uninstall deletes the governed project package.", JsonSerializer.Serialize(new Dictionary<string,string>()), resource.PackageHash, resource.ResourceId, JsonSerializer.Serialize(hashes));
         }
-        return new Plan($"skill-resource://{resource.ResourceId:N}", WorkspaceSkillDiscovery.SetEnabled(resource.Content ?? "", false), resource.Revision.ToString(), null,
-            "Uninstall disables this Skill. Package bytes and running snapshots are retained.", null, resource.PackageHash, resource.ResourceId);
+        return new Plan($"skill-resource://{resource.ResourceId:N}", "", resource.Revision.ToString(), null,
+            "Uninstall removes this Skill's live source package. Running snapshots retain their admitted version.", null, resource.PackageHash, resource.ResourceId);
     }
 
     /// <summary>
@@ -497,11 +490,13 @@ public sealed class MarketInstallService : IMarketInstallService
                 proposal.ProjectId,
                 managedResource ? "mcp_resource_update" : managedSkill ? "skill_resource_update" : projectSkillPackage ? "skill_project_package" : WriteFileToolId,
                 managedResource ? proposal.Content : managedSkill ? JsonSerializer.Serialize(new {
-                    action = "save", resource_id = proposal.ResourceId, expected_revision = long.TryParse(proposal.ExpectedFileHash, out var skillRevision) ? skillRevision : 0L,
+                    action = proposal.Action == MarketInstallActions.Uninstall ? "delete" : "save", resource_id = proposal.ResourceId, expected_revision = long.TryParse(proposal.ExpectedFileHash, out var skillRevision) ? skillRevision : 0L,
                     scope = "shared", name = proposal.ExtensionId, content = proposal.Content, enabled = proposal.Action != MarketInstallActions.Uninstall,
+                    expected_package_hash = proposal.Action == MarketInstallActions.Uninstall ? proposal.PackageHash : null,
                     files = AssetsOnly(proposal.PackageFilesJson),
                     replace_files = true, source = proposal.SourceId?.ToString("N") ?? "market", version = proposal.Version, commit = proposal.Version.Length == 40 ? proposal.Version : null,
                 }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }) : projectSkillPackage ? JsonSerializer.Serialize(new {
+                    action = proposal.Action == MarketInstallActions.Uninstall ? "delete" : "save",
                     name = proposal.ExtensionId, content = proposal.Content, files = AssetsOnly(proposal.PackageFilesJson),
                     expected_file_hashes = JsonSerializer.Deserialize<Dictionary<string,string?>>(proposal.EnvironmentJson),
                 }) : JsonSerializer.Serialize(parameters),

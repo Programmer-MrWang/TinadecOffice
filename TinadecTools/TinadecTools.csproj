@@ -24,6 +24,7 @@
     <PackageReference Include="ModelContextProtocol" Version="1.4.0" />
     <PackageReference Include="NLog.Extensions.Logging" Version="6.1.3"/>
     <PackageReference Include="System.IO.Hashing" Version="10.0.0"/>
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +40,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\native\bwrap\bwrap" Condition="$([MSBuild]::IsOSPlatform('Linux')) And Exists('..\native\bwrap\bwrap')">
+      <Link>bwrap</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="..\native\rg\rg.exe" Condition="Exists('..\native\rg\rg.exe')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

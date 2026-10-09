@@ -29,6 +29,7 @@ test('framework-authored core rejections keep their own code through the gateway
     [400, 'invalid_cursor'],
     [401, 'unauthorized'],
     [403, 'forbidden'],
+    [403, 'host_authorization_required'],
     [404, 'not_found'],
     [405, 'method_not_allowed'],
     [413, 'payload_too_large'],

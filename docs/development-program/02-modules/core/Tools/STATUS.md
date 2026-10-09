@@ -15,6 +15,12 @@
 | --- | --- | --- | --- | --- | --- |
 | CORE-TOOLS-F003 | 共享/Agent 配置、托管 MCP 资源及运行冻结 | 已验收 | 实际 SQLite、条件保存、SecretStore 版本、一次准入目录、并发上下文、真实 MCP/共享技能/命令冻结 | PostgreSQL 迁移仅编译，Linux/macOS 未实机；完整批次的失败复查透明记录；对应 CORE-TOOLS-101 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
 
+## 2026-10-09 存储作用域专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| CORE-TOOLS-F004 | MCP 程序安装与运行存储身份 | 源码可见 | 2026-10-09 Windows f8b233d+工作树；Core联合/差分、真实manifest/pointer、复制/hash拒绝回归 | 登记/安装拆分；审批、immutable包、新generation重装、历史保留及frozen scope拒绝接线；provider测试未替代真实npm/UV联网安装和平台内核验收 | [实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

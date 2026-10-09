@@ -1,0 +1,16 @@
+VSTest version 18.6.0 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:24.31]     TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [FAIL]
+  Failed TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup [23 s]
+  Error Message:
+   Assert.NotEqual() Failure: Values are equal
+Expected: Not 0
+Actual:       0
+  Stack Trace:
+     at TinadecTools.Tests.PosixSandboxIntegrationTests.TerminationReachesTheWholeProcessGroup() in /mnt/c/git/agent/TinadecOffice/tests/TinadecTools.Tests/PosixSandboxIntegrationTests.cs:line 227
+--- End of stack trace from previous location ---
+Results File: /var/tmp/tinadec-storage-validation/evidence/linux-posix-tools-final.trx
+
+Failed!  - Failed:     1, Passed:    26, Skipped:     0, Total:    27, Duration: 25 s - TinadecTools.Tests.dll (net10.0)

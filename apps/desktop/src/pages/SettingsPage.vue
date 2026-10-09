@@ -51,6 +51,7 @@ import { useRouter } from 'vue-router'
 import AboutSection from '@/settings/sections/AboutSection.vue'
 import ArchiveTrashSection from '@/settings/sections/ArchiveTrashSection.vue'
 import GeneralSection from '@/settings/sections/GeneralSection.vue'
+import StorageSection from '@/settings/sections/StorageSection.vue'
 import LanguageSection from '@/settings/sections/LanguageSection.vue'
 import ApiDocsSection from '@/settings/sections/ApiDocsSection.vue'
 import AppearanceSection from '@/settings/sections/AppearanceSection.vue'
@@ -59,7 +60,7 @@ import PetsSection from '@/settings/sections/PetsSection.vue'
 import ToolCenterSection from '@/settings/sections/ToolCenterSection.vue'
 import TinaChatSection from '@/settings/sections/TinaChatSection.vue'
 import {
-  api,
+  api as baseApi,
   type AgentCandidateDto,
   type AgentCenterOverviewDto,
   type AgentDefinitionDto,
@@ -90,6 +91,8 @@ import {
   type ToolSearchResultDto,
   type AgentModeTopologyDto
 } from '../api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import {
   PROVIDER_CATEGORIES,
   PROVIDER_TEMPLATES,
@@ -145,7 +148,7 @@ import { createSettingsLeaveGuard } from './settingsNavigation'
 import { useNotifications } from '@/composables/useNotifications'
 import { graphSeedPackManifest } from '@/agentPacks/GraphSeedPack'
 
-type SettingsSection = 'personal' | 'general' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
+type SettingsSection = 'personal' | 'general' | 'storage' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
 
 type AgentCenterTab = 'agents' | 'modes' | 'prompts' | 'evolution' | 'runtime'
 
@@ -231,6 +234,7 @@ function maximizeWindow() {
 }
 
 async function closeWindow() {
+  if (activeSection.value === 'storage' && storageRef.value && !await storageRef.value.canLeave()) return
   if (activeSection.value === 'tools' && toolCenterRef.value && !await toolCenterRef.value.canLeave()) return
   window.tinadec?.closeWindow?.()
 }
@@ -241,6 +245,7 @@ function openExternal(url: string) {
 
 const activeSection = ref<SettingsSection>('personal')
 const toolCenterRef = ref<{ canLeave(): Promise<boolean> } | null>(null)
+const storageRef = ref<{ canLeave(): Promise<boolean> } | null>(null)
 const agentCenterTab = ref<AgentCenterTab>('agents')
 // Pets section moved to settings/sections/PetsSection.vue (D7.2)
 
@@ -256,6 +261,7 @@ const CENTERED_SECTIONS: ReadonlySet<SettingsSection> = new Set([
 const isCenteredSection = computed(() => CENTERED_SECTIONS.has(activeSection.value))
 
 async function selectSettingsSection(section: SettingsSection) {
+  if (section !== 'storage' && activeSection.value === 'storage' && storageRef.value && !await storageRef.value.canLeave()) return false
   if (section !== 'tools' && activeSection.value === 'tools' && toolCenterRef.value && !await toolCenterRef.value.canLeave()) return false
   activeSection.value = section
   return true
@@ -266,8 +272,8 @@ const settingsExiting = ref(false)
 const SETTINGS_EXIT_DURATION_MS = 530
 
 onBeforeRouteLeave(createSettingsLeaveGuard({
-  isTools: () => activeSection.value === 'tools',
-  canLeave: () => toolCenterRef.value?.canLeave() ?? Promise.resolve(true),
+  isTools: () => activeSection.value === 'tools' || activeSection.value === 'storage',
+  canLeave: () => (activeSection.value === 'storage' ? storageRef.value : toolCenterRef.value)?.canLeave() ?? Promise.resolve(true),
   isExiting: () => settingsExiting.value,
   markExiting: () => { settingsExiting.value = true },
   durationMs: SETTINGS_EXIT_DURATION_MS,
@@ -364,6 +370,7 @@ const providerForm = reactive<ProviderForm>({  id: '',
 const navItems = computed(() => [
   { key: 'personal' as const, icon: UserRound, label: t('settings.personal') },
   { key: 'general' as const, icon: Settings2, label: t('settings.general') },
+  { key: 'storage' as const, icon: Database, label: t('settings.storage') },
   { key: 'model' as const, icon: KeyRound, label: t('settings.model') },
   { key: 'agentCenter' as const, icon: Workflow, label: t('settings.agentCenter') },
   { key: 'tools' as const, icon: Terminal, label: t('settings.toolLayer') },
@@ -1990,6 +1997,7 @@ import '../settings/settings.css'
       </nav>
 
       <div class="settings-content" :style="settingsContentStyle" v-bind="settingsContentDataAttrs">
+        <p v-if="activeSection === 'model' || activeSection === 'agentCenter'" class="quiet" role="status">{{ t('settings.userConfigurationSource') }}</p>
         <Transition name="section-fade" mode="out-in">
         <div
           :key="activeSection"
@@ -2001,6 +2009,9 @@ import '../settings/settings.css'
 
         <template v-if="activeSection === 'general'">
           <GeneralSection />
+        </template>
+        <template v-if="activeSection === 'storage'">
+          <StorageSection ref="storageRef" />
         </template>
 
         <template v-if="activeSection === 'model'">

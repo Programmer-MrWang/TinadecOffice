@@ -19,6 +19,7 @@ public sealed class DmaEAModuleRegistrar : IModuleRegistrar
         builder.Services.AddDbContextFactory<AgentControlDbContext>((sp, options) => options.UseTinadecDatabase(sp));
         builder.Services.AddSingleton<IStorageMigrationParticipant, DbContextMigrationParticipant<AgentControlDbContext>>();
         builder.Services.AddSingleton<AgentRuntimeConfigurationStore>();
+        builder.Services.AddSingleton<IConfigurationDocumentValidator, RuntimeConfigurationDocumentValidator>();
         builder.Services.AddSingleton<IAgentRuntimeConfiguration>(sp => sp.GetRequiredService<AgentRuntimeConfigurationStore>());
         builder.Services.AddSingleton<IAgentRuntimeConfigurationResolver, AgentRuntimeConfigurationResolver>();
         builder.Services.AddSingleton<IRuntimeContextSettings, RuntimeContextSettingsAdapter>();

@@ -1,6 +1,7 @@
 import { computed, ref, type Ref } from 'vue'
-import { api, type ApprovalDto, type ProjectDto } from '@/api'
+import { api as baseApi, type ApprovalDto, type ProjectDto } from '@/api'
 import { useNotifications } from '@/composables/useNotifications'
+import { projectStorageId, scopedApi, selectionKey } from '@/lib/storageScope'
 
 // ---------------------------------------------------------------------------
 // CodeController — the single domain controller for the Code page.
@@ -16,6 +17,7 @@ export interface OpenTab {
 
 const projects = ref<ProjectDto[]>([])
 const selectedProjectId = ref<string | null>(null)
+const api = scopedApi(baseApi, () => projectStorageId(selectedProjectId.value))
 const openTabs = ref<OpenTab[]>([])
 const activeTabPath = ref<string | null>(null)
 const approvals = ref<ApprovalDto[]>([])
@@ -28,7 +30,7 @@ const patchFilePath = ref('')
 const busy = ref(false)
 
 const currentProject = computed(() =>
-  projects.value.find((p) => p.id === selectedProjectId.value) ?? null,
+  projects.value.find((p) => selectionKey(p) === selectedProjectId.value) ?? null,
 )
 const currentProjectPath = computed(() => currentProject.value?.path ?? '')
 const activeTab = computed(() =>
@@ -42,7 +44,7 @@ async function loadProjects(): Promise<void> {
   try {
     projects.value = await api.listProjects()
     if (!selectedProjectId.value && projects.value.length > 0) {
-      selectedProjectId.value = projects.value[0].id
+      selectedProjectId.value = selectionKey(projects.value[0])
     }
     await loadSession()
     dismissByKey('code-load')
@@ -60,11 +62,15 @@ async function loadProjects(): Promise<void> {
 }
 
 async function loadSession(): Promise<void> {
+  const projectKey = selectedProjectId.value
+  const capturedApi = scopedApi(baseApi, () => projectStorageId(projectKey))
   if (!selectedSessionId.value && currentProject.value) {
     try {
-      const sessions = await api.listSessions(currentProject.value.id)
+      const sessions = await capturedApi.listSessions(selectionKey(currentProject.value))
+      if (selectedProjectId.value !== projectKey) return
       selectedSessionId.value = sessions[0]?.id ?? null
     } catch {
+      if (selectedProjectId.value !== projectKey) return
       selectedSessionId.value = null
     }
   }
@@ -72,10 +78,14 @@ async function loadSession(): Promise<void> {
 }
 
 async function loadApprovals(): Promise<void> {
+  const projectKey = selectedProjectId.value; const sessionId = selectedSessionId.value
+  const capturedApi = scopedApi(baseApi, () => projectStorageId(projectKey))
   try {
-    const list = await api.listApprovals(selectedSessionId.value ?? undefined)
+    const list = await capturedApi.listApprovals(sessionId ?? undefined)
+    if (selectedProjectId.value !== projectKey || selectedSessionId.value !== sessionId) return
     approvals.value = list
   } catch {
+    if (selectedProjectId.value !== projectKey || selectedSessionId.value !== sessionId) return
     approvals.value = []
   }
 }
@@ -151,6 +161,8 @@ function handleRefresh(): void {
 function setProject(id: string): void {
   if (id === selectedProjectId.value) return
   selectedProjectId.value = id
+  selectedSessionId.value = null
+  approvals.value = []
   openTabs.value = []
   activeTabPath.value = null
   void loadSession()

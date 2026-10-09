@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Prompts;
 
-public sealed class PromptControlDbContext : DbContext
+public sealed class PromptControlDbContext : ConfigurationProjectionDbContext
 {
     public PromptControlDbContext(DbContextOptions<PromptControlDbContext> options) : base(options) { }
     public DbSet<PromptFragmentRecord> Fragments => Set<PromptFragmentRecord>();

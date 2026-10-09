@@ -6,6 +6,7 @@ using TinadecCore.Contracts.Dtos;
 using TinadecCore.Contracts.Events;
 using TinadecCore.Lifecycle;
 using TinadecCore.Memory;
+using TinadecCore.Runtime;
 
 namespace TinadecCore.AspNetCore.Endpoints;
 
@@ -13,18 +14,36 @@ public static class StorageEndpoints
 {
     public static IEndpointRouteBuilder MapStorageEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/projects", async (string? lifecycle_status, string? lifecycleStatus, ProjectSessionStore store, CancellationToken ct) =>
+        app.MapGet("/api/v1/projects", async (string? lifecycle_status, string? lifecycleStatus, HttpContext http, ProjectSessionStore store, CancellationToken ct) =>
         {
             var selected = lifecycle_status ?? lifecycleStatus ?? TinadecCore.Memory.LifecycleStatuses.Active;
             if (!TinadecCore.Memory.LifecycleStatuses.IsKnown(selected))
                 return Results.BadRequest(new { code = "INVALID_LIFECYCLE_STATUS", message = "lifecycle_status must be active, archived, or trashed." });
-            return Results.Ok((await store.ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(ToProject));
+            if (http.RequestServices.GetService<IStorageScopeRegistry>() is { } registry && !http.Request.Headers.ContainsKey(StorageScopeHttpExtensions.StorageHeader))
+            {
+                var projects = new List<object>();
+                foreach (var scope in registry.List().Where(x => x.ScopeKind == "project"))
+                {
+                    await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
+                    projects.AddRange((await lease.Services.GetRequiredService<ProjectSessionStore>().ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, scope.StorageId)));
+                }
+                return Results.Ok(projects);
+            }
+            var storageId = http.RequestServices.GetService<IScopeStorageLocations>()?.StorageId;
+            return Results.Ok((await store.ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, storageId)));
         });
 
-        app.MapPost("/api/v1/projects", async (CreateProjectRequest request, ProjectSessionStore store, CancellationToken ct) =>
+        app.MapPost("/api/v1/projects", async (CreateProjectRequest request, HttpContext http, ProjectSessionStore store, CancellationToken ct) =>
         {
             try
             {
+                if (http.RequestServices.GetService<IStorageScopeRegistry>() is { } registry)
+                {
+                    var scope = await registry.OpenAsync(new(request.Path, request.Name), ct).ConfigureAwait(false);
+                    await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
+                    var opened = await lease.Services.GetRequiredService<ProjectSessionStore>().GetProjectAnyStatusAsync(scope.ProjectId!.Value, ct).ConfigureAwait(false);
+                    return Results.Created($"/api/v1/projects/{opened!.Id}", ToProject(opened, scope.StorageId));
+                }
                 var project = await store.CreateProjectAsync(request.Name, request.Path, ct).ConfigureAwait(false);
                 return Results.Created($"/api/v1/projects/{project.Id}", ToProject(project));
             }
@@ -62,16 +81,27 @@ public static class StorageEndpoints
             catch (TinadecCore.Runtime.ActiveRunConflictException ex) { return Results.Conflict(new { code = "active_run_conflict", message = ex.Message, run_id = ex.RunId }); }
         });
 
-        app.MapGet("/api/v1/sessions", async (string? projectId, string? project_id, string? lifecycle_status, string? lifecycleStatus, ProjectSessionStore store, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct) =>
+        app.MapGet("/api/v1/sessions", async (string? projectId, string? project_id, string? lifecycle_status, string? lifecycleStatus, HttpContext http, ProjectSessionStore store, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct) =>
         {
             var selected = projectId ?? project_id;
             if (selected is not null && !Guid.TryParse(selected, out var parsed)) return Results.BadRequest(new { code = "INVALID_PROJECT_ID" });
             var status = lifecycle_status ?? lifecycleStatus ?? TinadecCore.Memory.LifecycleStatuses.Active;
             if (!TinadecCore.Memory.LifecycleStatuses.IsKnown(status))
                 return Results.BadRequest(new { code = "INVALID_LIFECYCLE_STATUS", message = "lifecycle_status must be active, archived, or trashed." });
+            if (http.RequestServices.GetService<IStorageScopeRegistry>() is { } registry && !http.Request.Headers.ContainsKey(StorageScopeHttpExtensions.StorageHeader))
+            {
+                var aggregate = new List<object>();
+                foreach (var scope in registry.List().Where(x => selected is null || x.ProjectId == Guid.Parse(selected)))
+                {
+                    await using var lease = await registry.AcquireAsync(scope.StorageId, ct).ConfigureAwait(false);
+                    var records = await lease.Services.GetRequiredService<ProjectSessionStore>().ListSessionsAsync(selected is null ? null : Guid.Parse(selected), status, ct).ConfigureAwait(false);
+                    foreach (var record in records) aggregate.Add(await ToSessionEnrichedAsync(record, lease.Services.GetRequiredService<IDbContextFactory<AgentConfigurationDbContext>>(), ct, scope.StorageId).ConfigureAwait(false));
+                }
+                return Results.Ok(aggregate);
+            }
             var sessions = await store.ListSessionsAsync(selected is null ? null : Guid.Parse(selected), status, ct).ConfigureAwait(false);
             var enriched = new List<object>(sessions.Count);
-            foreach (var s in sessions) enriched.Add(await ToSessionEnrichedAsync(s, cfgFactory, ct).ConfigureAwait(false));
+            foreach (var s in sessions) enriched.Add(await ToSessionEnrichedAsync(s, cfgFactory, ct, http.RequestServices.GetService<IScopeStorageLocations>()?.StorageId).ConfigureAwait(false));
             return Results.Ok(enriched);
         });
 
@@ -197,36 +227,40 @@ public static class StorageEndpoints
             catch (SessionSettingsConflictException ex) { return Results.Conflict(new { code = "session_settings_conflict", message = ex.Message, settings_revision = ex.CurrentRevision }); }
         });
 
-        app.MapPost("/api/v1/sessions/{sessionId}/migrate", async (string sessionId, MigrateSessionRequest request, ProjectSessionStore store, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct) =>
+        if (app.ServiceProvider.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IStorageScopeRegistry))
+            && app.ServiceProvider.GetRequiredService<IServiceProviderIsService>().IsService(typeof(ISessionScopeTransferService)))
+        {
+        app.MapPost("/api/v1/sessions/{sessionId}/migrate", async (string sessionId, MigrateSessionRequest request,
+            TinadecCore.Runtime.IStorageScopeRegistry scopes, TinadecCore.Runtime.ISessionScopeTransferService transfers,
+            IScopeStorageLocations locations, CancellationToken ct) =>
         {
             if (!Guid.TryParse(sessionId, out var id)) return Results.BadRequest(new { code = "INVALID_SESSION_ID" });
+            if (locations.StorageId != "user") return Results.Conflict(new { code = "invalid_transfer_source", message = "Free-session transfer must be requested from its user storage scope." });
             try
             {
-                SessionRecord session;
-                if (!string.IsNullOrWhiteSpace(request.TargetProjectId) && Guid.TryParse(request.TargetProjectId, out var parsedId))
-                {
-                    session = await store.MigrateSessionAsync(id, parsedId, ct).ConfigureAwait(false);
-                }
-                else if (!string.IsNullOrWhiteSpace(request.ProjectName) && !string.IsNullOrWhiteSpace(request.ProjectPath))
-                {
-                    // The same binder the create_workspace virtual tool uses: directory
-                    // creation, absolute-path validation, find-or-create by root, and the
-                    // atomically locked session rebind must have exactly one implementation.
-                    var binding = await store.BindSessionToWorkspaceAsync(id, request.ProjectName, request.ProjectPath, ct).ConfigureAwait(false);
-                    session = await store.GetSessionAsync(binding.SessionId, ct).ConfigureAwait(false)
-                        ?? throw new KeyNotFoundException("Session was not found.");
-                }
-                else
-                {
-                    return Results.BadRequest(new { code = "INVALID_MIGRATION_REQUEST", message = "target_project_id or (project_name and project_path) must be provided." });
-                }
-
-                return Results.Ok(await ToSessionEnrichedAsync(session, cfgFactory, ct).ConfigureAwait(false));
+                var targetStorage = request.TargetStorageId;
+                if (string.IsNullOrWhiteSpace(targetStorage) && Guid.TryParse(request.TargetProjectId, out var projectId))
+                    targetStorage = scopes.List().FirstOrDefault(scope => scope.ProjectId == projectId)?.StorageId
+                        ?? throw new KeyNotFoundException("The target project storage is not registered.");
+                if (string.IsNullOrWhiteSpace(targetStorage) && !string.IsNullOrWhiteSpace(request.ProjectPath))
+                    targetStorage = (await scopes.OpenAsync(new TinadecCore.Runtime.OpenStorageScopeRequest(request.ProjectPath, request.ProjectName), ct).ConfigureAwait(false)).StorageId;
+                if (string.IsNullOrWhiteSpace(targetStorage))
+                    return Results.BadRequest(new { code = "INVALID_MIGRATION_REQUEST", message = "target_storage_id, target_project_id, or project_path is required." });
+                var receipt = await transfers.RequestAsync(id, targetStorage, ct).ConfigureAwait(false);
+                return Results.Accepted("/api/v1/session-transfers/" + receipt.TransferId, ToTransferReceipt(receipt));
             }
+            catch (TinadecCore.DmaEA.RunAdmissionException ex) { return Results.Conflict(new { code = ex.Code, message = ex.Message }); }
             catch (KeyNotFoundException) { return Results.NotFound(new { code = "RESOURCE_NOT_FOUND" }); }
             catch (ArgumentException ex) { return Results.BadRequest(new { code = "INVALID_REQUEST", message = ex.Message }); }
             catch (InvalidOperationException ex) { return Results.Conflict(new { code = "CONFLICT", message = ex.Message }); }
         });
+
+        app.MapGet("/api/v1/session-transfers/{transferId}", (Guid transferId, TinadecCore.Runtime.ISessionScopeTransferService transfers) =>
+        {
+            try { return Results.Ok(ToTransferReceipt(transfers.Get(transferId))); }
+            catch (KeyNotFoundException) { return Results.NotFound(new { code = "transfer_not_found" }); }
+        });
+        }
 
         MapSessionLifecycleEndpoints(app, "archive", lifecycle => lifecycle.ArchiveSessionAsync);
         MapSessionLifecycleEndpoints(app, "trash", lifecycle => lifecycle.TrashSessionAsync);
@@ -422,7 +456,7 @@ public static class StorageEndpoints
         });
     }
 
-    private static object ToProject(ProjectRecord project) => new { id = project.Id, name = project.Name, path = project.RootPath, kind = project.Kind, created_at = project.CreatedAt, updated_at = project.UpdatedAt, lifecycle_status = project.LifecycleStatus, trashed_at = project.TrashedAt };
+    private static object ToProject(ProjectRecord project, string? storageId = null) => new { id = project.Id, storage_id = storageId, name = project.Name, path = project.RootPath, kind = project.Kind, created_at = project.CreatedAt, updated_at = project.UpdatedAt, lifecycle_status = project.LifecycleStatus, trashed_at = project.TrashedAt };
     private static object ToSession(SessionRecord session) => new
     {
         id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status,
@@ -434,7 +468,7 @@ public static class StorageEndpoints
         lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt
     };
 
-    private static async Task<object> ToSessionEnrichedAsync(SessionRecord session, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct)
+    private static async Task<object> ToSessionEnrichedAsync(SessionRecord session, IDbContextFactory<AgentConfigurationDbContext> cfgFactory, CancellationToken ct, string? storageId = null)
     {
         bool hasUpdate = false;
         Guid? latestModeVersionId = null;
@@ -452,7 +486,7 @@ public static class StorageEndpoints
             }
         }
         catch { }
-        return new { id = session.Id, project_id = session.ProjectId, title = session.Title, status = session.Status, view_mode = session.ViewMode ?? "flat", mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), permission_mode = session.PermissionMode ?? "default", space_options = ToSpaceOptionsDto(ProjectSessionStore.ReadSpaceOptions(session)), settings_revision = session.SettingsRevision, has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
+        return new { id = session.Id, storage_id = storageId, project_id = session.ProjectId, title = session.Title, status = session.Status, view_mode = session.ViewMode ?? "flat", mode_version_id = session.ModeVersionId, conversation_node_key = session.ConversationNodeKey, conversation_template_slug = session.ConversationTemplateSlug, meeting_model_override = ToMeetingModelOverride(session), permission_mode = session.PermissionMode ?? "default", space_options = ToSpaceOptionsDto(ProjectSessionStore.ReadSpaceOptions(session)), settings_revision = session.SettingsRevision, has_update = hasUpdate, latest_mode_version_id = latestModeVersionId, summary = session.Summary, history_revision = session.HistoryRevision, created_at = session.CreatedAt, updated_at = session.UpdatedAt, lifecycle_status = session.LifecycleStatus, trashed_at = session.TrashedAt };
     }
 
     internal static SpaceRunOptions? ToSpaceOptions(SpaceRunOptionsDto? options) => options is null ? null
@@ -469,6 +503,13 @@ public static class StorageEndpoints
             && x.TenantId == tenantId && x.WorkspaceId == workspaceId && x.Status == "published", ct).ConfigureAwait(false);
         if (version is null) throw new ArgumentException("workflow_mode_version_id must reference a published mode in this workspace.");
     }
+
+    private static object ToTransferReceipt(TinadecCore.Runtime.SessionScopeTransferReceipt receipt) => new
+    {
+        transfer_id = receipt.TransferId, session_id = receipt.SessionId, source_storage_id = receipt.SourceStorageId,
+        storage_id = receipt.TargetStorageId, project_id = receipt.ProjectId, status = receipt.Status,
+        created_at = receipt.CreatedAt, updated_at = receipt.UpdatedAt, error = receipt.Error
+    };
 
     private static object? ToMeetingModelOverride(SessionRecord session) =>
         session.MeetingModelOverrideProviderInstanceId is { } providerInstanceId

@@ -8,6 +8,30 @@
 
 ## 可编辑架构图
 
+2026-10-09 存储运行图（当前源码）。`StorageScopeRegistry.MountAsync` 在每个服务图中重新注册模块与 HTTP 端口，数据库连接、单例、后台 worker 和工具进程不跟随 UI 的当前项目改变。
+
+```mermaid
+flowchart TD
+  open["用户打开项目 / 宿主登记"] --> init["原子初始化 staging → project.toml"]
+  open --> registry["StorageScopeRegistry / projects.toml"]
+  request["HTTP / SSE + host key + storage ID"] --> auth["可信宿主认证 / HMAC服务身份"]
+  auth --> registry
+  registry --> user["user 独立服务图"]
+  registry --> project["project 独立服务图"]
+  project --> config["TOML 校验 / 摘要 / 文件投影"]
+  project --> database["独立 SQLite 或 PostgreSQL schema"]
+  project --> resources["内容库 / 工具进程 / 后台恢复"]
+  project --> logs["scope logs / cache / temp"]
+  transfer["SessionScopeTransferService"] -->|"双维护租约，先复制后删源"| user
+  transfer --> project
+  purge["session-owned graph + durable purge journal"] --> database
+  gc["预览 + 引用与stream/run租约复核"] --> resources
+```
+
+项目文件只提供内容和配置，`allow_storage_write` 的可信上限属于用户根 state 登记与宿主 IPC；`HostProtectedRoots` 在新运行准入冻结其他作用域及安全库路径。完整模型运行和各平台内核证据另见 [X-DATA-104](../../cross-cutting/data-security/TODO.md#x-data-104)。
+
+`StorageScopeShutdownHostedService` 在主图 worker 前登记，停止顺序使它最后等待所有子图关闭；Registry 和 runtime 的并发 AsyncDispose/Stop 等待同一实际完成任务。关闭先阻止新挂载/维护/租约，现有 SSE、运行和内容流完成后才释放数据库及 `host.lock`。Windows以实际独占重新打开证明句柄释放。项目销毁预览包含SQLite一致备份或PostgreSQL owned schema 的RepeatableRead行摘要，执行前再次核对，不能只凭目录统计删除新事实。
+
 ```mermaid
 flowchart LR
   subgraph S["Runtime · 唯一组合根"]

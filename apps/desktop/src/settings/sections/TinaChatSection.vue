@@ -3,7 +3,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bot, LockKeyhole, MessageCircle, Plus, RefreshCw, User, Users } from '@lucide/vue'
 import { UiButton, UiCheckbox, UiInput, UiIslandCard, UiSwitch, UiTextarea } from '@/components/ui'
-import { api, type TinaChatConversation, type TinaChatMember, type TinaChatParticipant, type TinaChatWorkspacePolicy } from '@/api'
+import { api as baseApi, type TinaChatConversation, type TinaChatMember, type TinaChatParticipant, type TinaChatWorkspacePolicy } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
 import { useChatIdentity } from '@/tinaChat/useChatIdentity'
 

@@ -12,6 +12,8 @@ public static class TinadecCoreEndpointRouteBuilderExtensions
     public static IEndpointRouteBuilder MapTinadecCore(this IEndpointRouteBuilder endpoints)
     {
         endpoints.MapCoreDiagnosticsEndpoints();
+        if (endpoints.ServiceProvider.GetService<TinadecCore.Runtime.IStorageScopeRegistry>() is not null)
+            endpoints.MapStorageScopeEndpoints();
         endpoints.MapStorageEndpoints();
         endpoints.MapAttachmentEndpoints();
         endpoints.MapDmaeaEndpoints();

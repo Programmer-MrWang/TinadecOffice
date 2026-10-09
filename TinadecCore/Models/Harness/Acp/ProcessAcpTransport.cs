@@ -75,6 +75,7 @@ internal sealed class ProcessAcpTransport : IAcpTransport
             }
         }
 
+        startInfo.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
         try
         {
             _process = Process.Start(startInfo)

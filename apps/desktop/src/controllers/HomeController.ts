@@ -19,7 +19,7 @@ import {
 import { basenameFromPath } from '@/format'
 import { getDispatchPref } from '@/lib/dispatchPref'
 import { attachmentsForSend, pendingAttachments, readyAttachmentCount, settleSentAttachments } from '@/lib/pendingAttachments'
-import { followSession, subscribeToSessionEvents } from '@/lib/sessionEventBus'
+import { followSession, subscribeToSessionEvents, suspendFollowingSession } from '@/lib/sessionEventBus'
 import { isAbortError } from '@/lib/isAbortError'
 import { useAgentActivity } from '@/composables/useAgentActivity'
 import { projectRunReply } from '@/lib/runReply'
@@ -32,6 +32,9 @@ import { userToolActionIdempotencyKey, userToolActionToApproval } from '@/userTo
 import { createRunStream, type RunStreamHandle } from '@/lib/runStream'
 import { generatedApi } from '@/generated/client'
 import { useRunStore } from '@/stores/run'
+import { registerProjectStorage, projectStorageId, setSelectedStorage, selectedStorage, selectedStorageId, selectionIdentity, selectionKey, scopedApi } from '@/lib/storageScope'
+import type { SessionTransferDto } from '@/settings/storage'
+import type { TaskHandle } from '@/composables/useNotifications'
 
 // ---------------------------------------------------------------------------
 // HomeController — the single domain controller for the Home page.
@@ -43,6 +46,7 @@ import { useRunStore } from '@/stores/run'
 
 const projects = ref<ProjectDto[]>([])
 const sessions = ref<SessionDto[]>([])
+const sessionTransfers = ref<Record<string, SessionTransferDto>>({})
 type SessionView = 'flat' | 'space'
 const viewMode = ref<SessionView>('flat')
 const visibleSessions = computed(() => sessions.value.filter(s => (s.view_mode ?? 'flat') === viewMode.value))
@@ -97,11 +101,11 @@ const working = ref(false)
 const lastStreamActivityAt = ref<number | null>(null)
 function syncWorking() { working.value = runStreams.size > 0 }
 
-const currentProject = computed(() => projects.value.find((p) => p.id === selectedProjectId.value) ?? null)
+const currentProject = computed(() => projects.value.find((p) => p.id === selectedProjectId.value && (!p.storage_id || p.storage_id === selectedStorage.value)) ?? null)
 // 活动运行 = 非终态且不驻留人工决策（对齐 Core CountActiveRunsAsync 的口径，
 // 词表以共享 12 态为准，不再使用自造的 running/ready/pending/queued）。
 const activeRuns = computed(() => runs.value.filter((r) => !['completed', 'failed', 'cancelled', 'awaiting_user'].includes(r.status)))
-const currentSession = computed(() => sessions.value.find((s) => s.id === selectedSessionId.value) ?? null)
+const currentSession = computed(() => sessions.value.find((s) => s.id === selectedSessionId.value && (!s.storage_id || s.storage_id === selectedStorage.value)) ?? null)
 function settingsFor(session: SessionDto | null, view: SessionView): ComposerSettings {
   return session ? {
     mode_version_id: session.mode_version_id ?? null,
@@ -112,32 +116,40 @@ function settingsFor(session: SessionDto | null, view: SessionView): ComposerSet
 }
 const composerSettings = computed(() => settingsFor(currentSession.value, viewMode.value))
 const currentPermission = computed(() => composerSettings.value.permission_mode)
-const settingsKey = computed(() => selectedSessionId.value ?? `draft:${viewMode.value}`)
+const settingsKey = computed(() => `${selectedStorage.value}::${selectedSessionId.value ?? `draft:${viewMode.value}`}`)
 const settingsSaving = computed(() => (settingsPending.value[settingsKey.value] ?? 0) > 0)
 const settingsError = computed(() => settingsErrors.value[settingsKey.value] ?? null)
 
-function acceptSessionReceipt(updated: SessionDto) {
-  sessions.value = sessions.value.map(session => session.id !== updated.id || updated.settings_revision < session.settings_revision
+function sessionWriteKey(sessionId: string, storageId = selectedStorageId()) { return `${storageId}::${selectionIdentity(sessionId).id}` }
+function sessionInScope(session: SessionDto, sessionId: string, storageId: string) { return session.id === sessionId && (!session.storage_id || session.storage_id === storageId) }
+function acceptSessionReceipt(updated: SessionDto, storageId: string) {
+  sessions.value = sessions.value.map(session => !sessionInScope(session, updated.id, storageId) || updated.settings_revision < session.settings_revision
     ? session : { ...session, ...updated })
 }
 
 async function saveSessionTitle(sessionId: string, title: string): Promise<void> {
-  const previous = settingsWrites.get(sessionId)
+  const identity = selectionIdentity(sessionId)
+  const storageId = identity.storageId ?? selectedStorageId()
+  const key = sessionWriteKey(identity.id, storageId)
+  const boundApi = scopedApi(api, () => storageId)
+  const previous = settingsWrites.get(key)
   const request = (async () => {
     if (previous) await previous
-    acceptSessionReceipt(await api.updateSessionTitle(sessionId, title))
+    acceptSessionReceipt(await boundApi.updateSessionTitle(identity.id, title), storageId)
   })()
   // A naming failure does not invalidate the task's chosen runtime settings.
   const settled = request.then(() => true, () => true)
-  settingsWrites.set(sessionId, settled)
-  try { await request } finally { if (settingsWrites.get(sessionId) === settled) settingsWrites.delete(sessionId) }
+  settingsWrites.set(key, settled)
+  try { await request } finally { if (settingsWrites.get(key) === settled) settingsWrites.delete(key) }
 }
 
 /** Serial writes keep rapid selections ordered; revisions protect against other windows. */
 async function updateComposerSettings(patch: SessionSettingsUpdate): Promise<boolean> {
   const sessionId = selectedSessionId.value
+  const storageId = selectedStorageId()
+  const boundApi = scopedApi(api, () => storageId)
   const view = viewMode.value
-  const key = sessionId ?? `draft:${view}`
+  const key = `${storageId}::${sessionId ?? `draft:${view}`}`
   const frozenPatch: SessionSettingsUpdate = {
     ...patch,
     ...(patch.space_options ? { space_options: { ...patch.space_options } } : {}),
@@ -149,23 +161,23 @@ async function updateComposerSettings(patch: SessionSettingsUpdate): Promise<boo
     return true
   }
   settingsPending.value = { ...settingsPending.value, [key]: (settingsPending.value[key] ?? 0) + 1 }
-  const previous = settingsWrites.get(sessionId)
+  const previous = settingsWrites.get(key)
   const writing = (async () => {
     if (previous) await previous
     try {
-      const session = sessions.value.find(s => s.id === sessionId)
+      const session = sessions.value.find(s => sessionInScope(s, sessionId, storageId))
       sessionListRead++
       sessionListAbort?.abort()
-      const updated = await api.updateSessionSettings(sessionId, { ...frozenPatch, expected_settings_revision: session?.settings_revision ?? 0 })
-      acceptSessionReceipt(updated)
+      const updated = await boundApi.updateSessionSettings(sessionId, { ...frozenPatch, expected_settings_revision: session?.settings_revision ?? 0 })
+      acceptSessionReceipt(updated, storageId)
       settingsErrors.value = { ...settingsErrors.value, [key]: null }
       return true
     } catch (error) {
       settingsErrors.value = { ...settingsErrors.value, [key]: error instanceof Error ? error.message : String(error) }
       if ((error as { code?: string }).code === 'session_settings_conflict') {
         try {
-          const latest = (await api.listSessions()).find(s => s.id === sessionId)
-          if (latest) sessions.value = sessions.value.map(s => s.id === sessionId ? latest : s)
+          const latest = (await boundApi.listSessions()).find(s => sessionInScope(s, sessionId, storageId))
+          if (latest) sessions.value = sessions.value.map(s => sessionInScope(s, sessionId, storageId) ? latest : s)
         } catch { /* Preserve the original actionable save error. */ }
       }
       return false
@@ -173,34 +185,36 @@ async function updateComposerSettings(patch: SessionSettingsUpdate): Promise<boo
       settingsPending.value = { ...settingsPending.value, [key]: Math.max(0, (settingsPending.value[key] ?? 1) - 1) }
     }
   })()
-  settingsWrites.set(sessionId, writing)
+  settingsWrites.set(key, writing)
   const result = await writing
-  if (settingsWrites.get(sessionId) === writing) settingsWrites.delete(sessionId)
+  if (settingsWrites.get(key) === writing) settingsWrites.delete(key)
   return result
 }
 
-let composerSessionCreation: { view: SessionView; projectId: string | null; promise: Promise<string> } | null = null
+let composerSessionCreation: { view: SessionView; projectId: string | null; storageId: string; promise: Promise<string> } | null = null
 /** Attachments can create a draft session before the first message without losing its settings. */
 async function ensureComposerSession(): Promise<string> {
   if (selectedSessionId.value) return selectedSessionId.value
   const view = viewMode.value
   const projectId = selectedProjectId.value
-  if (composerSessionCreation?.view === view && composerSessionCreation.projectId === projectId) return composerSessionCreation.promise
+  const storageId = selectedStorageId()
+  const boundApi = scopedApi(api, () => storageId)
+  if (composerSessionCreation?.view === view && composerSessionCreation.projectId === projectId && composerSessionCreation.storageId === storageId) return composerSessionCreation.promise
   const settings = copyComposerSettings(composerSettings.value)
-  const key = `draft:${view}`
+  const key = `${storageId}::draft:${view}`
   settingsPending.value = { ...settingsPending.value, [key]: (settingsPending.value[key] ?? 0) + 1 }
   const promise = (async () => {
     sessionListRead++
     sessionListAbort?.abort()
-    const session = await api.createSession(projectId, 'Tinadec session', settings.mode_version_id, view, settings)
-    sessions.value = [session, ...sessions.value.filter(s => s.id !== session.id)]
-    if (viewMode.value === view && selectedProjectId.value === projectId && !selectedSessionId.value) {
+    const session = await boundApi.createSession(projectId, 'Tinadec session', settings.mode_version_id, view, settings)
+    sessions.value = [session, ...sessions.value.filter(s => !sessionInScope(s, session.id, storageId))]
+    if (viewMode.value === view && selectedProjectId.value === projectId && selectedStorageId() === storageId && !selectedSessionId.value) {
       selectedSessionId.value = session.id
       pendingSessionId.value = session.id
     }
     return session.id
   })()
-  composerSessionCreation = { view, projectId, promise }
+  composerSessionCreation = { view, projectId, storageId, promise }
   try { return await promise } finally {
     settingsPending.value = { ...settingsPending.value, [key]: Math.max(0, (settingsPending.value[key] ?? 1) - 1) }
     if (composerSessionCreation?.promise === promise) composerSessionCreation = null
@@ -263,6 +277,7 @@ async function loadInitial() {
     if (routeData?.base_url) modelBaseUrl.value = routeData.base_url
     suppressProjectSessionsReload = true
     try {
+      setSelectedStorage(projectList[0]?.storage_id ?? 'user')
       selectedProjectId.value = projectList[0]?.id ?? null
       await loadSessions()
     } finally {
@@ -307,7 +322,7 @@ async function loadSessions() {
       }
       return
     }
-    const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
+    const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value && (!s.storage_id || s.storage_id === selectedStorageId()))
     if (!projectSessions.find((s) => s.id === selectedSessionId.value)) {
       selectedSessionId.value = projectSessions[0]?.id ?? null
     }
@@ -327,6 +342,7 @@ async function loadMessagesAndApprovals() {
   sessionLoadAbort = loadAbort
   const { signal } = loadAbort
   const session = selectedSessionId.value
+  const storage = selectedStorageId()
   if (!selectedSessionId.value) {
     sessionLoadAbort = null
     messages.value = []
@@ -350,7 +366,7 @@ async function loadMessagesAndApprovals() {
   })
   if (!loaded) return
   const [messageList, approvalList, ruleList, orchestrationSnapshot, toolTimeline, runList] = loaded
-  if (session !== selectedSessionId.value || read !== sessionRead) return
+  if (session !== selectedSessionId.value || storage !== selectedStorageId() || read !== sessionRead) return
   // Keep optimistic pending sends until the backend echoes them: the
   // session-select reload races the first POST (new session has no messages
   // yet), and wiping the optimistic append bounces the composer back to the
@@ -379,10 +395,12 @@ async function loadMessagesAndApprovals() {
 function attachRun(runId: string) {
   if (runStreams.has(runId)) return
   const session = selectedSessionId.value
+  const storage = selectedStorageId()
   const handle = createRunStream({
+    storageId: storage,
     runId,
     onActivity: (chunk) => {
-      if (session !== selectedSessionId.value) return
+      if (session !== selectedSessionId.value || storage !== selectedStorageId()) return
       // 活性信号：任意去重后的 chunk（含 ack/heartbeat）都刷新活动时间，供 UI 区分
       // 「链路活着但暂无输出」与「链路已断」。
       lastStreamActivityAt.value = Date.now()
@@ -396,7 +414,7 @@ function attachRun(runId: string) {
       }
     },
     onChunk: (chunk) => {
-      if (session !== selectedSessionId.value) return
+      if (session !== selectedSessionId.value || storage !== selectedStorageId()) return
       const reply = projectRunReply({ text: runText.get(runId) ?? '', provisional: provisionalReplies.has(runId) }, chunk)
       if (reply) {
         if (reply.provisional) provisionalReplies.add(runId)
@@ -437,17 +455,29 @@ async function openProject() {
   await run('open project', async () => {
     const path = await window.tinadec.openProjectDialog()
     if (!path) return
-    const project = await api.createProject(basenameFromPath(path), path)
-    projects.value = [project, ...projects.value.filter((item) => item.id !== project.id)]
+    const scope = await api.openStorageScope({ project_path: path, name: basenameFromPath(path) })
+    if (!scope.project_id) throw new Error('Core did not return the opened project identity.')
+    registerProjectStorage(scope.project_id, scope.storage_id)
+    const project: ProjectDto = { id: scope.project_id, storage_id: scope.storage_id, name: basenameFromPath(path), path, created_at: new Date().toISOString() }
+    projects.value = [project, ...projects.value.filter((item) => selectionKey(item) !== selectionKey(project))]
+    setSelectedStorage(scope.storage_id)
     selectedProjectId.value = project.id
   })
 }
 
 async function createSession(projectId: string | null) {
+  if (projectId) {
+    const identity = selectionIdentity(projectId)
+    if (identity.storageId) { setSelectedStorage(identity.storageId); selectedProjectId.value = identity.id }
+    projectId = identity.id
+  }
   const targetProjectId = projectId ?? null
   const requestedView = viewMode.value
+  const requestedStorage = projectId ? projectStorageId(projectId) : 'user'
+  setSelectedStorage(requestedStorage)
+  const boundApi = scopedApi(api, () => requestedStorage)
   if (pendingSessionId.value) {
-    const existing = sessions.value.find((s) => s.id === pendingSessionId.value)
+    const existing = sessions.value.find((s) => sessionInScope(s, pendingSessionId.value!, requestedStorage))
     // Compare normalized project identity: Core omits project_id for a free
     // conversation, so the value can arrive as null or undefined while the
     // argument is null — a raw === check would miss and create a duplicate.
@@ -462,9 +492,9 @@ async function createSession(projectId: string | null) {
     // allowed to arrive after the create and restore the old selected session.
     sessionListRead++
     sessionListAbort?.abort()
-    const session = await api.createSession(projectId, 'Tinadec session', null, requestedView)
+    const session = await boundApi.createSession(projectId, 'Tinadec session', null, requestedView)
     sessions.value = [session, ...sessions.value]
-    if (viewMode.value !== requestedView) return
+    if (viewMode.value !== requestedView || selectedStorageId() !== requestedStorage) return
     selectedSessionId.value = session.id
     selectedProjectId.value = projectId ?? null
     pendingSessionId.value = session.id
@@ -478,25 +508,27 @@ async function createSession(projectId: string | null) {
 async function refreshProjectsAndSessions() {
   const projectList = await api.listProjects()
   projects.value = projectList
-  if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value)) {
+  if (selectedProjectId.value && !projectList.some((p) => p.id === selectedProjectId.value && (!p.storage_id || p.storage_id === selectedStorageId()))) {
+    setSelectedStorage(projectList[0]?.storage_id ?? 'user')
     selectedProjectId.value = projectList[0]?.id ?? null
   }
   // Unfiltered listing, same as loadSessions: per-project queries never return
   // free conversations, so archiving/trashing anything would drop them from the
   // sidebar until a full reload.
   await loadSessions()
-  const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value)
+  const projectSessions = visibleSessions.value.filter((s) => (s.project_id ?? null) === selectedProjectId.value && (!s.storage_id || s.storage_id === selectedStorageId()))
   if (selectedSessionId.value && !projectSessions.some((s) => s.id === selectedSessionId.value)) {
     selectedSessionId.value = projectSessions[0]?.id ?? null
   }
 }
 
 async function renameProject(projectId: string, name: string) {
+  const identity = selectionIdentity(projectId)
   const trimmed = name.trim()
   if (!trimmed) return
   await run('rename project', async () => {
     const updated = await generatedApi.renameProject(projectId, trimmed)
-    projects.value = projects.value.map((p) => (p.id === projectId ? { ...p, name: updated.name } : p))
+    projects.value = projects.value.map((p) => (p.id === identity.id && (!identity.storageId || p.storage_id === identity.storageId) ? { ...p, name: updated.name } : p))
   })
 }
 
@@ -536,6 +568,58 @@ async function trashSession(sessionId: string) {
   })
 }
 
+async function monitorSessionTransfer(receipt: SessionTransferDto, task: TaskHandle) {
+  const key = `${receipt.source_storage_id}::${receipt.session_id}`
+  try {
+    sessionTransfers.value = { ...sessionTransfers.value, [key]: receipt }
+    if (receipt.status === 'failed' || receipt.status === 'cancelled') throw new Error(receipt.error ?? receipt.error_code ?? '会话迁移未完成')
+    if (receipt.status === 'completed') {
+      sessions.value = await api.listSessions()
+      delete sessionTransfers.value[key]
+      if (selectedStorageId() === receipt.source_storage_id && selectedSessionId.value === receipt.session_id) {
+        setSelectedStorage(receipt.storage_id)
+        selectedProjectId.value = receipt.project_id
+        selectedSessionId.value = receipt.session_id
+        followSession(`${receipt.storage_id}::${receipt.session_id}`)
+        await loadMessagesAndApprovals()
+      }
+      task.succeed('会话已迁移到目标项目。后续运行使用目标项目的已发布默认模式。')
+      return
+    }
+    task.update({ message: receipt.status === 'pending' ? '等待来源与目标存储空闲。当前运行须结束，可关闭关联会话浮窗以释放事件流。' : '正在迁移会话和引用内容。' })
+    setTimeout(() => { void api.getSessionTransfer(receipt.transfer_id).then(next => monitorSessionTransfer(next, task)).catch(error => {
+      task.fail(error, { action: { label: '继续检查迁移', run: () => api.getSessionTransfer(receipt.transfer_id).then(next => monitorSessionTransfer(next, task)) } })
+    }) }, 1000)
+  } catch (error) {
+    delete sessionTransfers.value[key]
+    if (selectedStorageId() === receipt.source_storage_id && selectedSessionId.value === receipt.session_id) followSession(key)
+    task.fail(error)
+  }
+}
+
+async function migrateSession(sessionKey: string, targetProjectKey: string) {
+  const source = selectionIdentity(sessionKey)
+  const target = selectionIdentity(targetProjectKey)
+  const sourceRow = sessions.value.find(row => selectionKey(row) === sessionKey)
+  const targetRow = projects.value.find(row => selectionKey(row) === targetProjectKey)
+  if (!sourceRow || sourceRow.project_id || !targetRow?.storage_id || !target.storageId) return
+  const storageId = source.storageId ?? sourceRow.storage_id ?? 'user'
+  busy.value = true
+  try {
+    const receipt = await scopedApi(api, () => storageId).migrateSession(source.id, { target_storage_id: target.storageId, target_project_id: target.id })
+    if (selectedStorageId() === storageId && selectedSessionId.value === source.id) {
+      suspendFollowingSession(sessionKey)
+      for (const stream of runStreams.values()) stream.disconnect()
+      runStreams.clear(); syncWorking()
+    }
+    const task = notify.task({ key: `session-transfer:${receipt.transfer_id}`, message: '会话迁移已受理。', source: 'storage' })
+    void monitorSessionTransfer(receipt, task)
+  } catch (error) {
+    const queued = (error as { code?: string }).code === 'queued_interactions_pending'
+    notify.error(queued ? '此会话仍有已受理的排队消息。请先执行或取消队列，再申请迁移。' : error, { title: '会话迁移失败' })
+  } finally { busy.value = false }
+}
+
 // invoke-stream: 5 required + 2 optional, ack optimistic → delta incremental → done persisted
 // explicit states: model_not_configured / disconnected / permission_denied / recovering
 const streamingText = ref<Map<string, string>>(new Map())
@@ -572,7 +656,9 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
   const requestedView = viewMode.value
   const requestedSession = selectedSessionId.value
   const requestedProject = selectedProjectId.value
-  const preparingSession = !requestedSession && composerSessionCreation?.view === requestedView && composerSessionCreation.projectId === requestedProject
+  const requestedStorage = selectedStorageId()
+  const boundApi = scopedApi(api, () => requestedStorage)
+  const preparingSession = !requestedSession && composerSessionCreation?.view === requestedView && composerSessionCreation.projectId === requestedProject && composerSessionCreation.storageId === requestedStorage
     ? composerSessionCreation.promise : null
   if (preparingSession) {
     invokeError.value = '附件会话正在准备，请稍候再发送。'
@@ -582,17 +668,18 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
     invokeError.value = '附件正在上传，请稍候再发送。'
     return
   }
-  const pendingSettings = requestedSession ? settingsWrites.get(requestedSession) : null
+  const pendingSettings = requestedSession ? settingsWrites.get(sessionWriteKey(requestedSession, requestedStorage)) : null
   const outgoing = attachmentsForSend()
   if (pendingSettings && !await pendingSettings) return
-  if (pendingSettings && (selectedSessionId.value !== requestedSession || viewMode.value !== requestedView || selectedProjectId.value !== requestedProject)) return
-  const settings = copyComposerSettings(settingsFor(sessions.value.find(s => s.id === requestedSession) ?? null, requestedView))
+  if (pendingSettings && (selectedStorageId() !== requestedStorage || selectedSessionId.value !== requestedSession || viewMode.value !== requestedView || selectedProjectId.value !== requestedProject)) return
+  const requestedRecord = sessions.value.find(s => sessionInScope(s, requestedSession ?? '', requestedStorage))
+  const settings = copyComposerSettings(settingsFor(requestedRecord ?? null, requestedView))
   const selected = applyComposerSettings(settings, opts ?? {})
   const requestedPermission = selected.permission_mode
   const requestedMode = selected.mode_version_id
   const requestedModel = selected.meeting_model_override
   const requestedSpace = requestedView === 'space' ? selected.space_options : null
-  let requestedSettingsRevision = sessions.value.find(s => s.id === requestedSession)?.settings_revision
+  let requestedSettingsRevision = requestedRecord?.settings_revision
   await run('send message', async () => {
     let sessionId = requestedSession
     if (!sessionId) {
@@ -600,19 +687,19 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
       // mode, so a session created on the default would flip the picker back after this send.
       sessionListRead++
       sessionListAbort?.abort()
-      const session = await api.createSession(requestedProject ?? null, 'Tinadec session', requestedMode, requestedView, {
+      const session = await boundApi.createSession(requestedProject ?? null, 'Tinadec session', requestedMode, requestedView, {
         permission_mode: requestedPermission, meeting_model_override: requestedModel,
         ...(requestedSpace ? { space_options: requestedSpace } : {}),
       })
       sessions.value = [session, ...sessions.value]
       sessionId = session.id
       requestedSettingsRevision = session.settings_revision
-      if (viewMode.value === requestedView && selectedSessionId.value === requestedSession) {
+      if (selectedStorageId() === requestedStorage && viewMode.value === requestedView && selectedSessionId.value === requestedSession) {
         selectedSessionId.value = session.id
         pendingSessionId.value = session.id
       }
     }
-    const isCurrent = () => selectedSessionId.value === sessionId && viewMode.value === requestedView
+    const isCurrent = () => selectedStorageId() === requestedStorage && selectedSessionId.value === sessionId && viewMode.value === requestedView
     if (isCurrent() && draft.value.trim() === content.trim()) draft.value = ''
     const snapshotContent = content
     if (isCurrent()) invokeError.value = null
@@ -631,7 +718,7 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
     try {
       if (isCurrent()) messages.value = [...messages.value, { id: `pending-${clientMessageId}`, session_id: sessionId, role: 'user', content: snapshotContent, created_at: new Date().toISOString(), attachments: outgoing.summaries } as MessageDto]
       // new interaction path (snake_case)
-      const resp = await api.createInteraction(sessionId, {
+      const resp = await boundApi.createInteraction(sessionId, {
         content: snapshotContent,
         client_message_id: clientMessageId,
         mode_version_id: modeVersionId,
@@ -669,8 +756,8 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
         if (!draft.value.trim()) draft.value = snapshotContent
         messages.value = messages.value.filter(message => message.id !== `pending-${clientMessageId}`)
         try {
-          const latest = (await api.listSessions()).find(s => s.id === sessionId)
-          if (latest) sessions.value = sessions.value.map(s => s.id === sessionId ? latest : s)
+          const latest = (await boundApi.listSessions()).find(s => sessionInScope(s, sessionId!, requestedStorage))
+          if (latest) sessions.value = sessions.value.map(s => sessionInScope(s, sessionId!, requestedStorage) ? latest : s)
         } catch { /* The conflict remains actionable even if the refresh fails. */ }
       }
       // Main path only: POST /interactions is the single admission contract
@@ -688,7 +775,7 @@ async function handleSend(content: string, opts?: ComposerSubmitOptions) {
       else invokeError.value = msg
       throw err
     }
-    if (pendingSessionId.value === sessionId) {
+    if (isCurrent() && pendingSessionId.value === sessionId) {
       const title = generateTitle(snapshotContent, outgoing.summaries.map((row) => row.file_name))
       try {
         await saveSessionTitle(sessionId, title)
@@ -741,10 +828,10 @@ function forgetQueued(id: string) {
  * Takes a message Core holds out of its queue. False when it already left (admitted or decided):
  * then acting on it again would send the same words twice.
  */
-async function dequeue(item: { interactionId?: string }, sessionId: string): Promise<boolean> {
+async function dequeue(item: { interactionId?: string }, sessionId: string, capturedApi = api): Promise<boolean> {
   if (!item.interactionId) return true
   try {
-    await api.cancelInteraction(sessionId, item.interactionId)
+    await capturedApi.cancelInteraction(sessionId, item.interactionId)
     return true
   } catch (err) {
     const status = (err as { status?: number }).status
@@ -755,16 +842,18 @@ async function dequeue(item: { interactionId?: string }, sessionId: string): Pro
 
 async function dismissQueued(id: string) {
   const sessionId = selectedSessionId.value
+  const storageId = selectedStorageId(); const capturedApi = scopedApi(api, () => storageId)
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item || !sessionId) return
-  if (await dequeue(item, sessionId) && selectedSessionId.value === sessionId) forgetQueued(id)
+  if (await dequeue(item, sessionId, capturedApi) && selectedSessionId.value === sessionId && selectedStorageId() === storageId) forgetQueued(id)
 }
 
 async function editQueued(id: string) {
   const sessionId = selectedSessionId.value
+  const storageId = selectedStorageId(); const capturedApi = scopedApi(api, () => storageId)
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item || !sessionId) return
-  if (!(await dequeue(item, sessionId)) || selectedSessionId.value !== sessionId) return
+  if (!(await dequeue(item, sessionId, capturedApi)) || selectedSessionId.value !== sessionId || selectedStorageId() !== storageId) return
   draft.value = item.content
   forgetQueued(id)
 }
@@ -776,13 +865,14 @@ async function editQueued(id: string) {
  */
 async function steerQueued(id: string, targetRunId: string, interrupt = false) {
   const sessionId = selectedSessionId.value
+  const storageId = selectedStorageId(); const capturedApi = scopedApi(api, () => storageId)
   if (!sessionId) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
-  if (!(await dequeue(item, sessionId))) return
+  if (!(await dequeue(item, sessionId, capturedApi))) return
   let sent = false
   await run('steer message', async () => {
-    await api.createInteraction(sessionId, {
+    await capturedApi.createInteraction(sessionId, {
       content: item.content,
       client_message_id: newId(),
       mode_version_id: null,
@@ -792,19 +882,20 @@ async function steerQueued(id: string, targetRunId: string, interrupt = false) {
     })
     sent = true
   })
-  if (sent && selectedSessionId.value === sessionId) forgetQueued(id)
+  if (sent && selectedSessionId.value === sessionId && selectedStorageId() === storageId) forgetQueued(id)
 }
 
 async function promoteQueued(id: string) {
   const sessionId = selectedSessionId.value
+  const storageId = selectedStorageId(); const capturedApi = scopedApi(api, () => storageId)
   const permission = currentPermission.value
   if (!sessionId) return
   const item = queuedMessages.value.find((q) => q.id === id)
   if (!item) return
-  if (!(await dequeue(item, sessionId))) return
+  if (!(await dequeue(item, sessionId, capturedApi))) return
   let sent = false
   await run('promote message', async () => {
-    await api.createInteraction(sessionId, {
+    await capturedApi.createInteraction(sessionId, {
       content: item.content,
       // A message Core already holds keeps its id, so running it now reuses the words the user
       // already sent instead of posting them a second time.
@@ -820,7 +911,7 @@ async function promoteQueued(id: string) {
     })
     sent = true
   })
-  if (sent && selectedSessionId.value === sessionId) forgetQueued(id)
+  if (sent && selectedSessionId.value === sessionId && selectedStorageId() === storageId) forgetQueued(id)
 }
 
 async function requestShellApproval() {
@@ -962,14 +1053,15 @@ async function handleSessionEvent(event: EventEnvelope) {
   }
 }
 
-watch(selectedProjectId, () => {
+watch(selectedProjectId, id => {
+  setSelectedStorage(projectStorageId(id))
   if (suppressProjectSessionsReload) return
   void loadSessions()
-})
+}, { flush: 'sync' })
 
-watch(selectedSessionId, () => {
+watch([selectedSessionId, selectedStorage], ([, storageId], [, previousStorage]) => {
   sessionLoadAbort?.abort()
-  messages.value = messages.value.filter((message) => message.session_id === selectedSessionId.value)
+  messages.value = storageId !== previousStorage ? [] : messages.value.filter((message) => message.session_id === selectedSessionId.value)
   orchestration.value = null
   approvals.value = []
   toolExecutions.value = []
@@ -981,7 +1073,7 @@ watch(selectedSessionId, () => {
   provisionalReplies.clear()
   streamingText.value = new Map()
   void loadMessagesAndApprovals()
-  followSession(selectedSessionId.value)
+  followSession(currentSession.value ? selectionKey(currentSession.value) : selectedSessionId.value)
   queuedMessages.value = []
 })
 
@@ -995,7 +1087,7 @@ function setViewMode(next: SessionView) {
   viewMode.value = next
   draft.value = ''
   invokeError.value = null
-  const candidates = visibleSessions.value.filter(s => (s.project_id ?? null) === selectedProjectId.value)
+  const candidates = visibleSessions.value.filter(s => (s.project_id ?? null) === selectedProjectId.value && (!s.storage_id || s.storage_id === selectedStorageId()))
   selectedSessionId.value = candidates.find(s => s.id === lastSessionByView[next])?.id ?? candidates[0]?.id ?? null
   if (started) void loadSessions()
 }
@@ -1004,7 +1096,7 @@ function start() {
   started = true
   void loadInitial()
   subscribeToSessionEvents(handleSessionEvent)
-  followSession(selectedSessionId.value)
+  followSession(currentSession.value ? selectionKey(currentSession.value) : selectedSessionId.value)
 }
 
 export const homeController = {
@@ -1061,6 +1153,8 @@ export const homeController = {
   trashProject,
   archiveSession,
   trashSession,
+  migrateSession,
+  sessionTransfers,
   runs,
   queuedMessages,
   activeRuns,
@@ -1093,10 +1187,16 @@ export const homeController = {
   refreshProjectsAndSessions,
   updateDraft: (value: string) => { draft.value = value },
   updatePermission: (value: PermissionLevel) => updateComposerSettings({ permission_mode: value }),
-  setSelectedProject: (id: string | null) => { selectedProjectId.value = id },
+  setSelectedProject: (id: string | null) => {
+    const identity = id ? selectionIdentity(id) : null
+    setSelectedStorage(identity?.storageId ?? projectStorageId(identity?.id))
+    selectedProjectId.value = identity?.id ?? null
+  },
   setSelectedSession: (id: string) => {
-    const session = sessions.value.find(s => s.id === id)
+    const identity = selectionIdentity(id)
+    if (identity.storageId) setSelectedStorage(identity.storageId)
+    const session = sessions.value.find(s => s.id === identity.id && (!s.storage_id || s.storage_id === selectedStorageId()))
     if (session && (session.view_mode ?? 'flat') !== viewMode.value) return
-    selectedSessionId.value = id
+    selectedSessionId.value = identity.id
   },
 }

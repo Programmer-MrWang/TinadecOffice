@@ -10,7 +10,7 @@ namespace TinadecCore.Api.Tests;
 /// </summary>
 public sealed class WorkspaceSkillPolicyTests
 {
-    private const string Path_ = "skills/probe/SKILL.md";
+    private const string Path_ = ".tinadec/skills/probe/SKILL.md";
 
     [Theory]
     // The shape the format asks for.
@@ -139,7 +139,7 @@ public sealed class WorkspaceSkillPolicyTests
     public void TheIndexCountsWhatItLeftOutEvenWhenTheCeilingWasTheRunBudget()
     {
         var skills = Enumerable.Range(0, 6)
-            .Select(i => new WorkspaceSkillPolicy.Skill($"skill-{i}", $"Description {i}.", $"skills/skill-{i}/SKILL.md"))
+            .Select(i => new WorkspaceSkillPolicy.Skill($"skill-{i}", $"Description {i}.", $".tinadec/skills/skill-{i}/SKILL.md"))
             .ToArray();
 
         // Room for some rows, not all: the sentence saying how many are missing is what keeps a
@@ -182,15 +182,15 @@ public sealed class WorkspaceSkillPolicyTests
     public void RefusalLinesAreCappedButTheCountOfTheRestIsStillStated()
     {
         var refusals = Enumerable.Range(0, WorkspaceSkillPolicy.MaxRefusalLines + 3)
-            .Select(i => new WorkspaceSkillPolicy.Refusal($"skills/s{i}/SKILL.md", "no frontmatter"))
+            .Select(i => new WorkspaceSkillPolicy.Refusal($".tinadec/skills/s{i}/SKILL.md", "no frontmatter"))
             .ToArray();
 
         var index = WorkspaceSkillPolicy.Frame([], refusals, 4_000, 0);
 
         Assert.NotNull(index);
-        Assert.Contains("skills/s0/SKILL.md", index);
+        Assert.Contains(".tinadec/skills/s0/SKILL.md", index);
         Assert.Contains("and 3 more with the same problem.", index);
-        Assert.DoesNotContain("skills/s7/SKILL.md", index);
+        Assert.DoesNotContain(".tinadec/skills/s7/SKILL.md", index);
     }
 
     [Fact]
@@ -201,10 +201,10 @@ public sealed class WorkspaceSkillPolicyTests
         // "succeed" into a directory the workspace never advertises, and the reviewer would have
         // approved a file that does nothing.
         var relative = WorkspaceSkillPolicy.RelativePathFor("pdf-forms");
-        Assert.Equal("skills/pdf-forms/SKILL.md", relative);
+        Assert.Equal(".tinadec/skills/pdf-forms/SKILL.md", relative);
 
         var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "tinadec-skill-path"));
-        Assert.Equal(Path.Combine(root, "skills", "pdf-forms", "SKILL.md"),
+        Assert.Equal(Path.Combine(root, ".tinadec", "skills", "pdf-forms", "SKILL.md"),
             WorkspaceSkillPolicy.AbsolutePathFor(root, "pdf-forms"));
 
         var readable = WorkspaceSkillPolicy.TryRead(

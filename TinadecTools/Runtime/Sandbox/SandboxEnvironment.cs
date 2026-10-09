@@ -88,6 +88,24 @@ internal static class SandboxEnvironment
             }
         }
 
+        if (ToolExecutionContext.Current?.StorageRoot is { } storageRoot)
+        {
+            var identity = ScopeIdentity();
+            var cache = Path.Combine(storageRoot, "cache", "sandbox", identity);
+            var temporary = Path.Combine(storageRoot, "temp", "sandbox", identity);
+            Directory.CreateDirectory(cache);
+            Directory.CreateDirectory(temporary);
+            env["NPM_CONFIG_CACHE"] = Path.Combine(cache, "npm");
+            env["UV_CACHE_DIR"] = Path.Combine(cache, "uv");
+            env["PIP_CACHE_DIR"] = Path.Combine(cache, "pip");
+            env["NUGET_PACKAGES"] = Path.Combine(cache, "nuget");
+            env["CARGO_HOME"] = Path.Combine(cache, "cargo");
+            env["XDG_CACHE_HOME"] = cache;
+            env["XDG_CONFIG_HOME"] = Path.Combine(cache, "config");
+            env["TMPDIR"] = env["TEMP"] = env["TMP"] = temporary;
+        }
+
+        env.Remove("TINADEC_HOST_CONTROL_TOKEN");
         return env;
     }
 
@@ -106,6 +124,12 @@ internal static class SandboxEnvironment
     /// </summary>
     internal static string SandboxCacheDirectory(IReadOnlyDictionary<string, string> environment)
     {
+        if (ToolExecutionContext.Current?.StorageRoot is { } storageRoot)
+        {
+            var scoped = Path.Combine(storageRoot, "cache", "sandbox", ScopeIdentity());
+            Directory.CreateDirectory(scoped);
+            return scoped;
+        }
         var root = environment.TryGetValue("TMPDIR", out var tmpDir) && !string.IsNullOrWhiteSpace(tmpDir)
             ? tmpDir
             : Path.GetTempPath();
@@ -113,4 +137,9 @@ internal static class SandboxEnvironment
         Directory.CreateDirectory(directory);
         return directory;
     }
+
+    internal static string ScopeIdentity() => "TinaSbx_" + Convert.ToHexStringLower(
+        System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+            (ToolExecutionContext.Current?.StorageId ?? "standalone:" + Environment.CurrentDirectory)
+            + ":" + (ToolExecutionContext.Current?.ProjectStorageWrite == true))))[..12];
 }

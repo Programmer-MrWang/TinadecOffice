@@ -18,6 +18,7 @@ internal static class ToolHostControls
             mutatesWorkspace: false, retrySafety: "safe");
         ToolRegistry.Register(CapabilitiesId, CapabilitiesAsync, requiresApproval: false,
             mutatesWorkspace: false, retrySafety: "safe");
+        ManagedMcpProgramControl.Register();
     }
 
     private static async ValueTask<ToolCallResponse<JsonElement>> ReleaseAsync(
@@ -97,7 +98,7 @@ internal static class ToolHostControls
         return null;
     }
 
-    private static ToolCallResponse<JsonElement> Response(long callId, Action<Utf8JsonWriter> write)
+    internal static ToolCallResponse<JsonElement> Response(long callId, Action<Utf8JsonWriter> write)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream)) write(writer);

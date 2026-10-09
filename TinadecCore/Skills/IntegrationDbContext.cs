@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Skills;
 
-public sealed class IntegrationDbContext : DbContext
+public sealed class IntegrationDbContext : ConfigurationProjectionDbContext
 {
     public IntegrationDbContext(DbContextOptions<IntegrationDbContext> options) : base(options) { }
     public DbSet<ExtensionSourceRecord> Sources => Set<ExtensionSourceRecord>();

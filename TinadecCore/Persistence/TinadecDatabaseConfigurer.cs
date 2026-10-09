@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace TinadecCore.Persistence;
 
@@ -37,9 +38,19 @@ internal sealed class TinadecDatabaseConfigurer : ITinadecDatabaseConfigurer
         switch (_connectionInfo.Provider)
         {
             case DatabaseProvider.PostgreSql:
-                options.UseNpgsql(_connectionInfo.ConnectionString, db =>
+                var connection = new Npgsql.NpgsqlConnectionStringBuilder(_connectionInfo.ConnectionString);
+                if (_options.PostgreSql.Schema is { Length: > 0 } schema)
+                {
+                    if (schema.Any(c => !(char.IsAsciiLetterOrDigit(c) || c == '_')))
+                        throw new InvalidOperationException("Invalid host-owned PostgreSQL schema.");
+                    connection.SearchPath = schema;
+                }
+                options.ReplaceService<IModelCacheKeyFactory, ScopeModelCacheKeyFactory>();
+                options.UseNpgsql(connection.ConnectionString, db =>
                 {
                     db.MigrationsAssembly("TinadecCore.Storage.Migrations.PostgreSql");
+                    if (_options.PostgreSql.Schema is { } historySchema)
+                        db.MigrationsHistoryTable("__EFMigrationsHistory", historySchema);
                     db.UseVector();
                 });
                 break;

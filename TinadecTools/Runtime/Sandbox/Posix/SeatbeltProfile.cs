@@ -15,7 +15,8 @@ namespace TinadecTools.Runtime.Sandbox.Posix;
 /// </summary>
 internal static class SeatbeltProfile
 {
-    internal static string Build(IReadOnlyList<string> writeTargets)
+    internal static string Build(IReadOnlyList<string> writeTargets, IReadOnlyList<string>? protectedPaths = null,
+        IReadOnlyList<string>? readExceptions = null, string? protectedStorageRoot = null)
     {
         var sb = new StringBuilder();
         sb.Append("(version 1)\n");
@@ -25,14 +26,41 @@ internal static class SeatbeltProfile
         if (writeTargets.Count == 0)
             return sb.ToString();
 
-        sb.Append("(allow file-write*\n");
-        foreach (var path in writeTargets.SelectMany(FormsOf).Distinct(StringComparer.Ordinal))
+        var protectedRoots = protectedPaths ?? [];
+        var writeProtected = protectedStorageRoot is null ? protectedRoots : protectedRoots.Append(protectedStorageRoot).ToArray();
+        sb.Append("(allow file-write*\n  (require-all\n    (require-any\n");
+        Clauses(writeTargets);
+        sb.Append("    )\n");
+        if (writeProtected.Count > 0)
         {
-            var clause = IsDirectory(path) ? "subpath" : "literal";
-            sb.Append("  (").Append(clause).Append(' ').Append(Quote(path)).Append(")\n");
+            sb.Append("    (require-not (require-any\n");
+            ProtectedClauses(writeProtected, writeTargets);
+            sb.Append("    ))\n");
         }
-        sb.Append(")\n");
+        sb.Append("  )\n)\n");
+        if (protectedRoots.Count > 0)
+        {
+            sb.Append("(deny file-read* (require-any\n");
+            ProtectedClauses(protectedRoots, (readExceptions ?? []).Concat(writeTargets).ToArray());
+            sb.Append("))\n");
+        }
         return sb.ToString();
+
+        void Clauses(IEnumerable<string> paths)
+        {
+            foreach (var path in paths.SelectMany(FormsOf).Distinct(StringComparer.Ordinal))
+                sb.Append("      (").Append(IsDirectory(path) ? "subpath" : "literal").Append(' ').Append(Quote(path)).Append(")\n");
+        }
+        void ProtectedClauses(IEnumerable<string> roots, IReadOnlyList<string> grants)
+        {
+            foreach (var root in roots)
+            {
+                var exceptions = grants.Where(path => root != path && Tools.FileRW.WorkspaceRootSet.IsWithin(root, path)).ToArray();
+                sb.Append("      (require-all (require-any\n"); Clauses([root]); sb.Append("      )\n");
+                if (exceptions.Length > 0) { sb.Append("        (require-not (require-any\n"); Clauses(exceptions); sb.Append("        ))\n"); }
+                sb.Append("      )\n");
+            }
+        }
     }
 
     /// <summary>

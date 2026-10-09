@@ -3,7 +3,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Loader2, Minus, PanelRightOpen, Square, X } from '@lucide/vue'
-import { api, createUserToolActionForPath, type ApprovalDto, type ApprovalRuleDto, type CreateApprovalRuleInput, type DoctorReportDto, type EventEnvelope, type OrchestrationSnapshotDto, type RuntimeReadinessReceiptDto, type ToolExecutionTimelineItemDto } from '@/api'
+import { api as baseApi, createUserToolActionForPath, type ApprovalDto, type ApprovalRuleDto, type CreateApprovalRuleInput, type DoctorReportDto, type EventEnvelope, type OrchestrationSnapshotDto, type RuntimeReadinessReceiptDto, type ToolExecutionTimelineItemDto } from '@/api'
+import { setSelectedStorage, registerSessionStorage, scopedApi } from '@/lib/storageScope'
 import { useTheme } from '@/composables/useTheme'
 import { useAgentActivity } from '@/composables/useAgentActivity'
 import { followSession, subscribeToSessionEvents } from '@/lib/sessionEventBus'
@@ -37,6 +38,10 @@ const tabState = computed<Record<string, unknown>>(() => {
 
 const sessionId = computed(() => (tabState.value.sessionId as string) ?? null)
 const projectPath = computed(() => (tabState.value.projectPath as string) ?? undefined)
+const storageId = computed(() => typeof tabState.value.storageId === 'string' ? tabState.value.storageId : 'user')
+setSelectedStorage(storageId.value)
+if (sessionId.value) registerSessionStorage(sessionId.value, storageId.value)
+const api = scopedApi(baseApi, () => storageId.value)
 
 // ---- Initialize theme (independent window) ----
 const { applyInitialTheme, theme, accentColor } = useTheme()
@@ -111,7 +116,7 @@ function connectSSE() {
   unsubscribeEvents = null
   // The detached window follows its own session; useAgentActivity subscribes to the
   // same bus underneath, so this page used to be the second of two connections here.
-  followSession(sessionId.value)
+  followSession(sessionId.value ? `${storageId.value}::${sessionId.value}` : null)
   if (!sessionId.value) return
 
   unsubscribeEvents = subscribeToSessionEvents(async (event) => {

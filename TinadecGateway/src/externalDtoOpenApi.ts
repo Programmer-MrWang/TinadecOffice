@@ -17,6 +17,7 @@ const nullableJsonObject = () => t.Unsafe({ type: 'object', additionalProperties
 const lifecycleStatus = () => t.Unsafe({ type: 'string', enum: ['active', 'archived', 'trashed'] });
 
 const project = t.Object({
+  storage_id: t.Optional(t.String()),
   id: t.String({ format: 'uuid' }),
   name: t.String(),
   path: t.String(),
@@ -74,6 +75,7 @@ const sessionInteractionRequest = t.Object({
 }, { additionalProperties: false });
 
 const session = t.Object({
+  storage_id: t.Optional(t.String()),
   id: t.String({ format: 'uuid' }),
   // Null for a free-conversation session created without project_id.
   project_id: t.Unsafe({ type: 'string', format: 'uuid', nullable: true }),

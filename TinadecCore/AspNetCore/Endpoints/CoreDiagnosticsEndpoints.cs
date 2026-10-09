@@ -24,6 +24,19 @@ public static class CoreDiagnosticsEndpoints
             });
         }).WithSummary("Health probe").WithDescription("Legacy-compatible health probe.");
 
+        app.MapGet("/api/v1/host-challenge", (HttpContext context, string? nonce) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            if (context.Request.Query["nonce"].Count != 1 || nonce is null || nonce.Length != 43 || nonce.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not '-' and not '_'))
+                return Results.BadRequest(new { code = "invalid_host_challenge", message = "A 43-character base64url nonce is required." });
+            var token = Environment.GetEnvironmentVariable("TINADEC_HOST_CONTROL_TOKEN");
+            if (string.IsNullOrEmpty(token))
+                return Results.Json(new { code = "host_control_unbound", message = "This service has no trusted host launch credential." }, statusCode: 503);
+            var payload = System.Text.Encoding.UTF8.GetBytes("tinadec-host-v1\0core\0" + nonce);
+            var proof = System.Security.Cryptography.HMACSHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token), payload);
+            return Results.Ok(new { role = "core", nonce, proof = Convert.ToHexString(proof).ToLowerInvariant() });
+        }).WithSummary("Prove managed host ownership").WithDescription("Signs a fresh public nonce; never receives or returns the private host credential.");
+
         // ============================================================
         // GET /api/v1/harness/manifest — returns dual-layer Agent, MAF version, and Core module manifest
         // ============================================================

@@ -13,6 +13,12 @@ internal sealed class SandboxPermissions
     public List<string> ReadPaths { get; set; } = new();
     public List<string> WritePaths { get; set; } = new();
     public List<string> EnvironmentVariableNames { get; set; } = new();
+    public List<string> ProtectedPaths { get; set; } = new();
+    public List<string> ReadExceptions { get; set; } = new();
+    public string? StorageId { get; set; }
+    public string? StorageRoot { get; set; }
+    public bool StorageWrite { get; set; }
+    public Dictionary<string, string> EnvironmentOverrides { get; set; } = new();
 }
 
 internal sealed class SandboxPolicyFile

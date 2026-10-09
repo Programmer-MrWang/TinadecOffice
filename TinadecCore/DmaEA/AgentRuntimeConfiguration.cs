@@ -327,10 +327,14 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
     private AgentRuntimeConfigurationSnapshot _current;
     private RuntimeConfigurationDiagnostic _diagnostic;
 
-    public AgentRuntimeConfigurationStore(IConfiguration configuration, ILogger<AgentRuntimeConfigurationStore> logger)
+    public AgentRuntimeConfigurationStore(IConfiguration configuration, ILogger<AgentRuntimeConfigurationStore> logger,
+        IScopeStorageLocations? locations = null, IScopeConfigurationDocuments? documents = null)
     {
         _logger = logger;
-        _path = ResolvePath(configuration["TinadecAgent:ProfileConfigPath"]);
+        // Persistence locations also exist in embedded hosts. Only registration
+        // of the editing authority makes runtime.toml a required scope document.
+        _path = documents is null ? ResolvePath(configuration["TinadecAgent:ProfileConfigPath"])
+            : Path.Combine((locations ?? throw new InvalidOperationException("Scope configuration documents require storage locations.")).Config, "runtime.toml");
         _current = LoadSnapshot(_path, Interlocked.Increment(ref _version));
         _diagnostic = new("ready", $"Loaded runtime configuration v{_current.Version} ({_current.ContentHash[..12]}).", _path, DateTimeOffset.UtcNow);
 
@@ -349,7 +353,20 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
         }
     }
 
-    public AgentRuntimeConfigurationSnapshot Current => Volatile.Read(ref _current);
+    public AgentRuntimeConfigurationSnapshot Current
+    {
+        get
+        {
+            // Admission cannot wait for the watcher debounce: a file edit is effective immediately.
+            var current = Volatile.Read(ref _current);
+            if (File.Exists(_path))
+            {
+                var hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(_path))).ToLowerInvariant();
+                if (hash != current.ContentHash) Reload();
+            }
+            return Volatile.Read(ref _current);
+        }
+    }
     public RuntimeConfigurationDiagnostic Diagnostic => Volatile.Read(ref _diagnostic);
 
     public RuntimeContextSettings ContextSettings => new(
@@ -379,7 +396,7 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
             catch (Exception ex)
             {
                 Volatile.Write(ref _diagnostic, new RuntimeConfigurationDiagnostic("warning", ex.Message, _path, DateTimeOffset.UtcNow));
-                _logger.TryLogWarning(ex, "Agent runtime configuration reload failed; keeping version {Version}", Current.Version);
+                _logger.TryLogWarning(ex, "Agent runtime configuration reload failed; keeping version {Version}", Volatile.Read(ref _current).Version);
             }
         }
     }
@@ -394,6 +411,11 @@ public sealed class AgentRuntimeConfigurationStore : IAgentRuntimeConfiguration,
     {
         if (!File.Exists(path)) throw new FileNotFoundException("Agent runtime TOML was not found.", path);
         var text = File.ReadAllText(path, Encoding.UTF8);
+        return LoadSnapshotText(text, path, version);
+    }
+
+    internal static AgentRuntimeConfigurationSnapshot LoadSnapshotText(string text, string path, long version)
+    {
         TomlTable root;
         try
         {

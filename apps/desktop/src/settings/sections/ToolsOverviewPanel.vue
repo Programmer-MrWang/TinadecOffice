@@ -2,13 +2,15 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { UiBadge, UiButton, UiInput } from '@/components/ui'
-import { api, type HarnessManifestDto, type ToolCapabilities, type ToolDescriptorDto, type ToolLayerReadinessReceiptDto, type ToolSearchResultDto, type ToolSettingsEffective } from '@/api'
+import { api as baseApi, type HarnessManifestDto, type ToolCapabilities, type ToolDescriptorDto, type ToolLayerReadinessReceiptDto, type ToolSearchResultDto, type ToolSettingsEffective } from '@/api'
+import { scopedApi, projectStorageId } from '@/lib/storageScope'
 import { manifestTools, sortedToolSearchResults } from '@/toolCatalog'
 import { consumeRequest, pendingToolId } from '@/lib/pageRequests'
 import { useNotifications } from '@/composables/useNotifications'
 import { formatSettings } from '@/settings/toolSettings'
 import { useToolAgentUsage } from '@/settings/toolAgentUsage'
 const props = defineProps<{ agentId?: string; projectId?: string; agents?: { id: string; display_name?: string | null; slug?: string | null }[]; effectiveToolIds?: string[] | null; capabilities?: ToolCapabilities | null; hostSettings?: Record<string, unknown>; effective?: ToolSettingsEffective | null }>()
+const api = scopedApi(baseApi, () => projectStorageId(props.projectId))
 const { t } = useI18n()
 const { notify } = useNotifications()
 const { usage: toolUsage, loading: usageLoading, failedAgentNames: usageFailures, refresh: refreshUsage } = useToolAgentUsage(() => props.agents ?? [], () => props.projectId, () => props.agentId)
@@ -52,10 +54,12 @@ async function search() {
   finally { if (current === discoveryRead) loading.value = false }
 }
 async function refresh(includeUsage = true) {
+  const storageId = projectStorageId(props.projectId)
+  const capturedApi = scopedApi(baseApi, () => storageId)
   try {
-    const [receipt, catalog] = await Promise.all([api.getToolLayerReadiness().catch(() => null), api.getHarnessManifest().catch(() => null)])
+    const [receipt, catalog] = await Promise.all([capturedApi.getToolLayerReadiness().catch(() => null), capturedApi.getHarnessManifest().catch(() => null)])
     readiness.value = receipt; manifest.value = catalog
-    tools.value = catalog?.tools?.length ? catalog.tools : await api.listTools()
+    tools.value = catalog?.tools?.length ? catalog.tools : await capturedApi.listTools()
     await Promise.all([search(), ...(includeUsage ? [refreshUsage()] : [])])
   } catch (err) { notify.error(err, { title: t('app.loadFailed'), source: 'tools' }) }
 }

@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { ChevronRight, Cpu, FileText, Globe, Monitor } from '@lucide/vue'
 import BrandLogo from '@/components/BrandLogo.vue'
 import { UiButton, UiCard } from '@/components/ui'
-import { api } from '@/api'
+import { api as baseApi } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 
 /**
  * About section extracted from SettingsPage (D7.2 pilot module).

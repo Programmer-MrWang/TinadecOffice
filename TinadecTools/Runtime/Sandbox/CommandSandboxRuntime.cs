@@ -61,6 +61,10 @@ internal static class CommandSandboxRuntime
         }
 
         var writePaths = new List<string> { workingDir };
+        if (ToolExecutionContext.Current?.StorageRoot is { } publicStorage)
+            writePaths.AddRange(new[] { Path.Combine(publicStorage, "config"), Path.Combine(publicStorage, "skills") });
+        if (ToolExecutionContext.Current is { ProjectStorageWrite: true, StorageRoot: { } storageRoot })
+            writePaths.Add(storageRoot);
         if (additionalWritePaths is not null)
         {
             foreach (var p in additionalWritePaths)
@@ -70,6 +74,8 @@ internal static class CommandSandboxRuntime
                 SandboxPaths.EnsureNotBroadWriteTarget(full);
                 if (ToolExecutionContext.Current is { } executionContext)
                     SandboxPaths.EnsureNotOverlappingReadRoots(full, executionContext.ReadRoots);
+                if (!WorkspaceStoragePolicy.CanAccess(workingDir, full, true, []))
+                    throw new UnauthorizedAccessException("Additional shell write grants cannot access protected scope storage.");
                 writePaths.Add(full);
             }
         }
@@ -90,7 +96,14 @@ internal static class CommandSandboxRuntime
         {
             ReadPaths = readPaths,
             WritePaths = writePaths,
-            EnvironmentVariableNames = envVars
+            EnvironmentVariableNames = envVars,
+            StorageId = ToolExecutionContext.Current?.StorageId,
+            StorageRoot = WorkspaceStoragePolicy.StorageRoot(workingDir),
+            StorageWrite = ToolExecutionContext.Current?.ProjectStorageWrite == true,
+            ProtectedPaths = (ToolExecutionContext.Current?.ProjectStorageWrite == true
+                ? WorkspaceStoragePolicy.ForbiddenRoots(workingDir)
+                : WorkspaceStoragePolicy.ProtectedPaths(workingDir)).ToList(),
+            ReadExceptions = ToolExecutionContext.Current?.ReadRoots.Where(path => !WorkspaceStoragePolicy.PermanentHostPaths().Any(root => WorkspaceRootSet.IsWithin(root, path))).ToList() ?? []
         };
     }
 
@@ -104,7 +117,12 @@ internal static class CommandSandboxRuntime
         {
             ReadPaths = [.. policy.ReadPaths.Concat(additional.ReadPaths).Distinct(SandboxPaths.PathComparer)],
             WritePaths = [.. policy.WritePaths.Concat(additional.WritePaths).Distinct(SandboxPaths.PathComparer)],
-            EnvironmentVariableNames = [.. policy.EnvironmentVariables.Concat(additional.EnvironmentVariableNames).Distinct(SandboxPaths.PathComparer)]
+            EnvironmentVariableNames = [.. policy.EnvironmentVariables.Concat(additional.EnvironmentVariableNames).Distinct(SandboxPaths.PathComparer)],
+            ProtectedPaths = additional.ProtectedPaths,
+            ReadExceptions = additional.ReadExceptions,
+            StorageId = additional.StorageId,
+            StorageRoot = additional.StorageRoot,
+            StorageWrite = additional.StorageWrite
         };
     }
 

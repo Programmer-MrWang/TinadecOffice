@@ -1039,7 +1039,7 @@ public sealed partial class MarketCatalogApiTests : IAsyncLifetime
 
         var target = proposal.GetProperty("target_path").GetString()!;
         Assert.Equal(
-            SameSpelling(Path.Combine(_root, "workspace", "skills", "pdf-forms", "SKILL.md")),
+            SameSpelling(Path.Combine(_root, "workspace", ".tinadec", "skills", "pdf-forms", "SKILL.md")),
             SameSpelling(target));
         Assert.Equal("skill", proposal.GetProperty("kind").GetString());
         Assert.Contains("name: pdf-forms", proposal.GetProperty("content").GetString());
@@ -1258,7 +1258,7 @@ public sealed partial class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedSkillEntryAsync(source, new SkillRow("pdf-forms"));
         var project = await CreateProjectAsync("live-skill");
         var root = Path.Combine(_root, "workspace");
-        var target = Path.Combine(root, "skills", "pdf-forms", "SKILL.md");
+        var target = Path.Combine(root, ".tinadec", "skills", "pdf-forms", "SKILL.md");
 
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
@@ -1719,6 +1719,7 @@ public sealed partial class MarketCatalogApiTests : IAsyncLifetime
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("TinadecStorage:Enabled", "false");
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),

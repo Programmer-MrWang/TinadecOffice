@@ -51,6 +51,8 @@ const ALLOWED_CODES = new Set([
   'invalid_cursor',
   'unauthorized',
   'forbidden',
+  'host_authorization_required',
+  'host_identity_unavailable',
   'method_not_allowed',
   'payload_too_large',
   'unsupported_media_type',

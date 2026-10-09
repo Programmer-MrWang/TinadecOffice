@@ -40,6 +40,72 @@ $script:record = [ordered]@{
     steps        = New-Object System.Collections.ArrayList
 }
 $script:failed = $false
+$script:backendHeaders = @{}
+$script:provenHosts = @{}
+$previousHostToken = $env:TINADEC_HOST_CONTROL_TOKEN
+Remove-Item Env:TINADEC_HOST_CONTROL_TOKEN -ErrorAction SilentlyContinue
+
+function Invoke-TinadecRest {
+    param([string]$Uri, [string]$Method = 'Get', [string]$ContentType, $Body, [hashtable]$Headers, [int]$TimeoutSec = 100)
+    $invoke = @{ Uri = $Uri; Method = $Method; TimeoutSec = $TimeoutSec; MaximumRedirection = 0 }
+    if ($PSBoundParameters.ContainsKey('ContentType')) { $invoke.ContentType = $ContentType }
+    if ($PSBoundParameters.ContainsKey('Body')) { $invoke.Body = $Body }
+    $merged = @{}
+    $targetHost = if ($Uri.StartsWith($CoreUrl + '/api/v1/')) { $CoreUrl } elseif ($Uri.StartsWith($GatewayUrl + '/api/v1/')) { $GatewayUrl } else { $null }
+    $publicProbe = $targetHost -and ($Uri -eq ($targetHost + '/api/v1/health') -or $Uri.StartsWith($targetHost + '/api/v1/host-challenge?'))
+    if ($targetHost -and -not $publicProbe) {
+        if (-not $script:provenHosts.ContainsKey($targetHost)) { throw 'The service has not proved this managed launch identity.' }
+        foreach ($key in $script:backendHeaders.Keys) { $merged[$key] = $script:backendHeaders[$key] }
+    }
+    if ($Headers) { foreach ($key in $Headers.Keys) { $merged[$key] = $Headers[$key] } }
+    $invoke.Headers = $merged
+    Microsoft.PowerShell.Utility\Invoke-RestMethod @invoke
+}
+
+function Assert-TinadecHostProof {
+    param([string]$Url, [string]$Role)
+    $nonceBytes = New-Object byte[] 32
+    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $generator.GetBytes($nonceBytes) } finally { $generator.Dispose() }
+    $nonce = [Convert]::ToBase64String($nonceBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+    $proof = Invoke-TinadecRest -Uri ($Url + '/api/v1/host-challenge?nonce=' + $nonce) -TimeoutSec 10
+    if ($proof.role -ne $Role -or $proof.nonce -ne $nonce -or $proof.proof -cnotmatch '^[0-9a-f]{64}$') {
+        throw 'The service returned an invalid managed host identity.'
+    }
+    $hmac = New-Object Security.Cryptography.HMACSHA256
+    try {
+        $hmac.Key = [Text.Encoding]::UTF8.GetBytes($env:TINADEC_HOST_CONTROL_TOKEN)
+        $payload = 'tinadec-host-v1' + [char]0 + $Role + [char]0 + $nonce
+        $expected = [BitConverter]::ToString($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes($payload))).Replace('-', '').ToLowerInvariant()
+    } finally { $hmac.Dispose() }
+    $difference = 0
+    for ($index = 0; $index -lt 64; $index++) { $difference = $difference -bor ([int][char]$expected[$index] -bxor [int][char]$proof.proof[$index]) }
+    if ($difference -ne 0) { throw 'The service does not belong to this managed launch.' }
+    $script:provenHosts[$Url] = $true
+}
+
+function Save-TinadecStream {
+    param([string]$Uri, [string]$Path, [int]$TimeoutSeconds)
+    Add-Type -AssemblyName System.Net.Http
+    $targetHost = if ($Uri.StartsWith($CoreUrl + '/api/v1/')) { $CoreUrl } elseif ($Uri.StartsWith($GatewayUrl + '/api/v1/')) { $GatewayUrl } else { $null }
+    if (-not $targetHost -or -not $script:provenHosts.ContainsKey($targetHost)) { throw 'The stream service has not proved this managed launch identity.' }
+    $handler = New-Object System.Net.Http.HttpClientHandler
+    $handler.AllowAutoRedirect = $false
+    $client = New-Object System.Net.Http.HttpClient -ArgumentList $handler
+    $cancellation = New-Object System.Threading.CancellationTokenSource
+    $cancellation.CancelAfter([TimeSpan]::FromSeconds($TimeoutSeconds))
+    try {
+        foreach ($key in $script:backendHeaders.Keys) { $client.DefaultRequestHeaders.Add($key, [string]$script:backendHeaders[$key]) }
+        $response = $client.GetAsync($Uri, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead, $cancellation.Token).GetAwaiter().GetResult()
+        try {
+            $response.EnsureSuccessStatusCode() | Out-Null
+            $stream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+            $output = [IO.File]::Create($Path)
+            try { $stream.CopyToAsync($output, 81920, $cancellation.Token).GetAwaiter().GetResult() }
+            finally { $output.Dispose(); $stream.Dispose() }
+        } finally { $response.Dispose() }
+    } finally { $cancellation.Dispose(); $client.Dispose() }
+}
 
 function Add-Step {
     param([string]$Name, [bool]$Ok, [string]$Detail)
@@ -54,7 +120,7 @@ function Wait-HttpOk {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
         try {
-            Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec 3 | Out-Null
+            Invoke-TinadecRest -Uri $Url -Method Get -TimeoutSec 3 | Out-Null
             return $true
         } catch {
             Start-Sleep -Milliseconds 500
@@ -84,7 +150,14 @@ try {
     if (-not $fixtureReady) { Save-Record; exit 1 }
     Add-Step "模型 fixture 就绪" $true "http://127.0.0.1:$FixturePort/v1"
 
-    # ── 2. 启动 Core（命令行参数指定临时 SQLite 数据目录，不污染开发库） ────
+    $tokenBytes = New-Object byte[] 32
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $random.GetBytes($tokenBytes) } finally { $random.Dispose() }
+    $env:TINADEC_HOST_CONTROL_TOKEN = [Convert]::ToBase64String($tokenBytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+    $script:backendHeaders['X-Tinadec-Host-Control'] = $env:TINADEC_HOST_CONTROL_TOKEN
+    $script:backendHeaders['X-Tinadec-Storage-Id'] = 'user'
+
+    # ── 2. 启动 Core（完整隔离的用户存储根，不使用真实用户根） ──────────
     $coreDll = Join-Path $root "TinadecCore\Api\bin\Debug\net10.0\TinadecCore.Api.dll"
     if (-not (Test-Path $coreDll)) { Add-Step "Core 构建产物" $false "$coreDll 不存在；先运行 npm run build 或 dotnet build"; Save-Record; exit 1 }
     # NOTE: Start-Process joins -ArgumentList without quoting, so every path that
@@ -92,8 +165,8 @@ try {
     $coreArgs = @(
         ('"' + $coreDll + '"'),
         "--urls", $CoreUrl,
-        ('--TinadecPersistence:Sqlite:DatabasePath="' + (Join-Path $work 'tinadec.db') + '"'),
-        ('--TinadecPersistence:DataRoot="' + (Join-Path $work 'data') + '"')
+        ('--TinadecStorage:UserRoot="' + (Join-Path $work '.tinadec') + '"'),
+        ('--TinadecTools:DefaultWorkspaceRoot="' + (Join-Path $work 'free-workspaces') + '"')
     )
     $core = Start-Process -FilePath "dotnet" -ArgumentList $coreArgs `
         -WorkingDirectory (Join-Path $root "TinadecCore\Api") -PassThru -WindowStyle Hidden `
@@ -101,6 +174,7 @@ try {
     try {
         $coreReady = Wait-HttpOk -Url "$CoreUrl/api/v1/health" -TimeoutSeconds 240 -Label "Core"
         if (-not $coreReady) { Save-Record; exit 1 }
+        Assert-TinadecHostProof -Url $CoreUrl -Role 'core'
         Add-Step "Core 就绪" $true "$BaseUrl/api/v1/health"
 
         # ── 2b. 启动 Gateway（Desktop 唯一入口；未配置独立工具运行时 → Core 权威） ──
@@ -119,10 +193,11 @@ try {
                 -RedirectStandardOutput (Join-Path $work "gateway.log") -RedirectStandardError (Join-Path $work "gateway.err.log")
             $gatewayReady = Wait-HttpOk -Url "$GatewayUrl/api/v1/health" -TimeoutSeconds 40 -Label "Gateway"
             if (-not $gatewayReady) { Save-Record; exit 1 }
+            Assert-TinadecHostProof -Url $GatewayUrl -Role 'gateway'
             Add-Step "Gateway 就绪" $true "$GatewayUrl/api/v1/health（经 Gateway 验证代理链路）"
         }
         # ── 3. 统一 readiness receipt ───────────────────────────────────────
-        $readiness = Invoke-RestMethod -Uri "$BaseUrl/api/v1/readiness" -Method Get
+        $readiness = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/readiness" -Method Get
         $readiness | ConvertTo-Json -Depth 12 | Out-File -FilePath (Join-Path $work "readiness.json") -Encoding utf8
         $ids = ($readiness.items | ForEach-Object { $_.id }) -join ","
         Add-Step "readiness receipt" $true "status=$($readiness.status); items=$ids"
@@ -136,22 +211,22 @@ try {
             model           = "tinadec-fixture-1"
             api_key         = "fixture-local-secret"
         } | ConvertTo-Json
-        $provider = Invoke-RestMethod -Uri "$BaseUrl/api/v1/model-providers" -Method Post `
+        $provider = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/model-providers" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $providerBody
         Add-Step "创建模型 provider" $true "id=$($provider.id)"
 
-        $routes = Invoke-RestMethod -Uri "$BaseUrl/api/v1/model-routes" -Method Get
+        $routes = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/model-routes" -Method Get
         $chat = $routes | Where-Object { $_.purpose -eq "chat" } | Select-Object -First 1
         $routeHeaders = @{}
         if ($null -ne $chat) { $routeHeaders["If-Match"] = "`"$($chat.revision)`"" }
         $routeBody = @{
             candidates = @(@{ provider_instance_id = $provider.id; model = "tinadec-fixture-1" })
         } | ConvertTo-Json -Depth 6
-        Invoke-RestMethod -Uri "$BaseUrl/api/v1/model-routes/chat" -Method Put `
+        Invoke-TinadecRest -Uri "$BaseUrl/api/v1/model-routes/chat" -Method Put `
             -ContentType "application/json; charset=utf-8" -Body $routeBody -Headers $routeHeaders | Out-Null
         Add-Step "绑定 chat 路由" $true "provider=$($provider.id) model=tinadec-fixture-1"
 
-        $probe = Invoke-RestMethod -Uri "$BaseUrl/api/v1/model-probe?force=true" -Method Post
+        $probe = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/model-probe?force=true" -Method Post
         Add-Step "模型连通性探针" ($probe.status -eq "ready") "status=$($probe.status) reason=$($probe.reason)"
 
         # ── 5. Agent Pack 安装（manifest → 规范化 sha256 → preview → apply） ──
@@ -223,21 +298,23 @@ try {
         # envelope 需要两种形态：JSON 字符串（preview 请求体）与嵌套对象（apply 请求体）。
         $envelopeObj = @{ manifest = $manifest; integrity = @{ algorithm = "sha256"; digest = $digest } }
         $envelope = $envelopeObj | ConvertTo-Json -Depth 20
-        $preview = Invoke-RestMethod -Uri "$BaseUrl/api/v1/agent-packs/install-preview" -Method Post `
+        $preview = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/agent-packs/install-preview" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $envelope
         $applyHeaders = @{ "Idempotency-Key" = "e2e-local-loop-pack-install" }
         $applyBody = @{ preview_id = $preview.preview_id; envelope = $envelopeObj } | ConvertTo-Json -Depth 20
-        $applied = Invoke-RestMethod -Uri "$BaseUrl/api/v1/agent-packs/$packId" -Method Put `
+        $applied = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/agent-packs/$packId" -Method Put `
             -ContentType "application/json; charset=utf-8" -Body $applyBody -Headers $applyHeaders
         Add-Step "Agent Pack 安装" ($applied.status -eq "installed") "pack=$packId status=$($applied.status)"
 
         # ── 6. 项目 + 会话（工作区目录必须真实存在，admission 会校验） ────────
         $workspaceDir = Join-Path $work "workspace"
         New-Item -ItemType Directory -Force -Path $workspaceDir | Out-Null
-        $project = Invoke-RestMethod -Uri "$BaseUrl/api/v1/projects" -Method Post `
+        $project = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/projects" -Method Post `
             -ContentType "application/json; charset=utf-8" `
             -Body (@{ name = "e2e-local-loop"; path = $workspaceDir } | ConvertTo-Json)
-        $session = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions" -Method Post `
+        if (-not $project.storage_id) { throw 'Project creation did not return its fixed storage identity.' }
+        $script:backendHeaders['X-Tinadec-Storage-Id'] = $project.storage_id
+        $session = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions" -Method Post `
             -ContentType "application/json; charset=utf-8" `
             -Body (@{ project_id = $project.id; title = "e2e session" } | ConvertTo-Json)
         Add-Step "项目/会话创建" $true "project=$($project.id) session=$($session.id)"
@@ -246,7 +323,7 @@ try {
         $clientMessageId = "e2e-$stamp"
         # dispatch_mode 显式携带：Gateway 对 interactions 做前置校验（Core 侧缺省为 queued）。
         $interactionBody = @{ content = "请用 fixture 完成一次本地闭环。"; client_message_id = $clientMessageId; dispatch_mode = "queued" } | ConvertTo-Json
-        $interaction = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
+        $interaction = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $interactionBody
         $receiptOk = ($null -ne $interaction.interaction_id) -and ($null -ne $interaction.run_id) -and
             ($null -ne $interaction.client_message_id) -and ($null -ne $interaction.context_revision) -and
@@ -259,7 +336,7 @@ try {
         $deadline = (Get-Date).AddSeconds(180)
         $runStatus = $null
         while ((Get-Date) -lt $deadline) {
-            $orch = Invoke-RestMethod -Uri "$BaseUrl/api/v1/runs/$runId/orchestration" -Method Get
+            $orch = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/runs/$runId/orchestration" -Method Get
             $runStatus = $orch.run.status
             if ($runStatus -in @("completed", "failed", "cancelled")) { break }
             Start-Sleep -Milliseconds 500
@@ -268,7 +345,7 @@ try {
 
         # ── 9. run stream 全量重放：seq 单调、恰好一个 done ──────────────────
         $streamPath = Join-Path $work "run-stream.txt"
-        & curl.exe -s -N --max-time 60 "$BaseUrl/api/v1/runs/$runId/stream?after_seq=0" | Out-File -FilePath $streamPath -Encoding utf8
+        Save-TinadecStream -Uri "$BaseUrl/api/v1/runs/$runId/stream?after_seq=0" -Path $streamPath -TimeoutSeconds 60
         $seqs = @()
         $kinds = @()
         Get-Content $streamPath | ForEach-Object {
@@ -282,12 +359,12 @@ try {
             "events=$($seqs.Count) kinds=$(($kinds | Select-Object -Unique) -join ',') done=$doneCount monotonic=$monotonic"
 
         # ── 10. 幂等重放：同一 client_message_id 返回同一 run ────────────────
-        $replay = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
+        $replay = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $interactionBody
         Add-Step "client_message_id 幂等" ($replay.run_id -eq $runId) "replay run=$($replay.run_id)"
 
         # ── 11. 最终 projection：一条用户消息 + 一条会议输出 ──────────────────
-        $messages = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions/$($session.id)/messages" -Method Get
+        $messages = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions/$($session.id)/messages" -Method Get
         if ($messages -isnot [array] -and $null -ne $messages.messages) { $messages = $messages.messages }
         $userCount = @($messages | Where-Object { $_.role -eq "user" }).Count
         $assistantCount = @($messages | Where-Object { $_.role -eq "assistant" }).Count
@@ -296,7 +373,7 @@ try {
         $writeContent = "e2e write_file 副作用验证 $stamp"
         $writeParams = @{ filepath = "e2e-write.txt"; content = $writeContent }
         $actionCreate = @{ project_id = $project.id; tool_id = "write_file"; params = $writeParams; idempotency_key = "e2e-write-$stamp" } | ConvertTo-Json -Depth 6
-        $action = Invoke-RestMethod -Uri "$BaseUrl/api/v1/user/tool-actions" -Method Post `
+        $action = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/user/tool-actions" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $actionCreate
         Add-Step "创建 write_file 动作" ($null -ne $action.id) "action=$($action.id) status=$($action.status) requires_approval=$($action.requires_approval)"
 
@@ -309,13 +386,13 @@ try {
                 $approvalId = if ($actionStatus -eq "awaiting_approval" -and $action.action_approval_id) { $action.action_approval_id } else { $action.permission_request_id }
                 if ($approvalId) {
                     try {
-                        Invoke-RestMethod -Uri "$BaseUrl/api/v1/approvals/$approvalId/decision" -Method Post `
+                        Invoke-TinadecRest -Uri "$BaseUrl/api/v1/approvals/$approvalId/decision" -Method Post `
                             -ContentType "application/json; charset=utf-8" `
                             -Body (@{ decision = "approved"; reason = "e2e local loop" } | ConvertTo-Json) | Out-Null
                     } catch { }
                 }
             }
-            $action = Invoke-RestMethod -Uri "$BaseUrl/api/v1/user/tool-actions/$($action.id)/resume" -Method Post
+            $action = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/user/tool-actions/$($action.id)/resume" -Method Post
             $actionStatus = $action.status
             if ($actionStatus -notin @("completed", "failed", "blocked", "outcome_unknown")) { Start-Sleep -Milliseconds 300 }
         }
@@ -326,14 +403,14 @@ try {
         Add-Step "写副作用恰好一次" $fileOk "file=$writePath exists=$(Test-Path $writePath)"
 
         # 幂等：同 idempotency_key 重放返回同一 action，不产生第二次写。
-        $actionReplay = Invoke-RestMethod -Uri "$BaseUrl/api/v1/user/tool-actions" -Method Post `
+        $actionReplay = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/user/tool-actions" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $actionCreate
         Add-Step "write 动作幂等" ($actionReplay.id -eq $action.id) "replay action=$($actionReplay.id)"
 
         # ── 13. 运行中重启恢复：kill Core → 重启 → 引擎续跑至完成 ────────────
         $restartMessageId = "e2e-restart-$stamp"
         $restartBody = @{ content = "重启恢复验证。"; client_message_id = $restartMessageId; dispatch_mode = "queued" } | ConvertTo-Json
-        $restartInteraction = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
+        $restartInteraction = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions/$($session.id)/interactions" -Method Post `
             -ContentType "application/json; charset=utf-8" -Body $restartBody
         $restartRunId = $restartInteraction.run_id
 
@@ -341,7 +418,7 @@ try {
         $killDeadline = (Get-Date).AddSeconds(60)
         $killed = $false
         while ((Get-Date) -lt $killDeadline) {
-            $orchNow = Invoke-RestMethod -Uri "$BaseUrl/api/v1/runs/$restartRunId/orchestration" -Method Get
+            $orchNow = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/runs/$restartRunId/orchestration" -Method Get
             $statusNow = $orchNow.run.status
             if ($statusNow -in @("understanding", "executing", "replanning", "reviewing")) {
                 if ($null -ne $core -and -not $core.HasExited) { Stop-Process -Id $core.Id -Force }
@@ -359,6 +436,7 @@ try {
             -WorkingDirectory (Join-Path $root "TinadecCore\Api") -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput (Join-Path $work "core-restart.log") -RedirectStandardError (Join-Path $work "core-restart.err.log")
         $restartReady = Wait-HttpOk -Url "$CoreUrl/api/v1/health" -TimeoutSeconds 60 -Label "Core 重启"
+        Assert-TinadecHostProof -Url $CoreUrl -Role 'core'
         if (-not $restartReady) { Save-Record; exit 1 }
         Add-Step "Core 重启" $true "lease 过期后引擎续跑（awaiting_* 保护与 30s grace 不变）"
 
@@ -366,7 +444,7 @@ try {
         $resumeStatus = $null
         while ((Get-Date) -lt $resumeDeadline) {
             try {
-                $orchAfter = Invoke-RestMethod -Uri "$BaseUrl/api/v1/runs/$restartRunId/orchestration" -Method Get
+                $orchAfter = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/runs/$restartRunId/orchestration" -Method Get
                 $resumeStatus = $orchAfter.run.status
                 if ($resumeStatus -in @("completed", "failed", "cancelled")) { break }
             } catch { Start-Sleep -Milliseconds 500 }
@@ -376,7 +454,7 @@ try {
 
         # 重放重启 run 的流：恰好一个 done（续跑不重放旧事件、不重复终态）。
         $restartStreamPath = Join-Path $work "restart-stream.txt"
-        & curl.exe -s -N --max-time 90 "$BaseUrl/api/v1/runs/$restartRunId/stream?after_seq=0" | Out-File -FilePath $restartStreamPath -Encoding utf8
+        Save-TinadecStream -Uri "$BaseUrl/api/v1/runs/$restartRunId/stream?after_seq=0" -Path $restartStreamPath -TimeoutSeconds 90
         $restartKinds = @()
         Get-Content $restartStreamPath | ForEach-Object {
             if ($_ -match '"kind":"([a-z_]+)"') { $restartKinds += $Matches[1] }
@@ -385,7 +463,7 @@ try {
         Add-Step "重启 run 流一致性" ($restartDoneCount -eq 1) "kinds=$(($restartKinds | Select-Object -Unique) -join ',') done=$restartDoneCount"
 
         # 消息投影：两次交互各恰好一条用户消息 + 一条会议输出。
-        $messages2 = Invoke-RestMethod -Uri "$BaseUrl/api/v1/sessions/$($session.id)/messages" -Method Get
+        $messages2 = Invoke-TinadecRest -Uri "$BaseUrl/api/v1/sessions/$($session.id)/messages" -Method Get
         if ($messages2 -isnot [array] -and $null -ne $messages2.messages) { $messages2 = $messages2.messages }
         $userCount2 = @($messages2 | Where-Object { $_.role -eq "user" }).Count
         $assistantCount2 = @($messages2 | Where-Object { $_.role -eq "assistant" }).Count
@@ -402,6 +480,8 @@ finally {
     Remove-Item Env:FIXTURE_STEP_DELAY_MS -ErrorAction SilentlyContinue
     Remove-Item Env:TINADEC_PERSISTENCE__SQLITE__DATABASEPATH -ErrorAction SilentlyContinue
     Remove-Item Env:TINADEC_PERSISTENCE__DATAROOT -ErrorAction SilentlyContinue
+    if ($null -eq $previousHostToken) { Remove-Item Env:TINADEC_HOST_CONTROL_TOKEN -ErrorAction SilentlyContinue }
+    else { $env:TINADEC_HOST_CONTROL_TOKEN = $previousHostToken }
 }
 
 Save-Record

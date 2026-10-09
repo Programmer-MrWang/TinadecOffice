@@ -39,7 +39,7 @@ function init(): RequestInit {
 }
 
 function headers(): Record<string, string> {
-  return init().headers as Record<string, string>
+  return Object.fromEntries(new Headers(init().headers))
 }
 
 /**

@@ -1273,6 +1273,62 @@
         },
         "type": "object"
       },
+      "CleanupApplyRequest": {
+        "properties": {
+          "preview_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "preview_id"
+        ],
+        "type": "object"
+      },
+      "CleanupRequest": {
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "type": "object"
+      },
+      "ConfigurationTextRequest": {
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "type": "object"
+      },
+      "ConfigureScopeRequest": {
+        "properties": {
+          "backend": {
+            "type": "string"
+          },
+          "postgres_connection_reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "storage_root": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ],
+        "type": "object"
+      },
       "CreateApprovalDelegationRequestDto": {
         "properties": {
           "delegate_agent_instance_id": {
@@ -2660,6 +2716,12 @@
               "null",
               "string"
             ]
+          },
+          "target_storage_id": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "type": "object"
@@ -2949,6 +3011,41 @@
             ]
           }
         },
+        "type": "object"
+      },
+      "OpenScopeRequest": {
+        "properties": {
+          "backend": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "postgres_connection_reference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "project_path": {
+            "type": "string"
+          },
+          "storage_root": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "project_path"
+        ],
         "type": "object"
       },
       "OrganizationDto": {
@@ -4212,6 +4309,17 @@
             "type": "boolean"
           }
         },
+        "type": "object"
+      },
+      "StorageWritePolicyRequest": {
+        "properties": {
+          "allow_storage_write": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "allow_storage_write"
+        ],
         "type": "object"
       },
       "TerminalStdinRequest": {
@@ -5498,6 +5606,21 @@
             },
             "type": "array"
           },
+          "project_root": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "project_storage_write": {
+            "type": "boolean"
+          },
+          "protected_storage_roots": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "read_roots": {
             "items": {
               "$ref": "#/components/schemas/ToolReadRootDto"
@@ -5535,6 +5658,24 @@
               "$ref": "#/components/schemas/ToolSkillSnapshotDto"
             },
             "type": "array"
+          },
+          "storage_id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "storage_root": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "working_directory": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "type": "object"
@@ -5612,6 +5753,21 @@
             "type": "string"
           },
           "name": {
+            "type": "string"
+          },
+          "program_hash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "program_root": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "program_status": {
             "type": "string"
           },
           "resource_id": {
@@ -7930,6 +8086,102 @@
         ]
       }
     },
+    "/api/v1/configuration/documents": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/configuration/documents/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigurationTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/configuration/documents/{id}/validate": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigurationTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
     "/api/v1/debug/breakpoints": {
       "get": {
         "responses": {
@@ -8754,6 +9006,29 @@
           }
         },
         "summary": "Health probe",
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/host-challenge": {
+      "get": {
+        "description": "Signs a fresh public nonce; never receives or returns the private host credential.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "nonce",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "summary": "Prove managed host ownership",
         "tags": [
           "TinadecCore.Api"
         ]
@@ -10677,6 +10952,29 @@
         ]
       }
     },
+    "/api/v1/session-transfers/{transferId}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "transferId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
     "/api/v1/sessions": {
       "get": {
         "parameters": [
@@ -11740,6 +12038,386 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/open": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/cleanup": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/cleanup-preview": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/close": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/configure": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigureScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/content-collect": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/content-preview": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/diagnostics": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/export": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/stats": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/storage-delete": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/storage-delete-preview": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "tags": [
+          "TinadecCore.Api"
+        ]
+      }
+    },
+    "/api/v1/storage/scopes/{storageId}/write-policy": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "storageId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageWritePolicyRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "OK"

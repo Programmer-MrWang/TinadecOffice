@@ -160,26 +160,25 @@ public sealed class ToolSettingsApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LegacyMcpFile_ImportsOnceWithoutBecomingLiveAuthority()
+    public async Task LegacyMcpFileIsIgnoredWhenTheNewScopeConfigurationIsAuthoritative()
     {
         File.WriteAllText(Path.Combine(_root, "mcp_servers.json"), "{\"servers\":[{\"id\":\"legacy\",\"name\":\"Legacy\",\"command\":\"original\",\"env\":{\"TOKEN\":\"old-secret\"}}]}");
         var client = _factory.CreateClient();
         var first = await client.GetFromJsonAsync<JsonElement>("/api/v1/tools/mcp/servers");
-        Assert.Equal("original", first[0].GetProperty("command").GetString());
+        Assert.Empty(first.EnumerateArray());
         File.WriteAllText(Path.Combine(_root, "mcp_servers.json"), "{\"servers\":[{\"id\":\"legacy\",\"command\":\"external-edit\"}]}");
         var second = await client.GetFromJsonAsync<JsonElement>("/api/v1/tools/mcp/servers");
-        Assert.Equal("original", second[0].GetProperty("command").GetString());
-        Assert.Equal("********", second[0].GetProperty("env").GetProperty("TOKEN").GetString());
+        Assert.Empty(second.EnumerateArray());
     }
 
     [Fact]
-    public async Task BrokenLegacyImport_BlocksMcpButLeavesOtherToolsConfigured()
+    public async Task BrokenLegacyFileDoesNotAffectCurrentToolConfiguration()
     {
         File.WriteAllText(Path.Combine(_root, "mcp_servers.json"), "broken-json");
         var client = _factory.CreateClient();
-        Assert.Equal(HttpStatusCode.Conflict, (await client.GetAsync("/api/v1/tools/mcp/servers")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/v1/tools/mcp/servers")).StatusCode);
         var context = await _factory.Services.GetRequiredService<IToolConfigurationResolver>().ResolveAsync(null);
-        Assert.NotNull(context.McpImportError);
+        Assert.Null(context.McpImportError);
         Assert.Empty(context.McpServers);
         Assert.True(context.Settings.GetProperty("shell").GetProperty("enabled").GetBoolean());
     }
@@ -242,6 +241,7 @@ public sealed class ToolSettingsApiTests : IAsyncLifetime
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseSetting("TinadecStorage:Enabled", "false");
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string,string?> { ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(root,"tinadec.db"), ["TinadecPersistence:DataRoot"] = Path.Combine(root,"data"), ["TinadecTools:DefaultWorkspaceRoot"] = root, ["Logging:LogLevel:Default"] = "Warning" }));
             builder.ConfigureTestServices(services => { services.RemoveAll<IToolProvider>(); services.AddSingleton<IToolProvider>(new Provider()); });
         }

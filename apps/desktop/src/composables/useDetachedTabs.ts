@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { homeController } from '@/controllers/HomeController'
+import { selectedStorageId } from '@/lib/storageScope'
 
 // ---------------------------------------------------------------------------
 // useDetachedTabs — detached feature-panel window tracking for the UIE.
@@ -34,11 +35,12 @@ export interface DetachedTabInfo {
 
 /** Window-context keys added on detach; stripped again on reattach so they never
  * leak into the persisted card state. */
-const CONTEXT_KEYS = ['sessionId', 'projectPath'] as const
+const CONTEXT_KEYS = ['sessionId', 'projectPath', 'storageId'] as const
 
 function withSessionContext(state: Record<string, unknown>): Record<string, unknown> {
   return {
     ...state,
+    storageId: selectedStorageId(),
     sessionId: homeController.selectedSessionId.value,
     projectPath: homeController.currentProject.value?.path,
   }

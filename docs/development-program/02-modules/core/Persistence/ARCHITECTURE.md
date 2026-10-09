@@ -8,6 +8,8 @@
 
 ## 可编辑架构图
 
+2026-10-09作用域适配：路径解析使用不可变`IScopeStorageLocations`且不创建目录，写入/初始化拥有创建职责。用户根持久UUID决定独立schema；每scope的连接、迁移history及EF模型缓存都从已冻结options取得，模型创建期间不调用`context.Database`。SQLite与向量库禁用连接池，生命周期结束后真实句柄释放；内容读写流持有租约。配置文件是编辑来源，DB保留历史事实及可重建投影。实际Linux/PG与Windows证据见[验收账本](../../../../../.tinadec_dev/evidence/2026-10-09-storage/VALIDATION.md)。
+
 ```mermaid
 flowchart LR
   subgraph S["Persistence · 公共存储适配"]
@@ -27,7 +29,7 @@ flowchart LR
 
 | 职责 | 当前边界 | 来源 |
 | --- | --- | --- |
-| Persistence · 公共存储适配 | 公共数据库配置、内容路径/原子写、密钥引用与 nonce 存储；领域各自拥有 DbContext，当前共有 11 个。 | [TinadecCore/Persistence/ServiceCollectionExtensions.cs](../../../../../TinadecCore/Persistence/ServiceCollectionExtensions.cs) |
+| Persistence · 公共存储适配 | scope 路径、数据库/schema/model-cache 隔离、TOML配置文档/投影、内容流租约、密钥引用与 nonce；领域各自拥有 DbContext。 | [TinadecCore/Persistence/ServiceCollectionExtensions.cs](../../../../../TinadecCore/Persistence/ServiceCollectionExtensions.cs)<br>[配置文档](CONFIGURATION-FILES.md) |
 
 ## 已核对的编译引用
 

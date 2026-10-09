@@ -18,6 +18,7 @@ import {
 	ripgrepStagedName,
 	ripgrepTarget,
 } from "../../../scripts/ripgrep-pin.mjs";
+import { stageBubblewrap } from "../../../scripts/bubblewrap-pin.mjs";
 import {
 	hostRuntimeTarget,
 	resolveRuntimeTarget,
@@ -407,6 +408,7 @@ try {
 	stageCore();
 	stageGateway();
 	stageTools(ripgrep);
+	stageBubblewrap({ rootDir, destinationDirectory: join(stagingDir, "tools"), platform: target.platform });
 	removeFilesByExtension(stagingDir, ".pdb");
 	removeTree(runtimeDir);
 	renameSync(stagingDir, runtimeDir);

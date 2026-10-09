@@ -91,6 +91,8 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
     private readonly IFullDuplexRunEngine _engine;
     private readonly IReadOnlyList<IRunInFlightToolCancellation> _runToolCancellations;
     private readonly ITinaChatRunInput? _chatInputs;
+    private readonly ISessionStorageAdmissionGuard? _storageGuard;
+    private readonly IScopeStorageLocations? _storageLocations;
 
     public FullDuplexRunCoordinator(
         IConversationStore conversations,
@@ -99,7 +101,9 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
         IToolManifestSnapshotResolver toolManifestResolver,
         IFullDuplexRunEngine engine,
         IEnumerable<IRunInFlightToolCancellation> runToolCancellations,
-        ITinaChatRunInput? chatInputs = null)
+        ITinaChatRunInput? chatInputs = null,
+        ISessionStorageAdmissionGuard? storageGuard = null,
+        IScopeStorageLocations? storageLocations = null)
     {
         _conversations = conversations;
         _lifecycle = lifecycle;
@@ -108,10 +112,14 @@ internal sealed class FullDuplexRunCoordinator : IFullDuplexRunCoordinator
         _engine = engine;
         _runToolCancellations = runToolCancellations.ToArray();
         _chatInputs = chatInputs;
+        _storageGuard = storageGuard;
+        _storageLocations = storageLocations;
     }
 
     public async Task<RunSubmission> SubmitAsync(FullDuplexInvocation invocation, CancellationToken cancellationToken = default)
     {
+        await using var storageLease = _storageGuard is null ? null : await _storageGuard.AcquireAsync(
+            invocation.SessionId, _storageLocations?.StorageId ?? "user", !invocation.TargetRunId.HasValue, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(invocation.Content))
         {
             throw new RunAdmissionException("INVALID_MESSAGE", "Message content is required.");

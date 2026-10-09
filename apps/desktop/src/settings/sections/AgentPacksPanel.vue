@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CopyPlus, PackageCheck, PackagePlus, RefreshCw, Trash2 } from '@lucide/vue'
-import { api, type AgentPackDto } from '@/api'
+import { api as baseApi, type AgentPackDto } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { GRAPH_SEED_PACK_VERSION } from '@/agentPacks/GraphSeedPack'
 import {
   graphSeedPackState,

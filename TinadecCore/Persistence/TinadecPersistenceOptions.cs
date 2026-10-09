@@ -19,7 +19,7 @@ public sealed class TinadecPersistenceOptions
     public PostgreSqlOptions PostgreSql { get; set; } = new();
 
     /// <summary>Relative or absolute root for Core-owned session, event, task, and artifact files.</summary>
-    public string DataRoot { get; set; } = "data";
+    public string DataRoot { get; set; } = Path.Combine(StorageScopePaths.UserRoot(), "data");
 
     /// <summary>
     /// Which <c>ISecretStore</c> protects credential material. <c>auto</c> (default) picks
@@ -46,11 +46,13 @@ public sealed class SqliteOptions
     /// Relative or absolute path to the SQLite database file.
     /// Relative paths resolve against the host content root when available, otherwise the current directory.
     /// </summary>
-    public string DatabasePath { get; set; } = "data/tinadec.db";
+    public string DatabasePath { get; set; } = Path.Combine(StorageScopePaths.UserRoot(), "data", "tinadec.db");
 }
 
 public sealed class PostgreSqlOptions
 {
     /// <summary>Named connection string key under ConnectionStrings.</summary>
     public string ConnectionStringName { get; set; } = "TinadecCore";
+    /// <summary>Host-minted namespace of a mounted scope. Never taken from an ordinary business request.</summary>
+    public string? Schema { get; set; }
 }

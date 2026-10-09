@@ -13,6 +13,7 @@ export interface CoreProjectDto {
 export type ProjectLifecycleStatus = 'active' | 'archived' | 'trashed';
 
 export interface ExternalProjectDto {
+  storage_id?: string;
   id: string;
   name: string;
   path: string;
@@ -34,6 +35,7 @@ export function mapProject(core: unknown): ExternalProjectDto | null {
   const id = String(core.id ?? '');
   if (!id) return null;
   return {
+    ...(typeof core.storage_id === 'string' ? { storage_id: core.storage_id } : {}),
     id,
     name: String(core.name ?? ''),
     path: String(core.path ?? ''),

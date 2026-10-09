@@ -1,10 +1,9 @@
 namespace TinadecCore.Abstractions.Ports;
 
 /// <summary>
-/// Binds a projectless (free-conversation) session to a real project workspace:
-/// the project record is found-or-created for the directory and the session is
-/// migrated onto it atomically. Used by the Core-owned create_workspace virtual
-/// tool after its approval gate has passed.
+/// Registers a project workspace and requests a host-coordinated transfer of a free
+/// session. The current run keeps its original scope until it is terminal. Used by
+/// the Core-owned create_workspace virtual tool after its approval gate has passed.
 /// </summary>
 public interface ISessionWorkspaceBinder
 {
@@ -16,4 +15,6 @@ public sealed record SessionWorkspaceBinding(
     Guid ProjectId,
     string ProjectName,
     string RootPath,
-    bool ProjectCreated);
+    bool ProjectCreated,
+    string? StorageId = null,
+    string? TransferStatus = null);

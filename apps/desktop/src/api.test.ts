@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // api.ts reads `window.tinadec?.gatewayUrl?.()` at module top level, so tests need a DOM-ish global.
 import { describe, expect, it, afterEach, vi } from 'vitest'
+vi.mock('@/lib/scopedEventSource', () => ({ ScopedEventSource: class { constructor(url: string) { return new EventSource(url) } } }))
 import { api, normalizeEventEnvelope, type EventEnvelope, type ModelStreamChunkDto } from './api'
 import type {
   ApprovalGateDto, ApprovalGatesDto, EvidenceHitDto, EvidenceRecallDto,

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { selectionKey, selectionIdentity, selectedStorage } from '@/lib/storageScope'
 import {
   Archive,
+  ArrowRightLeft,
   Bug,
   ChevronRight,
   FolderOpen,
@@ -59,6 +61,7 @@ const emit = defineEmits<{
   'archive-session': [id: string]
   'trash-project': [id: string]
   'trash-session': [id: string]
+  'migrate-session': [id: string, targetProjectKey: string]
 }>()
 
 const expandedProjects = ref<Set<string>>(new Set())
@@ -85,9 +88,15 @@ interface MenuTarget {
 
 const menuTarget = ref<MenuTarget | null>(null)
 const renaming = ref<{ kind: 'project' | 'session'; id: string } | null>(null)
+const migrationDialog = ref<HTMLDialogElement | null>(null)
+const migrationSession = ref<MenuTarget | null>(null)
+const migrationProject = ref('')
+const migrationProjects = computed(() => props.projects.filter(project => project.storage_id && (project.lifecycle_status ?? 'active') === 'active'))
+const migrationAllowed = computed(() => menuTarget.value?.kind === 'session' && props.sessions.some(session => selectionKey(session) === menuTarget.value?.id && !session.project_id) && migrationProjects.value.length > 0)
 
 const menuItems = computed<RowMenuItem[]>(() => [
   { key: 'rename', label: t('sidebar.rename'), icon: Pencil },
+  ...(migrationAllowed.value ? [{ key: 'migrate', label: t('sidebar.migrateSession'), icon: ArrowRightLeft }] : []),
   { key: 'archive', label: t('sidebar.archive'), icon: Archive },
   { key: 'trash', label: t('sidebar.moveToTrash'), icon: Trash2, danger: true },
 ])
@@ -130,6 +139,13 @@ async function handleMenuSelect(key: string) {
     startRename(target)
     return
   }
+  if (key === 'migrate') {
+    migrationSession.value = target
+    migrationProject.value = migrationProjects.value[0] ? selectionKey(migrationProjects.value[0]) : ''
+    await nextTick()
+    migrationDialog.value?.showModal()
+    return
+  }
   if (key === 'archive') {
     if (target.kind === 'project') emit('archive-project', target.id)
     else emit('archive-session', target.id)
@@ -150,13 +166,19 @@ async function handleMenuSelect(key: string) {
     else emit('trash-session', target.id)
   }
 }
+function submitMigration() {
+  if (!migrationSession.value || !migrationProject.value) return
+  emit('migrate-session', migrationSession.value.id, migrationProject.value)
+  migrationDialog.value?.close(); migrationSession.value = null
+}
 
 const filteredProjects = computed(() => {
   return props.projects
 })
 
-function getProjectSessions(projectId: string): SessionDto[] {
-  return props.sessions.filter((s) => (s.project_id ?? null) === projectId && s.title)
+function getProjectSessions(projectKey: string): SessionDto[] {
+  const { id, storageId } = selectionIdentity(projectKey)
+  return props.sessions.filter((s) => (s.project_id ?? null) === id && (!storageId || s.storage_id === storageId) && s.title)
 }
 
 function isExpanded(projectId: string): boolean {
@@ -269,19 +291,19 @@ function openDebugStudio() {
         <div class="project-sessions sidebar-extra">
           <div
             v-for="session in freeSessions"
-            :key="session.id"
+            :key="selectionKey(session)"
             class="session-row"
-            :class="{ active: session.id === selectedSessionId }"
-            @contextmenu.prevent="openMenuAtCursor($event, 'session', session.id, session.title)"
+            :class="{ active: session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) }"
+            @contextmenu.prevent="openMenuAtCursor($event, 'session', selectionKey(session), session.title)"
           >
             <button
               class="session-item"
-              @click="handleSessionClick(session.id)"
-              @dblclick.stop="renaming = { kind: 'session', id: session.id }"
+              @click="handleSessionClick(selectionKey(session))"
+              @dblclick.stop="renaming = { kind: 'session', id: selectionKey(session) }"
             >
               <span class="session-dot" :class="session.status" />
               <InlineRenameInput
-                v-if="renaming?.kind === 'session' && renaming.id === session.id"
+                v-if="renaming?.kind === 'session' && renaming.id === selectionKey(session)"
                 :model-value="session.title"
                 class="session-title"
                 @submit="submitRename"
@@ -292,7 +314,7 @@ function openDebugStudio() {
             <button
               class="session-more"
               :title="t('sidebar.moreActions')"
-              @click.stop="openMenuAtButton($event, 'session', session.id, session.title)"
+              @click.stop="openMenuAtButton($event, 'session', selectionKey(session), session.title)"
             >
               <MoreHorizontal :size="13" />
             </button>
@@ -302,29 +324,29 @@ function openDebugStudio() {
 
       <div
         v-for="project in filteredProjects"
-        :key="project.id"
+        :key="selectionKey(project)"
         class="project-group"
       >
         <div
           class="project-row"
-          :class="{ active: project.id === selectedProjectId }"
-          @contextmenu.prevent="openMenuAtCursor($event, 'project', project.id, project.name)"
+          :class="{ active: project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) }"
+          @contextmenu.prevent="openMenuAtCursor($event, 'project', selectionKey(project), project.name)"
         >
           <button
             class="project-row-main"
-            :aria-current="project.id === selectedProjectId ? 'location' : undefined"
+            :aria-current="project.id === selectedProjectId && (!project.storage_id || project.storage_id === selectedStorage) ? 'location' : undefined"
             :title="project.name"
-            @click="handleProjectClick(project.id)"
-            @dblclick.stop="renaming = { kind: 'project', id: project.id }"
+            @click="handleProjectClick(selectionKey(project))"
+            @dblclick.stop="renaming = { kind: 'project', id: selectionKey(project) }"
           >
             <ChevronRight
               :size="14"
               class="project-chevron sidebar-extra"
-              :class="{ expanded: isExpanded(project.id) }"
+              :class="{ expanded: isExpanded(selectionKey(project)) }"
             />
             <FolderOpen :size="14" class="sidebar-list-item-icon sidebar-icon" />
             <InlineRenameInput
-              v-if="renaming?.kind === 'project' && renaming.id === project.id"
+              v-if="renaming?.kind === 'project' && renaming.id === selectionKey(project)"
               :model-value="project.name"
               class="sidebar-list-item-text"
               @submit="submitRename"
@@ -335,36 +357,36 @@ function openDebugStudio() {
           <button
             class="project-row-action sidebar-extra"
             :title="t('sidebar.moreActions')"
-            @click.stop="openMenuAtButton($event, 'project', project.id, project.name)"
+            @click.stop="openMenuAtButton($event, 'project', selectionKey(project), project.name)"
           >
             <MoreHorizontal :size="14" />
           </button>
           <button
             class="project-row-action sidebar-extra"
             :title="t('sidebar.newChat')"
-            @click.stop="handleNewSession(project.id)"
+            @click.stop="handleNewSession(selectionKey(project))"
           >
             <Plus :size="14" />
           </button>
         </div>
 
-        <div v-if="isExpanded(project.id)" class="project-sessions sidebar-extra">
+        <div v-if="isExpanded(selectionKey(project))" class="project-sessions sidebar-extra">
           <div
-            v-for="session in getProjectSessions(project.id)"
-            :key="session.id"
+            v-for="session in getProjectSessions(selectionKey(project))"
+            :key="selectionKey(session)"
             class="session-row"
-            :class="{ active: session.id === selectedSessionId }"
-            @contextmenu.prevent="openMenuAtCursor($event, 'session', session.id, session.title)"
+            :class="{ active: session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) }"
+            @contextmenu.prevent="openMenuAtCursor($event, 'session', selectionKey(session), session.title)"
           >
             <button
               class="session-item"
-              :aria-current="session.id === selectedSessionId ? 'page' : undefined"
-              @click="handleSessionClick(session.id)"
-              @dblclick.stop="renaming = { kind: 'session', id: session.id }"
+              :aria-current="session.id === selectedSessionId && (!session.storage_id || session.storage_id === selectedStorage) ? 'page' : undefined"
+              @click="handleSessionClick(selectionKey(session))"
+              @dblclick.stop="renaming = { kind: 'session', id: selectionKey(session) }"
             >
               <span class="session-dot" :class="session.status" />
               <InlineRenameInput
-                v-if="renaming?.kind === 'session' && renaming.id === session.id"
+                v-if="renaming?.kind === 'session' && renaming.id === selectionKey(session)"
                 :model-value="session.title"
                 class="session-title"
                 @submit="submitRename"
@@ -375,12 +397,12 @@ function openDebugStudio() {
             <button
               class="session-more"
               :title="t('sidebar.moreActions')"
-              @click.stop="openMenuAtButton($event, 'session', session.id, session.title)"
+              @click.stop="openMenuAtButton($event, 'session', selectionKey(session), session.title)"
             >
               <MoreHorizontal :size="13" />
             </button>
           </div>
-          <div v-if="getProjectSessions(project.id).length === 0" class="session-empty">
+          <div v-if="getProjectSessions(selectionKey(project)).length === 0" class="session-empty">
             {{ t('sidebar.noSessions') }}
           </div>
         </div>
@@ -453,6 +475,15 @@ function openDebugStudio() {
       <button :aria-pressed="!spaceActive" @click="changeView('flat')"><LayoutGrid :size="18" />{{ t('space.flat') }}</button>
       <button :aria-pressed="!!spaceActive" @click="changeView('space')"><Waypoints :size="18" />{{ t('space.title') }}</button>
     </div>
+    <dialog ref="migrationDialog" class="sidebar-migration-dialog" aria-labelledby="migration-title" @close="migrationSession = null">
+      <form @submit.prevent="submitMigration">
+        <h2 id="migration-title">{{ t('sidebar.migrateSession') }}</h2>
+        <p>{{ migrationSession?.name }}</p>
+        <label>{{ t('sidebar.migrationTarget') }}<select v-model="migrationProject" class="settings-select" autofocus><option v-for="project in migrationProjects" :key="selectionKey(project)" :value="selectionKey(project)">{{ project.name }} · {{ project.path }}</option></select></label>
+        <p class="quiet">{{ t('sidebar.migrationExplanation') }}</p>
+        <div><UiButton type="button" variant="ghost" @click="migrationDialog?.close()">{{ t('common.cancel') }}</UiButton><UiButton type="submit" :disabled="!migrationProject || busy">{{ t('sidebar.migrateSession') }}</UiButton></div>
+      </form>
+    </dialog>
   </aside>
 </template>
 
@@ -460,4 +491,10 @@ function openDebugStudio() {
 .sidebar-view-menu { position: fixed; inset: auto; margin: 0; width: 200px; padding: 6px; border: 1px solid var(--border-muted); border-radius: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); }
 .sidebar-view-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; }
 .sidebar-view-menu button:hover, .sidebar-view-menu button[aria-pressed="true"] { background: var(--surface-selected); }
+.sidebar-migration-dialog { width: min(560px, calc(100vw - 32px)); border: 1px solid var(--border-muted); border-radius: 12px; padding: 24px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--shadow-card-subtle); }
+.sidebar-migration-dialog::backdrop { background: color-mix(in srgb, var(--bg-overlay) 65%, transparent); }
+.sidebar-migration-dialog form, .sidebar-migration-dialog label { display: grid; gap: 12px; }
+.sidebar-migration-dialog form > div { display: flex; justify-content: flex-end; gap: 12px; }
+.sidebar-migration-dialog h2 { font-size: 18px; margin: 0; }
+.sidebar-migration-dialog select:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 </style>

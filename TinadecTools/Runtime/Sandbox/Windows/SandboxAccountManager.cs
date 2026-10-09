@@ -7,7 +7,18 @@ namespace TinadecTools.Runtime.Sandbox.Windows;
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 internal static class SandboxAccountManager
 {
-    internal const string AccountName = "TinadecSandbox";
+    private static readonly AsyncLocal<string?> IdentityOverride = new();
+    internal static string AccountName => IdentityOverride.Value ?? IdentityFor(
+        ToolExecutionContext.Current?.StorageId ?? WorkspaceStoragePolicy.StorageRoot(TinadecTools.Tools.FileRW.WorkspacePathResolver.WorkspaceRoot),
+        ToolExecutionContext.Current?.ProjectStorageWrite == true);
+    internal static string IdentityFor(string storageId, bool storageWrite) => "TinaSbx_" +
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(storageId + ":" + storageWrite)))[..12];
+    internal static void SetSetupIdentity(string identity)
+    {
+        if (identity.Length != 20 || !identity.StartsWith("TinaSbx_", StringComparison.Ordinal)
+            || identity[8..].Any(c => !char.IsAsciiHexDigit(c))) throw new InvalidOperationException("Invalid sandbox identity.");
+        IdentityOverride.Value = identity;
+    }
     internal const string AccountDomain = ".";
 
     internal static bool AccountExists() =>
@@ -72,7 +83,9 @@ internal static class SandboxAccountManager
 
     internal static string GetSandboxCacheDir()
     {
-        return Path.Combine(GetSandboxProfileDir(), "AppData", "Local", "TinadecTools", "Cache");
+        return ToolExecutionContext.Current?.StorageRoot is { } root
+            ? Path.Combine(root, "cache", "sandbox", AccountName)
+            : Path.Combine(GetSandboxProfileDir(), "AppData", "Local", "TinadecTools", "Cache");
     }
 
     private static string GenerateRandomPassword(int length)

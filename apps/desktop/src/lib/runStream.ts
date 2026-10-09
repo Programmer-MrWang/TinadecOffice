@@ -1,15 +1,27 @@
-/**
- * The durable run stream: one SSE reader for `/api/v1/runs/{id}/stream`, shared by the
- * chat controller (one handle per live run, with cursor resume) and by the compat
- * invoke path in `api.ts`.
- *
- * It moved out of `composables/` because nothing in it is bound to the Vue lifecycle -
- * the only wrapper that ever was (`useRunStream`) had no caller and no case - and
- * because the transport layer must be able to read the same wire without reaching into
- * a component folder for it. Two readers of one protocol is how a stream ends up
- * working in the chat panel and silently losing text everywhere else.
- */
+/**
+
+ * The durable run stream: one SSE reader for `/api/v1/runs/{id}/stream`, shared by the
+
+ * chat controller (one handle per live run, with cursor resume) and by the compat
+
+ * invoke path in `api.ts`.
+
+ *
+
+ * It moved out of `composables/` because nothing in it is bound to the Vue lifecycle -
+
+ * the only wrapper that ever was (`useRunStream`) had no caller and no case - and
+
+ * because the transport layer must be able to read the same wire without reaching into
+
+ * a component folder for it. Two readers of one protocol is how a stream ends up
+
+ * working in the chat panel and silently losing text everywhere else.
+
+ */
+
 import { ref } from 'vue'
+import { runStorageId } from './storageScope'
 import type { SseChunk } from '@/generated/client'
 
 function gatewayUrl(): string {
@@ -20,6 +32,7 @@ function gatewayUrl(): string {
 export type RunStreamStatus = 'idle' | 'connecting' | 'open' | 'reconnecting' | 'closed' | 'error'
 
 export interface RunStreamOptions {
+  storageId?: string
   runId: string
   cursor?: string | number | null
   onChunk?: (chunk: SseChunk) => void
@@ -40,6 +53,13 @@ export interface RunStreamHandle {
   disconnect: () => void
   resetDedup: () => void
   pushChunkForTest: (chunk: SseChunk) => boolean
+}
+
+const activeStreams = new Map<RunStreamHandle, string>()
+export function suspendStorageRunStreams(storageId: string): () => void {
+  const handles = [...activeStreams].filter(([, scope]) => scope === storageId).map(([handle]) => handle)
+  handles.forEach(handle => handle.disconnect())
+  return () => handles.forEach(handle => handle.connect(handle.lastSeq.value))
 }
 
 function dedupKey(chunk: SseChunk): string {
@@ -108,6 +128,7 @@ function isTerminal(kind: string): boolean {
  * the Vue composable below only adds component unmount cleanup.
  */
 export function createRunStream(options: RunStreamOptions): RunStreamHandle {
+  const storageId = options.storageId ?? runStorageId(options.runId)
   const status = ref<RunStreamStatus>('idle')
   const lastSeq = ref<number | null>(options.cursor == null ? null : Number(options.cursor))
   const error = ref<Error | null>(null)
@@ -118,6 +139,7 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
   let attempt = 0
   let stopped = true
   let connecting = false
+  let reconnectRequested = false
 
   function resetDedup() {
     seen.clear()
@@ -155,16 +177,18 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
     if (stopped || connecting) return
     connecting = true
     abort?.abort()
-    abort = new AbortController()
+    const connectionAbort = new AbortController()
+    abort = connectionAbort
     status.value = attempt === 0 ? 'connecting' : 'reconnecting'
     const search = cursor == null ? '' : `?after_seq=${encodeURIComponent(String(cursor))}`
-    const headers: Record<string, string> = { accept: 'text/event-stream' }
+    const headers: Record<string, string> = { accept: 'text/event-stream', 'x-tinadec-storage-id': storageId }
     if (cursor != null) headers['last-event-id'] = String(cursor)
     try {
       const response = await fetchImpl(`${gatewayUrl()}/api/v1/runs/${encodeURIComponent(options.runId)}/stream${search}`, {
         headers,
-        signal: abort.signal,
+        signal: connectionAbort.signal,
       })
+      if (stopped || connectionAbort.signal.aborted) { await response.body?.cancel(); return }
       if (!response.ok) {
         const text = await response.text().catch(() => '')
         throw new Error(text || `SSE ${response.status} ${response.statusText}`)
@@ -178,6 +202,7 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
       let buffer = ''
       while (true) {
         const { done, value } = await reader.read()
+        if (stopped || connectionAbort.signal.aborted) { await reader.cancel(); return }
         if (done) break
         buffer += decoder.decode(value, { stream: true })
         buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
@@ -190,7 +215,9 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
           dispatch(chunk)
           if (isTerminal(chunk.kind)) {
             stopped = true
+            activeStreams.delete(handle)
             status.value = 'closed'
+            await reader.cancel()
             return
           }
         }
@@ -203,6 +230,7 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
           dispatch(chunk)
           if (isTerminal(chunk.kind)) {
             stopped = true
+            activeStreams.delete(handle)
             status.value = 'closed'
             return
           }
@@ -210,21 +238,27 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
       }
       if (!stopped) scheduleReconnect(new Error('SSE closed before terminal event'))
     } catch (cause) {
+      if (stopped || connectionAbort.signal.aborted) return
       if (cause instanceof DOMException && cause.name === 'AbortError') return
       scheduleReconnect(cause instanceof Error ? cause : new Error(String(cause)))
     } finally {
       connecting = false
+      if (reconnectRequested && !stopped) { reconnectRequested = false; void connectWithCursor(lastSeq.value) }
     }
   }
 
   function connect(cursor?: string | number | null) {
     stopped = false
+    activeStreams.set(handle, storageId)
     if (cursor !== undefined) lastSeq.value = cursor == null ? null : Number(cursor)
+    if (connecting) { reconnectRequested = true; return }
     void connectWithCursor(lastSeq.value)
   }
 
   function disconnect() {
     stopped = true
+    reconnectRequested = false
+    activeStreams.delete(handle)
     if (reconnectTimer) clearTimeout(reconnectTimer)
     reconnectTimer = null
     abort?.abort()
@@ -232,7 +266,7 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
     status.value = 'closed'
   }
 
-  return {
+  const handle: RunStreamHandle = {
     status,
     lastSeq,
     error,
@@ -242,4 +276,5 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
     resetDedup,
     pushChunkForTest: dispatch,
   }
+  return handle
 }

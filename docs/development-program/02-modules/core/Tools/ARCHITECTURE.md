@@ -25,6 +25,22 @@ flowchart LR
   end
 ```
 
+## 2026-10-09 显式 MCP 程序生命周期
+
+```mermaid
+flowchart LR
+  R["TOML MCP resource registry"] --> P["ManagedMcpProgramService pure preview"]
+  P --> U["UserToolActionService approval"]
+  U --> I["Tools approved private installer"]
+  I --> V["scope packages + installation.toml"]
+  V --> A["state/mcp-programs pointer"]
+  A --> F["run admission content hash + frozen program root"]
+  F --> M["MCP SDK trusted stdio transport"]
+  U --> D["uninstall pointer; immutable bytes retained"]
+```
+
+preview 不安装或建包目录；真实程序安装是独立审批动作。历史运行保存 program_root/program_hash，不跟随 pointer 更新。工具 prepare/resume 与调用 materialize 验证 frozen scope identity，复制数据不能沿用旧host授权。SDK server 自身不继承 shell OS sandbox，host token 不进入其环境。
+
 ## 模块边界与输入/输出
 
 | 职责 | 当前边界 | 来源 |

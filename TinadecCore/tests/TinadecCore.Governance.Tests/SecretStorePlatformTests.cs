@@ -107,7 +107,7 @@ public sealed class SecretStorePlatformTests : IDisposable
         // readable from any file, including the key file and whatever else lands there.
         var needle = System.Text.Encoding.UTF8.GetBytes(value);
         var leaks = Directory
-            .EnumerateFiles(_paths.Root, "*", SearchOption.AllDirectories)
+            .EnumerateFiles(_root, "*", SearchOption.AllDirectories)
             .Where(file => FileContainsSequence(file, needle))
             .ToList();
         Assert.Empty(leaks);
@@ -118,7 +118,7 @@ public sealed class SecretStorePlatformTests : IDisposable
     {
         var store = Encrypted();
         await store.PutAsync("provider-tampered", SentinelValue("tamper"));
-        var file = Path.Combine(_paths.Root, "secrets", "provider-tampered.bin");
+        var file = Path.Combine(_paths.Locations.Root, "security", "secrets", "provider-tampered.bin");
         var bytes = await File.ReadAllBytesAsync(file);
         bytes[^1] ^= 0xFF; // flip a ciphertext bit; the GCM tag will not match
         await File.WriteAllBytesAsync(file, bytes);
@@ -132,20 +132,18 @@ public sealed class SecretStorePlatformTests : IDisposable
     }
 
     [Fact]
-    public async Task Encrypted_LegacyPlaintextRowMigratesOnFirstRead_AndThePlaintextIsGone()
+    public async Task Encrypted_PlaintextRowIsRejected_WithoutAutomaticMigrationOrOverwrite()
     {
         var value = SentinelValue("legacy");
-        var dir = Path.Combine(_paths.Root, "secrets");
+        var dir = Path.Combine(_paths.Locations.Root, "security", "secrets");
         Directory.CreateDirectory(dir);
         var file = Path.Combine(dir, "provider-legacy.bin");
         await File.WriteAllTextAsync(file, value);
 
         var store = Encrypted();
-        Assert.Equal(value, await store.GetAsync("provider-legacy"));
-
-        Assert.False(FileContainsSequence(file, System.Text.Encoding.UTF8.GetBytes(value)));
-        // A fresh instance (no process-local key cache) still reads the migrated value.
-        Assert.Equal(value, await Encrypted().GetAsync("provider-legacy"));
+        await Assert.ThrowsAnyAsync<System.Security.Cryptography.CryptographicException>(() => store.GetAsync("provider-legacy"));
+        Assert.Equal(value, await File.ReadAllTextAsync(file));
+        Assert.False(File.Exists(Path.Combine(_paths.Locations.Root, "security", "secrets.key")));
     }
 
     [Fact]
@@ -155,8 +153,8 @@ public sealed class SecretStorePlatformTests : IDisposable
         var store = Encrypted();
         await store.PutAsync("provider-modes", SentinelValue("mode"));
 
-        var keyMode = File.GetUnixFileMode(Path.Combine(_paths.Root, "secrets.key"));
-        var secretMode = File.GetUnixFileMode(Path.Combine(_paths.Root, "secrets", "provider-modes.bin"));
+        var keyMode = File.GetUnixFileMode(Path.Combine(_paths.Locations.Root, "security", "secrets.key"));
+        var secretMode = File.GetUnixFileMode(Path.Combine(_paths.Locations.Root, "security", "secrets", "provider-modes.bin"));
         foreach (var mode in new[] { keyMode, secretMode })
         {
             Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, mode);
@@ -178,13 +176,22 @@ public sealed class SecretStorePlatformTests : IDisposable
         // A zeroed key still round-trips (every instance derives the same zeros), so the
         // tests above cannot see this failure mode — the protection would simply be gone.
         await Encrypted().PutAsync("provider-keyquality", SentinelValue("k"));
-        var key = await File.ReadAllBytesAsync(Path.Combine(_paths.Root, "secrets.key"));
+        var key = await File.ReadAllBytesAsync(Path.Combine(_paths.Locations.Root, "security", "secrets.key"));
         Assert.Equal(32, key.Length);
         Assert.True(key.Any(b => b != 0), "the installation key file is all zero");
         Assert.True(key.Distinct().Count() > 16, "the installation key file lacks entropy");
     }
 
     // ── reference validation ──────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Encrypted_MissingKeyDoesNotSilentlyCreateAReplacement()
+    {
+        await Encrypted().PutAsync("provider-lost-key", SentinelValue("missing-key"));
+        var key = Path.Combine(_paths.Locations.Root, "security", "secrets.key"); File.Delete(key);
+        await Assert.ThrowsAnyAsync<System.Security.Cryptography.CryptographicException>(() => Encrypted().GetAsync("provider-lost-key"));
+        Assert.False(File.Exists(key));
+    }
 
     [Theory]
     [InlineData("../evil")]

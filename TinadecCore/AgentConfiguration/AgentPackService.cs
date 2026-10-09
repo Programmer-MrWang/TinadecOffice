@@ -1707,7 +1707,7 @@ public sealed class AgentPackService : IAgentPackService
 
     /// <summary>
     /// Tool-definition secret hygiene: definitions may carry names and references
-    /// only. Secret VALUES live in ISecretStore / .tinadec/sandbox.json, never in
+    /// only. Secret VALUES live in the user ISecretStore, never in grant history,
     /// the pack or in the tool_definitions rows.
     /// </summary>
     private static readonly HashSet<string> InlineSecretKeys = new(StringComparer.OrdinalIgnoreCase)

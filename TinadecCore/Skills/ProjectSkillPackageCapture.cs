@@ -14,7 +14,7 @@ internal static class ProjectSkillPackageCapture
     internal sealed record CapturedPackage(string RootPath, string ContentHash);
 
     public static async Task<CapturedPackage> CaptureAsync(StoragePaths storage, Guid tenantId, Guid workspaceId,
-        string name, string sourceRoot, string expectedBodyHash, CancellationToken cancellationToken)
+        string name, string sourceRoot, string expectedBodyHash, CancellationToken cancellationToken, string category = "project-skills")
     {
         var files = new SortedDictionary<string, byte[]>(StringComparer.Ordinal);
         long bytes = 0;
@@ -34,10 +34,10 @@ internal static class ProjectSkillPackageCapture
             hash.AppendData(SHA256.HashData(file.Value));
         }
         var digest = Convert.ToHexStringLower(hash.GetHashAndReset());
-        var target = storage.ResolveContentReference(storage.ContentReference(tenantId, workspaceId, "project-skill-packages", digest));
+        var target = Path.Combine(storage.Locations.Packages, category, digest);
         var retainedRoot = Path.Combine(target, name);
         if (Directory.Exists(retainedRoot)) return new(retainedRoot, digest);
-        var temporary = storage.ContentTemporary(tenantId, workspaceId, "project-skill-packages");
+        var temporary = Path.Combine(storage.Locations.Temp, "project-skills", Guid.NewGuid().ToString("N"));
         try
         {
             var package = Path.Combine(temporary, name);
@@ -54,7 +54,7 @@ internal static class ProjectSkillPackageCapture
         }
         finally
         {
-            if (Directory.Exists(temporary) && WorkspaceSkillDiscovery.IsContained(storage.Root, temporary))
+            if (Directory.Exists(temporary) && WorkspaceSkillDiscovery.IsContained(storage.Locations.Temp, temporary))
                 Directory.Delete(temporary, recursive: true);
         }
 

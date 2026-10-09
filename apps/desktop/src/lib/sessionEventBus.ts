@@ -1,5 +1,6 @@
 import { ref, type Ref } from 'vue'
 import { api, type EventEnvelope } from '@/api'
+import { sessionStorageId, selectedStorageId } from './storageScope'
 
 type Handler = (event: EventEnvelope) => unknown
 
@@ -27,6 +28,8 @@ interface Subscription {
 
 const subscriptions = new Set<Subscription>()
 let source: EventSource | null = null
+let paused = false
+let sourceStorageId: string | null = null
 
 function deliver(event: EventEnvelope) {
   for (const subscription of [...subscriptions]) {
@@ -52,8 +55,9 @@ function deliver(event: EventEnvelope) {
 
 function open() {
   close()
-  if (subscriptions.size === 0) return
+  if (subscriptions.size === 0 || paused) return
   try {
+    sourceStorageId = followed.value ? sessionStorageId(followed.value) : selectedStorageId()
     source = api.connectEvents(followed.value, deliver)
   } catch {
     // A stream that cannot start is a degraded live view, not a dead panel: the
@@ -69,9 +73,26 @@ function close() {
 
 /** Point this window's stream at a session. Null is the unfiltered feed. */
 export function followSession(sessionId: string | null): void {
-  if (followed.value === sessionId) return
+  if (followed.value === sessionId && !paused) return
+  paused = false
   followed.value = sessionId
   open()
+}
+
+/** A transfer closes its source feed while Core acquires exclusive scope leases. */
+export function suspendFollowingSession(sessionId: string): void {
+  if (followed.value !== sessionId) return
+  paused = true
+  close()
+}
+
+/** Release this window's scope lease before a host close; resume only on failure. */
+export function suspendFollowingStorage(storageId: string): () => void {
+  if (!source || sourceStorageId !== storageId) return () => {}
+  const session = followed.value
+  paused = true
+  close()
+  return () => { if (paused && followed.value === session) { paused = false; open() } }
 }
 
 /**

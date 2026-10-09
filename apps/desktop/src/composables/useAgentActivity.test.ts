@@ -2,6 +2,7 @@
 // api.ts reads `window.tinadec?.gatewayUrl?.()` at module top level, so this suite
 // needs the same DOM-ish global as api.test.ts.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+vi.mock('@/lib/scopedEventSource', () => ({ ScopedEventSource: class { constructor(url: string) { return new EventSource(url) } } }))
 import { effectScope, ref, nextTick, type EffectScope } from 'vue'
 import { api } from '@/api'
 import { useAgentActivity } from './useAgentActivity'

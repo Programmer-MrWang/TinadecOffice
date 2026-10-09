@@ -88,6 +88,9 @@ public sealed class ToolMcpServerSnapshotDto
     [JsonPropertyName("cwd")] public string? Cwd { get; init; }
     [JsonPropertyName("revision")] public long Revision { get; init; }
     [JsonPropertyName("configuration_hash")] public string ConfigurationHash { get; init; } = string.Empty;
+    [JsonPropertyName("program_root")] public string? ProgramRoot { get; init; }
+    [JsonPropertyName("program_hash")] public string? ProgramHash { get; init; }
+    [JsonPropertyName("program_status")] public string ProgramStatus { get; init; } = "external";
 }
 
 public sealed class ToolReadRootDto
@@ -120,6 +123,12 @@ public sealed class ToolExecutionContextDto
 {
     [JsonPropertyName("schema_version")] public int SchemaVersion { get; init; } = 1;
     [JsonPropertyName("run_id")] public string? RunId { get; init; }
+    [JsonPropertyName("storage_id")] public string? StorageId { get; init; }
+    [JsonPropertyName("working_directory")] public string? WorkingDirectory { get; init; }
+    [JsonPropertyName("storage_root")] public string? StorageRoot { get; init; }
+    [JsonPropertyName("project_root")] public string? ProjectRoot { get; init; }
+    [JsonPropertyName("project_storage_write")] public bool ProjectStorageWrite { get; init; }
+    [JsonPropertyName("protected_storage_roots")] public IReadOnlyList<string> ProtectedStorageRoots { get; init; } = [];
     [JsonPropertyName("agent_definition_id")] public Guid? AgentDefinitionId { get; init; }
     [JsonPropertyName("settings_hash")] public string SettingsHash { get; init; } = string.Empty;
     [JsonPropertyName("settings")] public JsonElement Settings { get; init; }

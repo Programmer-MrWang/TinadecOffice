@@ -25,6 +25,7 @@ public interface IMcpResourceRegistry
 public interface IToolSkillCatalog
 {
     Task<ToolSkillCatalogSnapshot> CaptureAsync(Guid? projectId, CancellationToken cancellationToken = default);
+    Task<ToolSkillCatalogSnapshot> CaptureSelectedAsync(Guid? projectId, IReadOnlyCollection<Guid> resourceIds, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ToolSkillSnapshotDto>> ResolveAsync(Guid? projectId, IReadOnlyList<Guid>? resourceIds, CancellationToken cancellationToken = default);
 }
 
@@ -36,7 +37,7 @@ public interface IToolConfigurationResolver
     Task<FrozenToolConfigurationDto> ResolveForRunAsync(Guid? projectId, IReadOnlyList<Guid> agentDefinitionIds, CancellationToken cancellationToken = default);
     Task<ToolExecutionContextDto> ResolveAsync(Guid? projectId, Guid? agentDefinitionId = null, CancellationToken cancellationToken = default);
     Task<ToolExecutionContextDto> ResolveForInspectionAsync(Guid? projectId, Guid? agentDefinitionId = null, CancellationToken cancellationToken = default);
-    Task<ToolExecutionContextDto> MaterializeForCallAsync(ToolExecutionContextDto frozen, IReadOnlyList<string> allowedToolIds, CancellationToken cancellationToken = default, string? runId = null, string? toolId = null);
+    Task<ToolExecutionContextDto> MaterializeForCallAsync(ToolExecutionContextDto frozen, IReadOnlyList<string> allowedToolIds, CancellationToken cancellationToken = default, string? runId = null, string? toolId = null, string? workingDirectory = null);
 }
 
 public interface IToolExecutionContextLifecycle

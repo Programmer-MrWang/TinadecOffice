@@ -58,5 +58,6 @@ function toggleCollapse() {
     @archive-session="c.archiveSession($event)"
     @trash-project="c.trashProject($event)"
     @trash-session="c.trashSession($event)"
+    @migrate-session="(id, target) => c.migrateSession(id, target)"
   />
 </template>

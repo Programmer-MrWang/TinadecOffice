@@ -172,12 +172,15 @@ declare global {
   interface Window {
     tinadec: {
       gatewayUrl: () => string;
-      getAppConfig: () => Promise<{ gateway_url: string; source: 'default' | 'user' | 'environment'; managed: boolean }>;
+      getAppConfig: () => Promise<{ gateway_url: string; source: 'default' | 'user' | 'environment'; managed: boolean; path?: string; storage?: { root: string; source: 'default' | 'desktop' | 'environment'; bootstrap_config: string; managed: boolean; local_services: boolean } }>;
       saveGatewayUrl: (gatewayUrl: string) => Promise<{ gateway_url: string; source: 'user'; managed: false }>;
       resetGatewayUrl: () => Promise<{ gateway_url: string; source: 'default' | 'environment'; managed: boolean }>;
       discoverServices: () => Promise<DiscoveredService[]>;
       restartApp: () => Promise<void>;
       openProjectDialog: () => Promise<string | null>;
+      setStorageWritePolicy: (storageId: string, allow: boolean) => Promise<{ storage_id: string; allow_storage_write: boolean }>;
+      storageAction: (storageId: string, action: 'configure' | 'cleanup' | 'content-collect' | 'storage-delete' | 'unregister', input?: Record<string, unknown>) => Promise<unknown>;
+      saveUserStorageRoot: (root: string) => Promise<{ user_root: string; path: string; restart_required: boolean }>;
       minimizeWindow: () => void;
       maximizeWindow: () => void;
       closeWindow: () => void;

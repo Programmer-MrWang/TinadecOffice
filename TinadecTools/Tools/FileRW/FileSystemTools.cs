@@ -108,6 +108,7 @@ public static class FileSystemTools
 
             var directory = WorkspacePathResolver.ResolveDirectory(args.Path);
             var entries = Directory.EnumerateFileSystemEntries(directory)
+                .Where(path => WorkspacePathResolver.IsAllowed(path))
                 .Select(CreateEntry)
                 .OrderBy(entry => entry.Name, NaturalNameComparer.Instance)
                 .ThenBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)

@@ -16,13 +16,15 @@ import {
 import { UiBadge, UiButton, UiCard, UiInput, UiLabel } from '@/components/ui'
 import PromptPipelineCanvas from '@/components/canvas/PromptPipelineCanvas.vue'
 import {
-  api,
+  api as baseApi,
   type PromptContextPreviewDto,
   type PromptFragmentDto,
   type PromptFragmentEffectivenessDto,
   type PromptFragmentVersionDto,
   type PromptPipelineDto,
 } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
 import { consumeRequest, pendingPromptId } from '@/lib/pageRequests'
 

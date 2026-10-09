@@ -6,6 +6,24 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+<a id="tools-files-102"></a>
+
+### TOOLS-FILES-102 文件和搜索共享存储分类
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：TOOLS-FILES
+- 关联功能：TOOLS-FILES-F002
+- 范围：config/skills可写，runtime禁止，选中包只读，rg正glob不能开放保护根。
+- 验收：实际文件副作用、冻结边界、拒绝与取消清理；平台证据独立。
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。2026-10-09 Windows Tools实际文件/ACL与上下文回归通过，平台范围独立。
+
+**验收条件**
+
+- [x] 实际文件写入允许 config/skills，拒绝 runtime 和其它scope，选中包只读。
+- [x] 记录冻结context/搜索接线及平台验收范围。
+
 <a id="tools-files-001"></a>
 
 ### TOOLS-FILES-001 完成 TinadecTools / 文件与搜索 的逐功能审计与模块图精化

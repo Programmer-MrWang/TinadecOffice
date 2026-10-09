@@ -7,6 +7,8 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | CORE-PERSISTENCE-F001 | 公共数据库与内容/密钥/nonce 适配 | 源码可见 | 本轮静态核对；未做功能验收 | 注册数据库配置、内容存储、SQLite/PostgreSQL 项目向量库、secret、nonce 和迁移调度；领域各自拥有 DbContext。 | [TinadecCore/Persistence/ServiceCollectionExtensions.cs](../../../../../TinadecCore/Persistence/ServiceCollectionExtensions.cs) |
+| CORE-PERSISTENCE-F002 | 不可变作用域路径与数据库隔离 | 部分实现 | Windows最终作用域/日志/向量15/15；Linux真实PG十二context/双schema | 解析无创建副作用；SQLite独立数据库及句柄释放；用户持久UUID、PG schema/model-cache/migration-history隔离实际验证，完整业务/销毁/导出仍待验收。 | [StorageScopePaths](../../../../../TinadecCore/Persistence/StorageScopePaths.cs)<br>[验收账本](../../../../../.tinadec_dev/evidence/2026-10-09-storage/VALIDATION.md) |
+| CORE-PERSISTENCE-F003 | 配置文档权威、投影重建及内容流租约 | 部分实现 | TOML/CAS/注释/冻结与真实文件测试 | live 投影可重建，历史版本与运行事实保留；流取消清临时文件，读者持有GC租约；整库不是可删除缓存。 | [配置模块说明](CONFIGURATION-FILES.md)<br>[资源报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md) |
 
 ## 状态词汇
 

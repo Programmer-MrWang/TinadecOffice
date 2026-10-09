@@ -8,6 +8,7 @@
  */
 import type { components } from './schema'
 import { isAbortError } from '../lib/isAbortError'
+import { storageHeaders, captureStorageId, rememberStorageResult, normalizeStorageRequest } from '../lib/storageScope'
 
 type Schemas = components['schemas']
 
@@ -97,10 +98,15 @@ function gatewayUrl(): string {
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${gatewayUrl()}${path}`
+  const storageId = captureStorageId(path, init)
+  const normalized = normalizeStorageRequest(path, init)
+  const url = `${gatewayUrl()}${normalized.path}`
   let res: Response
   try {
-    res = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.body ? { 'content-type': 'application/json' } : {}), ...(init?.headers ?? {}) } })
+    const headers = storageHeaders(path, { ...init, storageId })
+    headers.set('accept', 'application/json')
+    if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
+    res = await fetch(url, { ...init, body: normalized.body, headers })
   } catch (e) {
     if (isAbortError(e)) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
@@ -113,14 +119,20 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     const msg = rec?.message ?? (rec?.error as Record<string, unknown> | null)?.message ?? res.statusText
     throw new Error(typeof msg === 'string' && msg ? msg : String(msg ?? res.statusText))
   }
+  rememberStorageResult(path, data, storageId)
   return data as T
 }
 
 async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { etag: string | null }> {
-  const url = `${gatewayUrl()}${path}`
+  const storageId = captureStorageId(path, init)
+  const normalized = normalizeStorageRequest(path, init)
+  const url = `${gatewayUrl()}${normalized.path}`
   let res: Response
   try {
-    res = await fetch(url, { ...init, headers: { accept: 'application/json', ...(init?.body ? { 'content-type': 'application/json' } : {}), ...(init?.headers ?? {}) } })
+    const headers = storageHeaders(path, { ...init, storageId })
+    headers.set('accept', 'application/json')
+    if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
+    res = await fetch(url, { ...init, body: normalized.body, headers })
   } catch (e) {
     if (isAbortError(e)) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
@@ -134,6 +146,7 @@ async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { e
     throw new Error(typeof msg === 'string' && msg ? msg : String(msg ?? res.statusText))
   }
   const result = data as T
+  rememberStorageResult(path, result, storageId)
   // The ETag travels in the response header, not the JSON body, so it is merged
   // into the returned value instead of being a schema component.
   const etag = res.headers.get('etag')

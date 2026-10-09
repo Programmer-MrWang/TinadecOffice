@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import en from '@/locales/en'
 import type { ModelProviderInstanceDto } from '@/api'
 import ModelParametersEditor from './ModelParametersEditor.vue'
+import { captureStorageId, setSelectedStorage } from '@/lib/storageScope'
 
 const mocks = vi.hoisted(() => ({ save: vi.fn() }))
 vi.mock('@/api', () => ({ api: { saveModelProvider: mocks.save } }))
@@ -17,6 +18,15 @@ const i18n = () => createI18n({ legacy: false, locale: 'en', messages: { en } })
 afterEach(() => vi.resetAllMocks())
 
 describe('model parameter editor', () => {
+  it('writes user defaults even while Home shows a project', async () => {
+    const storage: string[] = []
+    mocks.save.mockImplementation(async () => { storage.push(captureStorageId('/api/v1/model-providers/provider-a')); return provider })
+    setSelectedStorage('active-project')
+    const wrapper = mount(ModelParametersEditor, { props: { provider, model: 'test-model' }, global: { plugins: [i18n()] } })
+    await wrapper.get('#model-reasoning').setValue('low'); await wrapper.get('form').trigger('submit'); await flushPromises()
+    expect(storage).toEqual(['user'])
+    wrapper.unmount(); setSelectedStorage('user')
+  })
   it('saves per model with the provider revision and keeps sibling parameters', async () => {
     const wrapper = mount(ModelParametersEditor, { props: { provider, model: 'test-model' }, global: { plugins: [i18n()] } })
     await wrapper.get('#model-reasoning').setValue('xhigh')

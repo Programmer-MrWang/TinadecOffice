@@ -1,8 +1,9 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readHead } from "./binaryFormat.mjs";
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const desktopDir = resolve(scriptsDir, "..");
@@ -15,7 +16,10 @@ const rootDir = resolve(desktopDir, "..", "..");
 /// electron-builder picks the desktop-file name and install directory — so the checks are "does the
 /// thing the launcher points at exist", which survives a packager rename and still catches a
 /// shipped-broken package.
-export function inspectDeb({ control, desktopEntries, dataEntries, desktopFile, version }) {
+const RUNTIME_EXECUTABLES = ["core/TinadecCore.Api", "gateway/TinadecGateway", "tools/TinadecTools", "tools/bwrap", "tools/rg", "native/rg/rg"];
+const RUNTIME_RESOURCES = ["core/appsettings.json", "core/Configuration/default-agent-runtime.toml", "tools/Nlog.config"];
+
+export function inspectDeb({ control, desktopEntries, dataEntries, desktopFile, version, runtimeFiles = {} }) {
 	const problems = [];
 	const fields = parseControlFields(control);
 
@@ -32,9 +36,33 @@ export function inspectDeb({ control, desktopEntries, dataEntries, desktopFile, 
 	if (fields.Architecture && fields.Architecture !== "amd64") {
 		problems.push(`Architecture is '${fields.Architecture}', expected amd64 for linux-x64`);
 	}
+	if (!(fields.Depends ?? "").split(",").some((dependency) => /^\s*libcap2(?::[a-z0-9-]+)?\s*(?:\([^)]*\))?\s*$/.test(dependency))) {
+		problems.push("control Depends does not require libcap2, which the bundled bubblewrap needs");
+	}
 
 	const executables = dataEntries.filter((entry) => /^\.?\/opt\/[^/]+\/[^/]+$/.test(entry) && !entry.endsWith("/"));
 	if (executables.length === 0) problems.push("no executable installed under /opt/<Product>/");
+	if (executables.length > 0) {
+		const runtimePrefix = executables[0].slice(0, executables[0].lastIndexOf("/") + 1) + "resources/runtime/";
+		for (const file of [...RUNTIME_EXECUTABLES, ...RUNTIME_RESOURCES]) {
+			if (!dataEntries.includes(runtimePrefix + file)) {
+				problems.push(`runtime file '${file}' is missing from data.tar`);
+				continue;
+			}
+			const payload = runtimeFiles[file];
+			if (!payload || payload.size <= 0 || !payload.permissions?.startsWith("-")) {
+				problems.push(`runtime file '${file}' has no nonempty regular-file payload`);
+				continue;
+			}
+			if (RUNTIME_EXECUTABLES.includes(file)) {
+				const head = payload.head;
+				if (!head || head.length < 64 || head.readUInt32BE(0) !== 0x7f454c46 || head[4] !== 2 || head[5] !== 1 || head.readUInt16LE(18) !== 62) {
+					problems.push(`runtime executable '${file}' is not Linux x64 ELF`);
+				}
+				if (payload.permissions[3] !== "x") problems.push(`runtime executable '${file}' has no owner execute permission in data.tar`);
+			}
+		}
+	}
 
 	const desktops = dataEntries.filter((entry) => entry.endsWith(".desktop"));
 	if (desktops.length === 0) problems.push("no .desktop entry, so the app will not appear in any launcher");
@@ -74,9 +102,12 @@ export function inspectDeb({ control, desktopEntries, dataEntries, desktopFile, 
 
 export function parseControlFields(text) {
 	const fields = {};
+	let previousField;
 	for (const line of (text ?? "").split(/\r?\n/)) {
 		const match = /^([A-Za-z][A-Za-z0-9-]*):\s*(.*)$/.exec(line);
-		if (match) fields[match[1]] = match[2].trim();
+		if (match) { previousField = match[1]; fields[previousField] = match[2].trim(); }
+		else if (/^[ \t]/.test(line) && previousField) fields[previousField] += " " + line.trim();
+		else previousField = undefined;
 	}
 	return fields;
 }
@@ -104,25 +135,42 @@ function newestDeb(releaseDir) {
 	return debs.length ? join(releaseDir, debs.at(-1)) : null;
 }
 
-export function readDeb(archive) {
+export function readDeb(archive, { runCommand = run } = {}) {
 	const work = mkdtempSync(join(tmpdir(), "tinadec-deb-"));
 	try {
-		run("ar", ["x", resolve(archive)], work);
+		runCommand("ar", ["x", resolve(archive)], work);
 		const parts = readdirSync(work);
 		const controlTar = parts.find((name) => name.startsWith("control.tar"));
 		const dataTar = parts.find((name) => name.startsWith("data.tar"));
 		if (!controlTar || !dataTar) {
 			throw new Error(`ar produced no control/data member (got ${parts.join(", ") || "nothing"})`);
 		}
-		const controlEntries = run("tar", ["tf", controlTar], work).split(/\r?\n/).filter(Boolean);
-		const control = run("tar", ["xOf", controlTar, "./control"], work);
-		const dataEntries = run("tar", ["tf", dataTar], work).split(/\r?\n/).filter(Boolean);
+		const controlEntries = runCommand("tar", ["tf", controlTar], work).split(/\r?\n/).filter(Boolean);
+		const control = runCommand("tar", ["xOf", controlTar, "./control"], work);
+		const dataEntries = runCommand("tar", ["tf", dataTar], work).split(/\r?\n/).filter(Boolean);
 		// The launcher entry is payload, not metadata: it lives in data.tar under
 		// usr/share/applications. Looking for it in control.tar finds nothing and the whole desktop
 		// check then passes by having nothing to say.
 		const desktopName = dataEntries.find((entry) => entry.endsWith(".desktop"));
-		const desktopFile = desktopName ? run("tar", ["xOf", dataTar, desktopName], work) : "";
-		return { control, controlEntries, dataEntries, desktopFile };
+		const desktopFile = desktopName ? runCommand("tar", ["xOf", dataTar, desktopName], work) : "";
+		const runtimeFiles = {};
+		const runtimeEntries = dataEntries.filter((entry) => {
+			const match = /^\.?\/opt\/[^/]+\/resources\/runtime\/(.+)$/.exec(entry);
+			return match && !entry.split("/").includes("..") && [...RUNTIME_EXECUTABLES, ...RUNTIME_RESOURCES].includes(match[1]);
+		});
+		if (runtimeEntries.length) {
+			const verboseEntries = runCommand("tar", ["tvf", dataTar], work).split(/\r?\n/);
+			const payloadDir = join(work, "payload"); mkdirSync(payloadDir);
+			runCommand("tar", ["xf", dataTar, "--no-same-owner", "-C", payloadDir, "--", ...runtimeEntries], work);
+			for (const entry of runtimeEntries) {
+				const file = entry.split("/resources/runtime/")[1];
+				const path = join(payloadDir, entry.replace(/^\.\//, ""));
+				const stat = lstatSync(path);
+				const permissions = verboseEntries.find((line) => line.endsWith(" " + entry))?.slice(0, 10) ?? "";
+				runtimeFiles[file] = { size: stat.isFile() ? stat.size : 0, head: stat.isFile() ? readHead(path) : Buffer.alloc(0), permissions };
+			}
+		}
+		return { control, controlEntries, dataEntries, desktopFile, runtimeFiles };
 	} finally {
 		rmSync(work, { recursive: true, force: true });
 	}
@@ -136,11 +184,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 		console.error(`No .deb to inspect (looked in ${releaseDir}).`);
 		process.exit(1);
 	}
-	const { control, controlEntries, dataEntries, desktopFile } = readDeb(archive);
+	const { control, controlEntries, dataEntries, desktopFile, runtimeFiles } = readDeb(archive);
 	const problems = inspectDeb({
 		control,
 		desktopFile,
 		dataEntries,
+		runtimeFiles,
 		desktopEntries: controlEntries.filter((entry) => entry !== "./control" && !entry.endsWith("/")),
 		version,
 	});
@@ -149,5 +198,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 		console.error(`data entries seen: ${dataEntries.length}; control entries: ${controlEntries.join(", ")}`);
 		process.exit(1);
 	}
-	console.log(`${archive}: control, launcher, binary and icon all agree (${dataEntries.length} files).`);
+	console.log(`${archive}: dependencies, launcher, Linux runtime bytes and permissions agree (${dataEntries.length} files).`);
 }

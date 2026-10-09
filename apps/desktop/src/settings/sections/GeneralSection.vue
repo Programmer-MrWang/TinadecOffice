@@ -3,7 +3,9 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Radar, RefreshCw, Save, ShieldCheck } from '@lucide/vue'
 import { UiBadge, UiButton, UiInput, UiLabel } from '@/components/ui'
-import { api } from '@/api'
+import { api as baseApi } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
 import { getDispatchPref, setDispatchPref, type DispatchPref } from '@/lib/dispatchPref'
 
@@ -19,6 +21,7 @@ const { items: notificationItems, notify, banner, status, confirm: dismissConfir
   useNotifications()
 
 interface DesktopAppConfig {
+  path?: string
   gateway_url: string
   source: string
   managed: boolean
@@ -47,7 +50,7 @@ async function testGatewayConnection(): Promise<void> {
   try {
     const gatewayUrl = normalizedGatewayDraft()
     const response = await fetch(`${gatewayUrl}/api/v1/health`, {
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', 'x-tinadec-storage-id': 'user' },
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
@@ -256,6 +259,7 @@ void dismissConfirm
         />
         <div class="gateway-config-meta">
           <span>{{ t('settings.gatewayConfigSource') }}: {{ t(`settings.gatewaySource_${appConfig.source}`) }}</span>
+          <code v-if="appConfig.path">{{ appConfig.path }}</code>
           <span>{{ t('settings.gatewayHttpsHint') }}</span>
         </div>
       </div>

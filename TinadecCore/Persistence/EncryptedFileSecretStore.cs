@@ -39,8 +39,8 @@ public sealed class EncryptedFileSecretStore : ISecretStore
     public EncryptedFileSecretStore(StoragePaths paths)
     {
         ArgumentNullException.ThrowIfNull(paths);
-        _root = Path.Combine(paths.Root, "secrets");
-        _keyPath = Path.Combine(paths.Root, "secrets.key");
+        _root = Path.Combine(paths.Locations.Root, "security", "secrets");
+        _keyPath = Path.Combine(paths.Locations.Root, "security", "secrets.key");
     }
 
     public async Task<string> PutAsync(string secretReference, string value, CancellationToken cancellationToken = default)
@@ -79,16 +79,9 @@ public sealed class EncryptedFileSecretStore : ISecretStore
 
         var bytes = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
         if (!IsEnvelope(bytes))
-        {
-            // A pre-existing plaintext row (an install whose store was misconfigured)
-            // migrates on first read rather than becoming an unreadable secret. Re-encrypt
-            // and rewrite before handing the value back, so the plaintext is gone by the
-            // time this call completes.
-            var migrated = Encoding.UTF8.GetString(bytes);
-            await PutAsync(secretReference, migrated, cancellationToken).ConfigureAwait(false);
-            return migrated;
-        }
+            throw new CryptographicException($"Secret '{secretReference}' is not a valid encrypted envelope. Rebind the credential explicitly.");
 
+        if (!File.Exists(_keyPath)) throw new CryptographicException("The user security key is missing. Rebind the credential explicitly.");
         var key = await GetOrCreateKeyAsync(cancellationToken).ConfigureAwait(false);
         if (bytes[4] != EnvelopeVersion)
             throw new CryptographicException($"Secret '{secretReference}' carries unsupported envelope version {bytes[4]}.");
@@ -110,7 +103,8 @@ public sealed class EncryptedFileSecretStore : ISecretStore
             CryptographicOperations.ZeroMemory(plaintext);
             throw;
         }
-        return Encoding.UTF8.GetString(plaintext);
+        try { return Encoding.UTF8.GetString(plaintext); }
+        finally { CryptographicOperations.ZeroMemory(plaintext); }
     }
 
     public Task DeleteAsync(string secretReference, CancellationToken cancellationToken = default)

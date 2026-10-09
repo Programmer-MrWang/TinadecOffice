@@ -38,7 +38,7 @@ internal sealed class ProtectedFileSecretStore : ISecretStore
             // non-Windows host is a mistake, and a mistake should be an error.
             throw new PlatformNotSupportedException(
                 "ProtectedFileSecretStore requires Windows DPAPI. Select TinadecPersistence:SecretStore=encrypted-file instead.");
-        _root = Path.Combine(paths.Root, "secrets");
+        _root = Path.Combine(paths.Locations.Root, "security", "secrets");
     }
     private string PathFor(string reference) => System.IO.Path.Combine(_root, reference + ".bin");
 

@@ -2,6 +2,7 @@ const { BrowserWindow } = require('electron');
 const path = require('node:path');
 const { appBundleUrl } = require('./appBundle.cjs');
 const { attachExternalLinkGuards } = require('./externalLinks.cjs');
+const { registerTrustedHostWindow } = require('./trustedHostRequests.cjs');
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -38,6 +39,7 @@ async function createDebugStudioWindow() {
     }
   });
   debugStudioWindow = win;
+  registerTrustedHostWindow(win);
 
   attachExternalLinkGuards(win.webContents);
 

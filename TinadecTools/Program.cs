@@ -11,7 +11,7 @@ using TinadecTools.Tools.Mcp;
 // ── internal sandbox modes ──────────────────────────────────────────────────
 
 if (OperatingSystem.IsWindows() && WindowsSandboxSetup.IsSetupMode(args))
-    return WindowsSandboxSetup.RunSetup();
+    return WindowsSandboxSetup.RunSetup(args);
 
 if (OperatingSystem.IsWindows() && WindowsSandboxRunner.IsRunnerMode(args))
     return WindowsSandboxRunner.RunRunner();

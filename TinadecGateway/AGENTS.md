@@ -1,8 +1,14 @@
 # GATEWAY KNOWLEDGE
 
+## 2026-10-09 Storage/configuration proxies
+
+当前作用域与 TOML 代理见 `STORAGE.md`、`src/storageRoutes.ts`。业务 HTTP/SSE 保留 X-Tinadec-Storage-Id，Project/Session mapper 保留聚合来源 storage_id；CAS/清理/宿主写策略均由 Core 执行，Gateway 不写业务磁盘。X-Tinadec-Host-Control 仅不透明转发，token 不在 renderer 暴露。OpenAPI 新增 storage/config schemas 后同步再生 snapshot/schema。
+
+scope-enabled Core所有业务API需要privatehost凭据，health/challenge为公开例外；Gateway不得从本身env为匿名loopback签发。JSON/raw/cursor SSE都必须保留请求已有hostheader，403 host_authorization_required需保留诊断code。Gateway自身host-challenge仅返回nonce/角色绑定HMAC，不发送key或业务facts；无key503，nonce限定单43字符base64url。OpenAPI全局私有security scheme与两个公开例外同步描述。
+
 **Last Updated:** 2026-10-09
-**Last Updated By:** Skills 市场作用域、完整包文件预览及受治理删除代理；OpenAPI 快照和 Desktop 客户端同步。
-**Last Verified Commit:** d3cf53e + 工作树；Gateway88/88、OpenAPI快照与 Desktop generated client 通过。边界见 `.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md`。
+**Last Updated By:** storage/configuration 和维护/迁移薄代理、固定 StorageId 转发、可信宿主 header 透传、OpenAPI 与 Desktop schema 同步。
+**Last Verified Commit:** f8b233d + 工作树；Gateway95/95、OpenAPI snapshot 和 Desktop generated schema 再生通过。逐字节、状态/CAS/header/无匿名签发/HMAC/不追踪上游redirect契约见 `.tinadec_dev/evidence/storage-gateway-host-final.log`；本轮不据 mock 代理测试声称真实数据库或安装验收完成。
 **Branch:** main
 
 ## 2026-10-08 Tools settings proxy

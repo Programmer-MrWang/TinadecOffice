@@ -5,6 +5,7 @@ import { ArchiveRestore, FolderOpen, MessageSquare, Trash2 } from '@lucide/vue'
 import { generatedApi, type ProjectDto, type SessionDto } from '@/generated/client'
 import { UiButton } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
+import { selectionKey } from '@/lib/storageScope'
 
 const { t } = useI18n()
 const { confirm, notify } = useNotifications()
@@ -31,7 +32,7 @@ async function load() {
     archivedSessions.value = archivedS
     trashedSessions.value = trashedS
     const names = new Map<string, string>()
-    for (const project of [...activeProjects, ...archivedP, ...trashedP]) names.set(project.id, project.name)
+    for (const project of [...activeProjects, ...archivedP, ...trashedP]) names.set(selectionKey(project), project.name)
     projectNames.value = names
   } catch (err) {
     notify.error(err, { title: t('settings.loadArchiveFailed') })
@@ -49,12 +50,12 @@ const trashEmpty = computed(() => trashedProjects.value.length === 0 && trashedS
 
 function projectNameOf(session: SessionDto): string {
   if (!session.project_id) return t('sidebar.freeConversations')
-  return projectNames.value.get(session.project_id) ?? session.project_id
+  return projectNames.value.get(selectionKey({ id: session.project_id, storage_id: session.storage_id })) ?? session.project_id
 }
 
 async function restoreProject(project: ProjectDto) {
   try {
-    await generatedApi.restoreProject(project.id)
+    await generatedApi.restoreProject(selectionKey(project))
     await load()
   } catch (err) {
     notify.error(err, { title: t('settings.loadArchiveFailed') })
@@ -63,7 +64,7 @@ async function restoreProject(project: ProjectDto) {
 
 async function restoreSession(session: SessionDto) {
   try {
-    await generatedApi.restoreSession(session.id)
+    await generatedApi.restoreSession(selectionKey(session))
     await load()
   } catch (err) {
     notify.error(err, { title: t('settings.loadArchiveFailed') })
@@ -79,7 +80,7 @@ async function purgeProject(project: ProjectDto) {
   })
   if (!ok) return
   try {
-    await generatedApi.purgeProject(project.id)
+    await generatedApi.purgeProject(selectionKey(project))
     await load()
   } catch (err) {
     notify.error(err, { title: t('settings.deletePermanently') })
@@ -95,7 +96,7 @@ async function purgeSession(session: SessionDto) {
   })
   if (!ok) return
   try {
-    await generatedApi.purgeSession(session.id)
+    await generatedApi.purgeSession(selectionKey(session))
     await load()
   } catch (err) {
     notify.error(err, { title: t('settings.deletePermanently') })
@@ -115,7 +116,7 @@ async function purgeSession(session: SessionDto) {
         <div v-if="archivedProjects.length" class="archive-trash-list-label">{{ t('settings.projectsGroup') }}</div>
         <div
           v-for="project in archivedProjects"
-          :key="project.id"
+          :key="selectionKey(project)"
           class="archive-trash-row"
           data-testid="archived-project-row"
         >
@@ -126,7 +127,7 @@ async function purgeSession(session: SessionDto) {
         <div v-if="archivedSessions.length" class="archive-trash-list-label">{{ t('settings.sessionsGroup') }}</div>
         <div
           v-for="session in archivedSessions"
-          :key="session.id"
+          :key="selectionKey(session)"
           class="archive-trash-row"
           data-testid="archived-session-row"
         >
@@ -147,7 +148,7 @@ async function purgeSession(session: SessionDto) {
         <div v-if="trashedProjects.length" class="archive-trash-list-label">{{ t('settings.projectsGroup') }}</div>
         <div
           v-for="project in trashedProjects"
-          :key="project.id"
+          :key="selectionKey(project)"
           class="archive-trash-row"
           data-testid="trashed-project-row"
         >
@@ -159,7 +160,7 @@ async function purgeSession(session: SessionDto) {
         <div v-if="trashedSessions.length" class="archive-trash-list-label">{{ t('settings.sessionsGroup') }}</div>
         <div
           v-for="session in trashedSessions"
-          :key="session.id"
+          :key="selectionKey(session)"
           class="archive-trash-row"
           data-testid="trashed-session-row"
         >

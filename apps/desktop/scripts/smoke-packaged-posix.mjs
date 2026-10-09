@@ -38,9 +38,7 @@ export function packagedExecutablePath(releaseDir, target) {
 /// `electron/serviceManager.cjs`. The smoke reads the Core/Gateway logs from here, so a wrong guess
 /// is not a crash — it is a failure message with no logs attached.
 export function posixDataRoot(profile, target) {
-	return target.platform === "darwin"
-		? join(profile, "Library", "Application Support", "TinadecOffice")
-		: join(profile, ".local", "share", "TinadecOffice");
+  return join(profile, ".tinadec");
 }
 
 /// Flags the app needs to start at all on a build machine.
@@ -61,6 +59,7 @@ export function electronSmokeArgs(userDataDir, target) {
 export function sanitizedPosixEnvironment({ profile, temporary, inheritedPath, display, xauthority }) {
 	return {
 		HOME: profile,
+    TINADEC_HOME: join(profile, ".tinadec"),
 		USER: process.env.USER ?? "tinadec-smoke",
 		LOGNAME: process.env.USER ?? "tinadec-smoke",
 		XDG_DATA_HOME: join(profile, ".local", "share"),
@@ -277,7 +276,7 @@ export async function runPackagedPosixSmoke(options = {}) {
 	const profile = join(smokeRoot, "profile");
 	const temporary = join(smokeRoot, "temp");
 	const dataRoot = posixDataRoot(profile, target);
-	const logsDir = join(dataRoot, "logs");
+  const logsDir = join(dataRoot, "logs", "host");
 	const logPaths = {
 		core: join(logsDir, "core.log"),
 		gateway: join(logsDir, "gateway.log"),
@@ -299,9 +298,10 @@ export async function runPackagedPosixSmoke(options = {}) {
 	mkdirSync(profile, { recursive: true });
 	mkdirSync(temporary, { recursive: true });
 	mkdirSync(logsDir, { recursive: true });
+  mkdirSync(join(dataRoot, "config"), { recursive: true });
 	writeFileSync(
-		join(userData, "settings.json"),
-		`${JSON.stringify({ gateway_url: "http://127.0.0.1:48730" }, null, 2)}\n`,
+    join(dataRoot, "config", "desktop.toml"),
+    'gateway_url = "http://127.0.0.1:48730"\n',
 	);
 	writeFileSync(logPaths.electronStdout, "");
 	writeFileSync(logPaths.electronStderr, "");

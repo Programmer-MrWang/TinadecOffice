@@ -3,7 +3,8 @@ namespace TinadecCore.Persistence;
 /// <summary>Resolves Core-owned files from identifiers below the configured data root.</summary>
 public sealed class StoragePaths
 {
-    public StoragePaths(string contentRootPath, Microsoft.Extensions.Options.IOptions<TinadecPersistenceOptions> options)
+    public StoragePaths(string contentRootPath, Microsoft.Extensions.Options.IOptions<TinadecPersistenceOptions> options,
+        TinadecCore.Abstractions.Ports.IScopeStorageLocations? locations = null)
     {
         var configuredRoot = options.Value.DataRoot;
         if (string.IsNullOrWhiteSpace(configuredRoot))
@@ -14,9 +15,13 @@ public sealed class StoragePaths
         Root = Path.GetFullPath(Path.IsPathRooted(configuredRoot)
             ? configuredRoot
             : Path.Combine(contentRootPath, configuredRoot));
+        Locations = locations ?? new TinadecCore.Abstractions.Ports.StorageScopeDescriptor("user", "user",
+            string.Equals(Path.GetFileName(Path.TrimEndingDirectorySeparator(Root)), "data", StringComparison.OrdinalIgnoreCase)
+                ? Path.GetDirectoryName(Root)! : Root);
     }
 
     public string Root { get; }
+    public TinadecCore.Abstractions.Ports.IScopeStorageLocations Locations { get; }
 
     public string SessionHistory(Guid sessionId) => Under("sessions", sessionId + ".json");
     public string TaskSnapshot(Guid runId) => Under("tasks", runId + ".tasks.json");
@@ -33,7 +38,7 @@ public sealed class StoragePaths
     /// </para>
     /// </summary>
     public string HarnessWorkspace(Guid providerInstanceId, Guid workspaceId) =>
-        Under("harness-workspaces", Path.Combine(providerInstanceId.ToString("N"), workspaceId.ToString("N")));
+        StorageScopePaths.Contained(Locations.Temp, Path.Combine("harness", providerInstanceId.ToString("N"), workspaceId.ToString("N")));
     public string ProjectVectorDatabase(Guid tenantId, Guid? workspaceId, Guid projectId) =>
         Under("vectors", Path.Combine("tenants", tenantId.ToString("N"), workspaceId?.ToString("N") ?? "tenant", projectId + ".db"));
 
@@ -65,6 +70,7 @@ public sealed class StoragePaths
             throw new InvalidOperationException("Core storage path escaped the configured data root.");
         }
 
+        StorageScopePaths.RejectLinks(Root, path);
         return path;
     }
 

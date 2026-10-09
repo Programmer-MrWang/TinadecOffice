@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | CORE-LIFECYCLE-F001 | 运行、事件、流、冻结配置、checkpoint 与租约持久化 | 源码可见 | 本轮静态核对；未做功能验收 | 为引擎提供事实和恢复基础；turn 归 Memory，恢复编排归 Runtime。 | [TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs](../../../../../TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs) |
 | CORE-LIFECYCLE-F002 | 父子 run 字段与父控制级联 | 部分实现 | 本轮静态核对；未做功能验收 | ParentRunId、ParentTaskId、RunKind 与级联已有；task_dispatch 仍未因此形成完整独立执行子 run。 | [TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs:81](../../../../../TinadecCore/Lifecycle/LifecycleModuleRegistrar.cs#L81)<br>[TinadecCore/Lifecycle/StorageLifecycleService.cs:356](../../../../../TinadecCore/Lifecycle/StorageLifecycleService.cs#L356) |
+| CORE-LIFECYCLE-F003 | 每scope运行事实、诊断日志与生命周期隔离 | 部分实现 | SQLite scope、文件删除/导出与日志预算定向 | 运行日志保留为data事实；诊断logs独立有界。恢复/转移/GC由Runtime参与者组合；会话不按时间自动删除。 | [生命周期组合](../../../../../TinadecCore/Runtime/ProjectSessionLifecycleService.cs)<br>[对账报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-reconstruction.zh-CN.md) |
 
 ## 状态词汇
 

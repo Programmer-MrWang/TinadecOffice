@@ -1,7 +1,10 @@
-const { closeSync, existsSync, mkdirSync, openSync } = require('node:fs');
+const { existsSync, mkdirSync } = require('node:fs');
 const { spawn, spawnSync } = require('node:child_process');
 const { homedir } = require('node:os');
 const { join } = require('node:path');
+const { storagePaths } = require('./storagePaths.cjs');
+const { createLogSink } = require('./logSink.cjs');
+const { verifyHostIdentity } = require('./hostIdentity.cjs');
 
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:48730';
 const CORE_URL = 'http://127.0.0.1:48731';
@@ -29,26 +32,11 @@ function bundledRuntimePaths(resourcesPath, platform = process.platform) {
 }
 
 /**
- * Where the product keeps its data, logs and default workspace on this platform.
- *
- * Windows has `%LOCALAPPDATA%`, and for a long time that was the only branch — on Linux or
- * macOS a packaged app failed at startup with "LOCALAPPDATA is unavailable" rather than
- * writing anywhere. POSIX now follows the platform's own convention (XDG on Linux,
- * Application Support on macOS) and falls back to the home directory when the variable is
- * unset, because a desktop session without XDG_DATA_HOME is normal, not a misconfiguration.
+ * The same explicit user storage root used by Electron and Core on every platform.
  * @returns {string}
  */
 function officeRootFor({ platform, localAppDataPath, environment, homedirImpl }) {
-  if (platform === 'win32') {
-    const base = localAppDataPath || environment?.LOCALAPPDATA;
-    if (!base) throw new Error('LOCALAPPDATA is unavailable.');
-    return join(base, 'TinadecOffice');
-  }
-  const home = homedirImpl?.() || environment?.HOME;
-  if (!home) throw new Error('Neither a home directory nor $HOME is available for the data root.');
-  if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'TinadecOffice');
-  const xdg = (environment?.XDG_DATA_HOME ?? '').trim();
-  return join(xdg || join(home, '.local', 'share'), 'TinadecOffice');
+  return storagePaths(environment ?? {}, () => homedirImpl?.() || environment?.HOME || homedir()).root;
 }
 
 function canonicalLocalGatewayUrl(gatewayUrl) {
@@ -147,6 +135,7 @@ function buildServiceEnvironment(paths, env, platform = process.platform) {
 function createServiceManager({
   platform = process.platform,
   fetchImpl = globalThis.fetch,
+  verifyHostIdentityImpl = verifyHostIdentity,
   spawnImpl = spawn,
   spawnSyncImpl = spawnSync,
   environment = process.env,
@@ -157,20 +146,16 @@ function createServiceManager({
   pollIntervalMs = 250,
 } = {}) {
   const ownedChildren = new Map();
-  const logFds = new Map();
   let stopping;
 
   function closeLog(child) {
-    const logFd = logFds.get(child);
-    if (logFd === undefined) return;
-    logFds.delete(child);
-    try {
-      closeSync(logFd);
-    } catch {}
+    child.stdout?.removeAllListeners('data');
+    child.stderr?.removeAllListeners('data');
   }
 
   function startProcess(label, command, args, cwd, env, logsDir) {
-    const logFd = openSync(join(logsDir, `${label}.log`), 'a');
+    const logSink = createLogSink(logsDir, { budgetDirectory: join(logsDir, '..') });
+    logSink.write(label, `${new Date().toISOString()} starting ${label}\n`);
     let child;
     try {
       child = spawnImpl(command, args, {
@@ -183,15 +168,16 @@ function createServiceManager({
         // which would change console inheritance for the whole service tree.
         detached: platform !== 'win32',
         windowsHide: true,
-        stdio: ['ignore', logFd, logFd],
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (error) {
-      closeSync(logFd);
       throw error;
     }
 
     child.startupError = null;
-    logFds.set(child, logFd);
+    for (const stream of [child.stdout, child.stderr]) stream?.on('data', data => {
+      try { logSink.write(label, data); } catch (error) { console.error(`[tinadec] ${label} log write failed: ${error.message}`); }
+    });
     ownedChildren.set(label, child);
     child.once('error', (error) => {
       child.startupError = error;
@@ -204,11 +190,14 @@ function createServiceManager({
     return child;
   }
 
-  async function waitForService(url, service, child, label) {
+  async function waitForService(url, service, child, label, hostControlToken) {
     const deadline = Date.now() + startupTimeoutMs;
     while (Date.now() < deadline) {
       const probe = await probeService(url, service, { fetchImpl, timeoutMs: healthTimeoutMs });
-      if (probe.status === 'ready') return;
+      if (probe.status === 'ready') {
+        await verifyHostIdentityImpl(new URL(url).origin, service, hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
+        return;
+      }
       if (probe.status === 'mismatch') {
         throw new Error(`${label} endpoint at ${url} is occupied by an unexpected service.`);
       }
@@ -287,14 +276,13 @@ function createServiceManager({
     stopping = (async () => {
       const children = [...ownedChildren.entries()];
       await stopChildren(children);
-      for (const child of [...logFds.keys()]) closeLog(child);
     })().finally(() => {
       stopping = undefined;
     });
     return stopping;
   }
 
-  function requireRuntime(resourcesPath, localAppDataPath) {
+  function requireRuntime(resourcesPath, localAppDataPath, userStorageRoot) {
     if (!resourcesPath) throw new Error('Electron resources path is unavailable.');
     const paths = bundledRuntimePaths(resourcesPath, platform);
     for (const name of ['core', 'gateway', 'tools']) {
@@ -311,15 +299,16 @@ function createServiceManager({
         }
       }
     }
-    const officeRoot = officeRootFor({ platform, localAppDataPath, environment, homedirImpl });
+    const officeRoot = userStorageRoot ?? officeRootFor({ platform, localAppDataPath, environment, homedirImpl });
     const dataRoot = join(officeRoot, 'data');
-    const logsDir = join(officeRoot, 'logs');
-    const workspaceRoot = join(officeRoot, 'workspaces', 'default');
+    const logsDir = join(officeRoot, 'logs', 'host');
+    const workspaceRoot = environment.TinadecTools__DefaultWorkspaceRoot ?? join(homedirImpl(), 'TinadecProjects');
     mkdirSync(dataRoot, { recursive: true });
     mkdirSync(logsDir, { recursive: true });
     mkdirSync(workspaceRoot, { recursive: true });
     return {
       paths,
+      officeRoot,
       dataRoot,
       logsDir,
       workspaceRoot,
@@ -327,7 +316,7 @@ function createServiceManager({
     };
   }
 
-  async function ensureLocalServices({ isPackaged, gatewayUrl, resourcesPath, localAppDataPath }) {
+  async function ensureLocalServices({ isPackaged, gatewayUrl, resourcesPath, localAppDataPath, hostControlToken, userStorageRoot }) {
     if (!shouldManageLocalServices(isPackaged, gatewayUrl)) {
       return { started: false, ownsCore: false, ownsGateway: false };
     }
@@ -343,6 +332,7 @@ function createServiceManager({
     if (coreProbe.status === 'mismatch') {
       throw new Error(`Tinadec Core endpoint at ${coreHealthUrl} is occupied by an unexpected service.`);
     }
+    if (coreProbe.status === 'ready') await verifyHostIdentityImpl(CORE_URL, 'core', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
     const gatewayProbe = await probeService(gatewayHealthUrl, 'gateway', {
       fetchImpl,
       timeoutMs: healthTimeoutMs,
@@ -350,6 +340,7 @@ function createServiceManager({
     if (gatewayProbe.status === 'mismatch') {
       throw new Error(`Tinadec Gateway endpoint at ${gatewayHealthUrl} is occupied by an unexpected service.`);
     }
+    if (gatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
     if (coreProbe.status === 'ready' && gatewayProbe.status === 'ready') {
       return {
         started: false,
@@ -358,8 +349,8 @@ function createServiceManager({
       };
     }
 
-    const runtime = requireRuntime(resourcesPath, localAppDataPath);
-    const baseEnvironment = buildServiceEnvironment(runtime.paths, environment, platform);
+    const runtime = requireRuntime(resourcesPath, localAppDataPath, userStorageRoot);
+    const baseEnvironment = buildServiceEnvironment(runtime.paths, { ...environment, TINADEC_HOME: runtime.officeRoot, TINADEC_STORAGE_ID: 'user', ...(hostControlToken ? { TINADEC_HOST_CONTROL_TOKEN: hostControlToken } : {}) }, platform);
     const startedChildren = [];
     try {
       if (coreProbe.status !== 'ready') {
@@ -371,17 +362,13 @@ function createServiceManager({
           {
             ...baseEnvironment,
             ASPNETCORE_URLS: CORE_URL,
-            TinadecPersistence__Enabled: 'true',
-            TinadecPersistence__Provider: 'Sqlite',
-            TinadecPersistence__DataRoot: runtime.dataRoot,
-            TinadecPersistence__Sqlite__DatabasePath: runtime.databasePath,
             TinadecTools__ExecutablePath: runtime.paths.tools,
             TinadecTools__DefaultWorkspaceRoot: runtime.workspaceRoot,
           },
           runtime.logsDir,
         );
         startedChildren.push(['core', core]);
-        await waitForService(coreHealthUrl, 'core', core, 'Tinadec Core');
+        await waitForService(coreHealthUrl, 'core', core, 'Tinadec Core', hostControlToken);
       }
 
       let currentGatewayProbe = gatewayProbe;
@@ -393,6 +380,7 @@ function createServiceManager({
         if (currentGatewayProbe.status === 'mismatch') {
           throw new Error(`Tinadec Gateway endpoint at ${gatewayHealthUrl} is occupied by an unexpected service.`);
         }
+        if (currentGatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
       }
       if (currentGatewayProbe.status !== 'ready') {
         const gateway = startProcess(
@@ -409,7 +397,7 @@ function createServiceManager({
           runtime.logsDir,
         );
         startedChildren.push(['gateway', gateway]);
-        await waitForService(gatewayHealthUrl, 'gateway', gateway, 'Tinadec Gateway');
+        await waitForService(gatewayHealthUrl, 'gateway', gateway, 'Tinadec Gateway', hostControlToken);
       }
 
       return {

@@ -1,9 +1,11 @@
 import { readonly, ref } from 'vue'
 import {
-  api,
+  api as baseApi,
   type AgentPackInstallPreviewDto,
   type AgentPackInstallResultDto,
 } from '@/api'
+import { scopedApi } from '@/lib/storageScope'
+const api = scopedApi(baseApi, () => 'user')
 import { useNotifications } from '@/composables/useNotifications'
 import {
   GRAPH_SEED_PACK_DIGEST,

@@ -6,6 +6,8 @@
 
 ## 文档入口
 
+2026-10-09：Runtime 以宿主登记管理独立 scope 服务图，负责项目初始化、恢复、自由会话转移、永久删除参与者及维护租约；不通过全局“当前项目”改写连接。见 [本轮对账](../../../../../.tinadec_dev/reports/2026-10-09-storage-reconstruction.zh-CN.md)，剩余平台与真实模型场景统一在 [X-DATA-104](../../cross-cutting/data-security/TODO.md#x-data-104) 跟踪。
+
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)
 - [功能与完成情况](STATUS.md) · [本模块TODO](TODO.md)
 - [全部模块](../../../MODULE-INDEX.md) · [总TODO](../../../01-program/MASTER-TODO.md)

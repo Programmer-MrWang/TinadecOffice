@@ -30,7 +30,9 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
     private readonly IToolConfigurationResolver? _toolSettings;
     private readonly IMcpResourceRegistry? _mcpResources;
     private readonly IToolSkillResourceService? _skillResources;
+    private readonly IManagedMcpProgramService? _mcpPrograms;
     private readonly IToolExecutionContextLifecycle? _contextLifecycle;
+    private readonly IScopeStorageLocations? _storageLocations;
     private readonly SemaphoreSlim _recoveryGate = new(1, 1);
 
     public UserToolActionService(
@@ -45,7 +47,9 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         IToolConfigurationResolver? toolSettings = null,
         IMcpResourceRegistry? mcpResources = null,
         IToolExecutionContextLifecycle? contextLifecycle = null,
-        IToolSkillResourceService? skillResources = null)
+        IToolSkillResourceService? skillResources = null,
+        IManagedMcpProgramService? mcpPrograms = null,
+        IScopeStorageLocations? storageLocations = null)
     {
         _dbFactory = dbFactory;
         _tenant = tenant;
@@ -58,12 +62,14 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         _toolSettings = toolSettings;
         _mcpResources = mcpResources;
         _skillResources = skillResources;
+        _mcpPrograms = mcpPrograms;
         _contextLifecycle = contextLifecycle;
+        _storageLocations = storageLocations;
     }
 
     public async Task<UserToolActionResult> CreateAsync(UserToolActionRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.ProjectId == Guid.Empty && request.ToolId != "skill_resource_update") throw new ArgumentException("project_id is required.", nameof(request));
+        if (request.ProjectId == Guid.Empty && request.ToolId is not ("skill_resource_update" or "mcp_program_update")) throw new ArgumentException("project_id is required.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.ToolId)) throw new ArgumentException("tool_id is required.", nameof(request));
         if (!TryNormalizeParameters(request.ParametersJson, out var parametersJson))
             throw new ArgumentException("params must be a JSON object or null.", nameof(request));
@@ -78,6 +84,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         if (descriptor.Id == "mcp_resource_update") ValidateManagedMcpParameters(parametersJson, project!.ProjectId);
         if (descriptor.Id == "skill_resource_update") ValidateManagedSkillParameters(parametersJson);
         if (descriptor.Id == "skill_project_package") ValidateSkillProjectPackage(parametersJson);
+        if (descriptor.Id == "mcp_program_update") ValidateMcpProgramParameters(parametersJson, request.ProjectId);
         var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
         var parametersHash = ToolParametersHash.Compute(parametersJson);
 
@@ -99,8 +106,11 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         var stored = await PutContentAsync(scope, "user-tool-parameters", parametersJson, cancellationToken).ConfigureAwait(false);
         var frozenDescriptorJson = JsonSerializer.Serialize(ToFrozen(descriptor), JsonOptions);
         var frozenDescriptor = await PutContentAsync(scope, "user-tool-descriptor", frozenDescriptorJson, cancellationToken).ConfigureAwait(false);
-        var toolContext = descriptor.Id is "mcp_resource_update" or "skill_resource_update" or "skill_project_package" || _toolSettings is null ? null : await _toolSettings.ResolveAsync(project!.ProjectId, null, cancellationToken).ConfigureAwait(false);
+        var toolContext = descriptor.Id is "mcp_resource_update" or "skill_resource_update" or "skill_project_package" or "mcp_program_update" || _toolSettings is null ? null : await _toolSettings.ResolveAsync(project!.ProjectId, null, cancellationToken).ConfigureAwait(false);
         if (toolContext is not null && !ToolSettingsSchema.IsEnabled(toolContext.Settings, descriptor.Id)) throw new UnauthorizedAccessException("This tool is disabled in shared settings.");
+        if (toolContext is null && _storageLocations is { } locations)
+            toolContext = new ToolExecutionContextDto { StorageId = locations.StorageId, StorageRoot = locations.Root,
+                ProjectRoot = locations.ProjectRoot, Settings = JsonSerializer.SerializeToElement(new { }), SettingsHash = "scope-binding" };
         var frozenToolContext = toolContext is null ? null : await PutContentAsync(scope, "user-tool-configuration", JsonSerializer.Serialize(toolContext, JsonOptions), cancellationToken).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;
         var actionId = Guid.NewGuid();
@@ -172,7 +182,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         if (IsTerminal(action.Status) || action.Status == UserToolActionStatuses.SnapshotRequired)
             return await ToResultAsync(action, cancellationToken).ConfigureAwait(false);
         var scope = _tenant.Current;
-        var project = action.ToolId == "skill_resource_update" && action.ProjectId == Guid.Empty ? null : await _sessions.FindProjectAsync(action.ProjectId, cancellationToken).ConfigureAwait(false)
+        var project = action.ToolId is "skill_resource_update" or "mcp_program_update" && action.ProjectId == Guid.Empty ? null : await _sessions.FindProjectAsync(action.ProjectId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Project was not found.");
         if (project is not null) EnsureProjectScope(project, scope);
         var descriptorValidation = await ValidateFrozenToolAsync(action, project?.RootPath ?? "", cancellationToken).ConfigureAwait(false);
@@ -499,6 +509,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
             if (descriptor.Id == "mcp_resource_update") response = await ExecuteManagedMcpAsync(document.RootElement, action.ProjectId, cancellationToken).ConfigureAwait(false);
             else if (descriptor.Id == "skill_resource_update") response = await ExecuteManagedSkillAsync(document.RootElement, cancellationToken).ConfigureAwait(false);
             else if (descriptor.Id == "skill_project_package") response = await ExecuteSkillProjectPackageAsync(document.RootElement, project!, cancellationToken).ConfigureAwait(false);
+            else if (descriptor.Id == "mcp_program_update") response = await ExecuteMcpProgramAsync(document.RootElement, cancellationToken).ConfigureAwait(false);
             else
             {
                 ToolExecutionContextDto? context = null;
@@ -680,6 +691,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         if (toolId == "mcp_resource_update") return new TrustedTool(2, ToolManifestHasher.Compute([ManagedMcpDescriptor]), ManagedMcpDescriptor);
         if (toolId == "skill_resource_update") return new TrustedTool(2, ToolManifestHasher.Compute([ManagedSkillDescriptor]), ManagedSkillDescriptor);
         if (toolId == "skill_project_package") return new TrustedTool(2, ToolManifestHasher.Compute([ProjectSkillDescriptor]), ProjectSkillDescriptor);
+        if (toolId == "mcp_program_update") return new TrustedTool(2, ToolManifestHasher.Compute([ManagedMcpProgramDescriptor]), ManagedMcpProgramDescriptor);
         var manifest = await _provider.GetManifestAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
         if (manifest.ProtocolVersion != 2)
             throw new InvalidDataException("Tool Provider must expose manifest protocol v2.");
@@ -699,6 +711,20 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         string workspaceRoot,
         CancellationToken cancellationToken)
     {
+        if (_storageLocations is { } locations)
+        {
+            if (string.IsNullOrWhiteSpace(action.ToolConfigurationReference))
+                return FrozenToolValidation.Failed("frozen_storage_scope_mismatch", "The historical action has no current storage scope binding.");
+            try
+            {
+                var scopeJson = await ReadContentAsync(action.ToolConfigurationReference, action.ToolConfigurationHash, action.ToolConfigurationLength, "application/json", cancellationToken);
+                var scopeBinding = JsonSerializer.Deserialize<ToolExecutionContextDto>(scopeJson, JsonOptions);
+                if (scopeBinding?.StorageId != locations.StorageId || scopeBinding.StorageRoot != locations.Root)
+                    return FrozenToolValidation.Failed("frozen_storage_scope_mismatch", "The historical action belongs to a different storage scope; its approval cannot be resumed here.");
+            }
+            catch (Exception ex) when (ex is InvalidDataException or JsonException or IOException)
+            { return FrozenToolValidation.Failed("frozen_storage_scope_mismatch", "The action's storage scope binding is unavailable."); }
+        }
         if (action.ProviderProtocolVersion != 2
             || string.IsNullOrWhiteSpace(action.ProviderManifestHash)
             || string.IsNullOrWhiteSpace(action.ToolDescriptorReference)
@@ -732,6 +758,9 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         if (action.ToolId == "skill_project_package")
             return FixedEquals(action.ProviderManifestHash, ToolManifestHasher.Compute([ProjectSkillDescriptor])) && ToolManifestHasher.Equivalent(ProjectSkillDescriptor, frozen)
                 ? new FrozenToolValidation(ProjectSkillDescriptor, null) : FrozenToolValidation.Failed("tool_descriptor_changed", "The project skill descriptor changed.");
+        if (action.ToolId == "mcp_program_update")
+            return FixedEquals(action.ProviderManifestHash, ToolManifestHasher.Compute([ManagedMcpProgramDescriptor])) && ToolManifestHasher.Equivalent(ManagedMcpProgramDescriptor, frozen)
+                ? new FrozenToolValidation(ManagedMcpProgramDescriptor, null) : FrozenToolValidation.Failed("tool_descriptor_changed", "The managed program descriptor changed.");
 
         ToolManifestDto manifest;
         try
@@ -826,7 +855,34 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         };
     }
 
-    private static bool NeedsPrewriteSnapshot(ToolManifestEntryDto descriptor) => descriptor.Id is not "mcp_resource_update" and not "skill_resource_update" && descriptor.MutatesWorkspace && RiskRank(descriptor.Risk) >= 2;
+    private static bool NeedsPrewriteSnapshot(ToolManifestEntryDto descriptor) => descriptor.Id is not "mcp_resource_update" and not "skill_resource_update" and not "mcp_program_update" && descriptor.MutatesWorkspace && RiskRank(descriptor.Risk) >= 2;
+
+    private static readonly ToolManifestEntryDto ManagedMcpProgramDescriptor = new()
+    {
+        Id = "mcp_program_update", Description = "Explicitly install or uninstall the pinned program of a registered MCP resource.", Risk = "high", MutatesWorkspace = true,
+        RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = ["action", "manager", "package", "version", "plan_hash"],
+        InputSchema = JsonSerializer.SerializeToElement(new { type = "object", properties = new { action = new { type = "string" }, resource_id = new { type = "string" },
+            expected_revision = new { type = "integer" }, manager = new { type = "string" }, package = new { type = "string" }, version = new { type = "string" },
+            package_root = new { type = "string" }, plan_hash = new { type = "string" }, server_arguments = new { type = "array" } },
+            required = new[] { "action", "resource_id", "expected_revision", "manager", "package", "version", "package_root", "plan_hash", "server_arguments" } })
+    };
+
+    private static void ValidateMcpProgramParameters(string parameters, Guid projectId)
+    {
+        var data = JsonSerializer.Deserialize<ManagedMcpProgramPreviewDto>(parameters, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })
+            ?? throw new ArgumentException("Invalid MCP program action.");
+        if (data.ResourceId == Guid.Empty || data.Action is not ("install" or "uninstall") || data.ExpectedRevision < 0 || (data.ProjectId ?? Guid.Empty) != projectId
+            || data.Manager is not ("npm" or "uv") || data.PlanHash.Length != 64 || data.PlanHash.Any(c => !char.IsAsciiHexDigit(c)))
+            throw new ArgumentException("Invalid MCP program action or scope.");
+    }
+
+    private async Task<ToolWireResponseDto> ExecuteMcpProgramAsync(JsonElement parameters, CancellationToken ct)
+    {
+        if (_mcpPrograms is null) throw new ToolSettingsException("mcp_program_manager_unavailable", "Managed MCP programs are unavailable.", 503);
+        var input = parameters.Deserialize<ManagedMcpProgramPreviewDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })!;
+        var result = await _mcpPrograms.ApplyApprovedAsync(input, ct);
+        return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) };
+    }
 
     private static readonly ToolManifestEntryDto ManagedMcpDescriptor = new()
     {
@@ -835,7 +891,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
     };
     private static readonly ToolManifestEntryDto ManagedSkillDescriptor = new()
     {
-        Id = "skill_resource_update", Description = "Update a Core managed shared Skill package.", Risk = "high", MutatesWorkspace = true, RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = ["action", "name", "content"],
+        Id = "skill_resource_update", Description = "Update a Core managed shared Skill package.", Risk = "high", MutatesWorkspace = true, RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = ["action", "name"],
         InputSchema = JsonSerializer.SerializeToElement(new { type = "object", properties = new { action = new { type = "string" }, resource_id = new { type = "string" }, expected_revision = new { type = "integer" }, expected_package_hash = new { type = "string" }, expected_package_digest = new { type = "string" }, scope = new { type = "string" }, name = new { type = "string" }, content = new { type = "string" }, files = new { type = "object" }, replace_files = new { type = "boolean" }, source = new { type = "string" }, version = new { type = "string" }, commit = new { type = "string" } }, required = new[] { "action", "expected_revision", "scope", "name", "content" } })
     };
     private static readonly ToolManifestEntryDto ProjectSkillDescriptor = new()
@@ -859,7 +915,9 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         ValidateSkillProjectPackage(input.GetRawText());
         var data = input.Deserialize<ToolSkillProjectPackageDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })!;
         var packageRoot = data.PackageRoot ?? Path.GetDirectoryName(WorkspaceSkillPolicy.AbsolutePathFor(project.RootPath, data.Name))!;
-        if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, packageRoot)) throw new ToolSettingsException("skill_path_escape", "Skill package root leaves its project.");
+        var skillRoot = Path.Combine(project.RootPath, WorkspaceSkillPolicy.SkillRoots[0]);
+        if (!WorkspaceSkillDiscovery.IsContained(skillRoot, packageRoot) || new DirectoryInfo(packageRoot).Name != data.Name)
+            throw new ToolSettingsException("skill_path_escape", "Skill package root must be a named package inside .tinadec/skills.");
         foreach (var (path, expected) in data.ExpectedFileHashes)
         {
             var absolute = Path.GetFullPath(Path.Combine(packageRoot, path.Replace('/', Path.DirectorySeparatorChar)));
@@ -878,6 +936,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
                 var response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto { ToolId = "delete_file", SessionId = "skill-package", Approved = true, Params = JsonSerializer.SerializeToElement(new { filepath = absolute, file_hash = expected }) }, TimeSpan.FromSeconds(120), ct);
                 if (!response.IsSuccess || response.Result is { } payload && payload.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) return new() { IsSuccess = false, Error = "A package file could not be deleted; inspect the retained snapshot." };
             }
+            RemoveEmptySkillDirectories(packageRoot);
             return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { deleted = true, name = data.Name }) };
         }
         var entries = new SortedDictionary<string,string>(StringComparer.Ordinal);
@@ -906,6 +965,13 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
             if (!response.IsSuccess || response.Result is { } result && result.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) return new() { IsSuccess = false, Error = "The package file write was refused; inspect the retained snapshot and partial result." };
         }
         return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { name = data.Name, package_files = entries.Keys.ToArray() }) };
+    }
+    private static void RemoveEmptySkillDirectories(string root)
+    {
+        if (!Directory.Exists(root)) return;
+        if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new ToolSettingsException("skill_path_escape", "Skill package directories cannot be links.");
+        foreach (var directory in Directory.EnumerateDirectories(root)) RemoveEmptySkillDirectories(directory);
+        if (!Directory.EnumerateFileSystemEntries(root).Any()) Directory.Delete(root);
     }
     private static void ValidateManagedMcpParameters(string parameters, Guid projectId)
     {
