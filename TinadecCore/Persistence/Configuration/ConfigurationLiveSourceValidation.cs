@@ -34,7 +34,7 @@ internal static class ConfigurationLiveSourceValidation
             }
         foreach (var (table, versions, owner) in new[]
             { ("agent_definitions", "agent_versions", "agent_definition_id"), ("agent_modes", "mode_versions", "agent_mode_id"),
-              ("prompt_pipelines", "prompt_versions", "pipeline_id"), ("agent_templates", "agent_template_versions", "agent_template_id"),
+              ("prompt_pipelines", "prompt_versions", "prompt_pipeline_id"), ("agent_templates", "agent_template_versions", "agent_template_id"),
               ("tool_definitions", "tool_definition_versions", "tool_definition_id") })
             foreach (var row in Rows(documents, "agents", table).Where(row => IsLive(row) && Text(row, "status") == "published"))
             {

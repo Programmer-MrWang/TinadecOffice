@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using TinadecCore.Abstractions.Ports;
 using Tomlyn;
 using Tomlyn.Model;
@@ -37,7 +39,8 @@ internal sealed class ConfigurationProjectionDocumentValidator(string id, IEnume
                         return [new("configuration_schema", name + ": expected an array of tables.")];
                     var keys = new HashSet<string>(StringComparer.Ordinal);
                     var unique = entity.GetIndexes().Where(index => index.IsUnique)
-                        .ToDictionary(index => index, _ => new HashSet<string>(StringComparer.Ordinal));
+                        .Select(index => (Index: index, Applies: UniqueIndexPredicate(entity, index),
+                            Values: new HashSet<string>(StringComparer.Ordinal))).ToArray();
                     foreach (var table in rows)
                     {
                         var row = ConfigurationProjectionCoordinator.DecodeRow(entity, table);
@@ -45,8 +48,9 @@ internal sealed class ConfigurationProjectionDocumentValidator(string id, IEnume
                         if (key.Length == 0 || entity.FindPrimaryKey()!.Properties.Any(p => p.PropertyInfo!.GetValue(row) is Guid g && g == Guid.Empty))
                             return [new("configuration_schema", name + ": primary key is required.")];
                         if (!keys.Add(key)) return [new("configuration_schema", name + ": duplicate primary key.")];
-                        foreach (var (index, values) in unique)
+                        foreach (var (index, applies, values) in unique)
                         {
+                            if (!applies(row)) continue;
                             var fields = index.Properties.Select(property => property.PropertyInfo!.GetValue(row)).ToArray();
                             // Both supported SQL providers permit several null values in unique indexes.
                             if (fields.Any(field => field is null)) continue;
@@ -85,7 +89,7 @@ internal sealed class ConfigurationProjectionDocumentValidator(string id, IEnume
                             {
                                 foreach (var reference in new[] { "ContentReference", "ConfigReference", "ManifestReference", "ManifestContentReference" })
                                     if (entity.ClrType.GetProperty(reference) is { } p && string.IsNullOrEmpty(p.GetValue(row) as string)) p.SetValue(row, p.GetValue(existing));
-                                if (!ConfigurationProjectionCoordinator.Same(entity, existing, row))
+                                if (!ConfigurationProjectionCoordinator.Same(entity, existing, row, db.Database.IsNpgsql()))
                                     return [new("configuration_version_immutable", name + ": published version ids are immutable; use a new version identity.")];
                             }
                         }
@@ -98,6 +102,28 @@ internal sealed class ConfigurationProjectionDocumentValidator(string id, IEnume
         catch (ConfigurationDocumentException ex) { return ex.Diagnostics; }
         catch (Exception ex) when (ex is TomlException or JsonException or InvalidDataException or FormatException or OverflowException or ArgumentException)
         { return [new("configuration_schema", ex.Message)]; }
+    }
+
+    internal static Func<object, bool> UniqueIndexPredicate(IReadOnlyEntityType entity, IReadOnlyIndex index)
+    {
+        var filter = index.GetFilter();
+        if (string.IsNullOrWhiteSpace(filter)) return _ => true;
+        // These are the predicates owned by the configuration models. Do not
+        // treat an unfamiliar SQL expression as either an unfiltered index or
+        // an index that can be ignored: reject before the file commit instead.
+        var status = Regex.IsMatch(filter, "^\\s*(?i:status|\"status\"|\\[status\\])\\s*=\\s*'draft'\\s*$",
+            RegexOptions.CultureInvariant);
+        var deleted = Regex.IsMatch(filter, "^\\s*(?i:deleted_at|\"deleted_at\"|\\[deleted_at\\])\\s+(?i:IS\\s+NULL)\\s*$",
+            RegexOptions.CultureInvariant);
+        var table = StoreObjectIdentifier.Create(entity, StoreObjectType.Table);
+        var property = status || deleted ? entity.GetProperties().FirstOrDefault(p => table is { } store
+            && p.GetColumnName(store) == (status ? "status" : "deleted_at")) : null;
+        if (property?.PropertyInfo is not { } member || status && property.ClrType != typeof(string))
+            throw new ConfigurationDocumentException("configuration_unique_filter_unsupported",
+                "Configuration validation cannot evaluate a unique-index filter.",
+                [new("configuration_unique_filter_unsupported", entity.GetTableName() + ": unsupported unique-index filter '" + filter + "'.")]);
+        return status ? row => string.Equals(member.GetValue(row) as string, "draft", StringComparison.Ordinal)
+            : row => member.GetValue(row) is null;
     }
 
     private static bool ContainsPlainCredential(JsonElement value)
