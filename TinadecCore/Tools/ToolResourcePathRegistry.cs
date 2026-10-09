@@ -104,6 +104,31 @@ internal static class ToolResourcePathRegistry
         ToolExecutionContextDto? executionContext = null)
     {
         var relativePath = TryExtractRelativePath(toolId, parametersJson, workspaceRoot);
+        // A primary file such as "second/same.txt" and a secondary source's
+        // "same.txt" must never yield the same resource identity. Preserve the
+        // single-root envelope spelling, but qualify every source in a multi-root run.
+        if (executionContext?.WorkspaceRoots.Count > 1 && PathParameter(toolId) is { } sourceParameter
+            && !string.IsNullOrWhiteSpace(parametersJson))
+        {
+            try
+            {
+                using var sourceDocument = JsonDocument.Parse(parametersJson);
+                if (sourceDocument.RootElement.TryGetProperty(sourceParameter, out var sourceValue)
+                    && sourceValue.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(sourceValue.GetString()))
+                {
+                    var absolute = Path.GetFullPath(sourceValue.GetString()!, workspaceRoot ?? executionContext.WorkingDirectory
+                        ?? executionContext.WorkspaceRoots[0].Path);
+                    foreach (var source in executionContext.WorkspaceRoots.OrderByDescending(root => root.Path.Length))
+                    {
+                        if (!WorkspaceSkillDiscovery.IsContained(source.Path, absolute)) continue;
+                        var relative = Path.GetRelativePath(source.Path, absolute).Replace('\\', '/');
+                        return new("resource.access", mutating ? "mutate" : "read", $"path://{source.Id}/{relative}");
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is JsonException or ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+            { return new("resource.access", mutating ? "mutate" : "read", "denied-path://invalid-target"); }
+        }
         if (relativePath is null)
         {
             var parameter = PathParameter(toolId);
@@ -114,6 +139,13 @@ internal static class ToolResourcePathRegistry
                 if (!document.RootElement.TryGetProperty(parameter, out var value) || value.ValueKind != JsonValueKind.String) return null;
                 var path = value.GetString();
                 if (string.IsNullOrWhiteSpace(path)) return null;
+                if (Path.IsPathRooted(path))
+                    foreach (var source in executionContext.WorkspaceRoots)
+                    {
+                        if (!WorkspaceSkillDiscovery.IsContained(source.Path, path)) continue;
+                        var relative = Path.GetRelativePath(source.Path, Path.GetFullPath(path)).Replace('\\', '/');
+                        return new("resource.access", mutating ? "mutate" : "read", $"path://{source.Id}/{relative}");
+                    }
                 if (!mutating && toolId is "read_file" or "ls" or "stat" && Path.IsPathRooted(path))
                     foreach (var root in executionContext.ReadRoots)
                     {

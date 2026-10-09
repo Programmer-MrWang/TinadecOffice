@@ -10,9 +10,12 @@ internal static class SandboxAccountManager
     private static readonly AsyncLocal<string?> IdentityOverride = new();
     internal static string AccountName => IdentityOverride.Value ?? IdentityFor(
         ToolExecutionContext.Current?.StorageId ?? WorkspaceStoragePolicy.StorageRoot(TinadecTools.Tools.FileRW.WorkspacePathResolver.WorkspaceRoot),
-        ToolExecutionContext.Current?.ProjectStorageWrite == true);
-    internal static string IdentityFor(string storageId, bool storageWrite) => "TinaSbx_" +
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(storageId + ":" + storageWrite)))[..12];
+        ToolExecutionContext.Current?.ProjectStorageWrite == true,
+        string.Join('\n', TinadecTools.Tools.FileRW.WorkspacePathResolver.SourceRoots.OrderBy(root => root.Id, StringComparer.Ordinal)
+            .Select(root => root.Id + ":" + (OperatingSystem.IsWindows() ? root.Path.ToUpperInvariant() : root.Path)))
+            + "\nprimary:" + ToolExecutionContext.Current?.PrimaryRootId);
+    internal static string IdentityFor(string storageId, bool storageWrite, string rootSet = "") => "TinaSbx_" +
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(storageId + ":" + storageWrite + ":" + rootSet)))[..12];
     internal static void SetSetupIdentity(string identity)
     {
         if (identity.Length != 20 || !identity.StartsWith("TinaSbx_", StringComparison.Ordinal)

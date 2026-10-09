@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Tools;
 
@@ -33,11 +34,13 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
     private readonly TimeSpan _defaultTimeout;
     private readonly string? _defaultWorkspaceRoot;
     private readonly string? _additionalReadRoots;
+    private readonly string _userStorageRoot;
 
     private readonly object _stateLock = new();
-    private readonly Dictionary<string, ManagedProcess> _processes = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly StringComparer ProcessPathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private readonly Dictionary<string, ManagedProcess> _processes = new(ProcessPathComparer);
     private static readonly UTF8Encoding Utf8NoBom = new(false);
-    private readonly Dictionary<string, SemaphoreSlim> _writeLocks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, SemaphoreSlim> _writeLocks = new(ProcessPathComparer);
     private long _nextCallId;
     private readonly Dictionary<string, HashSet<string>> _contextRoots = new(StringComparer.Ordinal);
 
@@ -52,7 +55,10 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
         foreach (var root in roots)
             try
             {
-                var response = await CallAsync(root, new ToolWireRequestDto { ToolId = "#release_execution_context", SessionId = "context-release", Approved = false, Params = JsonSerializer.SerializeToElement(new { run_id = runId }) }, TimeSpan.FromSeconds(10), null, cancellationToken).ConfigureAwait(false);
+                ManagedProcess? owned;
+                lock (_stateLock) _processes.TryGetValue(root, out owned);
+                if (owned is null || owned.Process.HasExited) continue;
+                var response = await CallAsync(owned.Root, new ToolWireRequestDto { ToolId = "#release_execution_context", SessionId = "context-release", Approved = false, Params = JsonSerializer.SerializeToElement(new { run_id = runId }) }, TimeSpan.FromSeconds(10), null, cancellationToken, root).ConfigureAwait(false);
                 if (!response.IsSuccess) throw new InvalidOperationException("The provider rejected execution-context release.");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -61,14 +67,14 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
                 // after host shutdown interrupts a best-effort cleanup pass.
                 lock (_stateLock)
                 {
-                    if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(StringComparer.OrdinalIgnoreCase);
+                    if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(ProcessPathComparer);
                     foreach (var ownedRoot in roots) retry.Add(ownedRoot);
                 }
                 throw;
             }
             catch (Exception ex) when (ex is IOException or InvalidOperationException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
-                lock (_stateLock) { if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(StringComparer.OrdinalIgnoreCase); retry.Add(root); }
+                lock (_stateLock) { if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(ProcessPathComparer); retry.Add(root); }
                 _logger.LogDebug(ex, "Could not release tool context {RunId}.", runId);
             }
     }
@@ -87,6 +93,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
         _defaultTimeout = TimeSpan.FromSeconds(Double(configuration, "TinadecTools:DefaultTimeoutSeconds", 120));
         _defaultWorkspaceRoot = configuration["TinadecTools:DefaultWorkspaceRoot"];
         _additionalReadRoots = configuration[ToolHostEnvironment.AdditionalReadRootsConfigurationKey];
+        _userStorageRoot = StorageScopePaths.User(configuration["TinadecStorage:UserRoot"]).Root;
     }
 
     /// <summary>
@@ -149,27 +156,29 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
         ToolWireRequestDto request,
         TimeSpan? timeout,
         Action<ToolWireEventDto>? observer,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, string? ownedProcessKey = null)
     {
         var root = ResolveRoot(workspaceRoot);
+        var processKey = ownedProcessKey ?? (request.ExecutionContext is { } context
+            ? root + "|" + ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { context.StorageId, context.WorkspaceRoots, context.PrimaryRootId, context.ProjectStorageWrite })) : root);
         if (!string.IsNullOrWhiteSpace(request.ExecutionContext?.RunId))
             lock (_stateLock)
             {
-                if (!_contextRoots.TryGetValue(request.ExecutionContext.RunId, out var owned)) _contextRoots[request.ExecutionContext.RunId] = owned = new(StringComparer.OrdinalIgnoreCase);
-                owned.Add(root);
+                if (!_contextRoots.TryGetValue(request.ExecutionContext.RunId, out var owned)) _contextRoots[request.ExecutionContext.RunId] = owned = new(ProcessPathComparer);
+                owned.Add(processKey);
             }
         if (_executablePath is null)
         {
             return Error(-1, "process_exit", "TinadecTools executable path is not configured.");
         }
 
-        var gate = GetWriteLock(root);
+        var gate = GetWriteLock(processKey);
         ManagedProcess process;
         lock (_stateLock)
         {
-            if (!_processes.TryGetValue(root, out process!) || process.Process.HasExited)
+            if (!_processes.TryGetValue(processKey, out process!) || process.Process.HasExited)
             {
-                process = StartProcess(root);
+                process = StartProcess(root, processKey);
             }
         }
 
@@ -282,8 +291,9 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
         }
     }
 
-    private ManagedProcess StartProcess(string root)
+    private ManagedProcess StartProcess(string root, string? processKey = null)
     {
+        processKey ??= root;
         if (_executablePath is null) throw new InvalidOperationException("TinadecTools executable path is not configured.");
 
         var startInfo = new ProcessStartInfo(_executablePath)
@@ -298,10 +308,10 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
             CreateNoWindow = true
         };
         startInfo.Environment.Remove("TINADEC_HOST_CONTROL_TOKEN");
+        startInfo.Environment["TINADEC_HOME"] = _userStorageRoot;
 
-        // The child is scoped to its working directory as the single writable root;
-        // extra readable roots travel as an environment variable the tool-side
-        // resolver reads at startup.
+        // The frozen call envelope supplies all authorized source roots. Host-owned
+        // credential paths are fixed at startup and cannot be supplied by tool params.
         if (!string.IsNullOrWhiteSpace(_additionalReadRoots))
         {
             startInfo.Environment[ToolHostEnvironment.AdditionalReadRootsVariable] = _additionalReadRoots;
@@ -309,10 +319,11 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
 
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start the TinadecTools process.");
         var managed = new ManagedProcess(process, root, _logger, RaiseBroadcast);
+        managed.Key = processKey;
 
         // Publish the unique process before beginning its handshake. The handshake calls
         // this exact instance directly; it must never re-enter GetOrStart for the root.
-        _processes[root] = managed;
+        _processes[processKey] = managed;
         _ = Task.Run(() => ReadLoopAsync(managed));
         _ = Task.Run(() => DrainErrorAsync(managed));
         managed.ManifestTask = CallManifestAsync(managed);
@@ -324,7 +335,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
     {
         try
         {
-            var gate = GetWriteLock(process.Root);
+            var gate = GetWriteLock(process.Key);
             var callId = Interlocked.Increment(ref _nextCallId);
             var pending = process.RegisterPending(callId);
             var wire = new ToolWireRequestDto { ToolId = ManifestToolId, SessionId = "core", ToolCallId = callId, Approved = true };
@@ -364,9 +375,9 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
         _logger.TryLogWarning(exception, "TinadecTools manifest handshake failed for workspace root {Root}", process.Root);
         lock (_stateLock)
         {
-            if (_processes.TryGetValue(process.Root, out var current) && ReferenceEquals(current, process))
+            if (_processes.TryGetValue(process.Key, out var current) && ReferenceEquals(current, process))
             {
-                _processes.Remove(process.Root);
+                _processes.Remove(process.Key);
             }
         }
 
@@ -550,6 +561,7 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecu
 
         public Process Process { get; }
         public string Root { get; }
+        public string Key { get; set; } = string.Empty;
         public StreamWriter StandardInput => Process.StandardInput;
         public Task<ToolManifestDto> ManifestTask { get; set; } = null!;
 

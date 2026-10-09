@@ -14,6 +14,21 @@ namespace TinadecCore.AgentFramework.Tests;
 /// </summary>
 public sealed class ToolResourcePathRegistryTests
 {
+    [Fact]
+    public void MultiFolderClaimsQualifyPrimaryAndSecondaryPathsWithoutNameCollisions()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "multi-claims");
+        var primary = Path.Combine(root, "primary"); var second = Path.Combine(root, "second");
+        var context = new ToolExecutionContextDto { WorkingDirectory = primary, PrimaryRootId = "first",
+            WorkspaceRoots = [new ToolWorkspaceRootDto { Id = "first", Path = primary }, new ToolWorkspaceRootDto { Id = "second", Path = second }] };
+        var inPrimary = ToolResourcePathRegistry.TryBuildResourceClaim("read_file", JsonSerializer.Serialize(new { filepath = "second/same.txt" }), primary, false, context)!;
+        var inSecond = ToolResourcePathRegistry.TryBuildResourceClaim("read_file", JsonSerializer.Serialize(new { filepath = Path.Combine(second, "same.txt") }), primary, false, context)!;
+        Assert.Equal("path://first/second/same.txt", inPrimary.Resource);
+        Assert.Equal("path://second/same.txt", inSecond.Resource);
+        Assert.True(ToolResourceAllowList.Evaluate(["read:first/second"], ToolResourcePathRegistry.TryReadResourceClaimPath(inPrimary), false).Allowed);
+        Assert.False(ToolResourceAllowList.Evaluate(["read:first/second"], ToolResourcePathRegistry.TryReadResourceClaimPath(inSecond), false).Allowed);
+        Assert.Equal("path://second/same.txt", ToolResourcePathRegistry.TryBuildResourceClaim("read_file", JsonSerializer.Serialize(new { filepath = "same.txt" }), second, false, context)!.Resource);
+    }
     [Theory]
     [InlineData("ls", "path", false)]
     [InlineData("git_status", "repository_path", false)]

@@ -28,7 +28,8 @@ public sealed record WorkspaceSnapshotCaptureRequest(
     string WorkspaceRoot,
     bool IncludeHidden = false,
     int MaxFiles = 10_000,
-    long MaxBytes = 64 * 1024 * 1024);
+    long MaxBytes = 64 * 1024 * 1024,
+    IReadOnlyList<WorkspaceSourceRoot>? SourceRoots = null);
 
 /// <summary>
 /// Versioned payload stored by <see cref="IWorkspaceSnapshotService"/>. The Git
@@ -43,13 +44,16 @@ public sealed record WorkspaceSnapshotDocument(
     bool IncludeHidden,
     string WorkspaceHash,
     IReadOnlyList<WorkspaceSnapshotFile> Files,
-    GitWorkspaceSnapshotState? Git = null);
+    GitWorkspaceSnapshotState? Git = null,
+    IReadOnlyList<WorkspaceSnapshotRoot>? Roots = null);
+
+public sealed record WorkspaceSnapshotRoot(string Id, string RelativePath, WorkspaceSnapshotDocument Snapshot);
 
 public sealed record WorkspaceSnapshotFile(
     string Path,
     long Length,
     string Sha256,
-    string? ContentBase64);
+    string? ContentBase64, string? RootId = null, string? RelativePath = null);
 
 /// <summary>Git metadata captured without relying on shell command concatenation.</summary>
 public sealed record GitWorkspaceSnapshotState(

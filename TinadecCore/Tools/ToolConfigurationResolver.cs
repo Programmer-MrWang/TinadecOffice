@@ -97,10 +97,13 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
             servers = resolvedServers;
         }
         var locations = services.GetRequiredService<IScopeStorageLocations>();
+        var workspace = admitted?.Workspace ?? services.GetService<IWorkspaceDefinitionProvider>()?.Read(requireAvailable: !inspection);
+        var workspaceRoots = workspace?.Roots.Select(root => new ToolWorkspaceRootDto { Id = root.Id, Path = root.Path }).ToArray() ?? [];
+        var workingDirectory = workspace?.PrimaryPath ?? locations.ProjectRoot;
         var storageWrite = services.GetService<IProjectStorageWritePolicy>()?.AllowStorageWrite == true;
         var protectedRoots = services.GetService<IProtectedStorageRoots>()?.Roots ?? [];
-        var hash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { settings = effective, mcp = servers.Select(s => new { s.ConfigurationHash, s.ProgramHash, s.ProgramStatus }), skills = skills.Select(s => new { s.ResourceId, s.ContentHash, s.Revision }), importError, locations.StorageId, locations.Root, locations.ProjectRoot, storageWrite, protectedRoots }));
-        return new() { ProtectedStorageRoots = protectedRoots.ToArray(), StorageId = locations.StorageId, StorageRoot = locations.Root, ProjectRoot = locations.ProjectRoot, ProjectStorageWrite = storageWrite, AgentDefinitionId = document.AgentDefinitionId, Settings = effective, SettingsHash = hash, McpServers = servers, ReadRoots = roots, SkillResources = skills, McpImportError = importError, ResourceDiagnostics = diagnostics };
+        var hash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { settings = effective, mcp = servers.Select(s => new { s.ConfigurationHash, s.ProgramHash, s.ProgramStatus }), skills = skills.Select(s => new { s.ResourceId, s.ContentHash, s.Revision }), importError, locations.StorageId, locations.Root, locations.ProjectRoot, workspaceRoots, workingDirectory, workspace?.PrimaryRootId, storageWrite, protectedRoots }));
+        return new() { WorkspaceRoots = workspaceRoots, PrimaryRootId = workspace?.PrimaryRootId, WorkingDirectory = workingDirectory, ProtectedStorageRoots = protectedRoots.ToArray(), StorageId = locations.StorageId, StorageRoot = locations.Root, ProjectRoot = locations.ProjectRoot, ProjectStorageWrite = storageWrite, AgentDefinitionId = document.AgentDefinitionId, Settings = effective, SettingsHash = hash, McpServers = servers, ReadRoots = roots, SkillResources = skills, McpImportError = importError, ResourceDiagnostics = diagnostics };
     }
     public async Task<FrozenToolConfigurationDto> ResolveForRunAsync(Guid? projectId, IReadOnlyList<Guid> agentDefinitionIds, CancellationToken cancellationToken = default)
     {
@@ -117,6 +120,8 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
         var shared = await ResolveDocumentAsync(projectId, sharedDocument, cancellationToken, admitted: admitted);
         var contexts = new Dictionary<Guid, ToolExecutionContextDto>();
         foreach (var document in documents) contexts[document.Key] = await ResolveDocumentAsync(projectId, document.Value, cancellationToken, admitted: admitted);
+        if (admitted.Workspace is { } workspace && services.GetService<IWorkspaceDefinitionProvider>()?.Read().ContentHash != workspace.ContentHash)
+            throw new ConfigurationDocumentException("configuration_changed_during_admission", "Workspace changed during run admission. Retry the submission.");
         return new() { SharedRevision = sharedDocument.Revision, SharedContext = shared, AgentContexts = contexts, ConfigurationHash = ToolSettingsSchema.Hash(JsonSerializer.SerializeToElement(new { shared.SettingsHash, agents = contexts.OrderBy(x => x.Key).Select(x => new { id = x.Key, hash = x.Value.SettingsHash }) })) };
     }
     private async Task<AdmissionResources> CaptureResourcesAsync(Guid? projectId, IReadOnlyList<JsonElement> effectiveSettings, CancellationToken ct)
@@ -146,11 +151,12 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
             }
             skills = await catalog.CaptureSelectedAsync(projectId, selected, ct);
         }
-        return new(mcpResources, skills, importError);
+        return new(mcpResources, skills, importError, services.GetService<IWorkspaceDefinitionProvider>()?.Read(requireAvailable: true));
     }
-    private sealed record AdmissionResources(McpResourceCatalogSnapshot Mcp, ToolSkillCatalogSnapshot Skills, string? McpImportError);
+    private sealed record AdmissionResources(McpResourceCatalogSnapshot Mcp, ToolSkillCatalogSnapshot Skills, string? McpImportError, WorkspaceDefinition? Workspace);
     public async Task<ToolExecutionContextDto> MaterializeForCallAsync(ToolExecutionContextDto frozen, IReadOnlyList<string> allowedToolIds, CancellationToken cancellationToken = default, string? runId = null, string? toolId = null, string? workingDirectory = null)
     {
+        workingDirectory ??= frozen.WorkingDirectory;
         var locations = services.GetRequiredService<IScopeStorageLocations>();
         if (frozen.StorageId != locations.StorageId || frozen.StorageRoot != locations.Root)
             throw new ToolSettingsException("frozen_storage_scope_mismatch", "This historical run belongs to a different storage scope. Start a new run in the current scope.", 409);
@@ -166,6 +172,12 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
         }
         return new()
         {
+            // A command's cwd can be any subdirectory of the frozen sources without
+            // changing their identities or grant boundaries. Only the separate,
+            // Core-owned worktree assignment rebinds the primary checkout.
+            WorkspaceRoots = frozen.WorkspaceRoots.Select(root => root.Id == frozen.PrimaryRootId && workingDirectory is not null
+                && !frozen.WorkspaceRoots.Any(source => ContainsDirectory(source.Path, workingDirectory))
+                ? new ToolWorkspaceRootDto { Id = root.Id, Path = workingDirectory } : root).ToArray(), PrimaryRootId = frozen.PrimaryRootId,
             ProtectedStorageRoots = frozen.ProtectedStorageRoots.Concat(services.GetService<IProtectedStorageRoots>()?.Roots ?? []).Distinct().ToArray(),
             WorkingDirectory = workingDirectory, StorageId = frozen.StorageId, StorageRoot = frozen.StorageRoot,
             ProjectRoot = frozen.ProjectRoot, ProjectStorageWrite = frozen.ProjectStorageWrite,
@@ -174,6 +186,12 @@ public sealed class ToolConfigurationResolver(IToolSettingsStore settings, IMcpR
             AllowedToolIds = allowedToolIds.Where(id => ToolSettingsSchema.IsEnabled(frozen.Settings,id)).ToArray(),
             SkillResources = frozen.SkillResources, McpImportError = frozen.McpImportError
         };
+    }
+    private static bool ContainsDirectory(string root, string path)
+    {
+        root = Path.TrimEndingDirectorySeparator(WorkspacePathSpelling.Canonical(root));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        return string.Equals(root, path, comparison) || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
     }
     private static IReadOnlyList<Guid>? Bindings(JsonElement settings, string section, string name)
     {

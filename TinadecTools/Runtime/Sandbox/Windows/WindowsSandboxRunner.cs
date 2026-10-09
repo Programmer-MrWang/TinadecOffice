@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using TinadecTools.Tools.FileRW;
 
 namespace TinadecTools.Runtime.Sandbox.Windows;
 
@@ -11,8 +13,9 @@ internal static class WindowsSandboxRunner
     internal static bool IsRunnerMode(string[] args)
         => args.Length > 0 && args[0] == RunnerModeArg;
 
-    internal static int RunRunner()
+    internal static int RunRunner(string[] args)
     {
+        using var authorization = EnterSpawnAuthorization(args);
         using var stdin = Console.OpenStandardInput();
         using var stdout = Console.OpenStandardOutput();
         using var reader = new StreamReader(stdin);
@@ -45,6 +48,46 @@ internal static class WindowsSandboxRunner
             writer.Write(json + "\n");
             return 1;
         }
+    }
+
+    // These arguments are written by the ACL-owning parent at spawn time. They
+    // cannot be changed by the command JSON arriving through the runner pipe.
+    internal static IDisposable EnterSpawnAuthorization(string[] args)
+    {
+        if (args.Length < 1 || args[0] != RunnerModeArg || args.Length % 2 != 1)
+            throw new InvalidDataException("Invalid sandbox runner authorization arguments.");
+        var roots = new List<string>();
+        for (var index = 1; index < args.Length; index += 2)
+        {
+            if (args[index] != "--workspace-root" || !Path.IsPathFullyQualified(args[index + 1]))
+                throw new InvalidDataException("Sandbox runner source roots must be absolute host arguments.");
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[index + 1]));
+            if (!Directory.Exists(root) || SandboxPaths.IsDiskRoot(root))
+                throw new InvalidDataException("Invalid sandbox runner source folder.");
+            roots.Add(root);
+        }
+        if (roots.Count == 0) roots.Add(WorkspacePathResolver.WorkspaceRoot);
+        if (roots.Count > 32 || roots.Distinct(SandboxPaths.PathComparer).Count() != roots.Count)
+            throw new InvalidDataException("Invalid sandbox runner source folder set.");
+        var primary = roots.FindIndex(root => WorkspaceRootSet.IsWithin(root, WorkspacePathResolver.WorkspaceRoot));
+        if (primary < 0) throw new InvalidDataException("The sandbox runner working directory has no host authorization.");
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject(); writer.WriteNumber("schema_version", 1);
+            writer.WriteStartObject("settings"); writer.WriteEndObject();
+            writer.WriteStartArray("allowed_tool_ids"); writer.WriteEndArray();
+            writer.WriteString("working_directory", WorkspacePathResolver.WorkspaceRoot);
+            writer.WriteStartArray("workspace_roots");
+            for (var index = 0; index < roots.Count; index++)
+            {
+                writer.WriteStartObject(); writer.WriteString("id", "source-" + index);
+                writer.WriteString("path", roots[index]); writer.WriteEndObject();
+            }
+            writer.WriteEndArray(); writer.WriteString("primary_root_id", "source-" + primary); writer.WriteEndObject();
+        }
+        using var document = JsonDocument.Parse(buffer.ToArray());
+        return ToolExecutionContext.Enter(document.RootElement);
     }
 
     private static SandboxRunnerResponse ExecuteRunnerCommand(string json)

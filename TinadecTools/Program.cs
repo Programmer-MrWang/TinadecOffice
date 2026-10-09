@@ -14,7 +14,7 @@ if (OperatingSystem.IsWindows() && WindowsSandboxSetup.IsSetupMode(args))
     return WindowsSandboxSetup.RunSetup(args);
 
 if (OperatingSystem.IsWindows() && WindowsSandboxRunner.IsRunnerMode(args))
-    return WindowsSandboxRunner.RunRunner();
+    return WindowsSandboxRunner.RunRunner(args);
 
 // The Linux sandbox's own child half: this process installs Landlock, sets its group, and
 // execve's the commanded binary. It runs before any workspace snapshot, registry

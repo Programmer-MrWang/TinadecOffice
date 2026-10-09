@@ -5,9 +5,15 @@ namespace TinadecTools.Runtime.Sandbox.Windows;
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 internal static class DpapiCredentialStore
 {
-    private static readonly string StoreDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        ".tinadec", "security", "sandbox");
+    private static string? _setupUserRoot;
+    internal static string UserRoot => _setupUserRoot ?? ResolveUserRoot(Environment.GetEnvironmentVariable("TINADEC_HOME"));
+    internal static string ResolveUserRoot(string? configuredRoot) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(
+        string.IsNullOrWhiteSpace(configuredRoot)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".tinadec")
+            : Path.IsPathFullyQualified(configuredRoot) ? configuredRoot
+            : throw new InvalidOperationException("TINADEC_HOME must be an absolute user storage root.")));
+    internal static void SetSetupUserRoot(string root) => _setupUserRoot = ResolveUserRoot(root);
+    private static string StoreDir => Path.Combine(UserRoot, "security", "sandbox");
 
     private static string CredentialPath => Path.Combine(StoreDir, SandboxAccountManager.AccountName + ".dat");
 

@@ -73,7 +73,6 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             if (project.TenantId != tenantId || project.WorkspaceId != workspaceId)
                 throw new UnauthorizedAccessException("Project does not belong to the run tenant/workspace.");
             root = Path.GetFullPath(project.RootPath);
-            if (!Directory.Exists(root)) throw new DirectoryNotFoundException("The project workspace root no longer exists.");
         }
 
         if (_agents is null)
@@ -95,6 +94,11 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             throw new InvalidOperationException("Run frozen configuration hash does not match its durable binding.");
         var frozenManifest = ReadFrozenToolManifest(frozen.Content);
         var toolContext = ReadFrozenToolContext(frozen.Content, authorization.AgentDefinitionId);
+        if (project is not null)
+        {
+            root = toolContext?.WorkingDirectory ?? root;
+            if (!Directory.Exists(root)) throw new DirectoryNotFoundException("The run's frozen primary folder is unavailable.");
+        }
         if (project is not null && !CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && !IsResourceAllowed(authorization.AllowedResources)
             && !(request.ToolId is "read_file" or "ls" or "stat" && toolContext?.ReadRoots.Count > 0))
             throw new UnauthorizedAccessException("Agent instance holds no workspace or selected Skill resource grant.");

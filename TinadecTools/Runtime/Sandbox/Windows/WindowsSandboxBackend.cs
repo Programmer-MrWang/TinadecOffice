@@ -18,7 +18,7 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
             throw new PlatformNotSupportedException("Windows sandbox is only supported on Windows.");
         var gate = SetupGates.GetOrAdd(SandboxAccountManager.AccountName, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
-        try { if (!IsInitialized) WindowsSandboxSetup.EnsureSetup(); }
+        try { if (!IsInitialized) await WindowsSandboxSetup.EnsureSetupAsync(ct).ConfigureAwait(false); }
         finally { gate.Release(); }
     }
 
@@ -182,10 +182,14 @@ internal sealed class WindowsSandboxBackend : ISandboxBackend
         psi.RedirectStandardOutput = true;
         psi.RedirectStandardError = true;
         psi.CreateNoWindow = true;
-        // The runner derives its workspace root from its own CWD. Keep that
-        // root identical to the ACL scope so the second validation cannot be
-        // redirected by the serialized request.
+        // Folder grants travel through the private host spawn channel, never
+        // through the model-authored command request.
         psi.WorkingDirectory = WorkspacePathResolver.WorkspaceRoot;
+        foreach (var source in WorkspacePathResolver.SourceRoots)
+        {
+            psi.ArgumentList.Add("--workspace-root");
+            psi.ArgumentList.Add(source.Path);
+        }
         psi.StandardInputEncoding = System.Text.Encoding.UTF8;
         psi.StandardOutputEncoding = System.Text.Encoding.UTF8;
         psi.UserName = SandboxAccountManager.AccountName;

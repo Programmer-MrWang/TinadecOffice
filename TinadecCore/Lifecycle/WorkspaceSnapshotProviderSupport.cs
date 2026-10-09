@@ -29,7 +29,7 @@ internal static class WorkspaceSnapshotProviderSupport
             RecurseSubdirectories = true,
             IgnoreInaccessible = true,
             ReturnSpecialDirectories = false,
-            AttributesToSkip = FileAttributes.System
+            AttributesToSkip = FileAttributes.System | FileAttributes.ReparsePoint
         }))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -149,8 +149,9 @@ internal static class WorkspaceSnapshotProviderSupport
         var fullRoot = Path.GetFullPath(root);
         var path = Path.GetFullPath(Path.Combine(fullRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
         var prefix = fullRoot.EndsWith(Path.DirectorySeparatorChar) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
-        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        if (!path.StartsWith(prefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new InvalidDataException("Snapshot path escaped the workspace root.");
+        TinadecCore.Persistence.StorageScopePaths.RejectLinks(fullRoot, path);
         return path;
     }
 

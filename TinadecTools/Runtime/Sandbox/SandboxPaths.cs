@@ -37,10 +37,7 @@ internal static class SandboxPaths
 
     internal static bool IsWithinWorkspace(string full)
     {
-        var root = WorkspacePathResolver.WorkspaceRoot;
-        if (string.Equals(full, root, Cmp)) return true;
-        var prefix = root + Path.DirectorySeparatorChar;
-        return full.StartsWith(prefix, Cmp);
+        return WorkspacePathResolver.SourceRoots.Any(root => WorkspaceRootSet.IsWithin(root.Path, full));
     }
 
     // ── external grant normalization ──────────────────────────────────────────
@@ -49,10 +46,8 @@ internal static class SandboxPaths
     /// Normalizes an extra sandbox grant (command_run's additional_read_paths /
     /// additional_write_paths). The sandbox is a separate, approval-gated capability
     /// with its own confinement (<see cref="ValidateWorkingDirectory"/> /
-    /// <see cref="EnsureNotBroadWriteTarget"/>), so a grant is NOT restricted to the
-    /// workspace roots: that is a deliberate product decision, not an oversight.
-    /// Registered follow-up: reconcile these grants with the frozen workspace roots
-    /// so a run cannot persist write access outside its workspace.
+    /// <see cref="EnsureNotBroadWriteTarget"/>). A managed run's grants must stay
+    /// within its frozen source roots, readable resources and trusted storage policy.
     /// </summary>
     internal static string NormalizeGrantPath(string path)
     {
@@ -61,6 +56,11 @@ internal static class SandboxPaths
         full = Path.TrimEndingDirectorySeparator(full);
         if (!Directory.Exists(full))
             throw new DirectoryNotFoundException($"Directory does not exist: {full}");
+        if (ToolExecutionContext.Current is { } context && !WorkspacePathResolver.SourceRoots.Any(root => WorkspaceRootSet.IsWithin(root.Path, full))
+            && !context.ReadRoots.Any(root => WorkspaceRootSet.IsWithin(root, full))
+            && !WorkspaceStoragePolicy.IsPublicScopePath(WorkspacePathResolver.WorkspaceRoot, full)
+            && !(context.ProjectStorageWrite && context.StorageRoot is { } storage && WorkspaceRootSet.IsWithin(storage, full)))
+            throw new UnauthorizedAccessException("Additional command paths must remain within the frozen workspace authorization.");
         return full;
     }
 

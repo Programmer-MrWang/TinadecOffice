@@ -17,6 +17,8 @@ internal sealed class ToolExecutionContext
     public static ToolExecutionContext? Current => Ambient.Value;
     public static string? CurrentCallToolId => Ambient.Value?.ToolId;
     public IReadOnlyList<string> ReadRoots { get; }
+    public IReadOnlyList<(string Id, string Path)> WorkspaceRoots { get; }
+    public string? PrimaryRootId { get; }
     public IReadOnlyList<McpServerConfig> McpServers { get; }
     public string SettingsHash { get; }
     public string? RunId { get; }
@@ -43,6 +45,13 @@ internal sealed class ToolExecutionContext
         StorageRoot = AbsolutePath(_document, "storage_root");
         ProjectRoot = AbsolutePath(_document, "project_root");
         WorkingDirectory = AbsolutePath(_document, "working_directory");
+        PrimaryRootId = Text(_document, "primary_root_id");
+        WorkspaceRoots = _document.TryGetProperty("workspace_roots", out var sources)
+            ? sources.EnumerateArray().Select(row => (Text(row, "id") ?? throw new InvalidOperationException("workspace_roots requires IDs."),
+                AbsolutePath(row, "path") ?? throw new InvalidOperationException("workspace_roots requires absolute paths."))).ToArray() : [];
+        if (WorkspaceRoots.Count > 0 && (WorkspaceRoots.Select(root => root.Id).Distinct().Count() != WorkspaceRoots.Count
+            || PrimaryRootId is null || WorkspaceRoots.All(root => root.Id != PrimaryRootId)))
+            throw new InvalidOperationException("Invalid frozen workspace roots or primary root ID.");
         if (WorkingDirectory is not null && !string.Equals(WorkingDirectory, WorkspaceRootSet.Normalize(WorkspacePathResolver.WorkspaceRoot),
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             throw new InvalidOperationException("The trusted working_directory does not match this tool process's workspace.");

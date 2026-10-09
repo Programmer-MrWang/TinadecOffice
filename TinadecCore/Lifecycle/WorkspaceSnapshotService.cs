@@ -27,6 +27,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
     private readonly ITenantContextAccessor _tenant;
     private readonly StoragePaths _paths;
     private readonly IReadOnlyList<IWorkspaceSnapshotProvider> _providers;
+    private readonly WorkspaceBundleSnapshotProvider? _bundle;
 
     public WorkspaceSnapshotService(
         IDbContextFactory<LifecycleDbContext> dbFactory,
@@ -34,7 +35,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         IContentStore content,
         ITenantContextAccessor tenant,
         StoragePaths paths,
-        IEnumerable<IWorkspaceSnapshotProvider> providers)
+        IEnumerable<IWorkspaceSnapshotProvider> providers, IWorkspaceDefinitionProvider? workspace = null, IScopeStorageLocations? locations = null)
     {
         _dbFactory = dbFactory;
         _sessions = sessions;
@@ -42,6 +43,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         _tenant = tenant;
         _paths = paths;
         _providers = providers.OrderByDescending(x => string.Equals(x.Kind, "git", StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (workspace is not null && locations is not null) _bundle = new(workspace, _providers, locations);
     }
 
     public async Task<WorkspaceSnapshot> CreateAsync(
@@ -70,7 +72,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
             project.RootPath,
             request.IncludeHidden,
             Math.Clamp(request.MaxFiles, 1, 100_000),
-            Math.Clamp(request.MaxBytes, 1, 1024L * 1024 * 1024)), cancellationToken).ConfigureAwait(false);
+            Math.Clamp(request.MaxBytes, 1, 1024L * 1024 * 1024), request.SourceRoots), cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrWhiteSpace(request.ExpectedWorkspaceHash)
             && !FixedEquals(request.ExpectedWorkspaceHash, manifest.WorkspaceHash))
         {
@@ -151,7 +153,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         var manifest = await ReadManifestAsync(row, cancellationToken).ConfigureAwait(false);
         var provider = ResolveProvider(project.RootPath, manifest.ProviderKind);
         var current = await provider.CaptureAsync(new WorkspaceSnapshotCaptureRequest(
-            project.RootPath, manifest.IncludeHidden, 100_000, 1024L * 1024 * 1024), cancellationToken).ConfigureAwait(false);
+            project.RootPath, manifest.IncludeHidden, 100_000, 1024L * 1024 * 1024, SnapshotSources(manifest)), cancellationToken).ConfigureAwait(false);
         var conflicts = new List<string>();
         if (!FixedEquals(row.WorkspaceHash, current.WorkspaceHash)) conflicts.Add("workspace_hash");
         if (manifest.Git is { } expectedGit && current.Git is { } actualGit)
@@ -374,11 +376,10 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         CancellationToken cancellationToken = default)
     {
         var (row, project) = await ReadSnapshotRowAsync(snapshotId, cancellationToken).ConfigureAwait(false);
-        var relative = ResolveRelativeInsideRoot(project.RootPath, path)
-            ?? throw new WorkspaceSnapshotPathException(path);
         var manifest = await ReadManifestAsync(row, cancellationToken).ConfigureAwait(false);
+        var (rootPath, relative, localRelative) = ResolveSnapshotFile(project.RootPath, manifest, path);
         var stored = manifest.Files.FirstOrDefault(x => string.Equals(x.Path, relative, StringComparison.Ordinal));
-        var diskPath = Path.Combine(Path.GetFullPath(project.RootPath), relative.Replace('/', Path.DirectorySeparatorChar));
+        var diskPath = WorkspaceSnapshotProviderSupport.SafePath(rootPath, localRelative);
         var disk = File.Exists(diskPath)
             ? new WorkspaceSnapshotFile(relative, new FileInfo(diskPath).Length,
                 await WorkspaceSnapshotProviderSupport.HashFileAsync(diskPath, cancellationToken).ConfigureAwait(false), null)
@@ -405,9 +406,8 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
                 "expected_sha256 is required: name the hash that was reviewed, or an empty string to assert the file was absent.",
                 nameof(request));
         var (row, project) = await ReadSnapshotRowAsync(snapshotId, cancellationToken).ConfigureAwait(false);
-        var relative = ResolveRelativeInsideRoot(project.RootPath, request.Path)
-            ?? throw new WorkspaceSnapshotPathException(request.Path);
         var manifest = await ReadManifestAsync(row, cancellationToken).ConfigureAwait(false);
+        var (rootPath, relative, localRelative) = ResolveSnapshotFile(project.RootPath, manifest, request.Path);
         var stored = manifest.Files.FirstOrDefault(x => string.Equals(x.Path, relative, StringComparison.Ordinal))
             ?? throw new WorkspaceSnapshotConflictException(
                 "This workspace snapshot has no record of that file.",
@@ -415,7 +415,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         if (stored.ContentBase64 is null)
             throw new WorkspaceSnapshotFileNotCapturedException(relative);
 
-        var target = Path.Combine(Path.GetFullPath(project.RootPath), relative.Replace('/', Path.DirectorySeparatorChar));
+        var target = WorkspaceSnapshotProviderSupport.SafePath(rootPath, localRelative);
         var bytes = Convert.FromBase64String(stored.ContentBase64);
         var live = File.Exists(target)
             ? await WorkspaceSnapshotProviderSupport.HashFileAsync(target, cancellationToken).ConfigureAwait(false)
@@ -446,7 +446,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
         // out of line with the snapshot", and copying every small file into memory to find out
         // would make the read side as expensive as taking another snapshot.
         var current = await provider.CaptureAsync(new WorkspaceSnapshotCaptureRequest(
-            project.RootPath, manifest.IncludeHidden, 100_000, 1), cancellationToken).ConfigureAwait(false);
+            project.RootPath, manifest.IncludeHidden, 100_000, 1, SnapshotSources(manifest)), cancellationToken).ConfigureAwait(false);
         return (manifest, row, current, project);
     }
 
@@ -548,6 +548,7 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
 
     private IWorkspaceSnapshotProvider ResolveProvider(string workspaceRoot, string? kind = null)
     {
+        if (_bundle is not null && (kind is null || kind == "workspace")) return _bundle;
         if (!string.IsNullOrWhiteSpace(kind))
         {
             var matching = _providers.FirstOrDefault(x => string.Equals(x.Kind, kind, StringComparison.OrdinalIgnoreCase));
@@ -558,6 +559,22 @@ internal sealed class WorkspaceSnapshotService : IWorkspaceSnapshotService
 
         return _providers.FirstOrDefault(x => x.CanHandle(workspaceRoot))
             ?? throw new InvalidOperationException("No workspace snapshot provider can handle this workspace.");
+    }
+
+    private IReadOnlyList<WorkspaceSourceRoot>? SnapshotSources(WorkspaceSnapshotDocument manifest) => manifest.Roots is null ? null
+        : (_bundle ?? throw new InvalidOperationException("Workspace bundle authorization is unavailable.")).AuthorizedSources(manifest);
+    private (string RootPath, string Qualified, string Relative) ResolveSnapshotFile(string legacyRoot, WorkspaceSnapshotDocument manifest, string path)
+    {
+        if (manifest.Roots is null)
+        {
+            var relative = ResolveRelativeInsideRoot(legacyRoot, path) ?? throw new WorkspaceSnapshotPathException(path);
+            return (legacyRoot, relative, relative);
+        }
+        var separator = path.IndexOf('/');
+        if (separator < 1) throw new WorkspaceSnapshotPathException(path);
+        var root = SnapshotSources(manifest)!.SingleOrDefault(source => source.Id == path[..separator]) ?? throw new WorkspaceSnapshotPathException(path);
+        var local = ResolveRelativeInsideRoot(root.Path, path[(separator + 1)..]) ?? throw new WorkspaceSnapshotPathException(path);
+        return (root.Path, root.Id + "/" + local, local);
     }
 
     private async Task<WorkspaceSnapshotDocument> ReadManifestAsync(WorkspaceSnapshotRecord row, CancellationToken cancellationToken)

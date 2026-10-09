@@ -19,7 +19,8 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
 
     /// <summary>
     /// The root set of this process: the directory it was started from is the
-    /// writable root, and the host may have declared extra readable roots.
+    /// bootstrap writable root. A trusted invocation may freeze additional source
+    /// folders, while the host may also declare strictly read-only resource roots.
     /// </summary>
     public static WorkspaceRootSet FromProcess() => new(
         Normalize(Environment.CurrentDirectory),
@@ -51,7 +52,7 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
 
             // The writable root already covers itself and everything inside it.
             if (IsWithin(root, full)) continue;
-            if (!roots.Contains(full, StringComparer.OrdinalIgnoreCase)) roots.Add(full);
+            if (!roots.Any(existing => string.Equals(existing, full, PathComparison))) roots.Add(full);
         }
 
         return roots;
@@ -63,6 +64,7 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
     /// </summary>
     public bool IsAllowed(string path, bool writable = false) =>
         (IsWithin(WritableRoot, path)
+            || (ToolExecutionContext.Current?.WorkspaceRoots.Any(root => IsWithin(root.Path, path)) == true)
             || (ToolExecutionContext.Current?.StorageRoot is not null && WorkspaceStoragePolicy.IsPublicScopePath(WritableRoot, path))
             || (!writable && ReadOnlyRoots.Any(root => IsWithin(root, path)))
             || (ToolExecutionContext.Current is { ProjectStorageWrite: true, StorageRoot: { } storage }
@@ -84,6 +86,7 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
     /// <summary>The allowed root that contains the path, so link walking starts at that root.</summary>
     public (string Root, string Relative) OwningRoot(string path) =>
         OwningRootIn(path, new[] { WritableRoot }.Concat(ReadOnlyRoots)
+            .Concat(ToolExecutionContext.Current?.WorkspaceRoots.Select(root => root.Path) ?? [])
             .Concat(ToolExecutionContext.Current is { StorageRoot: { } storage } ? [storage] : Array.Empty<string>()).ToList(),
             static candidate => WorkspacePathForm.Canonical(candidate));
 
@@ -146,15 +149,14 @@ internal sealed record WorkspaceRootSet(string WritableRoot, IReadOnlyList<strin
 
     public UnauthorizedAccessException OutsideWorkspace(string attempted, string resolved, bool writable)
     {
-        var allowed = writable
-            ? $"the writable workspace root '{WritableRoot}'"
-            : ReadOnlyRoots.Count == 0
-                ? $"the workspace root '{WritableRoot}'"
-                : $"the workspace root '{WritableRoot}' or a read-only root ({string.Join(", ", ReadOnlyRoots.Select(root => $"'{root}'"))})";
+        var sources = ToolExecutionContext.Current?.WorkspaceRoots.Select(root => root.Path).ToArray() ?? [WritableRoot];
+        var allowed = $"the authorized source folders ({string.Join(", ", sources.Select(root => $"'{root}'"))})";
+        if (!writable && ReadOnlyRoots.Count > 0)
+            allowed += $" or a read-only root ({string.Join(", ", ReadOnlyRoots.Select(root => $"'{root}'"))})";
         return new UnauthorizedAccessException(
             $"Path '{attempted}' (resolved to '{resolved}') is outside the allowed workspace. "
             + $"Only paths inside {allowed} may be {(writable ? "written" : "read")}. "
-            + "Retry with an absolute path inside the workspace root instead of another location.");
+            + "Retry with an absolute path inside an authorized source folder.");
     }
 }
 
@@ -179,6 +181,8 @@ internal static class WorkspacePathResolver
 
     /// <summary>Extra roots the host declared readable but never writable (empty by default).</summary>
     public static IReadOnlyList<string> ReadOnlyRoots => Roots.ReadOnlyRoots;
+    public static IReadOnlyList<(string Id, string Path)> SourceRoots => ToolExecutionContext.Current is { WorkspaceRoots.Count: > 0 } context
+        ? context.WorkspaceRoots : [("primary", WorkspaceRoot)];
 
     public static string ResolvePath(string path, bool allowFinalLink = false, bool writable = false)
     {

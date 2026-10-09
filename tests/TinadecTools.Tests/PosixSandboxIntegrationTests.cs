@@ -1,6 +1,8 @@
 using TinadecTools.Runtime.Sandbox;
 using TinadecTools.Runtime.Sandbox.Posix;
 using TinadecTools.Tools.FileRW;
+using TinadecTools.Runtime;
+using System.Text.Json;
 
 namespace TinadecTools.Tests;
 
@@ -82,6 +84,52 @@ public sealed class PosixSandboxIntegrationTests : IDisposable
         }
 
         // Windows: the WindowsSandboxBackend owns this surface.
+    }
+
+    [Fact]
+    public async Task FrozenMultiFolderGrantsAllowBothSourcesAndDenyOutsideWrites()
+    {
+        if (!OnPosix) return;
+        // Keep real sources outside the test apphost directory, which the launcher
+        // deliberately rebinds read-only, and outside implicitly granted temp.
+        var primary = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "tinadec-primary-" + Guid.NewGuid().ToString("N"));
+        var secondary = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "tinadec-source-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(primary);
+        Directory.CreateDirectory(secondary);
+        try
+        {
+            using var context = ToolExecutionContext.Enter(JsonSerializer.SerializeToElement(new
+            {
+                schema_version = 1, storage_id = "multi-folder-posix", settings = new { }, allowed_tool_ids = Array.Empty<string>(),
+                workspace_roots = new[] { new { id = "primary", path = primary }, new { id = "second", path = secondary } },
+                primary_root_id = "primary"
+            }));
+            var permissions = CommandSandboxRuntime.BuildPermissions(null, null, null);
+            var backend = new PosixSandboxBackend();
+            var request = new SandboxRunnerRequest
+            {
+                Executable = "/bin/sh", Arguments = ["-c", $"set -e; echo started; pwd; printf first > '{primary}/same.txt'; printf second > '{secondary}/same.txt'"],
+                WorkingDirectory = secondary, TimeoutMs = 10_000
+            };
+            // The extra source is outside both the primary root and implicit temp grants.
+            var response = await backend.ExecuteAsync(request, permissions, false, CancellationToken.None);
+            Assert.True(response.Success, $"{response.Error} {response.Stderr}");
+            Assert.Contains(secondary, response.Stdout);
+            Assert.Equal("first", File.ReadAllText(Path.Combine(primary, "same.txt")));
+            Assert.Equal("second", File.ReadAllText(Path.Combine(secondary, "same.txt")));
+            // Use a sibling outside every source, never an implicitly granted temp path.
+            var outsideRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "tinadec-workspace-outside-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideRoot);
+            try
+            {
+                request.Arguments = ["-c", $"echo started; printf denied > '{outsideRoot}/denied.txt'"];
+                response = await backend.ExecuteAsync(request, permissions, false, CancellationToken.None);
+                Assert.Contains("started", response.Stdout); Assert.False(response.Success);
+                Assert.False(File.Exists(Path.Combine(outsideRoot, "denied.txt")));
+            }
+            finally { Directory.Delete(outsideRoot, true); }
+        }
+        finally { Directory.Delete(secondary, true); Directory.Delete(primary, true); }
     }
 
     [Fact]

@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
 using TinadecTools.Abstractions;
+using TinadecTools.Tools.FileRW;
 
 namespace TinadecTools.Tools.Search;
 
@@ -64,6 +66,8 @@ public sealed class MatchSpan
 /// </summary>
 public sealed class FileSearchLine
 {
+    [JsonPropertyName("root_id")] public string? RootId { get; set; }
+    [JsonPropertyName("relative_path")] public string? RelativePath { get; set; }
     [JsonPropertyName("filepath")]
     public string FilePath { get; set; } = string.Empty;
 
@@ -131,6 +135,30 @@ public static class FileSearch
 
         try
         {
+            if (args.Path == "." && WorkspacePathResolver.SourceRoots.Count > 1)
+            {
+                var combined = new FileSearchResponse { Success = true };
+                foreach (var root in WorkspacePathResolver.SourceRoots)
+                {
+                    var scoped = JsonSerializer.Deserialize(JsonSerializer.Serialize(args, FileSearchJsonContext.Default.FileSearchParams), FileSearchJsonContext.Default.FileSearchParams)!;
+                    scoped.Path = root.Path;
+                    scoped.MaxResults = Math.Max(1, args.MaxResults - combined.Lines.Count(line => line.IsMatch));
+                    var result = await RipgrepRunner.RunAsync(scoped, cancellationToken).ConfigureAwait(false);
+                    if (!result.Success) return result;
+                    foreach (var line in result.Lines)
+                    {
+                        line.RootId = root.Id;
+                        var absolute = System.IO.Path.GetFullPath(line.FilePath, root.Path);
+                        line.RelativePath = System.IO.Path.GetRelativePath(root.Path, absolute).Replace('\\', '/');
+                        line.FilePath = absolute;
+                    }
+                    combined.Lines.AddRange(result.Lines);
+                    foreach (var hash in result.FileHashes) combined.FileHashes[System.IO.Path.GetFullPath(hash.Key, root.Path)] = hash.Value;
+                    combined.TotalMatchCount += result.TotalMatchCount;
+                    if (result.Truncated || combined.Lines.Count(line => line.IsMatch) >= args.MaxResults) { combined.Truncated = true; break; }
+                }
+                return combined;
+            }
             return await RipgrepRunner.RunAsync(args, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
