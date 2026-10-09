@@ -32,3 +32,15 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[TOOLS-MCP-001](TODO.md#tools-mcp-001)。
+
+## 2026-10-08 托管版本连接
+
+```mermaid
+flowchart LR
+  Context["ToolExecutionContext中的准确资源版本"] -->|"托管选择；不回退旧文件"| Repo["McpServerRepository"]
+  Repo -->|"资源ID/版本/环境指纹"| Pool["McpClientPool"]
+  Pool -->|"stdio连接复用"| Server["外部MCP进程"]
+  Run["运行租约及活跃调用"] -->|"保留旧连接，结束后回收"| Pool
+```
+
+箭头依据：[资源选择](../../../../../TinadecTools/Tools/Mcp/McpServerRepository.cs)、[连接池](../../../../../TinadecTools/Tools/Mcp/McpClientPool.cs)、[可信上下文](../../../../../TinadecTools/Runtime/ToolExecutionContext.cs)。新版本开新连接，旧运行继续用其版本。Core的导入和市场安装写同一资源库；Tools独立模式仍允许文件配置，不能成为托管运行的第二配置来源。

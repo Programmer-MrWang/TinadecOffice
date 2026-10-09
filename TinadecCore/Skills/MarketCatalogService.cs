@@ -32,7 +32,7 @@ namespace TinadecCore.Skills;
 public sealed class MarketCatalogService : IMarketCatalogService
 {
     /// <summary>Source kinds with an adapter in this build. Creating any other is refused.</summary>
-    public static readonly IReadOnlyList<string> AdapterKinds = [McpRegistryKind, SkillRepositoryKind];
+    public static readonly IReadOnlyList<string> AdapterKinds = [McpRegistryKind, SkillRepositoryKind, SkillGitRepositorySource.Kind];
 
     private const string McpRegistryKind = "mcp_registry";
     private const string SkillRepositoryKind = "skill_repository";
@@ -97,6 +97,9 @@ public sealed class MarketCatalogService : IMarketCatalogService
 
         var location = (request.Location ?? string.Empty).Trim();
         ValidateLocation(location);
+        if (string.Equals(kind, SkillGitRepositorySource.Kind, StringComparison.OrdinalIgnoreCase)
+            && !SkillGitRepositorySource.ValidateLocation(location, out var gitError))
+            throw Invalid("location", gitError ?? "The Git repository URL is not a pinned public GitHub repository.");
 
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
         var clone = await db.Sources.FirstOrDefaultAsync(
@@ -272,6 +275,10 @@ public sealed class MarketCatalogService : IMarketCatalogService
 
         if (string.Equals(source.Kind, SkillRepositoryKind, StringComparison.OrdinalIgnoreCase))
             return await SkillRepositorySource
+                .FetchAsync(_provider, workspaceRoot, source.Location, cancellationToken).ConfigureAwait(false);
+
+        if (string.Equals(source.Kind, SkillGitRepositorySource.Kind, StringComparison.OrdinalIgnoreCase))
+            return await SkillGitRepositorySource
                 .FetchAsync(_provider, workspaceRoot, source.Location, cancellationToken).ConfigureAwait(false);
 
         // Reachable only for a row created before an adapter was removed. Reported rather

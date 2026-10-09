@@ -39,6 +39,7 @@ import {
 import { externalDtoSchemas, externalJsonRequest, externalJsonResponse } from './externalDtoOpenApi.js';
 import { registerTinaChatRoutes, tinaChatSchemas } from './tinaChatRoutes.js';
 import { registerOrganizationRoutes, organizationSchemas } from './organizationRoutes.js';
+import { registerToolsSettingsRoutes, toolsSettingsSchemas } from './toolsSettingsRoutes.js';
 
 const config = getConfig();
 const requestAuthContexts = new WeakMap<Request, AuthContext>();
@@ -131,7 +132,7 @@ const app = new Elysia()
       ],
       // TypeBox emits valid OpenAPI schemas, but its union types are not structurally
       // assignable to openapi-types' narrower SchemaObject declaration.
-      components: { schemas: { ...agentPackOpenApiSchemas, ...externalDtoSchemas, ...tinaChatSchemas, ...organizationSchemas } as never },
+      components: { schemas: { ...agentPackOpenApiSchemas, ...externalDtoSchemas, ...tinaChatSchemas, ...organizationSchemas, ...toolsSettingsSchemas } as never },
     }
   }))
   .onError(({ code, error, set, request }) => {
@@ -1473,7 +1474,7 @@ const app = new Elysia()
     if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id']);
     return result.data;
-  }, { detail: { summary: 'Preview a market install', tags: ['System'], responses: { 200: externalJsonResponse('MarketInstallProposal', 'The frozen proposal: pinned command, exact file, exact bytes, and the moment it stops being applyable. Nothing was written by asking.') } } })
+  }, { detail: { summary: 'Preview a market install', tags: ['System'], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { scope: { type: 'string', enum: ['shared', 'project'], default: 'shared', description: 'Skills default to shared. A shared skill does not require project_id.' }, project_id: { type: 'string', format: 'uuid', description: 'Required for project Skills and MCP installation.' } }, additionalProperties: false } } } }, responses: { 200: externalJsonResponse('MarketInstallProposal', 'Frozen scope, stable resource ID, complete package files and digest or pinned MCP command. Nothing was written by asking.') } } })
   .post('/api/v1/market/installations/:installationId/uninstall-preview', async ({ params, set, request }) => {
     const headers = forwardHeaders(request);
     const path = `/api/v1/market/installations/${params.installationId}/uninstall-preview`;
@@ -2524,6 +2525,7 @@ const app = new Elysia()
 
 registerTinaChatRoutes(app, forwardHeaders);
 registerOrganizationRoutes(app, forwardHeaders);
+registerToolsSettingsRoutes(app, forwardHeaders);
 
 export { app };
 

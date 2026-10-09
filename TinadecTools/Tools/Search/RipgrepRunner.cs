@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TinadecTools.Tools.FileRW;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.Search;
 
@@ -56,6 +57,8 @@ internal static class RipgrepRunner
 
     public static string ResolveRgPath()
     {
+        var configured = ToolExecutionContext.Current?.String("search", "rg_path");
+        if (!string.IsNullOrWhiteSpace(configured)) return configured;
         var fromEnv = Environment.GetEnvironmentVariable(RgPathEnvVar);
         if (!string.IsNullOrWhiteSpace(fromEnv))
             return fromEnv;
@@ -80,6 +83,11 @@ internal static class RipgrepRunner
         FileSearchParams args,
         CancellationToken cancellationToken)
     {
+        var callerCancellation = cancellationToken;
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (ToolExecutionContext.Current?.Setting("search", "timeout_ms") is { ValueKind: JsonValueKind.Number })
+            deadline.CancelAfter(ToolExecutionContext.Current.Integer("search", "timeout_ms", 30_000, 1, 1_800_000));
+        cancellationToken = deadline.Token;
         var searchPath = WorkspacePathResolver.ResolveDirectory(args.Path);
         var rgPath = ResolveRgPath();
         if (!File.Exists(rgPath))
@@ -151,6 +159,8 @@ internal static class RipgrepRunner
         catch (OperationCanceledException)
         {
             KillSafe(process);
+            if (!callerCancellation.IsCancellationRequested)
+                return Fail("file_search timed out under the frozen search.timeout_ms budget.");
             throw;
         }
         finally
@@ -214,6 +224,8 @@ internal static class RipgrepRunner
 
         psi.ArgumentList.Add("--json");
         psi.ArgumentList.Add("--no-follow");
+        if (args.IncludeHidden) psi.ArgumentList.Add("--hidden");
+        if (!args.RespectIgnoreFiles) psi.ArgumentList.Add("--no-ignore");
 
         if (args.CaseSensitive) psi.ArgumentList.Add("--case-sensitive");
         else                    psi.ArgumentList.Add("--ignore-case");

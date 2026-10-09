@@ -116,7 +116,8 @@ function filterLabel(key: string) {
         <option v-for="kind in sourceKindOptions" :key="kind" :value="kind">{{ sourceKindLabel(kind) }}</option>
       </select>
       <UiInput v-model="sourceForm.name" :placeholder="t('market.sourceName')" />
-      <UiInput v-model="sourceForm.location" :placeholder="t('market.sourceLocation')" />
+      <UiInput v-model="sourceForm.location" :placeholder="t(sourceForm.kind === 'skill_git' ? 'market.skillGitLocation' : 'market.sourceLocation')" />
+      <p v-if="sourceForm.kind === 'skill_git'" class="quiet">{{ t('market.skillGitHint') }}</p>
       <UiButton size="sm" :disabled="busy || !sourceForm.location" @click="addSource">
         <FolderPlus :size="14" />
         {{ t('market.add') }}

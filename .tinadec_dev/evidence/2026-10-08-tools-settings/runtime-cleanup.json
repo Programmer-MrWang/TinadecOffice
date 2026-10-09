@@ -1,0 +1,10 @@
+{
+  "isolated_ports": [
+    48880,
+    48881
+  ],
+  "listeners_remaining": [],
+  "isolated_hosts_remaining": [],
+  "success": true,
+  "existing_development_hosts_untouched": true
+}

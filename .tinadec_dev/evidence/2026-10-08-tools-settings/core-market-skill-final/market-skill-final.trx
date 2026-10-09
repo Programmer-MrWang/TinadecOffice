@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="85c570d7-0b3d-4d30-8528-3a9d4e9ece87" name="lincu@LINSTATION 2026-10-08 18:37:55" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-08T18:37:55.7602276+08:00" queuing="2026-10-08T18:37:55.7602285+08:00" start="2026-10-08T18:37:22.2908805+08:00" finish="2026-10-08T18:38:18.5004764+08:00" />
+  <TestSettings name="default" id="71262391-0eae-4a3b-9eb8-388051b60bf4">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-08_18_37_55" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="0af12861-e64b-4ff5-a988-8e9ea0bd0cee" testId="6c9bb4f2-5e05-486b-e56f-f097a3c9f315" testName="TinadecCore.Api.Tests.FullDuplexEndpointTests.InvokeStream_SendsTheSkillIndexAndKeepsEverySkillBodyOnDisk" computerName="LINSTATION" duration="00:00:21.9045895" startTime="2026-10-08T18:37:55.7096989+08:00" endTime="2026-10-08T18:38:17.8409037+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0af12861-e64b-4ff5-a988-8e9ea0bd0cee" />
+    <UnitTestResult executionId="7f2d2b2c-910a-4bb6-89a8-a19d510dc310" testId="5045ae66-90ef-c1c4-0716-840fc7df1d20" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" computerName="LINSTATION" duration="00:00:26.4855465" startTime="2026-10-08T18:37:25.4651737+08:00" endTime="2026-10-08T18:37:55.5988782+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7f2d2b2c-910a-4bb6-89a8-a19d510dc310">
+      <Output>
+        <ErrorInfo>
+          <Message>{"id":"ac-live","resource_id":"667520e8-1733-4af9-a1dd-f8cc4e287aca","name":"@ac/live","status":"error","error":"Could not load file or assembly \u0027Microsoft.Extensions.Logging.Abstractions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60\u0027. \u7CFB\u7EDF\u627E\u4E0D\u5230\u6307\u5B9A\u7684\u6587\u4EF6\u3002","tools":[]}</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1238&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-skills-test\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="5045ae66-90ef-c1c4-0716-840fc7df1d20">
+      <Execution id="7f2d2b2c-910a-4bb6-89a8-a19d510dc310" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-skills-test\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.FullDuplexEndpointTests.InvokeStream_SendsTheSkillIndexAndKeepsEverySkillBodyOnDisk" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-skills-test\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6c9bb4f2-5e05-486b-e56f-f097a3c9f315">
+      <Execution id="0af12861-e64b-4ff5-a988-8e9ea0bd0cee" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-skills-test\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.FullDuplexEndpointTests" name="InvokeStream_SendsTheSkillIndexAndKeepsEverySkillBodyOnDisk" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="6c9bb4f2-5e05-486b-e56f-f097a3c9f315" executionId="0af12861-e64b-4ff5-a988-8e9ea0bd0cee" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5045ae66-90ef-c1c4-0716-840fc7df1d20" executionId="7f2d2b2c-910a-4bb6-89a8-a19d510dc310" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="2" executed="2" passed="1" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.53]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.82]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.92]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:31.18]       {"id":"ac-live","resource_id":"667520e8-1733-4af9-a1dd-f8cc4e287aca","name":"@ac/live","status":"error","error":"Could not load file or assembly \u0027Microsoft.Extensions.Logging.Abstractions, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60\u0027. \u7CFB\u7EDF\u627E\u4E0D\u5230\u6307\u5B9A\u7684\u6587\u4EF6\u3002","tools":[]}&#xD;
+[xUnit.net 00:00:31.19]       Stack Trace:&#xD;
+[xUnit.net 00:00:31.20]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1238,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable()&#xD;
+[xUnit.net 00:00:31.20]         --- End of stack trace from previous location ---&#xD;
+warn: Microsoft.EntityFrameworkCore.Query[10102]&#xD;
+      The query uses a row limiting operator ('Skip'/'Take') without an 'OrderBy' operator. This may lead to unpredictable results. If the 'Distinct' operator is used after 'OrderBy', then make sure to use the 'OrderBy' operator after 'Distinct' as the ordering would otherwise get erased.&#xD;
+[xUnit.net 00:00:53.43]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-08T18:37:55.6167803+08:00">
+        <Text>[xUnit.net 00:00:31.18]     TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

@@ -32,6 +32,8 @@ public interface IMarketInstallService
         Guid projectId,
         CancellationToken cancellationToken = default);
 
+    Task<MarketInstallProposalDto> PreviewSkillInstallAsync(Guid catalogId, Guid? projectId, string scope = "shared", CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Freezes the reverse of an existing installation: the same file with that one entry taken
     /// back out. Removing an entry never deletes package bytes the provider may have downloaded,

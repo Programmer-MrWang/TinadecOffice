@@ -27,6 +27,10 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
     private readonly IWorkspaceSnapshotService _snapshots;
     private readonly IContentStore _content;
     private readonly INonceMaterialStore _nonceMaterials;
+    private readonly IToolConfigurationResolver? _toolSettings;
+    private readonly IMcpResourceRegistry? _mcpResources;
+    private readonly IToolSkillResourceService? _skillResources;
+    private readonly IToolExecutionContextLifecycle? _contextLifecycle;
     private readonly SemaphoreSlim _recoveryGate = new(1, 1);
 
     public UserToolActionService(
@@ -37,7 +41,11 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         IAuthorizationService authorization,
         IWorkspaceSnapshotService snapshots,
         IContentStore content,
-        INonceMaterialStore nonceMaterials)
+        INonceMaterialStore nonceMaterials,
+        IToolConfigurationResolver? toolSettings = null,
+        IMcpResourceRegistry? mcpResources = null,
+        IToolExecutionContextLifecycle? contextLifecycle = null,
+        IToolSkillResourceService? skillResources = null)
     {
         _dbFactory = dbFactory;
         _tenant = tenant;
@@ -47,22 +55,29 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         _snapshots = snapshots;
         _content = content;
         _nonceMaterials = nonceMaterials;
+        _toolSettings = toolSettings;
+        _mcpResources = mcpResources;
+        _skillResources = skillResources;
+        _contextLifecycle = contextLifecycle;
     }
 
     public async Task<UserToolActionResult> CreateAsync(UserToolActionRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.ProjectId == Guid.Empty) throw new ArgumentException("project_id is required.", nameof(request));
+        if (request.ProjectId == Guid.Empty && request.ToolId != "skill_resource_update") throw new ArgumentException("project_id is required.", nameof(request));
         if (string.IsNullOrWhiteSpace(request.ToolId)) throw new ArgumentException("tool_id is required.", nameof(request));
         if (!TryNormalizeParameters(request.ParametersJson, out var parametersJson))
             throw new ArgumentException("params must be a JSON object or null.", nameof(request));
 
         var scope = _tenant.Current;
-        var project = await _sessions.FindProjectAsync(request.ProjectId, cancellationToken).ConfigureAwait(false)
+        var project = request.ProjectId == Guid.Empty ? null : await _sessions.FindProjectAsync(request.ProjectId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Project was not found.");
-        EnsureProjectScope(project, scope);
-        var trustedTool = await ReadTrustedToolAsync(request.ToolId.Trim(), project.RootPath, cancellationToken).ConfigureAwait(false);
+        if (project is not null) EnsureProjectScope(project, scope);
+        var trustedTool = await ReadTrustedToolAsync(request.ToolId.Trim(), project?.RootPath ?? "", cancellationToken).ConfigureAwait(false);
         var descriptor = trustedTool.Descriptor;
         EnsureParametersMatchDescriptor(parametersJson, descriptor);
+        if (descriptor.Id == "mcp_resource_update") ValidateManagedMcpParameters(parametersJson, project!.ProjectId);
+        if (descriptor.Id == "skill_resource_update") ValidateManagedSkillParameters(parametersJson);
+        if (descriptor.Id == "skill_project_package") ValidateSkillProjectPackage(parametersJson);
         var idempotencyKey = NormalizeIdempotencyKey(request.IdempotencyKey);
         var parametersHash = ToolParametersHash.Compute(parametersJson);
 
@@ -84,15 +99,19 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         var stored = await PutContentAsync(scope, "user-tool-parameters", parametersJson, cancellationToken).ConfigureAwait(false);
         var frozenDescriptorJson = JsonSerializer.Serialize(ToFrozen(descriptor), JsonOptions);
         var frozenDescriptor = await PutContentAsync(scope, "user-tool-descriptor", frozenDescriptorJson, cancellationToken).ConfigureAwait(false);
+        var toolContext = descriptor.Id is "mcp_resource_update" or "skill_resource_update" or "skill_project_package" || _toolSettings is null ? null : await _toolSettings.ResolveAsync(project!.ProjectId, null, cancellationToken).ConfigureAwait(false);
+        if (toolContext is not null && !ToolSettingsSchema.IsEnabled(toolContext.Settings, descriptor.Id)) throw new UnauthorizedAccessException("This tool is disabled in shared settings.");
+        var frozenToolContext = toolContext is null ? null : await PutContentAsync(scope, "user-tool-configuration", JsonSerializer.Serialize(toolContext, JsonOptions), cancellationToken).ConfigureAwait(false);
         var now = DateTimeOffset.UtcNow;
         var actionId = Guid.NewGuid();
         var action = new UserToolActionRecord
         {
             Id = actionId, AuditReference = $"user-tool-action:{actionId:N}", TenantId = scope.TenantId, WorkspaceId = scope.WorkspaceId,
-            ProjectId = project.ProjectId, PrincipalId = scope.PrincipalId, ToolId = descriptor.Id,
+            ProjectId = project?.ProjectId ?? Guid.Empty, PrincipalId = scope.PrincipalId, ToolId = descriptor.Id,
             ProviderProtocolVersion = trustedTool.ProtocolVersion, ProviderManifestHash = trustedTool.ManifestHash,
             ToolDescriptorReference = frozenDescriptor.Value, ToolDescriptorHash = frozenDescriptor.Sha256,
             ToolDescriptorLength = frozenDescriptor.Length,
+            ToolConfigurationReference = frozenToolContext?.Value ?? string.Empty, ToolConfigurationHash = frozenToolContext?.Sha256 ?? string.Empty, ToolConfigurationLength = frozenToolContext?.Length ?? 0,
             ParametersReference = stored.Value, ParametersLength = stored.Length, ParametersHash = parametersHash,
             Risk = NormalizeRisk(descriptor.Risk), MutatesWorkspace = descriptor.MutatesWorkspace,
             RequiresApproval = descriptor.RequiresApproval || descriptor.MutatesWorkspace,
@@ -109,7 +128,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
             try
             {
                 var snapshot = await _snapshots.CreateAsync(new WorkspaceSnapshotCreateRequest(
-                    project.ProjectId, $"user-action:{action.Id:N}:prewrite"), cancellationToken).ConfigureAwait(false);
+                    project!.ProjectId, $"user-action:{action.Id:N}:prewrite"), cancellationToken).ConfigureAwait(false);
                 action.SnapshotId = snapshot.Id;
                 action.SnapshotHash = snapshot.WorkspaceHash;
                 action.Status = "requested";
@@ -153,10 +172,10 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         if (IsTerminal(action.Status) || action.Status == UserToolActionStatuses.SnapshotRequired)
             return await ToResultAsync(action, cancellationToken).ConfigureAwait(false);
         var scope = _tenant.Current;
-        var project = await _sessions.FindProjectAsync(action.ProjectId, cancellationToken).ConfigureAwait(false)
+        var project = action.ToolId == "skill_resource_update" && action.ProjectId == Guid.Empty ? null : await _sessions.FindProjectAsync(action.ProjectId, cancellationToken).ConfigureAwait(false)
             ?? throw new KeyNotFoundException("Project was not found.");
-        EnsureProjectScope(project, scope);
-        var descriptorValidation = await ValidateFrozenToolAsync(action, project.RootPath, cancellationToken).ConfigureAwait(false);
+        if (project is not null) EnsureProjectScope(project, scope);
+        var descriptorValidation = await ValidateFrozenToolAsync(action, project?.RootPath ?? "", cancellationToken).ConfigureAwait(false);
         if (descriptorValidation.Error is not null)
             return await BlockAsync(action, descriptorValidation.Error.Value.Code, descriptorValidation.Error.Value.Message, cancellationToken).ConfigureAwait(false);
         var descriptor = descriptorValidation.Descriptor!;
@@ -360,7 +379,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         return await ToResultAsync(recovered, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<UserToolActionResult> AuthorizeAndMaybeRunAsync(UserToolActionRecord action, ToolManifestEntryDto descriptor, ProjectReference project, CancellationToken cancellationToken)
+    private async Task<UserToolActionResult> AuthorizeAndMaybeRunAsync(UserToolActionRecord action, ToolManifestEntryDto descriptor, ProjectReference? project, CancellationToken cancellationToken)
     {
         if (action.PermissionRequestId is null)
         {
@@ -397,7 +416,7 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         return await ExecuteAsync(action, project, descriptor, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<UserToolActionResult> ExecuteAsync(UserToolActionRecord action, ProjectReference project, ToolManifestEntryDto descriptor, CancellationToken cancellationToken)
+    private async Task<UserToolActionResult> ExecuteAsync(UserToolActionRecord action, ProjectReference? project, ToolManifestEntryDto descriptor, CancellationToken cancellationToken)
     {
         var parameters = await ReadContentAsync(action.ParametersReference, action.ParametersHash, action.ParametersLength, "application/json", cancellationToken).ConfigureAwait(false);
         try
@@ -477,9 +496,27 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         try
         {
             using var document = JsonDocument.Parse(parameters);
-            response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto
-            { ToolId = descriptor.Id, SessionId = $"user-action:{action.Id:N}", Approved = true, Params = document.RootElement.Clone() },
-                TimeSpan.FromSeconds(120), cancellationToken).ConfigureAwait(false);
+            if (descriptor.Id == "mcp_resource_update") response = await ExecuteManagedMcpAsync(document.RootElement, action.ProjectId, cancellationToken).ConfigureAwait(false);
+            else if (descriptor.Id == "skill_resource_update") response = await ExecuteManagedSkillAsync(document.RootElement, cancellationToken).ConfigureAwait(false);
+            else if (descriptor.Id == "skill_project_package") response = await ExecuteSkillProjectPackageAsync(document.RootElement, project!, cancellationToken).ConfigureAwait(false);
+            else
+            {
+                ToolExecutionContextDto? context = null;
+                if (_toolSettings is not null && action.ToolConfigurationLength > 0)
+                {
+                    var json = await ReadContentAsync(action.ToolConfigurationReference, action.ToolConfigurationHash, action.ToolConfigurationLength, "application/json", cancellationToken).ConfigureAwait(false);
+                    var frozenContext = JsonSerializer.Deserialize<ToolExecutionContextDto>(json, JsonOptions) ?? throw new InvalidDataException("Frozen user action configuration is unavailable.");
+                    context = await _toolSettings.MaterializeForCallAsync(frozenContext, [descriptor.Id], cancellationToken, $"user-action:{action.Id:N}", descriptor.Id).ConfigureAwait(false);
+                }
+                response = await _provider.CallAsync(project!.RootPath, new ToolWireRequestDto
+                { ToolId = descriptor.Id, SessionId = $"user-action:{action.Id:N}", Approved = true, Params = document.RootElement.Clone(), ExecutionContext = context },
+                    context is null ? TimeSpan.FromSeconds(120) : ToolSettingsSchema.WireBudget(context.Settings, descriptor.Id, document.RootElement, TimeSpan.FromSeconds(120)), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (ToolSettingsException ex)
+        {
+            action.Status = "failed"; action.ErrorCategory = ex.Code; action.SafeErrorMessage = ex.Message; action.CompletedAt = action.UpdatedAt = DateTimeOffset.UtcNow;
+            await SaveAsync(action, cancellationToken).ConfigureAwait(false); return await ToResultAsync(action, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException)
         {
@@ -490,6 +527,10 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
             action.UpdatedAt = DateTimeOffset.UtcNow;
             await SaveAsync(action, cancellationToken).ConfigureAwait(false);
             return await ToResultAsync(action, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (_contextLifecycle is not null) await _contextLifecycle.ReleaseAsync($"user-action:{action.Id:N}", CancellationToken.None).ConfigureAwait(false);
         }
         if (!response.IsSuccess)
         {
@@ -636,6 +677,9 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
 
     private async Task<TrustedTool> ReadTrustedToolAsync(string toolId, string workspaceRoot, CancellationToken cancellationToken)
     {
+        if (toolId == "mcp_resource_update") return new TrustedTool(2, ToolManifestHasher.Compute([ManagedMcpDescriptor]), ManagedMcpDescriptor);
+        if (toolId == "skill_resource_update") return new TrustedTool(2, ToolManifestHasher.Compute([ManagedSkillDescriptor]), ManagedSkillDescriptor);
+        if (toolId == "skill_project_package") return new TrustedTool(2, ToolManifestHasher.Compute([ProjectSkillDescriptor]), ProjectSkillDescriptor);
         var manifest = await _provider.GetManifestAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
         if (manifest.ProtocolVersion != 2)
             throw new InvalidDataException("Tool Provider must expose manifest protocol v2.");
@@ -679,6 +723,15 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
             || frozen.MutatesWorkspace != action.MutatesWorkspace
             || (frozen.RequiresApproval || frozen.MutatesWorkspace) != action.RequiresApproval)
             return FrozenToolValidation.Failed("tool_descriptor_binding_changed", "The persisted action no longer matches its frozen tool descriptor.");
+        if (action.ToolId == "mcp_resource_update")
+            return FixedEquals(action.ProviderManifestHash, ToolManifestHasher.Compute([ManagedMcpDescriptor])) && ToolManifestHasher.Equivalent(ManagedMcpDescriptor, frozen)
+                ? new FrozenToolValidation(ManagedMcpDescriptor, null) : FrozenToolValidation.Failed("tool_descriptor_changed", "The managed resource descriptor changed.");
+        if (action.ToolId == "skill_resource_update")
+            return FixedEquals(action.ProviderManifestHash, ToolManifestHasher.Compute([ManagedSkillDescriptor])) && ToolManifestHasher.Equivalent(ManagedSkillDescriptor, frozen)
+                ? new FrozenToolValidation(ManagedSkillDescriptor, null) : FrozenToolValidation.Failed("tool_descriptor_changed", "The managed skill descriptor changed.");
+        if (action.ToolId == "skill_project_package")
+            return FixedEquals(action.ProviderManifestHash, ToolManifestHasher.Compute([ProjectSkillDescriptor])) && ToolManifestHasher.Equivalent(ProjectSkillDescriptor, frozen)
+                ? new FrozenToolValidation(ProjectSkillDescriptor, null) : FrozenToolValidation.Failed("tool_descriptor_changed", "The project skill descriptor changed.");
 
         ToolManifestDto manifest;
         try
@@ -773,7 +826,148 @@ public sealed class UserToolActionService : IUserToolActionService, IUserToolAct
         };
     }
 
-    private static bool NeedsPrewriteSnapshot(ToolManifestEntryDto descriptor) => descriptor.MutatesWorkspace && RiskRank(descriptor.Risk) >= 2;
+    private static bool NeedsPrewriteSnapshot(ToolManifestEntryDto descriptor) => descriptor.Id is not "mcp_resource_update" and not "skill_resource_update" && descriptor.MutatesWorkspace && RiskRank(descriptor.Risk) >= 2;
+
+    private static readonly ToolManifestEntryDto ManagedMcpDescriptor = new()
+    {
+        Id = "mcp_resource_update", Description = "Update the Core managed MCP resource registry.", Risk = "high", MutatesWorkspace = true, RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = ["action", "id", "command"],
+        InputSchema = JsonSerializer.SerializeToElement(new { type = "object", properties = new { action = new { type = "string" }, resource_id = new { type = "string" }, project_id = new { type = "string" }, expected_revision = new { type = "integer" }, id = new { type = "string" }, name = new { type = "string" }, enabled = new { type = "boolean" }, command = new { type = "string" }, args = new { type = "array" }, env = new { type = "object" }, cwd = new { type = "string" } }, required = new[] { "action", "expected_revision" } })
+    };
+    private static readonly ToolManifestEntryDto ManagedSkillDescriptor = new()
+    {
+        Id = "skill_resource_update", Description = "Update a Core managed shared Skill package.", Risk = "high", MutatesWorkspace = true, RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = ["action", "name", "content"],
+        InputSchema = JsonSerializer.SerializeToElement(new { type = "object", properties = new { action = new { type = "string" }, resource_id = new { type = "string" }, expected_revision = new { type = "integer" }, expected_package_hash = new { type = "string" }, expected_package_digest = new { type = "string" }, scope = new { type = "string" }, name = new { type = "string" }, content = new { type = "string" }, files = new { type = "object" }, replace_files = new { type = "boolean" }, source = new { type = "string" }, version = new { type = "string" }, commit = new { type = "string" } }, required = new[] { "action", "expected_revision", "scope", "name", "content" } })
+    };
+    private static readonly ToolManifestEntryDto ProjectSkillDescriptor = new()
+    {
+        Id = "skill_project_package", Description = "Write a complete reviewed Skill package through project file tools.", Risk = "high", MutatesWorkspace = true, RequiresApproval = true, RetrySafety = "unsafe", ConfirmationFields = [],
+        InputSchema = JsonSerializer.SerializeToElement(new { type = "object", properties = new { name = new { type = "string" }, content = new { type = "string" }, files = new { type = "object" }, expected_file_hashes = new { type = "object" } }, required = new[] { "name", "content", "files", "expected_file_hashes" } })
+    };
+    private static void ValidateSkillProjectPackage(string parameters)
+    {
+        using var doc = JsonDocument.Parse(parameters);
+        var data = doc.RootElement.Deserialize<ToolSkillProjectPackageDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) ?? throw new ArgumentException("Invalid Skill package.");
+        if (!WorkspaceSkillPolicy.ValidateName(data.Name, out _) || data.Files.Count > 256 || data.Action is not ("save" or "delete")) throw new ArgumentException("Invalid Skill package name, action or file count.");
+        foreach (var (path, encoded) in data.Files)
+        {
+            if (string.IsNullOrWhiteSpace(path) || path.Contains('\\') || path.Contains(':') || Path.IsPathRooted(path) || path.Split('/').Any(x => x is "" or "." or "..")) throw new ArgumentException("Invalid Skill package path.");
+            try { _ = Convert.FromBase64String(encoded); } catch (FormatException) { throw new ArgumentException("Skill package assets must be base64."); }
+        }
+    }
+    private async Task<ToolWireResponseDto> ExecuteSkillProjectPackageAsync(JsonElement input, ProjectReference project, CancellationToken ct)
+    {
+        ValidateSkillProjectPackage(input.GetRawText());
+        var data = input.Deserialize<ToolSkillProjectPackageDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })!;
+        var packageRoot = data.PackageRoot ?? Path.GetDirectoryName(WorkspaceSkillPolicy.AbsolutePathFor(project.RootPath, data.Name))!;
+        if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, packageRoot)) throw new ToolSettingsException("skill_path_escape", "Skill package root leaves its project.");
+        foreach (var (path, expected) in data.ExpectedFileHashes)
+        {
+            var absolute = Path.GetFullPath(Path.Combine(packageRoot, path.Replace('/', Path.DirectorySeparatorChar)));
+            if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, absolute) || !WorkspaceSkillDiscovery.IsContained(packageRoot, absolute)) throw new ToolSettingsException("skill_path_escape", "Skill file leaves its package root.");
+            var response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto { ToolId = "read_file", SessionId = "skill-package-preflight", Params = JsonSerializer.SerializeToElement(new { filepath = absolute }) }, TimeSpan.FromSeconds(30), ct);
+            var actual = response.Result is { } result && result.TryGetProperty("file_hash", out var hash) && hash.ValueKind == JsonValueKind.String ? hash.GetString() : null;
+            if (string.IsNullOrEmpty(expected) ? File.Exists(absolute) : actual != expected) throw new ToolSettingsException("skill_hash_conflict", "A package file changed since it was reviewed.", 412);
+        }
+        if (data.Action == "delete")
+        {
+            foreach (var (path, expected) in data.ExpectedFileHashes)
+            {
+                var absolute = Path.GetFullPath(Path.Combine(packageRoot, path.Replace('/', Path.DirectorySeparatorChar)));
+                if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, absolute) || !WorkspaceSkillDiscovery.IsContained(packageRoot, absolute)) throw new ToolSettingsException("skill_path_escape", "Skill file leaves its package root.");
+                if (expected is null) throw new ToolSettingsException("skill_hash_conflict", "Delete requires a file hash for every package file.", 412);
+                var response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto { ToolId = "delete_file", SessionId = "skill-package", Approved = true, Params = JsonSerializer.SerializeToElement(new { filepath = absolute, file_hash = expected }) }, TimeSpan.FromSeconds(120), ct);
+                if (!response.IsSuccess || response.Result is { } payload && payload.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) return new() { IsSuccess = false, Error = "A package file could not be deleted; inspect the retained snapshot." };
+            }
+            return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { deleted = true, name = data.Name }) };
+        }
+        var entries = new SortedDictionary<string,string>(StringComparer.Ordinal);
+        foreach (var (key,value) in data.Files) entries[key] = value;
+        entries["SKILL.md"] = Convert.ToBase64String(Encoding.UTF8.GetBytes(data.Content));
+        var fileManifest = await _provider.GetManifestAsync(project.RootPath, ct);
+        if (!fileManifest.Tools.Any(x => x.Id == "write_file")) throw new ToolSettingsException("project_skill_writer_unavailable", "Project file writer is unavailable.");
+        // Validate every root and hash before any byte is written. The approved workspace snapshot
+        // and each tool's own hash gate then protect the gap between this read and its write.
+        foreach (var path in entries.Keys)
+        {
+            var absolute = Path.GetFullPath(Path.Combine(packageRoot, path.Replace('/', Path.DirectorySeparatorChar)));
+            if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, absolute) || !WorkspaceSkillDiscovery.IsContained(packageRoot, absolute)) throw new ToolSettingsException("skill_path_escape", "Skill file or parent link leaves its package root.");
+            if (!data.ExpectedFileHashes.ContainsKey(path)) throw new ToolSettingsException("skill_hash_conflict", "Every reviewed package file requires a hash or explicit create precondition.", 412);
+        }
+        foreach (var (removed, hash) in data.ExpectedFileHashes.Where(x => !entries.ContainsKey(x.Key)))
+        {
+            var response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto { ToolId = "delete_file", SessionId = "skill-package", Approved = true, Params = JsonSerializer.SerializeToElement(new { filepath = Path.Combine(packageRoot, removed.Replace('/',Path.DirectorySeparatorChar)), file_hash = hash }) }, TimeSpan.FromSeconds(120), ct);
+            if (!response.IsSuccess || response.Result is { } payload && payload.TryGetProperty("success",out var success) && success.ValueKind == JsonValueKind.False) return new() { IsSuccess = false, Error = "An old package asset could not be removed; inspect the retained snapshot." };
+        }
+        foreach (var (path, encoded) in entries)
+        {
+            var parameters = new Dictionary<string,object?> { ["filepath"] = Path.Combine(packageRoot, path.Replace('/', Path.DirectorySeparatorChar)), ["content_base64"] = encoded };
+            if (data.ExpectedFileHashes[path] is { Length: > 0 } hash) parameters["file_hash"] = hash;
+            var response = await _provider.CallAsync(project.RootPath, new ToolWireRequestDto { ToolId = "write_file", SessionId = "skill-package", Approved = true, Params = JsonSerializer.SerializeToElement(parameters) }, TimeSpan.FromSeconds(120), ct);
+            if (!response.IsSuccess || response.Result is { } result && result.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) return new() { IsSuccess = false, Error = "The package file write was refused; inspect the retained snapshot and partial result." };
+        }
+        return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { name = data.Name, package_files = entries.Keys.ToArray() }) };
+    }
+    private static void ValidateManagedMcpParameters(string parameters, Guid projectId)
+    {
+        using var doc = JsonDocument.Parse(parameters); var input = doc.RootElement;
+        if (input.GetProperty("action").GetString() is not ("save" or "delete") || !input.GetProperty("expected_revision").TryGetInt64(out var revision) || revision < 0) throw new ArgumentException("Invalid managed MCP action.");
+        if (input.TryGetProperty("project_id", out var project) && project.ValueKind != JsonValueKind.Null && project.GetGuid() != projectId) throw new UnauthorizedAccessException("Managed MCP action must target its own project.");
+        if (input.TryGetProperty("env", out var env) && env.ValueKind == JsonValueKind.Object && env.EnumerateObject().Any(p => p.Value.ValueKind != JsonValueKind.Null && (p.Value.ValueKind != JsonValueKind.String || p.Value.GetString() != "********"))) throw new ArgumentException("Set MCP credentials through the protected resource settings endpoint.");
+    }
+    private static void ValidateManagedSkillParameters(string parameters)
+    {
+        using var doc = JsonDocument.Parse(parameters); var input = doc.RootElement;
+        if (!input.TryGetProperty("action", out var action) || action.GetString() is not ("save" or "delete")
+            || !input.TryGetProperty("expected_revision", out var revision) || !revision.TryGetInt64(out var value) || value < 0
+            || !input.TryGetProperty("scope", out var scope) || scope.GetString() != "shared"
+            || !input.TryGetProperty("name", out var name) || string.IsNullOrWhiteSpace(name.GetString())
+            || !input.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String)
+            throw new ArgumentException("Invalid managed Skill action.");
+        if (input.TryGetProperty("files", out var files) && files.ValueKind != JsonValueKind.Object) throw new ArgumentException("Skill assets must be an object.");
+        if (input.TryGetProperty("replace_files", out var replace) && replace.ValueKind != JsonValueKind.True) throw new ArgumentException("Skill asset replacement must be explicit.");
+    }
+    private async Task<ToolWireResponseDto> ExecuteManagedMcpAsync(JsonElement input, Guid projectId, CancellationToken ct)
+    {
+        if (_mcpResources is null) throw new ToolSettingsException("mcp_registry_unavailable", "Managed MCP registry is unavailable.", 503);
+        var resourceId = input.TryGetProperty("resource_id", out var id) && id.ValueKind == JsonValueKind.String ? id.GetGuid() : (Guid?)null;
+        var revision = input.GetProperty("expected_revision").GetInt64();
+        if (resourceId is { } existingId)
+        {
+            var existing = await _mcpResources.GetAsync(existingId, ct) ?? throw new ToolSettingsException("mcp_resource_not_found", "MCP resource not found.", 404);
+            if (existing.ProjectId != projectId) throw new UnauthorizedAccessException("The managed action cannot change a different resource scope.");
+        }
+        if (input.GetProperty("action").GetString() == "delete")
+        {
+            if (resourceId is null) throw new ToolSettingsException("invalid_mcp_action", "Delete requires resource_id.");
+            await _mcpResources.DeleteAsync(resourceId.Value, revision, ct);
+            return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { resource_id = resourceId, deleted = true }) };
+        }
+        var data = input.Deserialize<McpResourceWriteDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) ?? throw new ToolSettingsException("invalid_mcp_action", "Invalid MCP resource.");
+        var saved = await _mcpResources.SaveAsync(resourceId, new() { ProjectId = projectId, Id = data.Id, Name = data.Name, Enabled = data.Enabled, Command = data.Command, Args = data.Args, Env = data.Env, Cwd = data.Cwd }, revision, ct);
+        return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(saved, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) };
+    }
+    private async Task<ToolWireResponseDto> ExecuteManagedSkillAsync(JsonElement input, CancellationToken ct)
+    {
+        if (_skillResources is null) throw new ToolSettingsException("skill_registry_unavailable", "Managed Skill registry is unavailable.", 503);
+        var data = input.Deserialize<ToolSkillResourceUpdateDto>(new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower })
+            ?? throw new ToolSettingsException("invalid_skill_action", "Invalid managed Skill resource.");
+        if (data.Action is not ("save" or "delete") || !string.Equals(data.Scope, "shared", StringComparison.Ordinal))
+            throw new ToolSettingsException("invalid_skill_action", "Only shared Skill saves are supported by the managed action.");
+        if (data.Action == "delete")
+        {
+            if (data.ResourceId is null) throw new ToolSettingsException("invalid_skill_action", "Delete requires resource_id.");
+            var existing = await _skillResources.GetAsync(data.ResourceId.Value, null, ct) ?? throw new ToolSettingsException("skill_not_found", "Skill not found.", 404);
+            if (existing.Revision != data.ExpectedRevision || existing.PackageHash != data.ExpectedPackageHash) throw new ToolSettingsException("skill_hash_conflict", "Skill changed since deletion was reviewed.", 412);
+            await _skillResources.DeleteAsync(data.ResourceId.Value, null, data.ExpectedRevision, ct);
+            return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(new { resource_id = data.ResourceId, deleted = true }) };
+        }
+        var saved = await _skillResources.SaveAsync(data.ExpectedRevision == 0 ? null : data.ResourceId, null, new ToolSkillWriteDto
+        {
+            Scope = "shared", ReservedResourceId = data.ExpectedRevision == 0 ? data.ResourceId : null, Name = data.Name, Content = data.Content, Files = data.Files, ReplaceFiles = data.ReplaceFiles, ExpectedPackageDigest = data.ExpectedPackageDigest,
+            Source = data.Source, Version = data.Version, Commit = data.Commit, Enabled = data.Enabled,
+        }, data.ExpectedRevision, ct);
+        return new() { IsSuccess = true, Result = JsonSerializer.SerializeToElement(saved, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower }) };
+    }
     private static bool IsInherentlyNonReversible(string toolId) =>
         string.Equals(toolId, "git_push", StringComparison.OrdinalIgnoreCase);
     private static string? CompensationGuidanceFor(string toolId) =>

@@ -1,0 +1,67 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="fb6530dc-67ac-461b-aab5-22d665bc0e7c" name="lincu@LINSTATION 2026-10-08 18:51:18" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-08T18:51:18.7903757+08:00" queuing="2026-10-08T18:51:18.7903762+08:00" start="2026-10-08T18:51:13.7992137+08:00" finish="2026-10-08T18:51:38.3883782+08:00" />
+  <TestSettings name="default" id="f989e0b8-fc13-47f5-aeac-46a3f78ec397">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-08_18_51_18" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="65a01eec-f212-4467-a091-95602eaf2d52" testId="55906f5c-323d-f302-e83a-33762cee82a9" testName="TinadecTools.Tests.ToolExecutionContextTests.HostControlsAreApprovalFreeAndDoNotChangeTheModelManifest" computerName="LINSTATION" duration="00:00:05.5924647" startTime="2026-10-08T18:51:18.7681387+08:00" endTime="2026-10-08T18:51:24.3618815+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="65a01eec-f212-4467-a091-95602eaf2d52" />
+    <UnitTestResult executionId="766f399f-b447-42e9-8608-6752f87a5d55" testId="a1837fa3-dd66-41ad-4955-a7040473852e" testName="TinadecTools.Tests.ToolExecutionContextTests.RealGitOperationBudgetsKeepLogAndDiffIndependent" computerName="LINSTATION" duration="00:00:03.5780686" startTime="2026-10-08T18:51:15.1095676+08:00" endTime="2026-10-08T18:51:18.7148480+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="766f399f-b447-42e9-8608-6752f87a5d55" />
+    <UnitTestResult executionId="227d49d6-c767-4263-ab53-787321f26d88" testId="58e9b7e2-e699-01f7-b26d-5c3f8643d907" testName="TinadecTools.Tests.ToolExecutionContextTests.ExactMcpResourcesWithTheSameFriendlyIdRemainIndependentlyInvokable" computerName="LINSTATION" duration="00:00:10.9234416" startTime="2026-10-08T18:51:24.3671013+08:00" endTime="2026-10-08T18:51:35.2914367+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="227d49d6-c767-4263-ab53-787321f26d88" />
+    <UnitTestResult executionId="1bbae02f-9230-4d90-b813-e0fff3a369fa" testId="41d5feba-80d1-d827-1942-18147f9b1c89" testName="TinadecTools.Tests.ToolExecutionContextTests.RealGitLogDefaultsRespectExplicitPagingLimits" computerName="LINSTATION" duration="00:00:02.9538341" startTime="2026-10-08T18:51:35.2919784+08:00" endTime="2026-10-08T18:51:38.2500187+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1bbae02f-9230-4d90-b813-e0fff3a369fa" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecTools.Tests.ToolExecutionContextTests.RealGitOperationBudgetsKeepLogAndDiffIndependent" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\tinadectools.tests\debug\tinadectools.tests.dll" id="a1837fa3-dd66-41ad-4955-a7040473852e">
+      <Execution id="766f399f-b447-42e9-8608-6752f87a5d55" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\TinadecTools.Tests\debug\TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.ToolExecutionContextTests" name="RealGitOperationBudgetsKeepLogAndDiffIndependent" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.ToolExecutionContextTests.HostControlsAreApprovalFreeAndDoNotChangeTheModelManifest" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\tinadectools.tests\debug\tinadectools.tests.dll" id="55906f5c-323d-f302-e83a-33762cee82a9">
+      <Execution id="65a01eec-f212-4467-a091-95602eaf2d52" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\TinadecTools.Tests\debug\TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.ToolExecutionContextTests" name="HostControlsAreApprovalFreeAndDoNotChangeTheModelManifest" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.ToolExecutionContextTests.RealGitLogDefaultsRespectExplicitPagingLimits" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\tinadectools.tests\debug\tinadectools.tests.dll" id="41d5feba-80d1-d827-1942-18147f9b1c89">
+      <Execution id="1bbae02f-9230-4d90-b813-e0fff3a369fa" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\TinadecTools.Tests\debug\TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.ToolExecutionContextTests" name="RealGitLogDefaultsRespectExplicitPagingLimits" />
+    </UnitTest>
+    <UnitTest name="TinadecTools.Tests.ToolExecutionContextTests.ExactMcpResourcesWithTheSameFriendlyIdRemainIndependentlyInvokable" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\tinadectools.tests\debug\tinadectools.tests.dll" id="58e9b7e2-e699-01f7-b26d-5c3f8643d907">
+      <Execution id="227d49d6-c767-4263-ab53-787321f26d88" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-settings-provider-artifacts\bin\TinadecTools.Tests\debug\TinadecTools.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecTools.Tests.ToolExecutionContextTests" name="ExactMcpResourcesWithTheSameFriendlyIdRemainIndependentlyInvokable" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="55906f5c-323d-f302-e83a-33762cee82a9" executionId="65a01eec-f212-4467-a091-95602eaf2d52" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a1837fa3-dd66-41ad-4955-a7040473852e" executionId="766f399f-b447-42e9-8608-6752f87a5d55" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="58e9b7e2-e699-01f7-b26d-5c3f8643d907" executionId="227d49d6-c767-4263-ab53-787321f26d88" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="41d5feba-80d1-d827-1942-18147f9b1c89" executionId="1bbae02f-9230-4d90-b813-e0fff3a369fa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="4" executed="4" passed="4" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.16]   Discovering: TinadecTools.Tests&#xD;
+[xUnit.net 00:00:00.30]   Discovered:  TinadecTools.Tests&#xD;
+[xUnit.net 00:00:00.34]   Starting:    TinadecTools.Tests&#xD;
+Initialized empty Git repository in C:/git/agent/TinadecOffice/.tinadec_dev/tmp/tools-settings-provider-artifacts/bin/TinadecTools.Tests/debug/.tinadec-tools-tests/operation-budgets-5ad824ec8c574d969cf2f72f60528ed9/.git/&#xD;
+[main (root-commit) 00cddf8] initial&#xD;
+ 1 file changed, 1 insertion(+)&#xD;
+ create mode 100644 budget.txt&#xD;
+2026-10-08 18:51:25.0688|WARN|TinadecTools.Tools.Mcp.McpInvokeTool|mcp_invoke failed for server mock tool echo System.InvalidOperationException: MCP server id 'mock' is ambiguous; use the exact resource_id returned by mcp_list or mcp_search.&#xD;
+   at TinadecTools.Tools.Mcp.McpServerRepository.GetRequiredAsync(String serverId, CancellationToken cancellationToken) in C:\git\agent\TinadecOffice\TinadecTools\Tools\Mcp\McpServerRepository.cs:line 41&#xD;
+   at TinadecTools.Tools.Mcp.McpInvokeTool.HandleAsync(McpInvokeParams args, CancellationToken cancellationToken) in C:\git\agent\TinadecOffice\TinadecTools\Tools\Mcp\McpInvokeTool.cs:line 19&#xD;
+Initialized empty Git repository in C:/git/agent/TinadecOffice/.tinadec_dev/tmp/tools-settings-provider-artifacts/bin/TinadecTools.Tests/debug/.tinadec-tools-tests/log-defaults-8ca335fdb085456fa95cd131805b0da0/.git/&#xD;
+[main (root-commit) d4a7c6b] initial&#xD;
+ 1 file changed, 1 insertion(+)&#xD;
+ create mode 100644 log.txt&#xD;
+[main 776be83] second&#xD;
+ 1 file changed, 1 insertion(+), 1 deletion(-)&#xD;
+[main bddbff4] third&#xD;
+ 1 file changed, 1 insertion(+), 1 deletion(-)&#xD;
+[xUnit.net 00:00:23.55]   Finished:    TinadecTools.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

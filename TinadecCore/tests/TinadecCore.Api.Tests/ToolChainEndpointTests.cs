@@ -263,17 +263,15 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
         var session = await (await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = project.GetProperty("id").GetGuid(), title = "Ask session" })).Content.ReadFromJsonAsync<JsonElement>();
         var sessionId = session.GetProperty("id").GetGuid();
 
-        // Mode switching is the interactions endpoint's job: it validates the
-        // published mode_version_id and persists it onto the session. invoke-stream
-        // alone only labels the run; the frozen roster always comes from the
-        // session's persisted mode.
+        // Interactions select a published mode for this message. Later messages
+        // keep the session default unless they also select a mode explicitly.
         using var modeSwitch = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions",
             new { content = "X是什么？", client_message_id = "ask-mode-1", mode_version_id = askModeVersion, dispatch_mode = "queued" });
         Assert.True(modeSwitch.IsSuccessStatusCode, $"ask mode switch failed: {modeSwitch.StatusCode}");
 
         // The mode-switch message already started a run; this one runs beside it (a queued one would
         // wait behind it and have no turn to stream yet).
-        var active = StartStreamingInvoke(client, sessionId, new { content = "X是什么？", client_message_id = "ask-e2e-1", dispatch_mode = "parallel" });
+        var active = StartStreamingInvoke(client, sessionId, new { content = "X是什么？", client_message_id = "ask-e2e-1", dispatch_mode = "parallel", mode_version_id = askModeVersion });
         var ack = await active.Acknowledgement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
         var runId = ack.GetProperty("run_id").GetGuid();
 
@@ -300,7 +298,7 @@ public sealed partial class ToolChainEndpointTests : IAsyncLifetime
 
         var sessions = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions").ConfigureAwait(false);
         var sessionAfter = sessions!.Single(session => session.GetProperty("id").GetGuid() == sessionId);
-        Assert.Equal(askModeVersion, sessionAfter.GetProperty("mode_version_id").GetGuid());
+        Assert.Equal(session.GetProperty("mode_version_id").GetGuid(), sessionAfter.GetProperty("mode_version_id").GetGuid());
 
         var lineage = await client.GetFromJsonAsync<JsonElement[]>($"/api/v1/runs/{runId}/agent-lineage").ConfigureAwait(false);
         Assert.NotNull(lineage);

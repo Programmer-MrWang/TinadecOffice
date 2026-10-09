@@ -1,0 +1,19 @@
+{
+  "id": 91,
+  "result": {
+    "case": "final-narrow-keyboard",
+    "width": 720,
+    "bodyScrollWidth": 720,
+    "tabWidth": 662,
+    "tabScrollWidth": 703,
+    "tabOverflow": "auto",
+    "active": "tools-tab-skills",
+    "focused": "tools-tab-skills",
+    "checkbox": {
+      "width": "16px",
+      "height": "16px"
+    },
+    "errors": []
+  },
+  "errors": []
+}

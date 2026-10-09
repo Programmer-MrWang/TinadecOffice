@@ -45,6 +45,12 @@ test('catalog filters reach Core under the names Core reads', async () => {
   assert.ok(!url.includes('sourceId'), `Core reads no 'sourceId' parameter, saw ${url}`);
 });
 
+test('shared skill install preview may omit project_id while project scope remains explicit', async () => {
+  const calls = captureFetch({ id: 'proposal-1', scope: 'shared', project_id: null });
+  const response = await app.handle(new Request('http://gateway.local/api/v1/market/catalog/skill-1/install-preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: 'shared' }) }));
+  assert.equal(response.status, 200); assert.equal(calls[0]!.endsWith('/api/v1/market/catalog/skill-1/install-preview'), true);
+});
+
 test('a catalog read with no filters does not send an empty query string', async () => {
   const calls = captureFetch({ items: [], total_available: 0, has_more: false });
 

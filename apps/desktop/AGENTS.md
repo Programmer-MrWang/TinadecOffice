@@ -1,9 +1,17 @@
 # DESKTOP APP KNOWLEDGE
 
-**Last Updated:** 2026-10-08
-**Last Updated By:** 命令面板同入口收起、空搜索删除键返回与slash焦点修复；新增命令语言源码讨论稿。
-**Last Verified Commit:** 0ffce81 + 工作树；导航定向4文件115/115、vue-tsc通过、实际SFC浏览器Backspace/Delete正常删字与空输入返回通过，见 .tinadec_dev/reports/2026-10-08-command-navigation.zh-CN.md；新的slash语法仍是讨论建议。先前发布/安全治理/Markdown/命令面板细节验证保留于下方dated段落及各专项报告。
+**Last Updated:** 2026-10-09
+**Last Updated By:** Skills 完整包附件清单读取、共享导入审批回执与提交前确认、哈希校验、市场作用域与审批轮询；生产 renderer 窄窗口键盘走查。
+**Last Verified Commit:** cf5cbf7 + 工作树；设置160/160、Desktop全量1091 passed/14 skipped、类型检查与最终生产构建通过；真实app://bundle的Schema补全/错误定位/三类Agent/资源及720px焦点/滚动走查见 .tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md。导航定向4文件115/115及实际SFC删字/返回的同日证据保留于 .tinadec_dev/reports/2026-10-08-command-navigation.zh-CN.md；新的slash语法仍是讨论建议，其它既有验证保留于下方dated段落及各专项报告。
 **Branch:** main
+
+### 2026-10-08 工具设置
+
+“工具 / Tools”由ToolCenterSection承载九个标签。ToolJsonEditor只编辑严格JSON行为参数并显示Schema说明/校验/有效值/差异；普通页管理资源状态与Agent绑定。共享默认和持久AgentDefinitionId覆盖通过Core保存，数组整体替换，资源缺省继承与空绑定不同。tool_scope仍由AgentCenter单点编辑。项目/Agent切换、迟到响应、未保存离开、冲突保留草稿和显式恢复默认必须保持。禁用write不等于只读；Shell/Git仍可能写。MCP凭据响应只显示遮蔽/引用，项目Skill修改展示实际治理动作状态。测试/真实Electron与平台边界见`.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md`。
+
+共享总览的工具使用者从各启用定义的Core有效配置读取，不能只拿tool_scope推算；并发读取限制为四，项目/Agent切换后迟到结果丢弃。资源绑定和技能启用复选框复用settings-checkbox，避免全局文本输入宽度规则把勾选框撑满资源行。
+
+`src/monaco.config.ts` uses Vite `?worker` entrypoints for editor, JSON, TypeScript, CSS and HTML workers. Do not replace them with plain `new URL(..., import.meta.url)` assets: the language entrypoints have relative imports that fail when a packaged `app://bundle` renderer turns them into data URLs. The production Electron walkthrough verified JSON schema completion and a minimum-value diagnostic in the isolated bundle; see `.tinadec_dev/evidence/2026-10-08-tools-settings/desktop-production-json-completion.png` and `desktop-production-json-validation.png`. An earlier failing run is retained as `desktop-production-worker-initial-error.png` to document the regression and its fix.
 
 ### 2026-10-08 命令面板导航修复与语言讨论
 

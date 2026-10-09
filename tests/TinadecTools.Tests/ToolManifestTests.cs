@@ -52,6 +52,11 @@ public sealed class ToolManifestTests
         Assert.Equal("unsafe", byId["write_file"].GetProperty("retry_safety").GetString());
         Assert.True(byId["write_file"].GetProperty("input_schema").GetProperty("properties").TryGetProperty("filepath", out _));
         Assert.True(byId["write_file"].GetProperty("input_schema").GetProperty("properties").TryGetProperty("content", out _));
+        Assert.True(byId["write_file"].GetProperty("input_schema").GetProperty("properties").TryGetProperty("content_base64", out _));
+        Assert.True(byId["delete_file"].GetProperty("requires_approval").GetBoolean());
+        Assert.True(byId["delete_file"].GetProperty("mutates_workspace").GetBoolean());
+        Assert.Equal("unsafe", byId["delete_file"].GetProperty("retry_safety").GetString());
+        Assert.True(byId["delete_file"].GetProperty("input_schema").GetProperty("properties").TryGetProperty("file_hash", out _));
 
         // An edit tool's anchor must be DESCRIBED, not collapsed into a bare
         // {"type":"object"}: the model has to be able to learn the {content, hash}

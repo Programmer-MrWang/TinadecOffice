@@ -170,7 +170,12 @@ public sealed class AgentPackEndpointTests
         Assert.True(planned.IsSuccessStatusCode || planned.StatusCode == HttpStatusCode.Conflict,
             $"interaction admission should not fail on validation: {planned.StatusCode}");
         var afterPlan = await GetSessionAsync(client, sessionId);
-        Assert.Equal(modeVersions["conversation.plan"], afterPlan.GetProperty("mode_version_id").GetGuid());
+        Assert.Equal(initial.GetProperty("mode_version_id").GetGuid(), afterPlan.GetProperty("mode_version_id").GetGuid());
+        if (planned.IsSuccessStatusCode)
+        {
+            var receipt = await planned.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(modeVersions["conversation.plan"], receipt.GetProperty("mode_version_id").GetGuid());
+        }
 
         // An explicit mode_version_id takes precedence over the session's binding.
         using var explicitMode = await client.PostAsJsonAsync($"/api/v1/sessions/{sessionId}/interactions", new
@@ -183,7 +188,12 @@ public sealed class AgentPackEndpointTests
         Assert.True(explicitMode.IsSuccessStatusCode || explicitMode.StatusCode == HttpStatusCode.Conflict,
             $"interaction admission should not fail on validation: {explicitMode.StatusCode}");
         var afterExplicit = await GetSessionAsync(client, sessionId);
-        Assert.Equal(modeVersions["default-mode"], afterExplicit.GetProperty("mode_version_id").GetGuid());
+        Assert.Equal(initial.GetProperty("mode_version_id").GetGuid(), afterExplicit.GetProperty("mode_version_id").GetGuid());
+        if (explicitMode.IsSuccessStatusCode)
+        {
+            var receipt = await explicitMode.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal(modeVersions["default-mode"], receipt.GetProperty("mode_version_id").GetGuid());
+        }
     }
 
     /// <summary>

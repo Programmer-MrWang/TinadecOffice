@@ -1575,6 +1575,10 @@
             },
             "type": "array"
           },
+          "availability": {
+            "nullable": true,
+            "type": "string"
+          },
           "catalog_id": {
             "type": "string"
           },
@@ -1631,11 +1635,64 @@
           "kind": {
             "type": "string"
           },
+          "package_files": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content_hash": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "size_bytes": {
+                  "anyOf": [
+                    {
+                      "default": 0,
+                      "format": "integer",
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "content_hash",
+                "size_bytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "package_hash": {
+            "nullable": true,
+            "type": "string"
+          },
           "project_id": {
+            "nullable": true,
             "type": "string"
           },
           "replaces_command": {
             "type": "string"
+          },
+          "resource_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "const": "shared",
+                "type": "string"
+              },
+              {
+                "const": "project",
+                "type": "string"
+              }
+            ]
           },
           "server_id": {
             "type": "string"
@@ -1659,7 +1716,6 @@
         "required": [
           "id",
           "action",
-          "project_id",
           "source_name",
           "extension_id",
           "kind",
@@ -1679,6 +1735,10 @@
         "additionalProperties": true,
         "properties": {
           "action_status": {
+            "type": "string"
+          },
+          "availability": {
+            "nullable": true,
             "type": "string"
           },
           "catalog_id": {
@@ -1702,8 +1762,61 @@
           "kind": {
             "type": "string"
           },
-          "project_id": {
+          "package_files": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "content_hash": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "size_bytes": {
+                  "anyOf": [
+                    {
+                      "default": 0,
+                      "format": "integer",
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "content_hash",
+                "size_bytes"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "package_hash": {
+            "nullable": true,
             "type": "string"
+          },
+          "project_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "resource_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "const": "shared",
+                "type": "string"
+              },
+              {
+                "const": "project",
+                "type": "string"
+              }
+            ]
           },
           "server_id": {
             "type": "string"
@@ -1726,7 +1839,6 @@
         },
         "required": [
           "id",
-          "project_id",
           "catalog_id",
           "source_name",
           "extension_id",
@@ -4975,6 +5087,447 @@
         ],
         "type": "object"
       },
+      "ToolCapabilities": {
+        "properties": {
+          "capabilities": {
+            "additionalProperties": true,
+            "nullable": true,
+            "type": "object"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "settings_hash": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "ToolMcpResource": {
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "command": {
+            "type": "string"
+          },
+          "configuration_hash": {
+            "type": "string"
+          },
+          "cwd": {
+            "nullable": true,
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "env": {
+            "additionalProperties": {
+              "nullable": true,
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "import_source": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "project_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "id",
+          "name",
+          "enabled",
+          "command",
+          "args",
+          "env",
+          "revision",
+          "configuration_hash"
+        ],
+        "type": "object"
+      },
+      "ToolMcpResourceList": {
+        "items": {
+          "$ref": "#/components/schemas/ToolMcpResource"
+        },
+        "type": "array"
+      },
+      "ToolResourceDiagnostic": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "mcp",
+              "skills",
+              "host"
+            ],
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "resource_id": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "missing",
+              "invalid",
+              "disabled",
+              "import_failed",
+              "unavailable"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "status",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "ToolSettingsDocument": {
+        "properties": {
+          "agent_definition_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "effective_settings": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "schema_version": {
+            "type": "integer"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "settings_hash": {
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "revision",
+          "settings",
+          "effective_settings",
+          "settings_hash"
+        ],
+        "type": "object"
+      },
+      "ToolSettingsEffective": {
+        "additionalProperties": true,
+        "properties": {
+          "agent_definition_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "allowed_tool_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "mcp_servers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "read_roots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "resource_diagnostics": {
+            "items": {
+              "$ref": "#/components/schemas/ToolResourceDiagnostic"
+            },
+            "type": "array"
+          },
+          "schema_version": {
+            "type": "integer"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "settings_hash": {
+            "type": "string"
+          },
+          "skill_resources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "settings",
+          "settings_hash",
+          "allowed_tool_ids",
+          "mcp_servers",
+          "read_roots",
+          "skill_resources"
+        ],
+        "type": "object"
+      },
+      "ToolSettingsSchema": {
+        "properties": {
+          "defaults": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "host_settings": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "schema": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "schema_version": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "schema_version",
+          "schema",
+          "defaults",
+          "host_settings"
+        ],
+        "type": "object"
+      },
+      "ToolSettingsWrite": {
+        "additionalProperties": false,
+        "properties": {
+          "settings": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "settings"
+        ],
+        "type": "object"
+      },
+      "ToolSkillCatalog": {
+        "properties": {
+          "diagnostics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "skills": {
+            "items": {
+              "$ref": "#/components/schemas/ToolSkillResource"
+            },
+            "type": "array"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "skills",
+          "diagnostics",
+          "source"
+        ],
+        "type": "object"
+      },
+      "ToolSkillFile": {
+        "properties": {
+          "base64": {
+            "nullable": true,
+            "type": "string"
+          },
+          "content": {
+            "nullable": true,
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "content_hash",
+          "size_bytes"
+        ],
+        "type": "object"
+      },
+      "ToolSkillPackageFile": {
+        "properties": {
+          "content_hash": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "size_bytes": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "content_hash",
+          "size_bytes"
+        ],
+        "type": "object"
+      },
+      "ToolSkillResource": {
+        "additionalProperties": true,
+        "properties": {
+          "action_status": {
+            "nullable": true,
+            "type": "string"
+          },
+          "availability": {
+            "type": "string"
+          },
+          "commit": {
+            "nullable": true,
+            "type": "string"
+          },
+          "content": {
+            "nullable": true,
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "file_hash": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "package_files": {
+            "items": {
+              "$ref": "#/components/schemas/ToolSkillPackageFile"
+            },
+            "type": "array"
+          },
+          "package_hash": {
+            "type": "string"
+          },
+          "package_reference": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "project_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "resource_id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "user_action_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "version": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "name",
+          "description",
+          "scope",
+          "enabled",
+          "valid",
+          "path",
+          "revision",
+          "content_hash"
+        ],
+        "type": "object"
+      },
       "UpdateSessionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -7263,6 +7816,33 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "project_id": {
+                    "description": "Required for project Skills and MCP installation.",
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "scope": {
+                    "default": "shared",
+                    "description": "Skills default to shared. A shared skill does not require project_id.",
+                    "enum": [
+                      "shared",
+                      "project"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -7272,7 +7852,7 @@
                 }
               }
             },
-            "description": "The frozen proposal: pinned command, exact file, exact bytes, and the moment it stops being applyable. Nothing was written by asking."
+            "description": "Frozen scope, stable resource ID, complete package files and digest or pinned MCP command. Nothing was written by asking."
           }
         },
         "summary": "Preview a market install",
@@ -11379,6 +11959,152 @@
         ]
       }
     },
+    "/api/v1/tools/mcp/servers": {
+      "get": {
+        "operationId": "getApiV1ToolsMcpServers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolMcpResourceList"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET mcp/servers",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "post": {
+        "operationId": "postApiV1ToolsMcpServers",
+        "parameters": [
+          {
+            "description": "Quoted zero revision for a new resource",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolMcpResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "POST mcp/servers",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/mcp/servers/{resourceId}": {
+      "delete": {
+        "operationId": "deleteApiV1ToolsMcpServersByResourceId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "DELETE mcp/servers/:resourceId",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "put": {
+        "operationId": "putApiV1ToolsMcpServersByResourceId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolMcpResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "PUT mcp/servers/:resourceId",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/mcp/servers/{resourceId}/test": {
+      "post": {
+        "operationId": "postApiV1ToolsMcpServersByResourceIdTest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "POST mcp/servers/:resourceId/test",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
     "/api/v1/tools/search": {
       "get": {
         "operationId": "getApiV1ToolsSearch",
@@ -11391,6 +12117,247 @@
         ]
       }
     },
+    "/api/v1/tools/settings/agents/{agentId}": {
+      "delete": {
+        "operationId": "deleteApiV1ToolsSettingsAgentsByAgentId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsDocument"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "DELETE settings/agents/:agentId",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "get": {
+        "operationId": "getApiV1ToolsSettingsAgentsByAgentId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsDocument"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET settings/agents/:agentId",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "put": {
+        "operationId": "putApiV1ToolsSettingsAgentsByAgentId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolSettingsWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsDocument"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "PUT settings/agents/:agentId",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/settings/capabilities": {
+      "get": {
+        "operationId": "getApiV1ToolsSettingsCapabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolCapabilities"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET settings/capabilities",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/settings/defaults": {
+      "get": {
+        "operationId": "getApiV1ToolsSettingsDefaults",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsDocument"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET settings/defaults",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "put": {
+        "operationId": "putApiV1ToolsSettingsDefaults",
+        "parameters": [
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolSettingsWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsDocument"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "PUT settings/defaults",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/settings/effective": {
+      "get": {
+        "operationId": "getApiV1ToolsSettingsEffective",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsEffective"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET settings/effective",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/settings/schema": {
+      "get": {
+        "operationId": "getApiV1ToolsSettingsSchema",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSettingsSchema"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET settings/schema",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
     "/api/v1/tools/shell": {
       "post": {
         "operationId": "postApiV1ToolsShell",
@@ -11398,6 +12365,215 @@
           "200": {}
         },
         "summary": "Shell tool (blocked until implemented)",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/skills": {
+      "get": {
+        "operationId": "getApiV1ToolsSkills",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillCatalog"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET skills",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/skills/import": {
+      "post": {
+        "operationId": "postApiV1ToolsSkillsImport",
+        "parameters": [
+          {
+            "description": "Quoted zero revision for a new resource",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "POST skills/import",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/skills/{resourceId}": {
+      "delete": {
+        "operationId": "deleteApiV1ToolsSkillsByResourceId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "DELETE skills/:resourceId",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "get": {
+        "operationId": "getApiV1ToolsSkillsByResourceId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET skills/:resourceId",
+        "tags": [
+          "Tools"
+        ]
+      },
+      "put": {
+        "operationId": "putApiV1ToolsSkillsByResourceId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Quoted revision returned by Core",
+            "in": "header",
+            "name": "If-Match",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillResource"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "PUT skills/:resourceId",
+        "tags": [
+          "Tools"
+        ]
+      }
+    },
+    "/api/v1/tools/skills/{resourceId}/files": {
+      "get": {
+        "operationId": "getApiV1ToolsSkillsByResourceIdFiles",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "resourceId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exact relative package file path; Core enforces the resource root.",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolSkillFile"
+                }
+              }
+            },
+            "description": "Core-owned configuration and resource result"
+          }
+        },
+        "summary": "GET skills/:resourceId/files",
         "tags": [
           "Tools"
         ]

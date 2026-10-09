@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="f3bbf0ca-6320-440e-9fa5-632fd5f69282" name="lincu@LINSTATION 2026-10-08 19:10:07" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-08T19:10:07.0838548+08:00" queuing="2026-10-08T19:10:07.0838553+08:00" start="2026-10-08T19:10:02.0382107+08:00" finish="2026-10-08T19:10:11.2666639+08:00" />
+  <TestSettings name="default" id="ad8cdf57-8d06-4c06-89e6-ac72ce6c51e2">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-08_19_10_07" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="7bbb6a51-8d97-4a0d-86a8-081117857908" testId="2a20c610-c61f-b4c2-8730-cf4117f52cc3" testName="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.TypedWorkspaceRootSurvivesScopeAndConcreteNormalization" computerName="LINSTATION" duration="00:00:03.8106814" startTime="2026-10-08T19:10:07.1329045+08:00" endTime="2026-10-08T19:10:10.9405462+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7bbb6a51-8d97-4a0d-86a8-081117857908" />
+    <UnitTestResult executionId="e8b103ad-8844-4ff3-9310-676d6d14cffd" testId="42327bad-1c3c-bc35-b4a9-77fee1d365a6" testName="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.PathTraversalStaysRejectedForScopeAndConcreteClaims(resource: &quot;path://.&quot;)" computerName="LINSTATION" duration="00:00:02.5438118" startTime="2026-10-08T19:10:04.4705447+08:00" endTime="2026-10-08T19:10:07.0197344+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e8b103ad-8844-4ff3-9310-676d6d14cffd" />
+    <UnitTestResult executionId="7932f13b-5a4b-464a-8bcd-2370de9be3f7" testId="e58403b0-6d2d-91ad-e571-65948ec25e67" testName="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.PathTraversalStaysRejectedForScopeAndConcreteClaims(resource: &quot;path://../X&quot;)" computerName="LINSTATION" duration="00:00:00.1082566" startTime="2026-10-08T19:10:07.0515197+08:00" endTime="2026-10-08T19:10:07.1282094+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7932f13b-5a4b-464a-8bcd-2370de9be3f7" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.TypedWorkspaceRootSurvivesScopeAndConcreteNormalization" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\tinadeccore.governance.tests\debug\tinadeccore.governance.tests.dll" id="2a20c610-c61f-b4c2-8730-cf4117f52cc3">
+      <Execution id="7bbb6a51-8d97-4a0d-86a8-081117857908" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\TinadecCore.Governance.Tests\debug\TinadecCore.Governance.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Governance.Tests.WorkspaceRootClaimTests" name="TypedWorkspaceRootSurvivesScopeAndConcreteNormalization" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.PathTraversalStaysRejectedForScopeAndConcreteClaims(resource: &quot;path://../X&quot;)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\tinadeccore.governance.tests\debug\tinadeccore.governance.tests.dll" id="e58403b0-6d2d-91ad-e571-65948ec25e67">
+      <Execution id="7932f13b-5a4b-464a-8bcd-2370de9be3f7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\TinadecCore.Governance.Tests\debug\TinadecCore.Governance.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Governance.Tests.WorkspaceRootClaimTests" name="PathTraversalStaysRejectedForScopeAndConcreteClaims" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Governance.Tests.WorkspaceRootClaimTests.PathTraversalStaysRejectedForScopeAndConcreteClaims(resource: &quot;path://.&quot;)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\tinadeccore.governance.tests\debug\tinadeccore.governance.tests.dll" id="42327bad-1c3c-bc35-b4a9-77fee1d365a6">
+      <Execution id="e8b103ad-8844-4ff3-9310-676d6d14cffd" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\tmp\tools-root-governance-artifacts\bin\TinadecCore.Governance.Tests\debug\TinadecCore.Governance.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Governance.Tests.WorkspaceRootClaimTests" name="PathTraversalStaysRejectedForScopeAndConcreteClaims" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="2a20c610-c61f-b4c2-8730-cf4117f52cc3" executionId="7bbb6a51-8d97-4a0d-86a8-081117857908" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="42327bad-1c3c-bc35-b4a9-77fee1d365a6" executionId="e8b103ad-8844-4ff3-9310-676d6d14cffd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e58403b0-6d2d-91ad-e571-65948ec25e67" executionId="7932f13b-5a4b-464a-8bcd-2370de9be3f7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.29]   Discovering: TinadecCore.Governance.Tests&#xD;
+[xUnit.net 00:00:00.46]   Discovered:  TinadecCore.Governance.Tests&#xD;
+[xUnit.net 00:00:00.55]   Starting:    TinadecCore.Governance.Tests&#xD;
+[xUnit.net 00:00:07.10]   Finished:    TinadecCore.Governance.Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

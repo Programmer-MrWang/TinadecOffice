@@ -64,3 +64,21 @@
 - [tests/TinadecTools.Tests/ToolManifestTests.cs](../../../../../tests/TinadecTools.Tests/ToolManifestTests.cs)
 - [tests/TinadecTools.Tests/ToolDispatchLoopTests.cs](../../../../../tests/TinadecTools.Tests/ToolDispatchLoopTests.cs)
 
+<a id="tools-protocol-102"></a>
+
+### TOOLS-PROTOCOL-102 承接 Core 冻结的每调用工具配置
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：TOOLS-PROTOCOL
+- 前置依赖：CORE-TOOLS-101
+- 关联功能：TOOLS-PROTOCOL-F004
+- 范围与验收：独立 execution_context、不可变并发上下文、未传与显式值区分、授权和类别双重限制、窄技能只读根、manifest稳定、只读能力查询及可回收MCP上下文。保存不重启进程，正在执行和待审批命令维持原配置。
+- 完成证据：[专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)、389完整及54最后定向、真实Core进程及命令冻结。平台边界在报告中；整体审计与既有TOOLS-PROTOCOL-101不随之自动完成。
+
+**验收条件**
+
+- [x] 完成任务列出的实现范围及条件保存、冻结配置和资源隔离回归。
+- [x] 取得真实 Windows Core/Desktop/Tools 证据；PostgreSQL 及 Linux/macOS 边界单独记录。
+- [x] 同步模块说明、API/客户端及共享实施报告，不将专项完成扩大为整体模块验收。

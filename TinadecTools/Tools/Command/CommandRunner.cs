@@ -96,7 +96,11 @@ public static class CommandRunner
                 args.EnvironmentVariableNames);
 
             if (args.PersistGrants)
+            {
+                if (ToolExecutionContext.Current is not null)
+                    throw new InvalidOperationException("Governed calls use frozen grants; persistent grants must be changed in Tools settings.");
                 SandboxPolicyStore.MergeAndPersist(requestedPermissions);
+            }
 
             var permissions = CommandSandboxRuntime.MergeWithPolicy(requestedPermissions);
 

@@ -50,3 +50,17 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[CORE-SKILLS-001](TODO.md#core-skills-001)。
+
+## 2026-10-08 工具技能资源
+
+```mermaid
+flowchart LR
+  API["ToolSkillEndpoints"] -->|"资源目录/条件编辑"| Service["ToolSkillResourceService"]
+  Service -->|"共享包元数据与内容寻址版本"| Shared["IntegrationDbContext / 包目录"]
+  Service -->|"项目skills发现与校验"| Discover["WorkspaceSkillDiscovery / Policy"]
+  Service -->|"项目修改的治理动作"| Action["UserToolActionService"]
+  Context["运行技能索引"] -->|"共享真实发现策略与配置摘要"| Discover
+  Resolver["ToolConfigurationResolver"] -->|"冻结准确包ID及窄只读根"| Service
+```
+
+箭头依据：[资源服务](../../../../../TinadecCore/Skills/ToolSkillResourceService.cs)、[发现](../../../../../TinadecCore/Abstractions/Ports/WorkspaceSkillDiscovery.cs)、[Context接线](../../../../../TinadecCore/Context/ContextModuleRegistrar.cs)、[配置解析](../../../../../TinadecCore/Tools/ToolConfigurationResolver.cs)。精确绑定失效不给同名替代；项目写入保留审批和哈希，共享正文/资产保留旧版本供运行继续读取。

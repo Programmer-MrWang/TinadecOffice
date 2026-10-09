@@ -1,0 +1,54 @@
+{
+  "id": 8,
+  "result": {
+    "cases": [
+      {
+        "case": "schema-rejects-negative-value",
+        "disabled": true,
+        "issues": "$.shell.max_output_chars Minimum: 1."
+      },
+      {
+        "case": "explicit-save-only",
+        "serverRevision": 0,
+        "diff": "2 项待保存更改\nshell\n—\n{\"timeout_ms\":123456}\nskills\n—\n{\"resource_ids\":[]}",
+        "cloneable": true
+      },
+      {
+        "case": "agent-sparse-save",
+        "revision": 1,
+        "settings": {
+          "shell": {
+            "timeout_ms": 123456
+          },
+          "skills": {
+            "resource_ids": []
+          }
+        },
+        "timeout": 123456
+      },
+      {
+        "case": "research-inherits-and-keeps-own-grants",
+        "overrides": {},
+        "timeout": 600000,
+        "allowed": [
+          "file_search",
+          "read_file",
+          "web_fetch"
+        ]
+      },
+      {
+        "case": "coding-inherits-and-keeps-own-grants",
+        "overrides": {},
+        "allowed": [
+          "git_status",
+          "read_file",
+          "shell",
+          "write_file"
+        ]
+      }
+    ],
+    "text": "工具\n\n管理工具行为、共享资源与智能体的专属配置。\n\n刷新\n配置对象\n共享默认配置\nTools QA Coding\nTools QA Research\nTools QA Test\n项目资源上下文\n仅共享资源\nTools QA Project\n编辑智能体工具授权\n\n保存后的行为与资源绑定用于后续运行；已开始的运行继续使用其冻结配置。\n\n总览\nShell\n文件读写\n搜索\nGit\n网页\nMCP\n技能\n高级\nShell\n\n这里显示当前有效值与来源。行为参数统一在高级配置中编辑。\n\n打开高级配置\n宿主能力检测\nauto\n已检测到 · C:\\windows\\system32\\cmd.exe\ncmd\n已检测到 · C:\\windows\\system32\\cmd.exe\npowershell\n已检测到 · C:\\windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\npwsh\n已检测到 · C:\\Program Files\\PowerShell\\7\\pwsh.exe\nbash\n不可用 · Executable was not found in PATH.\n\n沙箱平台支持：true；已初始化：true。\n\nshell.allow_long_lived\ntrue\n继承默认\nshell.command_timeout_ms\n30000\n继承默认\nshell.enabled\ntrue\n继承默认\nshell.max_output_chars\n65536\n继承默认\nshell.max_timeout_ms\n1800000\n继承默认\nshell.shell\nauto\n继承默认\nshell.timeout_ms\n123456\n智能体覆盖\n工具能力\n\n这些是 Core 实际声明的工具。此页面尚无当前项目的执行依赖探针回执，因此执行就绪状态未知；MCP 可单独测试连接。\n\ncommand_runcommand_run · high\n未授予此智能体\n需要审批\nsandbox_resetsandbox_reset · high\n未授予此智能体\n需要审批\nsandbox_statussandbox_status · low\n未授予此智能体\nshellshell · high\n目录中已声明\n需要审批",
+    "tabs": 9
+  },
+  "errors": []
+}

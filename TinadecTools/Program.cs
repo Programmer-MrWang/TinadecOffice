@@ -33,6 +33,7 @@ FileToolRuntime.InitializeWorkspace();
 GeneratedToolRegistry.RegisterAll();
 TinadecTools.Tools.Command.ShellToolRegistration.Register();
 TinadecTools.Tools.Web.WebFetchTool.RegisterControl();
+ToolHostControls.Register();
 
 try
 {

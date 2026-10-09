@@ -443,7 +443,40 @@ internal sealed class ContextProvider : IContextProvider
     /// </summary>
     private ContextEvidence? BuildWorkspaceSkillEvidence(ContextBuildRequest request)
     {
+        if (request.ToolExecutionContext is { } frozen)
+        {
+            if (!CanReadSkillBody(request.AllowedToolIds ?? frozen.AllowedToolIds, frozen.Settings)) return null;
+            var budget = Math.Max(0, request.TokenBudget ?? _settings.Current.DefaultTokenBudget);
+            var indexLimit = WorkspaceSkillPolicy.MaxIndexChars;
+            var maximum = WorkspaceSkillPolicy.MaxSkills;
+            if (frozen.Settings.TryGetProperty("skills", out var configuration))
+            {
+                if (configuration.TryGetProperty("enabled", out var enabled) && enabled.ValueKind == System.Text.Json.JsonValueKind.False) return null;
+                if (configuration.TryGetProperty("max_index_chars", out var chars) && chars.TryGetInt32(out var limit)) indexLimit = limit;
+                if (configuration.TryGetProperty("max_skills", out var count) && count.TryGetInt32(out var limitCount)) maximum = limitCount;
+            }
+            budget = Math.Min(budget, indexLimit);
+            if (budget <= 0 || maximum <= 0) return null;
+            var selected = frozen.SkillResources.Take(maximum).ToArray();
+            var text = WorkspaceSkillPolicy.Frame(selected.Select(x => new WorkspaceSkillPolicy.Skill(x.Name, x.Description,
+                request.Workspace is { } currentWorkspace && WorkspaceSkillDiscovery.IsContained(currentWorkspace.RootPath, x.SkillPath)
+                    ? Path.GetRelativePath(currentWorkspace.RootPath, x.SkillPath).Replace('\\', '/')
+                    : x.SkillPath.Replace('\\', '/'))).ToArray(), [],
+                budget, Math.Max(0, frozen.SkillResources.Count - selected.Length));
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            text = text.Replace("Workspace skills, discovered under skills/ in this run's workspace root.",
+                "Skills provided to this Agent by its frozen shared and project resource bindings.", StringComparison.Ordinal);
+            text = AddBodyAccessSentence(text, request.AllowedToolIds, frozen.AllowedToolIds, frozen.Settings);
+            return new ContextEvidence
+            {
+                Source = "workspace_skills", Content = text, EstimatedTokens = EstimateTokens(text),
+                Metadata = new Dictionary<string, string> { ["skill_count"] = selected.Length.ToString(), ["skill_refused"] = "0",
+                    ["skill_omitted"] = Math.Max(0, frozen.SkillResources.Count - selected.Length).ToString(), ["char_limit"] = budget.ToString(),
+                    ["tool_settings_hash"] = frozen.SettingsHash, ["agent_definition_id"] = frozen.AgentDefinitionId?.ToString() ?? "shared" },
+            };
+        }
         if (request.Workspace is not { } workspace) return null;
+        if (request.AllowedToolIds is { } legacyTools && !CanReadSkillBody(legacyTools, default)) return null;
         var charLimit = WorkspaceSkillPolicy.InlineCharLimit(
             request.TokenBudget ?? _settings.Current.DefaultTokenBudget);
         if (charLimit <= 0) return null;
@@ -453,12 +486,13 @@ internal sealed class ContextProvider : IContextProvider
             ? ReadSkills(workspace.RootPath, charLimit)
             : RememberedSkills(cacheKey, workspace.RootPath, charLimit);
         if (string.IsNullOrWhiteSpace(read.Text)) return null;
+        var legacyText = AddBodyAccessSentence(read.Text, request.AllowedToolIds, null, default);
 
         return new ContextEvidence
         {
             Source = "workspace_skills",
-            Content = read.Text,
-            EstimatedTokens = EstimateTokens(read.Text),
+            Content = legacyText,
+            EstimatedTokens = EstimateTokens(legacyText),
             Metadata = new Dictionary<string, string>
             {
                 ["skill_count"] = read.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
@@ -467,6 +501,46 @@ internal sealed class ContextProvider : IContextProvider
                 ["char_limit"] = charLimit.ToString(System.Globalization.CultureInfo.InvariantCulture),
             }
         };
+    }
+
+    private static bool CanReadSkillBody(IReadOnlyList<string> allowed, System.Text.Json.JsonElement settings)
+    {
+        var toolSet = new HashSet<string>(allowed, StringComparer.OrdinalIgnoreCase);
+        return new[] { "read_file", "shell", "command_run" }.Any(id =>
+            (toolSet.Contains("*") || toolSet.Contains(id)) && ToolEnabled(settings, id));
+    }
+
+    private static string AddBodyAccessSentence(string text, IReadOnlyList<string>? requested, IReadOnlyList<string>? frozen, System.Text.Json.JsonElement settings)
+    {
+        var allowed = requested ?? frozen;
+        if (allowed is null) return text;
+        var toolSet = new HashSet<string>(allowed, StringComparer.OrdinalIgnoreCase);
+        bool Available(string id) => (toolSet.Contains("*") || toolSet.Contains(id)) && ToolEnabled(settings, id);
+        var readers = new[] { "read_file", "shell", "command_run" }.Where(Available).ToArray();
+        var listing = new[] { "ls", "stat" }.Where(Available).ToArray();
+        var sentence = readers.Length == 0
+            ? "This run grants no body-reading tool; do not claim to have read or followed a skill from its description alone."
+            : $"When a task matches one, open its file using an enabled body reader ({string.Join(", ", readers)}) and follow it before improvising.";
+        if (listing.Length > 0) sentence += $" File metadata and directory tools: {string.Join(", ", listing)}.";
+        text = text.Replace("When a task matches one, open its file with a file tool and follow it before improvising.", sentence, StringComparison.Ordinal);
+        if (!Available("ls") && !Available("shell") && !Available("command_run"))
+            text = text.Replace("list the skills directory with a file tool before assuming a skill is absent", "the remaining skills exceed this index budget; do not assume they are absent", StringComparison.Ordinal);
+        return text;
+    }
+
+    private static bool ToolEnabled(System.Text.Json.JsonElement settings, string toolId)
+    {
+        if (settings.ValueKind != System.Text.Json.JsonValueKind.Object) return true;
+        var section = toolId switch
+        {
+            "shell" or "command_run" => "shell",
+            "read_file" or "ls" or "stat" => "read",
+            _ => null
+        };
+        return section is null || !settings.TryGetProperty(section, out var value)
+            || value.ValueKind != System.Text.Json.JsonValueKind.Object
+            || !value.TryGetProperty("enabled", out var enabled)
+            || enabled.ValueKind != System.Text.Json.JsonValueKind.False;
     }
 
     private SkillRead RememberedSkills(string cacheKey, string rootPath, int charLimit)
@@ -492,148 +566,15 @@ internal sealed class ContextProvider : IContextProvider
 
     private static SkillRead ReadSkills(string rootPath, int charLimit)
     {
-        var found = new List<WorkspaceSkillPolicy.Skill>();
-        var refusals = new List<WorkspaceSkillPolicy.Refusal>();
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        var omitted = 0;
-
-        foreach (var skillRoot in WorkspaceSkillPolicy.SkillRoots)
-        {
-            WalkForSkills(rootPath, Path.Combine(rootPath, skillRoot), 0, found, refusals, names, ref omitted);
-        }
-
-        if (found.Count == 0 && refusals.Count == 0) return new SkillRead(null, 0, 0, 0);
+        var entries = WorkspaceSkillDiscovery.Discover(rootPath);
+        var found = entries.Where(x => x.Valid && x.Enabled).Take(WorkspaceSkillPolicy.MaxSkills)
+            .Select(x => new WorkspaceSkillPolicy.Skill(x.Name, x.Description, x.RelativePath)).ToArray();
+        var refusals = entries.Where(x => !x.Valid || !x.Enabled)
+            .Select(x => new WorkspaceSkillPolicy.Refusal(x.RelativePath, x.Reason ?? "unavailable")).ToArray();
+        var omitted = Math.Max(0, entries.Count(x => x.Valid && x.Enabled) - found.Length);
         var text = WorkspaceSkillPolicy.Frame(found, refusals, charLimit, omitted);
-        return new SkillRead(text, found.Count, refusals.Count, omitted);
+        return new SkillRead(text, found.Length, refusals.Length, omitted);
     }
-
-    /// <summary>
-    /// One directory step. A directory holding a SKILL.md is a skill and is not descended into, which
-    /// is what makes <c>skills/&lt;name&gt;/SKILL.md</c> and a grouping level
-    /// (<c>skills/&lt;group&gt;/&lt;name&gt;/SKILL.md</c>) both work while a documentation tree under
-    /// a skill directory stays out of the index. Every path is reported relative to the workspace
-    /// root, because that is the string the model types into a file tool.
-    /// </summary>
-    private static void WalkForSkills(
-        string rootPath,
-        string directory,
-        int depth,
-        List<WorkspaceSkillPolicy.Skill> found,
-        List<WorkspaceSkillPolicy.Refusal> refusals,
-        HashSet<string> names,
-        ref int omitted)
-    {
-        if (depth > WorkspaceSkillPolicy.SearchDepth) return;
-
-        string skillFile;
-        string[] children;
-        try
-        {
-            if (!Directory.Exists(directory)) return;
-            skillFile = Path.Combine(directory, WorkspaceSkillPolicy.SkillFileName);
-            children = Directory.GetDirectories(directory);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return;
-        }
-
-        // Ordinal sort because the filesystem does not promise an order, and "first occurrence wins"
-        // for a duplicated name is only a rule if the walk itself is reproducible. Without this the
-        // index can flicker between two runs of the same untouched directory.
-        Array.Sort(children, StringComparer.Ordinal);
-
-        // The skills root itself is never a skill: SKILL.md beside a group of skill directories would
-        // advertise the collection as one of its members.
-        if (depth >= 1 && File.Exists(skillFile))
-        {
-            var relative = RelativeTo(rootPath, skillFile);
-            if (relative is null)
-            {
-                refusals.Add(new WorkspaceSkillPolicy.Refusal(
-                    Path.GetFileNameWithoutExtension(directory), "resolves outside the workspace root"));
-                return;
-            }
-
-            if (found.Count >= WorkspaceSkillPolicy.MaxSkills)
-            {
-                omitted++;
-                return;
-            }
-
-            ReadOneSkill(rootPath, skillFile, relative, found, refusals, names);
-            return;
-        }
-
-        foreach (var child in children)
-        {
-            WalkForSkills(rootPath, child, depth + 1, found, refusals, names, ref omitted);
-        }
-    }
-
-    private static void ReadOneSkill(
-        string rootPath,
-        string path,
-        string relative,
-        List<WorkspaceSkillPolicy.Skill> found,
-        List<WorkspaceSkillPolicy.Refusal> refusals,
-        HashSet<string> names)
-    {
-        try
-        {
-            var info = new FileInfo(path);
-            // Same rule the instruction reader applies: the run's prompt promises nothing outside the
-            // root is readable, so a reader that followed a link out would be the component that
-            // proves that promise false.
-            if (info.ResolveLinkTarget(returnFinalTarget: true) is { } target
-                && !WorkspaceInstructionPolicy.IsInsideRoot(rootPath, target.FullName))
-            {
-                refusals.Add(new WorkspaceSkillPolicy.Refusal(relative, "is a link that resolves outside the workspace root"));
-                return;
-            }
-
-            if (info.Length > WorkspaceSkillPolicy.MaxFileBytes)
-            {
-                refusals.Add(new WorkspaceSkillPolicy.Refusal(relative, $"is larger than {WorkspaceSkillPolicy.MaxFileBytes} bytes"));
-                return;
-            }
-
-            if (!WorkspaceSkillPolicy.TryRead(
-                    File.ReadAllText(path),
-                    Path.GetFileName(Path.GetDirectoryName(path)) ?? string.Empty,
-                    relative,
-                    out var skill,
-                    out var reason))
-            {
-                refusals.Add(new WorkspaceSkillPolicy.Refusal(relative, reason));
-                return;
-            }
-
-            // First occurrence wins, as in the reference: two directories claiming one name means the
-            // index line the model repeats could open either file, and the tie is broken by walk
-            // order, not by a guess about which one the author meant.
-            if (!names.Add(skill!.Name))
-            {
-                refusals.Add(new WorkspaceSkillPolicy.Refusal(relative, $"another skill already claims the name '{skill.Name}'"));
-                return;
-            }
-
-            found.Add(skill);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            refusals.Add(new WorkspaceSkillPolicy.Refusal(relative, "could not be read"));
-        }
-    }
-
-    private static string? RelativeTo(string rootPath, string path)
-    {
-        var root = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var full = Path.GetFullPath(path);
-        if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return null;
-        return full[(root.Length + 1)..].Replace(Path.DirectorySeparatorChar, '/');
-    }
-
     /// <summary>
     /// Which media types can be quoted as text lives in <see cref="AttachmentContentPolicy"/>, shared
     /// with the <c>read_attachment</c> tool: the two readers must not disagree about whether a file is

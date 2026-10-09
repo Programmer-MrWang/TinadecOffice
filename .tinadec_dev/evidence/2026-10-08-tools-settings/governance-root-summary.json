@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-08",
+  "project": "TinadecCore/tests/TinadecCore.Governance.Tests/TinadecCore.Governance.Tests.csproj",
+  "filter": "FullyQualifiedName~WorkspaceRootClaimTests",
+  "passed": 3,
+  "failed": 0,
+  "skipped": 0,
+  "duration_seconds": 6,
+  "trx": "governance-workspace-root.trx",
+  "command": "node scripts/dotnet.mjs test TinadecCore/tests/TinadecCore.Governance.Tests/TinadecCore.Governance.Tests.csproj --artifacts-path .tinadec_dev/tmp/tools-root-governance-artifacts --filter FullyQualifiedName~WorkspaceRootClaimTests --logger trx;LogFileName=governance-workspace-root.trx --results-directory .tinadec_dev/evidence/2026-10-08-tools-settings --nologo",
+  "coverage": [
+    "Public scope grant normalization preserves workspace-root://root",
+    "Public concrete permission request normalization preserves the same typed root and matches its exact boundary/grant to issue a lease",
+    "Scope and concrete path://. and path://../X claims remain rejected as traversal"
+  ],
+  "production_governance_edits": false
+}

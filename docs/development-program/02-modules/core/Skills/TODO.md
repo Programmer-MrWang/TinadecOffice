@@ -39,27 +39,49 @@
 ### CORE-SKILLS-101 实现通用技能 provider 的列出与读取
 
 - 类型：实现
-- 状态：未开始
+- 状态：已完成
 - 优先级：P2
 - 主责模块：CORE-SKILLS
 - 前置依赖：未细化；开工前在此列出实际Task ID，不能把全部关联模块当硬依赖
 - 关联功能：待逐功能拆分后绑定本模块Feature ID
-- 完成证据：未产生；本轮仅建立任务与源码基线
+- 完成证据：[工具配置专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)，含真实包读取与最终77项市场/Skills API回归。
 
 **问题与目的**
 
-ISkillProvider 当前为空，实现与实际工作区技能读取之间尚无统一事实来源。
+历史空 provider 已由统一技能目录替代。ISkillProvider 提供共享资源兼容读取，IToolSkillCatalog 与 Context 按项目/Agent 精确选择共享及项目包；设置与运行共用 WorkspaceSkillDiscovery。
 
 **验收条件**
 
-- [ ] 定义并实现技能 ID、来源、范围、启禁及缺失语义。
-- [ ] 已安装/可用技能可按 agent/工作区范围列出与读取，禁用技能不进入模型输入。
-- [ ] 与 Context 工作区技能读取共享明确所有者，避免重复发现和重复注入。
-- [ ] 市场安装结果可追溯到 provider 可见的对应技能，写入仍走受控安装路径。
+- [x] 定义并实现技能 ID、来源、范围、启禁及缺失语义。
+- [x] 已安装/可用技能可按 agent/工作区范围列出与读取，禁用技能不进入模型输入。
+- [x] 与 Context 工作区技能读取共享明确所有者，避免重复发现和重复注入。
+- [x] 市场安装结果可追溯到 provider 可见的对应技能，写入仍走受控安装路径。
+
+**2026-10-08 验收证据**：46 项 Skills 测试通过，包含共享资产/不可变版本、同名覆盖、精确绑定、428/412及并发 Agent 索引；模型提示回归通过。实现及三平台验证边界见[专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)。CORE-SKILLS-001 全模块审计不随此任务完成。
 
 **初始证据**
 
 - [TinadecCore/Skills/SkillsModuleRegistrar.cs:43](../../../../../TinadecCore/Skills/SkillsModuleRegistrar.cs#L43)
 - [TinadecCore/Abstractions/Ports/ISkillProvider.cs](../../../../../TinadecCore/Abstractions/Ports/ISkillProvider.cs)
 - [TinadecCore/Context/ContextModuleRegistrar.cs:526](../../../../../TinadecCore/Context/ContextModuleRegistrar.cs#L526)
+
+<a id="core-skills-102"></a>
+
+### CORE-SKILLS-102 Skills 包发现、审批、安装与 Agent 调用闭环
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：CORE-SKILLS
+- 前置依赖：CORE-SKILLS-101、CORE-TOOLS-101、TOOLS-MCP-102
+- 范围：共享/项目完整包、固定提交 GitHub 来源、预览与审批、包文件/哈希/可用状态、项目准入快照、删除与二进制资产边界。
+- 证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md)、[运行时证据](../../../../../.tinadec_dev/evidence/2026-10-09-skills-management/runtime-tests.txt)
+
+**状态说明**：共享无项目安装、更新保留附件、项目包治理写入与工具能力索引已接线；本地导入与市场安装统一为审批后落盘。市场 76/76、Skills 27/27、联合 116/116 通过；PostgreSQL 实库及非 Windows 沙箱保持边界。
+
+**验收条件**
+
+- [x] 固定提交来源、共享无项目预览、完整包清单、摘要及实际可用状态已接线。
+- [x] Agent 索引与实际读取能力一致，项目准入保留完整包快照，追加写授权拒绝只读根重叠。
+- [x] 市场完整测试及项目删除回归最终通过（76/76、27/27、116/116）；PostgreSQL 实库和 POSIX 集成另行验证。
 

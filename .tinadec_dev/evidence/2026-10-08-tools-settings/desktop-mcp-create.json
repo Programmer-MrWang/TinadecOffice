@@ -1,0 +1,20 @@
+{
+  "id": 13,
+  "result": {
+    "cases": [
+      {
+        "case": "mcp-created-secret-masked",
+        "name": "Desktop QA Echo",
+        "env": {
+          "TOKEN": "********"
+        },
+        "revision": 1
+      },
+      {
+        "case": "real-mcp-connection-test"
+      }
+    ],
+    "text": "资源目录\n共享\n当前项目\n添加 MCP 服务器\n\n服务器配置由 Core 保存。环境变量中的已有密钥以掩码显示，保留掩码不会覆盖密钥。\n\n为此配置提供的资源\n继承默认\n所有可用资源\n不选择任何资源\n继承默认\nDesktop QA Echo\n270075a8-505c-49a4-a16a-b98720aa1eaf\n启用\n编辑\n测试连接\n删除"
+  },
+  "errors": []
+}

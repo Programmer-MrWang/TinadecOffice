@@ -1,10 +1,11 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Skills;
 
@@ -52,19 +53,28 @@ public sealed class MarketInstallService : IMarketInstallService
     private readonly IToolProvider _provider;
     private readonly ISessionLocator _sessions;
     private readonly IUserToolActionService _actions;
+    private readonly IMcpResourceRegistry? _mcpResources;
+    private readonly IToolSkillResourceService? _skillResources;
+    private readonly StoragePaths? _storage;
 
     public MarketInstallService(
         IDbContextFactory<IntegrationDbContext> dbFactory,
         ITenantContextAccessor tenantContext,
         IToolProvider provider,
         ISessionLocator sessions,
-        IUserToolActionService actions)
+        IUserToolActionService actions,
+        IMcpResourceRegistry? mcpResources = null,
+        IToolSkillResourceService? skillResources = null,
+        StoragePaths? storage = null)
     {
         _dbFactory = dbFactory;
         _tenantContext = tenantContext;
         _provider = provider;
         _sessions = sessions;
         _actions = actions;
+        _mcpResources = mcpResources;
+        _skillResources = skillResources;
+        _storage = storage;
     }
 
     public Task<MarketInstallProposalDto> PreviewInstallAsync(
@@ -75,7 +85,19 @@ public sealed class MarketInstallService : IMarketInstallService
         if (catalogId == Guid.Empty)
             throw new MarketCatalogException(MarketErrorCodes.EntryNotFound, "catalog_id is required.");
 
-        return PreviewAsync(projectId, MarketInstallActions.Install, catalogId, cancellationToken);
+        return PreviewAsync(projectId, MarketInstallActions.Install, catalogId, cancellationToken, "project");
+    }
+
+    public Task<MarketInstallProposalDto> PreviewSkillInstallAsync(Guid catalogId, Guid? projectId, string scope = "shared", CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(scope, "shared", StringComparison.OrdinalIgnoreCase) && !string.Equals(scope, "project", StringComparison.OrdinalIgnoreCase))
+            throw new MarketCatalogException(MarketErrorCodes.NotExpressible, "scope must be shared or project.");
+        // The package fetch still needs a governed Tool Provider workspace. Callers installing into
+        // a project provide it explicitly; shared package writes are queued by the managed
+        // skill_resource_update action once the package bytes are frozen by that project context.
+        if (scope == "project" && (projectId is null || projectId == Guid.Empty))
+            throw new MarketCatalogException(MarketErrorCodes.ProjectNotFound, "A project is required to preview and fetch a skill package.");
+        return PreviewAsync(projectId ?? Guid.Empty, MarketInstallActions.Install, catalogId, cancellationToken, scope.ToLowerInvariant());
     }
 
     public Task<MarketInstallProposalDto> PreviewUninstallAsync(
@@ -100,7 +122,8 @@ public sealed class MarketInstallService : IMarketInstallService
         Guid projectId,
         string action,
         Guid subjectId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string installScope = "project")
     {
         var scope = _tenantContext.Current;
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
@@ -111,20 +134,23 @@ public sealed class MarketInstallService : IMarketInstallService
 
         // A preview installs into the project the caller named; a removal goes to the project the
         // installation record already belongs to, which is the only one whose config holds it.
-        var project = await ResolveProjectAsync(
-            action == MarketInstallActions.Install ? projectId : subject.ProjectId,
-            scope,
-            cancellationToken).ConfigureAwait(false);
+        var resolvedProjectId = action == MarketInstallActions.Install ? projectId : subject.ProjectId;
+        var isSharedSkill = subject.Kind == MarketEntryKinds.Skill && (action == MarketInstallActions.Install ? installScope == "shared" : subject.Scope == "shared");
+        if (isSharedSkill) installScope = "shared";
+        var project = resolvedProjectId == Guid.Empty && isSharedSkill ? null : await ResolveProjectAsync(resolvedProjectId, scope, cancellationToken).ConfigureAwait(false);
         // An entry that cannot become an action is refused before anything is read: "this row is a
         // remote endpoint, not a server we can start" and "this skill is already installed, and Core
         // has no delete" are facts about the entry, not about the project's config, and the two get
         // different codes because a client branches on them differently — one is "pick another
         // row", the other is "fix the workspace".
-        AssertExpressible(action, subject);
+        var isGovernedProjectSkillRemoval = action == MarketInstallActions.Uninstall && subject.Kind == MarketEntryKinds.Skill && subject.Scope == "project";
+        if (!isSharedSkill && !isGovernedProjectSkillRemoval) AssertExpressible(action, subject);
 
         var plan = string.Equals(subject.Kind, MarketEntryKinds.Skill, StringComparison.OrdinalIgnoreCase)
-            ? await PlanSkillInstallAsync(project, subject, cancellationToken).ConfigureAwait(false)
-            : await PlanConfigWriteAsync(project, subject, action, cancellationToken).ConfigureAwait(false);
+            ? action == MarketInstallActions.Uninstall
+                ? await PlanSkillDisableAsync(subject, subject.ProjectId, cancellationToken).ConfigureAwait(false)
+                : await PlanSkillInstallAsync(project, subject, installScope, cancellationToken).ConfigureAwait(false)
+            : await PlanConfigWriteAsync(project!, subject, action, cancellationToken).ConfigureAwait(false);
 
         var now = DateTimeOffset.UtcNow;
         var record = new MarketInstallProposalRecord
@@ -132,7 +158,7 @@ public sealed class MarketInstallService : IMarketInstallService
             Id = Guid.NewGuid(),
             TenantId = scope.TenantId,
             WorkspaceId = scope.WorkspaceId,
-            ProjectId = project.ProjectId,
+            ProjectId = isSharedSkill ? Guid.Empty : project!.ProjectId,
             PrincipalId = scope.PrincipalId,
             Action = action,
             CatalogId = action == MarketInstallActions.Install ? subjectId : subject.CatalogId,
@@ -144,7 +170,7 @@ public sealed class MarketInstallService : IMarketInstallService
             ServerId = subject.ServerId,
             Command = subject.Command,
             ArgsJson = JsonSerializer.Serialize(subject.Args),
-            EnvironmentJson = JsonSerializer.Serialize(subject.Environment),
+            EnvironmentJson = plan.ExpectedFileHashesJson ?? JsonSerializer.Serialize(subject.Environment),
             ReplacesCommand = plan.ReplacesCommand,
             TargetPath = plan.TargetPath,
             Content = plan.Content,
@@ -152,6 +178,10 @@ public sealed class MarketInstallService : IMarketInstallService
             // write is conditioned on creating, never on overwriting.
             ExpectedFileHash = plan.ExpectedFileHash,
             ManifestHash = subject.ManifestHash,
+            Scope = installScope,
+            ResourceId = plan.ResourceId ?? (installScope == "shared" ? Guid.NewGuid() : null),
+            PackageFilesJson = plan.PackageFilesJson,
+            PackageHash = plan.PackageHash,
             Status = "pending",
             CreatedAt = now,
             ExpiresAt = now.Add(MarketInstallPolicy.ProposalTtl),
@@ -175,6 +205,28 @@ public sealed class MarketInstallService : IMarketInstallService
         string action,
         CancellationToken cancellationToken)
     {
+        if (_mcpResources is not null)
+        {
+            await _mcpResources.EnsureImportedAsync(project.ProjectId, cancellationToken).ConfigureAwait(false);
+            var resources = await _mcpResources.ListAsync(project.ProjectId, cancellationToken).ConfigureAwait(false);
+            var managed = resources.FirstOrDefault(x => x.ProjectId == project.ProjectId && x.Id == subject.ServerId);
+            if (action == MarketInstallActions.Uninstall && managed is null)
+                throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The managed MCP resource no longer exists.");
+            // Existing credentials remain in SecretStore: reviewed proposals contain no secret values.
+            var content = JsonSerializer.Serialize(new
+            {
+                action = action == MarketInstallActions.Uninstall ? "delete" : "save",
+                project_id = project.ProjectId,
+                resource_id = managed?.ResourceId,
+                expected_revision = managed?.Revision ?? 0,
+                id = subject.ServerId, name = subject.DisplayName, enabled = true,
+                command = subject.Command ?? managed?.Command ?? "", args = subject.Args,
+                env = (object?)null, cwd = managed?.Cwd,
+            }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull });
+            return new Plan($"mcp-resource://{managed?.ResourceId.ToString() ?? "new"}", content,
+                (managed?.Revision ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture), managed?.Command,
+                "The reviewed resource revision is saved through Core approval. Subsequent runs use the new connection; active runs retain their frozen version.");
+        }
         var configPath = await ConfigPathAsync(project.RootPath, cancellationToken).ConfigureAwait(false);
         if (!IsInsideWorkspace(configPath, project.RootPath))
         {
@@ -208,7 +260,7 @@ public sealed class MarketInstallService : IMarketInstallService
                 + "characters Core will freeze into a proposal.");
         }
 
-        return new Plan(configPath, merge.Content, unreadable ? null : currentHash, merge.ReplacesCommand, null);
+        return new Plan(configPath, merge.Content, unreadable ? null : currentHash, merge.ReplacesCommand, null, null, null);
     }
 
     /// <summary>
@@ -223,20 +275,30 @@ public sealed class MarketInstallService : IMarketInstallService
     /// decision a person is entitled to make with the old bytes and the new ones on one screen.
     /// </summary>
     private async Task<Plan> PlanSkillInstallAsync(
-        ProjectReference project,
+        ProjectReference? project,
         ProposalSubject subject,
+        string scope,
         CancellationToken cancellationToken)
     {
-        var (body, error) = await SkillRepositorySource.ReadDocumentAsync(
-            _provider, project.RootPath, subject.SourceLocation, subject.ExtensionId, cancellationToken)
-            .ConfigureAwait(false);
-
-        if (body is null)
+        var tenant = _tenantContext.Current;
+        var fetchRoot = project?.RootPath ?? _storage?.ResolveContentReference($"market-fetch/{tenant.TenantId:N}/{tenant.WorkspaceId:N}")
+            ?? throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The Core market fetch root is unavailable.");
+        Directory.CreateDirectory(fetchRoot);
+        Dictionary<string, string>? package = null;
+        string? body = null;
+        string? error = null;
+        if (string.Equals(subject.SourceKind, SkillGitRepositorySource.Kind, StringComparison.OrdinalIgnoreCase))
         {
-            throw new MarketCatalogException(
-                MarketErrorCodes.NotExpressible,
-                error ?? "The skill document could not be read, so there is nothing to review.");
+            (package, error) = await SkillGitRepositorySource.ReadPackageAsync(_provider, fetchRoot, subject.SourceLocation, subject.ExtensionId, cancellationToken, subject.ManifestHash).ConfigureAwait(false);
+            if (package?.GetValueOrDefault("SKILL.md") is { } document) body = new UTF8Encoding(false, true).GetString(Convert.FromBase64String(document));
         }
+        else
+        {
+            (body, error) = await SkillRepositorySource.ReadDocumentAsync(_provider, fetchRoot, subject.SourceLocation, subject.ExtensionId, cancellationToken).ConfigureAwait(false);
+            if (body is not null) package = new Dictionary<string, string>(StringComparer.Ordinal) { ["SKILL.md"] = Convert.ToBase64String(Encoding.UTF8.GetBytes(body)) };
+        }
+        if (body is null || package is null)
+            throw new MarketCatalogException(MarketErrorCodes.NotExpressible, error ?? "The skill package could not be read, so there is nothing to review.");
 
         // The document is checked against the rule the workspace will apply to it later. A skill
         // whose frontmatter names a different directory, or carries its own off switch, is refused
@@ -250,11 +312,21 @@ public sealed class MarketInstallService : IMarketInstallService
                 $"The document at {relative} is not an installable skill: {reason}.");
         }
 
+        var packageFiles = JsonSerializer.Serialize(package);
+        var packageHash = PackageHash(package);
+        if (scope == "shared")
+        {
+            var existingResource = _skillResources is null ? null : (await _skillResources.ListAsync(null, cancellationToken)).Skills.FirstOrDefault(x => x.Name == subject.ExtensionId);
+            return new Plan("skill-resource://" + (existingResource?.ResourceId.ToString("N") ?? "new"), body,
+                (existingResource?.Revision ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture), null,
+                existingResource is null ? null : "This replaces the shared Skill package; existing runs retain their admitted package version.", packageFiles, packageHash, existingResource?.ResourceId);
+        }
+
         // Canonical, because this string is frozen into the proposal and handed to the provider as
         // the write target: the child resolves its own root through symlinks, and a declared path it
         // judges outside that root is silently never written.
         var target = WorkspacePathSpelling.Canonical(
-            WorkspaceSkillPolicy.AbsolutePathFor(project.RootPath, subject.ExtensionId));
+            WorkspaceSkillPolicy.AbsolutePathFor(project!.RootPath, subject.ExtensionId));
         if (!IsInsideWorkspace(target, project.RootPath))
         {
             // Unreachable for a name that passed the format rule, and kept because this is the
@@ -274,7 +346,30 @@ public sealed class MarketInstallService : IMarketInstallService
               + ". Approving this replaces it; the bytes being overwritten are recoverable from the "
               + "write's own snapshot.";
 
-        return new Plan(target, body, existingHash, null, warning);
+        var hashes = new Dictionary<string,string?> { ["SKILL.md"] = existingHash };
+        foreach (var asset in package.Keys.Where(x => x != "SKILL.md"))
+        {
+            var assetPath = Path.Combine(Path.GetDirectoryName(target)!, asset.Replace('/', Path.DirectorySeparatorChar));
+            if (!WorkspaceSkillDiscovery.IsContained(project.RootPath, assetPath)) throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "A package path leaves its project root.");
+            var (_, assetHash, _) = await CurrentConfigAsync(project.RootPath, assetPath, cancellationToken);
+            hashes[asset] = assetHash;
+        }
+        return new Plan(target, body, existingHash, null, warning, packageFiles, packageHash, ExpectedFileHashesJson: JsonSerializer.Serialize(hashes));
+    }
+
+    private async Task<Plan> PlanSkillDisableAsync(ProposalSubject subject, Guid projectId, CancellationToken ct)
+    {
+        if (_skillResources is null) throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The installed Skill resource is unavailable.");
+        var resource = (subject.ResourceId is { } rid ? await _skillResources.GetAsync(rid, projectId == Guid.Empty ? null : projectId, ct) : null) ?? (await _skillResources.ListAsync(projectId == Guid.Empty ? null : projectId, ct)).Skills.FirstOrDefault(x => x.Name == subject.ExtensionId)
+            ?? throw new MarketCatalogException(MarketErrorCodes.TargetUnresolved, "The installed Skill resource is unavailable.");
+        if (resource.Scope == "project")
+        {
+            var hashes = new Dictionary<string,string?>();
+            foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(resource.Path)!, "*", SearchOption.AllDirectories)) hashes[Path.GetRelativePath(Path.GetDirectoryName(resource.Path)!, file).Replace('\\','/')] = await FileHash((await ResolveProjectAsync(projectId, _tenantContext.Current, ct)).RootPath, file, ct);
+            return new Plan($"skill-project://{resource.Name}", "", null, null, "Uninstall deletes the governed project package.", JsonSerializer.Serialize(new Dictionary<string,string>()), resource.PackageHash, resource.ResourceId, JsonSerializer.Serialize(hashes));
+        }
+        return new Plan($"skill-resource://{resource.ResourceId:N}", WorkspaceSkillDiscovery.SetEnabled(resource.Content ?? "", false), resource.Revision.ToString(), null,
+            "Uninstall disables this Skill. Package bytes and running snapshots are retained.", null, resource.PackageHash, resource.ResourceId);
     }
 
     /// <summary>
@@ -380,6 +475,9 @@ public sealed class MarketInstallService : IMarketInstallService
 
         await AssertStillTrueAsync(db, scope.TenantId, proposal, cancellationToken).ConfigureAwait(false);
 
+        var managedResource = proposal.TargetPath.StartsWith("mcp-resource://", StringComparison.Ordinal);
+        var managedSkill = proposal.TargetPath.StartsWith("skill-resource://", StringComparison.Ordinal);
+        var projectSkillPackage = proposal.Kind == MarketEntryKinds.Skill && proposal.Scope == "project" && proposal.PackageFilesJson is not null;
         var parameters = new Dictionary<string, object?>
         {
             ["filepath"] = proposal.TargetPath,
@@ -397,8 +495,16 @@ public sealed class MarketInstallService : IMarketInstallService
         {
             action = await _actions.CreateAsync(new UserToolActionRequest(
                 proposal.ProjectId,
-                WriteFileToolId,
-                JsonSerializer.Serialize(parameters),
+                managedResource ? "mcp_resource_update" : managedSkill ? "skill_resource_update" : projectSkillPackage ? "skill_project_package" : WriteFileToolId,
+                managedResource ? proposal.Content : managedSkill ? JsonSerializer.Serialize(new {
+                    action = "save", resource_id = proposal.ResourceId, expected_revision = long.TryParse(proposal.ExpectedFileHash, out var skillRevision) ? skillRevision : 0L,
+                    scope = "shared", name = proposal.ExtensionId, content = proposal.Content, enabled = proposal.Action != MarketInstallActions.Uninstall,
+                    files = AssetsOnly(proposal.PackageFilesJson),
+                    replace_files = true, source = proposal.SourceId?.ToString("N") ?? "market", version = proposal.Version, commit = proposal.Version.Length == 40 ? proposal.Version : null,
+                }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }) : projectSkillPackage ? JsonSerializer.Serialize(new {
+                    name = proposal.ExtensionId, content = proposal.Content, files = AssetsOnly(proposal.PackageFilesJson),
+                    expected_file_hashes = JsonSerializer.Deserialize<Dictionary<string,string?>>(proposal.EnvironmentJson),
+                }) : JsonSerializer.Serialize(parameters),
                 // One proposal, one action: an apply button clicked twice queues the same governed
                 // write rather than a second approval for identical bytes.
                 IdempotencyKey: $"market-install:{proposal.Id:N}"), cancellationToken).ConfigureAwait(false);
@@ -461,7 +567,23 @@ public sealed class MarketInstallService : IMarketInstallService
             if (row.State == MarketInstallationStates.Removing && status == "completed")
                 continue;
 
-            result.Add(ToInstallationDto(row, names.GetValueOrDefault(row.SourceId, UnknownSource), status));
+            var dto = ToInstallationDto(row, names.GetValueOrDefault(row.SourceId, UnknownSource), status);
+            if (row.Kind == MarketEntryKinds.Skill && status == "completed" && _skillResources is not null)
+            {
+                var resource = row.ResourceId is { } id
+                    ? await _skillResources.GetAsync(id, row.Scope == "project" ? row.ProjectId : null, cancellationToken)
+                    : (await _skillResources.ListAsync(row.ProjectId, cancellationToken)).Skills.FirstOrDefault(x => x.Scope == row.Scope && x.Name == row.ExtensionId);
+                dto = new MarketInstallationDto
+                {
+                    Id = dto.Id, ProjectId = dto.ProjectId, CatalogId = dto.CatalogId, SourceName = dto.SourceName, ExtensionId = dto.ExtensionId, Kind = dto.Kind,
+                    Version = dto.Version, ServerId = dto.ServerId, ConfigPath = dto.ConfigPath, State = dto.State, InstallActionId = dto.InstallActionId,
+                    UninstallActionId = dto.UninstallActionId, ActionStatus = dto.ActionStatus, CreatedAt = dto.CreatedAt, UpdatedAt = dto.UpdatedAt,
+                    Scope = row.Scope, ResourceId = resource?.ResourceId ?? row.ResourceId, PackageHash = resource?.PackageHash ?? row.PackageHash,
+                    PackageFiles = resource?.PackageFiles ?? dto.PackageFiles,
+                    Availability = resource is { Valid: true, Enabled: true, Content: not null } ? "available" : resource?.Enabled == false ? "disabled" : "unavailable",
+                };
+            }
+            result.Add(dto);
         }
 
         return result;
@@ -534,6 +656,7 @@ public sealed class MarketInstallService : IMarketInstallService
                 Kind = proposal.Kind,
                 ServerId = proposal.ServerId,
                 ConfigPath = proposal.TargetPath,
+                Scope = proposal.Scope, ResourceId = proposal.ResourceId, PackageHash = proposal.PackageHash, PackageFilesJson = proposal.PackageFilesJson,
                 ManifestHash = proposal.ManifestHash ?? string.Empty,
                 InstallActionId = actionId,
                 State = MarketInstallationStates.Installing,
@@ -556,6 +679,8 @@ public sealed class MarketInstallService : IMarketInstallService
             installation.Version = proposal.Version;
             installation.Kind = proposal.Kind;
             installation.ConfigPath = proposal.TargetPath;
+            installation.Scope = proposal.Scope; installation.ResourceId = proposal.ResourceId;
+            installation.PackageHash = proposal.PackageHash; installation.PackageFilesJson = proposal.PackageFilesJson;
             installation.ManifestHash = proposal.ManifestHash ?? installation.ManifestHash;
             installation.InstallActionId = actionId;
             installation.UninstallActionId = null;
@@ -909,6 +1034,10 @@ public sealed class MarketInstallService : IMarketInstallService
             proposal.TargetPath,
             proposal.ExpectedFileHash ?? string.Empty,
             proposal.ManifestHash ?? string.Empty,
+            proposal.Scope,
+            proposal.ResourceId?.ToString("N") ?? string.Empty,
+            proposal.PackageFilesJson ?? string.Empty,
+            proposal.PackageHash ?? string.Empty,
             proposal.Content);
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
@@ -955,12 +1084,16 @@ public sealed class MarketInstallService : IMarketInstallService
         var sourceName = await db.Sources.AsNoTracking()
             .Where(x => x.Id == installation.SourceId && x.TenantId == scope.TenantId)
             .Select(x => x.Name).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        var sourceKind = await db.Sources.AsNoTracking()
+            .Where(x => x.Id == installation.SourceId && x.TenantId == scope.TenantId)
+            .Select(x => x.Kind).FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false) ?? "";
 
         return new ProposalSubject(
             installation.ProjectId,
             installation.SourceId,
             installation.CatalogId,
             sourceName ?? UnknownSource,
+            sourceKind,
             installation.ExtensionId,
             installation.Kind,
             installation.Version,
@@ -970,7 +1103,7 @@ public sealed class MarketInstallService : IMarketInstallService
             null,
             [],
             [],
-            "This installation is not in the catalog any more.");
+            "This installation is not in the catalog any more.", Scope: installation.Scope, ResourceId: installation.ResourceId);
     }
 
     private static async Task<ProposalSubject> ReadCatalogSubjectAsync(
@@ -1013,6 +1146,7 @@ public sealed class MarketInstallService : IMarketInstallService
             row.SourceId,
             row.Id,
             source.Name,
+            source.Kind,
             row.ExtensionId,
             row.Kind,
             row.Version,
@@ -1161,6 +1295,10 @@ public sealed class MarketInstallService : IMarketInstallService
         {
             Id = proposal.Id.ToString("N"),
             Action = proposal.Action,
+            Scope = proposal.Scope,
+            ResourceId = proposal.ResourceId,
+            PackageHash = proposal.PackageHash,
+            PackageFiles = ParsePackageFiles(proposal.PackageFilesJson),
             ProjectId = proposal.ProjectId.ToString("N"),
             CatalogId = proposal.CatalogId?.ToString("N"),
             InstallationId = proposal.InstallationId?.ToString("N"),
@@ -1182,6 +1320,47 @@ public sealed class MarketInstallService : IMarketInstallService
         };
     }
 
+    private static Dictionary<string,string>? AssetsOnly(string? json)
+    {
+        if (json is null) return null;
+        var files = JsonSerializer.Deserialize<Dictionary<string,string>>(json) ?? [];
+        files.Remove("SKILL.md"); return files;
+    }
+
+    private static string PackageHash(IReadOnlyDictionary<string,string> package)
+    {
+        using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var (relative,encoded) in package.OrderBy(x => x.Key,StringComparer.Ordinal))
+        {
+            var bytes = Convert.FromBase64String(encoded);
+            digest.AppendData(Encoding.UTF8.GetBytes(relative + "\0" + bytes.Length + "\0")); digest.AppendData(bytes);
+        }
+        return Convert.ToHexStringLower(digest.GetHashAndReset());
+    }
+    private async Task<string?> FileHash(string root, string path, CancellationToken ct)
+    {
+        var result = await CallAsync(root, ReadFileToolId, new Dictionary<string,object?> { ["filepath"] = path }, ct).ConfigureAwait(false);
+        return result is { } value && value.TryGetProperty("file_hash", out var hash) ? hash.GetString() : null;
+    }
+
+    private static IReadOnlyList<ToolSkillPackageFileDto> ParsePackageFiles(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+            var result = new List<ToolSkillPackageFileDto>();
+            foreach (var property in document.RootElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind != JsonValueKind.String) continue;
+                var bytes = Convert.FromBase64String(property.Value.GetString() ?? "");
+                result.Add(new ToolSkillPackageFileDto { Path = property.Name, ContentHash = Convert.ToHexStringLower(SHA256.HashData(bytes)), SizeBytes = bytes.LongLength });
+            }
+            return result;
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException) { return []; }
+    }
+
     private static MarketInstallationDto ToInstallationDto(
         MarketInstallationRecord row,
         string sourceName,
@@ -1196,6 +1375,8 @@ public sealed class MarketInstallService : IMarketInstallService
             Version = row.Version,
             ServerId = row.ServerId,
             ConfigPath = row.ConfigPath,
+            Scope = row.Scope, ResourceId = row.ResourceId, PackageHash = row.PackageHash, PackageFiles = ParsePackageFiles(row.PackageFilesJson),
+            Availability = actionStatus == "completed" ? "available" : actionStatus is "failed" or "blocked" ? "unavailable" : "pending",
             State = row.State,
             InstallActionId = row.InstallActionId.ToString("N"),
             UninstallActionId = row.UninstallActionId?.ToString("N"),
@@ -1214,6 +1395,7 @@ public sealed class MarketInstallService : IMarketInstallService
         Guid SourceId,
         Guid CatalogId,
         string SourceName,
+        string SourceKind,
         string ExtensionId,
         string Kind,
         string Version,
@@ -1227,7 +1409,7 @@ public sealed class MarketInstallService : IMarketInstallService
         // Where the source that listed this entry is read from. Only a skill install uses it, and
         // only to compose the document address; a removal carries an empty string because it writes
         // a file Core has already been told about and never goes back to the market.
-        string SourceLocation = "");
+        string SourceLocation = "", string Scope = "project", Guid? ResourceId = null);
 
     /// <summary>
     /// One file a proposal would write: where, with what bytes, conditioned on which current hash,
@@ -1239,5 +1421,9 @@ public sealed class MarketInstallService : IMarketInstallService
         string Content,
         string? ExpectedFileHash,
         string? ReplacesCommand,
-        string? Warning);
+        string? Warning,
+        string? PackageFilesJson = null,
+        string? PackageHash = null,
+        Guid? ResourceId = null,
+        string? ExpectedFileHashesJson = null);
 }

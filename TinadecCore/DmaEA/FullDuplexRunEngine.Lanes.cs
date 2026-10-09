@@ -373,7 +373,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             var supervisorDefinition = RequiredAgent(configuration.OperationAgents, "supervisor");
             var supervisorInstance = await EnsureSupervisorAgentAsync(run, configuration, checkpoint, supervisorDefinition, cancellationToken).ConfigureAwait(false);
             checkpoint.SupervisorAgentId = supervisorInstance.Id;
-            var context = await BuildContextAsync(run, configuration, supervisorDefinition.Id, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
+            var context = await BuildContextAsync(run, configuration, supervisorDefinition, checkpoint.UserGoal, cancellationToken).ConfigureAwait(false);
             var assembly = await AssemblePromptAsync(configuration, supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
             var supervisor = new SupervisionAgent(CreateModelFactory(configuration, checkpoint, supervisorDefinition,
                 supervisorInstance.Id, supervisorInstance.ParentInstanceId), _logger);
@@ -1491,7 +1491,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         CancellationToken cancellationToken)
     {
         var plannerDefinition = RequiredAgent(configuration.ExecutionAgents, "task_planner");
-        var context = await BuildContextAsync(run, configuration, plannerDefinition.Id, laneGoal, cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, configuration, plannerDefinition, laneGoal, cancellationToken).ConfigureAwait(false);
         var assembly = await AssemblePromptAsync(configuration, plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(Guid.Parse(run.RunId), "context.packed",
             $"Lane '{laneKey}' planner context assembled.", new

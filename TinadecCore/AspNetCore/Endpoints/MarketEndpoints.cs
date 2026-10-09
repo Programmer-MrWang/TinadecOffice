@@ -199,17 +199,30 @@ public static class MarketEndpoints
             string catalogId,
             MarketInstallRequestDto request,
             IMarketInstallService install,
+            IMarketCatalogService market,
             CancellationToken ct) =>
         {
             if (!TryId(catalogId, out var id))
                 return InvalidId("catalogId", catalogId);
 
-            if (!TryGuidId(request.ProjectId, out var projectId))
-                return InvalidId("project_id", request.ProjectId);
+            Guid? projectId = null;
+            if (!string.IsNullOrWhiteSpace(request.ProjectId))
+            {
+                if (!TryGuidId(request.ProjectId, out var parsedProjectId))
+                    return InvalidId("project_id", request.ProjectId);
+                projectId = parsedProjectId;
+            }
 
             try
             {
-                return Results.Ok(await install.PreviewInstallAsync(id, projectId, ct).ConfigureAwait(false));
+                var entry = await market.FindCatalogEntryAsync(id, ct).ConfigureAwait(false);
+                if (entry is null) return NotFound(MarketErrorCodes.EntryNotFound, "No catalog entry has that id.");
+                var isSkill = string.Equals(entry.Kind, MarketEntryKinds.Skill, StringComparison.OrdinalIgnoreCase);
+                if (!isSkill && projectId is null) return InvalidId("project_id", null);
+                var preview = isSkill
+                    ? await install.PreviewSkillInstallAsync(id, projectId, request.Scope, ct).ConfigureAwait(false)
+                    : await install.PreviewInstallAsync(id, projectId!.Value, ct).ConfigureAwait(false);
+                return Results.Ok(preview);
             }
             catch (MarketCatalogException ex)
             {

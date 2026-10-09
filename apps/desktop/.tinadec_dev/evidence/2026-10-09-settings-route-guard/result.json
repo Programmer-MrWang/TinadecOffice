@@ -1,0 +1,8 @@
+{
+  "delayed_navigation": "navigation remains at /settings until injected 530ms wait resolves, then reaches /",
+  "implementation": "SettingsPage no longer calls next() from a later setTimeout callback",
+  "navigation_guard": "createSettingsLeaveGuard returns Promise<boolean>",
+  "rejected_navigation": "return false keeps memory-router currentRoute at /settings",
+  "tests": "settingsNavigation + SettingsPage.smoke: 10 passed",
+  "typecheck": "vue-tsc --noEmit passed"
+}

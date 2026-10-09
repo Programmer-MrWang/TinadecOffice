@@ -62,3 +62,21 @@ mock pass-through 测试存在，实际配置、外部进程生命周期与调�
 - [TinadecTools/Tools/Mcp/McpServerRepository.cs](../../../../../TinadecTools/Tools/Mcp/McpServerRepository.cs)
 - [tests/TinadecTools.Tests/McpPassThroughTests.cs](../../../../../tests/TinadecTools.Tests/McpPassThroughTests.cs)
 
+<a id="tools-mcp-102"></a>
+
+### TOOLS-MCP-102 按 Core 资源版本绑定 MCP 连接
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：TOOLS-MCP
+- 前置依赖：CORE-TOOLS-101
+- 关联功能：TOOLS-MCP-F003
+- 范围与验收：托管上下文绝不回退文件；指纹包含资源ID、版本及环境，新版本开启新连接，旧运行与活跃调用保留旧连接直至回收；同名显式资源准确调用；管理连接测试可诊断；市场安装审批后真正可调用、卸载进同一资源库。
+- 完成证据：[专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)、Provider完整389、精确MCP定向及真实Desktop/市场Node stdio调用。未把本地真实进程夹具当作外部生产集成验收，既有TOOLS-MCP-101保持独立范围。
+
+**验收条件**
+
+- [x] 完成任务列出的实现范围及条件保存、冻结配置和资源隔离回归。
+- [x] 取得真实 Windows Core/Desktop/Tools 证据；PostgreSQL 及 Linux/macOS 边界单独记录。
+- [x] 同步模块说明、API/客户端及共享实施报告，不将专项完成扩大为整体模块验收。

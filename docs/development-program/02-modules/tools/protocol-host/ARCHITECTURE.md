@@ -48,3 +48,16 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[TOOLS-PROTOCOL-001](TODO.md#tools-protocol-001)。
+
+## 2026-10-08 每次调用的可信上下文
+
+```mermaid
+flowchart LR
+  Core["Core调用请求"] -->|"独立execution_context；模型params另列"| Registry["ToolRegistry"]
+  Registry -->|"克隆不可变上下文/AsyncLocal作用域"| Context["ToolExecutionContext"]
+  Context -->|"冻结默认、预算与路径根"| Tool["具体工具实际执行"]
+  Registry -->|"结构稳定声明"| Manifest["manifest v2"]
+  Controls["#capabilities / #release_context"] -->|"检测与上下文回收"| Context
+```
+
+箭头依据：[Registry](../../../../../TinadecTools/Abstractions/ToolRegistry.cs)、[协议DTO](../../../../../TinadecTools/Abstractions/ToolCalling.cs)、[上下文](../../../../../TinadecTools/Runtime/ToolExecutionContext.cs)、[宿主控制](../../../../../TinadecTools/Runtime/ToolHostControls.cs)。模型目录和实际执行均应用配置限制；独立Tools没有托管上下文时维持原文件模式。平台沙箱、哈希、链接与授权边界仍由执行实现约束。

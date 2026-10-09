@@ -21,7 +21,7 @@ const { t } = useI18n()
 
 const {
   busy, activeProposal: proposal, proposalBusy, targetProject,
-  selectedItem, selectedInstallation, awaitingDecision,
+  selectedItem, selectedInstallation, awaitingDecision, actionFinished, installationUsable, skillScope,
   mcpServers, mcpReadSucceeded, mcpReason, mcpConfigPath,
   previewInstall, previewRemoval, applyProposal, discardProposal,
 } = marketController
@@ -56,7 +56,9 @@ function statusLine() {
   if (!row) return t('market.notInstalled')
   if (awaitingDecision(row)) return t('market.awaitingDecisionHint')
   if (row.state === 'removing') return t('market.removingHint')
-  if (row.action_status === 'completed') return t('market.installedHint')
+  if (installationUsable(row)) return t('market.installedHint')
+  if (row.action_status === 'completed') return t('market.unavailableHint', { status: row.availability || 'unknown' })
+  if (actionFinished(row)) return `${t('market.installFailed')} · ${row.action_status}`
   return `${t('market.installingHint')} · ${row.action_status}`
 }
 </script>
@@ -76,7 +78,7 @@ function statusLine() {
 
       <p class="market-detail-copy">{{ selectedItem.description }}</p>
 
-      <div class="market-status-strip" :class="{ enabled: !!selectedInstallation }">
+      <div class="market-status-strip" :class="{ enabled: installationUsable(selectedInstallation) }" :data-status="selectedInstallation?.action_status || 'available'">
         <CheckCircle2 v-if="selectedInstallation" :size="16" />
         <ShieldCheck v-else :size="16" />
         <span>{{ statusLine() }}</span>
@@ -90,6 +92,21 @@ function statusLine() {
         <div>
           <span>{{ t('market.version') }}</span>
           <strong>{{ selectedItem.version }}</strong>
+        </div>
+        <div v-if="selectedItem.kind === 'skill' && selectedInstallation?.package_hash">
+          <span>{{ t('market.packageHash') }}</span>
+          <strong class="mono">{{ selectedInstallation.package_hash }}</strong>
+        </div>
+        <div v-if="selectedItem.kind === 'skill' && selectedInstallation?.scope">
+          <span>{{ t('market.scope') }}</span>
+          <strong>{{ selectedInstallation.scope === 'shared' ? t('toolsSettings.shared') : t('toolsSettings.projectResources') }}</strong>
+        </div>
+      </div>
+
+      <div v-if="selectedItem.kind === 'skill' && selectedInstallation?.package_files?.length" class="market-section">
+        <h3>{{ t('market.packageFiles') }}</h3>
+        <div class="market-chip-row wrap">
+          <span v-for="file in selectedInstallation.package_files" :key="file.path" class="mono">{{ file.path }} · {{ file.size_bytes }} B</span>
         </div>
       </div>
 
@@ -111,6 +128,14 @@ function statusLine() {
         {{ selectedItem.install_blocker || t('market.notInstallable') }}
       </p>
 
+      <label v-if="selectedItem.kind === 'skill' && !selectedInstallation" class="market-scope-picker">
+        <span>{{ t('market.installScope') }}</span>
+        <select v-model="skillScope">
+          <option value="shared">{{ t('toolsSettings.shared') }}</option>
+          <option value="project">{{ t('toolsSettings.projectResources') }}</option>
+        </select>
+      </label>
+
       <div v-if="proposal" class="market-proposal" data-testid="market-proposal">
         <div class="market-proposal-head">
           <h3>{{ removal ? t('market.removalTitle') : t('market.installTitle') }}</h3>
@@ -125,8 +150,8 @@ function statusLine() {
             <dd>{{ proposal.version }}</dd>
           </div>
           <div>
-            <dt>{{ t('market.targetProject') }}</dt>
-            <dd>{{ targetProject?.name ?? proposal.project_id }}</dd>
+            <dt>{{ t(proposal.scope === 'shared' ? 'market.scope' : 'market.targetProject') }}</dt>
+            <dd>{{ proposal.scope === 'shared' ? t('toolsSettings.shared') : targetProject?.name ?? proposal.project_id }}</dd>
           </div>
           <div v-if="commandLine">
             <dt>{{ t('market.command') }}</dt>
@@ -182,7 +207,7 @@ function statusLine() {
         </div>
       </div>
 
-      <div class="market-section" data-testid="market-mcp">
+      <div v-if="selectedItem.kind === 'mcp-server'" class="market-section" data-testid="market-mcp">
         <h3>{{ t('market.mcpServers') }}</h3>
         <!-- Three different answers, three different sentences. An empty list and an unreadable
              list used to look identical, which is how "the Tool Provider never started" read as
@@ -370,5 +395,10 @@ function statusLine() {
 .market-action-row {
   display: flex;
   gap: 8px;
+}
+
+.mono {
+  font-family: monospace;
+  overflow-wrap: anywhere;
 }
 </style>

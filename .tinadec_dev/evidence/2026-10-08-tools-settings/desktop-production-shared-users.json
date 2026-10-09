@@ -1,0 +1,214 @@
+{
+  "id": 75,
+  "result": {
+    "case": "final-shared-tool-users",
+    "url": "app://bundle/index.html#/settings",
+    "tabs": 9,
+    "agent": "",
+    "project": "a7061929-b3ae-4ada-9475-3b642dc3c058",
+    "usage": [
+      {
+        "tool": "command_run",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "delete_bytes",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "delete_line",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "file_search",
+        "users": "来源未声明 · low使用智能体：Tools QA Research、Tools QA Test"
+      },
+      {
+        "tool": "git_blame",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_branch_create",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_branch_delete",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_branch_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_branch_rename",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_checkout",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_commit",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_conflict_preview",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_conflict_resolve",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_diff",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_discard",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_fetch",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_file_at_revision",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_file_history",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_log",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_log_detail",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_log_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_merge",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_pull",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_push",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_push_readiness",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_rebase",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_ref_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_remote_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_stage",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_status",
+        "users": "来源未声明 · low使用智能体：Tools QA Coding、Tools QA Test"
+      },
+      {
+        "tool": "git_unstage",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_worktree_create",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_worktree_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "git_worktree_remove",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "insert_byte",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "insert_bytes",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "insert_line",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "ls",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "mcp_invoke",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "mcp_list",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "mcp_search",
+        "users": "来源未声明 · low使用智能体：Tools QA Test"
+      },
+      {
+        "tool": "read_file",
+        "users": "来源未声明 · low使用智能体：Tools QA Coding、Tools QA Research、Tools QA Test"
+      },
+      {
+        "tool": "replace_bytes",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "replace_lines",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "sandbox_reset",
+        "users": "来源未声明 · high需要审批使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "sandbox_status",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "shell",
+        "users": "来源未声明 · high需要审批使用智能体：Tools QA Coding、Tools QA Test"
+      },
+      {
+        "tool": "stat",
+        "users": "来源未声明 · low使用智能体：暂无智能体使用"
+      },
+      {
+        "tool": "web_fetch",
+        "users": "来源未声明 · high需要审批使用智能体：Tools QA Research、Tools QA Test"
+      },
+      {
+        "tool": "write_file",
+        "users": "来源未声明 · high需要审批使用智能体：Tools QA Coding、Tools QA Test"
+      }
+    ],
+    "errors": []
+  },
+  "errors": []
+}

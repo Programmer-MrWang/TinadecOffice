@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Abstractions;
 
@@ -178,10 +179,21 @@ internal static class ToolRegistry
         }
     }
 
-    public static ValueTask<ToolCallResponse<JsonElement>> DispatchAsync(
+    public static async ValueTask<ToolCallResponse<JsonElement>> DispatchAsync(
         ToolCallRequest<JsonElement> request,
         CancellationToken cancellationToken = default)
     {
+        using var scope = ToolExecutionContext.Enter(request.ExecutionContext, request.ToolId);
+        ToolExecutionContext.Current?.EnsureAllowed(request.ToolId);
+        if (ToolExecutionContext.Current is { } context)
+        {
+            request = new ToolCallRequest<JsonElement>
+            {
+                ToolId = request.ToolId, SessionId = request.SessionId, ToolCallId = request.ToolCallId,
+                Approved = request.Approved, ExecutionContext = request.ExecutionContext,
+                Params = context.ApplyDefaults(request.ToolId, request.Params)
+            };
+        }
         if (string.Equals(request.ToolId, ManifestToolId, StringComparison.OrdinalIgnoreCase))
         {
             var tools = ListTools()
@@ -203,18 +215,18 @@ internal static class ToolRegistry
                 Tools = tools,
                 ManifestHash = ToolManifestHash.Compute(tools)
             };
-            return ValueTask.FromResult(new ToolCallResponse<JsonElement>
+            return new ToolCallResponse<JsonElement>
             {
                 CallId = request.ToolCallId,
                 IsSuccess = true,
                 Response = JsonSerializer.SerializeToElement(manifest, ToolCallJsonContext.Default.ToolManifest)
-            });
+            };
         }
 
         if (!TryResolve(request.ToolId, out var handler))
             throw new InvalidOperationException($"Unknown tool '{request.ToolId}'.");
 
-        return handler(request, cancellationToken);
+        return await handler(request, cancellationToken).ConfigureAwait(false);
     }
 
     private static JsonElement ParseInputSchema(string json, string toolId)

@@ -23,7 +23,7 @@ namespace TinadecCore.Tools;
 /// The process-specific compatibility port is implemented as well so existing
 /// embedders can migrate without changing their registrations in one release.
 /// </summary>
-public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedService, IDisposable
+public sealed class TinadecToolsProcessManager : IToolProcessManager, IToolExecutionContextLifecycle, IHostedService, IDisposable
 {
     private const string ManifestToolId = "#manifest";
 
@@ -39,6 +39,39 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
     private static readonly UTF8Encoding Utf8NoBom = new(false);
     private readonly Dictionary<string, SemaphoreSlim> _writeLocks = new(StringComparer.OrdinalIgnoreCase);
     private long _nextCallId;
+    private readonly Dictionary<string, HashSet<string>> _contextRoots = new(StringComparer.Ordinal);
+
+    public async Task ReleaseAsync(string runId, CancellationToken cancellationToken = default)
+    {
+        string[] roots;
+        lock (_stateLock)
+        {
+            if (!_contextRoots.Remove(runId, out var owned)) return;
+            roots = owned.Where(root => _processes.TryGetValue(root, out var process) && !process.Process.HasExited).ToArray();
+        }
+        foreach (var root in roots)
+            try
+            {
+                var response = await CallAsync(root, new ToolWireRequestDto { ToolId = "#release_execution_context", SessionId = "context-release", Approved = false, Params = JsonSerializer.SerializeToElement(new { run_id = runId }) }, TimeSpan.FromSeconds(10), null, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccess) throw new InvalidOperationException("The provider rejected execution-context release.");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Terminal reconciliation must still find every unreleased root
+                // after host shutdown interrupts a best-effort cleanup pass.
+                lock (_stateLock)
+                {
+                    if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(StringComparer.OrdinalIgnoreCase);
+                    foreach (var ownedRoot in roots) retry.Add(ownedRoot);
+                }
+                throw;
+            }
+            catch (Exception ex) when (ex is IOException or InvalidOperationException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                lock (_stateLock) { if (!_contextRoots.TryGetValue(runId, out var retry)) _contextRoots[runId] = retry = new(StringComparer.OrdinalIgnoreCase); retry.Add(root); }
+                _logger.LogDebug(ex, "Could not release tool context {RunId}.", runId);
+            }
+    }
 
     public TinadecToolsProcessManager(IConfiguration configuration, ILogger<TinadecToolsProcessManager> logger)
     {
@@ -119,6 +152,12 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
         CancellationToken cancellationToken)
     {
         var root = ResolveRoot(workspaceRoot);
+        if (!string.IsNullOrWhiteSpace(request.ExecutionContext?.RunId))
+            lock (_stateLock)
+            {
+                if (!_contextRoots.TryGetValue(request.ExecutionContext.RunId, out var owned)) _contextRoots[request.ExecutionContext.RunId] = owned = new(StringComparer.OrdinalIgnoreCase);
+                owned.Add(root);
+            }
         if (_executablePath is null)
         {
             return Error(-1, "process_exit", "TinadecTools executable path is not configured.");
@@ -145,7 +184,8 @@ public sealed class TinadecToolsProcessManager : IToolProcessManager, IHostedSer
             SessionId = request.SessionId,
             ToolCallId = callId,
             Approved = request.Approved,
-            Params = request.Params
+            Params = request.Params,
+            ExecutionContext = request.ExecutionContext
         };
 
         var pending = process.RegisterPending(callId, observer);

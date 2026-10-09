@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TinadecCore.Abstractions.Ports;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.Tools;
 
@@ -29,6 +30,7 @@ internal static class ToolResourcePathRegistry
         {
             ["read_file"] = "filepath",
             ["write_file"] = "filepath",
+            ["delete_file"] = "filepath",
             // The line/byte mutation family binds the same "filepath" property
             // (FileWriter.cs): without them the WS-8 prefix narrowing silently
             // degraded to a level-only decision for every edit after the first write.
@@ -98,11 +100,52 @@ internal static class ToolResourcePathRegistry
         string? toolId,
         string? parametersJson,
         string? workspaceRoot,
-        bool mutating)
+        bool mutating,
+        ToolExecutionContextDto? executionContext = null)
     {
         var relativePath = TryExtractRelativePath(toolId, parametersJson, workspaceRoot);
-        if (relativePath is null) return null;
-        return new CapabilityClaim("resource.access", mutating ? "mutate" : "read", $"path://{relativePath}");
+        if (relativePath is null)
+        {
+            var parameter = PathParameter(toolId);
+            if (executionContext is null || parameter is null || string.IsNullOrWhiteSpace(parametersJson)) return null;
+            try
+            {
+                using var document = JsonDocument.Parse(parametersJson);
+                if (!document.RootElement.TryGetProperty(parameter, out var value) || value.ValueKind != JsonValueKind.String) return null;
+                var path = value.GetString();
+                if (string.IsNullOrWhiteSpace(path)) return null;
+                if (!mutating && toolId is "read_file" or "ls" or "stat" && Path.IsPathRooted(path))
+                    foreach (var root in executionContext.ReadRoots)
+                    {
+                        if (!WorkspaceSkillDiscovery.IsContained(root.Path, path)) continue;
+                        var relative = Path.GetRelativePath(root.Path, Path.GetFullPath(path)).Replace('\\', '/');
+                        return new("resource.access", "read", $"skill://{root.ResourceId:D}/{Uri.EscapeDataString(relative)}");
+                    }
+                // A managed context must not turn an unrepresentable path into a level-only grant.
+                return new("resource.access", mutating ? "mutate" : "read", "denied-path://outside-frozen-roots");
+            }
+            catch (Exception ex) when (ex is JsonException or ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException)
+            { return new("resource.access", mutating ? "mutate" : "read", "denied-path://invalid-target"); }
+        }
+        return new CapabilityClaim("resource.access", mutating ? "mutate" : "read",
+            relativePath == "." ? "workspace-root://root" : $"path://{relativePath}");
+    }
+
+    public static bool IsAuthorizedSkillClaim(CapabilityClaim resourceClaim, IReadOnlyList<ToolReadRootDto> roots)
+    {
+        if (resourceClaim.Action != "read" || !resourceClaim.Resource.StartsWith("skill://", StringComparison.Ordinal)) return false;
+        var resource = resourceClaim.Resource[8..];
+        var separator = resource.IndexOf('/');
+        if (separator < 0 || !Guid.TryParse(resource[..separator], out var id)) return false;
+        var root = roots.FirstOrDefault(x => x.ResourceId == id);
+        if (root is null) return false;
+        try
+        {
+            var relative = Uri.UnescapeDataString(resource[(separator + 1)..]);
+            if (Path.IsPathRooted(relative) || relative.Split('/', '\\').Any(x => x == "..")) return false;
+            return WorkspaceSkillDiscovery.IsContained(root.Path, Path.Combine(root.Path, relative));
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or UnauthorizedAccessException) { return false; }
     }
 
     /// <summary>
@@ -116,6 +159,7 @@ internal static class ToolResourcePathRegistry
         if (resourceClaim is null) return null;
         var resource = resourceClaim.Resource;
         if (string.IsNullOrWhiteSpace(resource)) return null;
+        if (resource.Equals("workspace-root://root", StringComparison.Ordinal)) return ".";
         if (!resource.StartsWith("path://", StringComparison.OrdinalIgnoreCase)) return null;
         return NormalizeRelativePath(resource[7..]);
     }
@@ -136,7 +180,9 @@ internal static class ToolResourcePathRegistry
             segments.Add(segment);
         }
 
-        return segments.Count == 0 ? null : string.Join('/', segments);
+        // A dot-only target is the workspace itself. Keep it distinct from an absent/escaped
+        // path so managed contexts permit root operations while narrowed prefixes still apply.
+        return segments.Count == 0 ? "." : string.Join('/', segments);
     }
 
     private static string? ToRelativePath(string? raw, string? workspaceRoot)

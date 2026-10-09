@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using NLog;
 using TinadecTools.Abstractions;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.FileRW;
 
@@ -125,7 +126,10 @@ public static class FileReader
 
         var requestedLength = (long)endRow - startRow + 1;
         if (endRow == int.MaxValue || requestedLength == int.MaxValue)
-            endRow = (int)Math.Min((long)startRow + max_sentinel_read_lines - 1, int.MaxValue);
+        {
+            var limit = ToolExecutionContext.Current?.Integer("read", "sentinel_line_limit", max_sentinel_read_lines, 0) ?? max_sentinel_read_lines;
+            endRow = limit == 0 ? int.MaxValue : (int)Math.Min((long)startRow + limit - 1, int.MaxValue);
+        }
 
         return (startRow, endRow);
     }

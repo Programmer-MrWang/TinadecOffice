@@ -200,8 +200,11 @@ describe('search navigation through the shipping pages', () => {
     expect(wrapper.get('.pe-fragment-card.active').text()).toContain('prompt-b')
     expect((wrapper.get('.pe-content-textarea').element as HTMLTextAreaElement).value).toBe('Content prompt-b')
     requestTool('read_file')
-    await flushPromises()
-    expect(wrapper.findAll('.tool-discovery-card')).toHaveLength(1)
+    // The Tools workspace loads its overview lazily after the host section mounts.
+    await vi.waitFor(async () => {
+      await flushPromises()
+      expect(wrapper.findAll('.tool-discovery-card')).toHaveLength(1)
+    })
     expect(wrapper.get('.tool-discovery-card').text()).toContain('read_file')
     expect(pendingToolId.value).toBe(null)
   })

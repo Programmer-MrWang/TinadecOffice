@@ -64,6 +64,32 @@ internal static class SandboxPaths
         return full;
     }
 
+    /// <summary>
+    /// A command grant must not turn a frozen Skill read root into a writable tree. Check both
+    /// directions: writing below the root is obvious, while granting the root's parent is the
+    /// equally dangerous case because it implicitly writes the selected package. Compare the
+    /// spelling and the resolved spelling so a junction/symlink cannot bypass the boundary.
+    /// </summary>
+    internal static void EnsureNotOverlappingReadRoots(string full, IEnumerable<string> readRoots)
+    {
+        foreach (var readRoot in readRoots)
+        {
+            if (PathsOverlap(full, readRoot) || PathsOverlap(WorkspacePathForm.Canonical(full), WorkspacePathForm.Canonical(readRoot)))
+                throw new UnauthorizedAccessException($"Write grant '{full}' overlaps the frozen Skill read root '{readRoot}'.");
+        }
+    }
+
+    private static bool PathsOverlap(string left, string right) =>
+        IsWithinPath(left, right) || IsWithinPath(right, left);
+
+    private static bool IsWithinPath(string root, string path)
+    {
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        if (string.Equals(root, path, Cmp)) return true;
+        return path.StartsWith(root + Path.DirectorySeparatorChar, Cmp);
+    }
+
     internal static void EnsureNotBroadWriteTarget(string full)
     {
         if (IsDiskRoot(full))

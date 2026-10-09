@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-08",
+  "project": "tests/TinadecTools.Tests/TinadecTools.Tests.csproj",
+  "platform": "Windows x64",
+  "artifacts_path": ".tinadec_dev/tmp/tools-settings-provider-artifacts",
+  "runsettings": "provider.runsettings",
+  "results": [
+    {
+      "name": "Full provider regression before the final Web shared-ceiling fix",
+      "passed": 389,
+      "failed": 0,
+      "skipped": 0,
+      "duration_seconds": 610,
+      "evidence": "Observed dotnet test console result; the full run used console logging only and did not generate a TRX.",
+      "command": "node scripts/dotnet.mjs test tests/TinadecTools.Tests/TinadecTools.Tests.csproj --artifacts-path .tinadec_dev/tmp/tools-settings-provider-artifacts --settings .tinadec_dev/tmp/tools-provider-serial.runsettings --logger console;verbosity=minimal --nologo"
+    },
+    {
+      "name": "Focused host controls, exact MCP resource handles and Git settings",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "duration_seconds": 23,
+      "trx": "provider-focused.trx",
+      "filter": "FullyQualifiedName~ToolExecutionContextTests.HostControlsAreApprovalFreeAndDoNotChangeTheModelManifest|FullyQualifiedName~ToolExecutionContextTests.RealGitOperationBudgetsKeepLogAndDiffIndependent|FullyQualifiedName~ToolExecutionContextTests.RealGitLogDefaultsRespectExplicitPagingLimits|FullyQualifiedName~ToolExecutionContextTests.ExactMcpResourcesWithTheSameFriendlyIdRemainIndependentlyInvokable"
+    },
+    {
+      "name": "Final Web ceiling fix, all Web regressions, Shell and Git output guards",
+      "passed": 54,
+      "failed": 0,
+      "skipped": 0,
+      "duration_seconds": 22,
+      "trx": "provider-web-ceilings.trx",
+      "filter": "FullyQualifiedName~ToolExecutionContextTests.ExplicitWebParamsCannotWidenFrozenByteAndTextCeilings|FullyQualifiedName~ToolExecutionContextTests.ShellUsesConfiguredDefaultDeadlineOutputBudgetAndExplicitTimeout|FullyQualifiedName~ToolExecutionContextTests.RealGitOperationBudgetsKeepLogAndDiffIndependent|FullyQualifiedName~WebFetchTests"
+    }
+  ],
+  "new_context_tests": 26,
+  "coverage": [
+    "Trusted outer execution_context is independent of model-authored params and isolated across concurrent calls",
+    "Missing raw parameters use frozen defaults; explicit values remain explicit and are bounded by configured ceilings",
+    "Selected package roots are readable and do not become writable; ancestor links outside a package are refused",
+    "MCP exact resource identity, environment/configuration fingerprints, immutable run leases and active-call cleanup",
+    "Host controls remain approval-free and excluded from the model manifest",
+    "Per-Git operation output budgets and actual log paging defaults",
+    "Explicit Web parameters cannot exceed frozen byte/text caps and late responses cannot defeat elapsed timeouts"
+  ],
+  "limitations": [
+    "The final Web ceiling fix was covered by its focused54-test regression; the full389-test suite was not repeated after that small fix.",
+    "MCP tests use actual local Node.js stdio fixture processes, not external production integrations.",
+    "Optional ripgrep/link/OS tests retain the repository's prerequisite guards; a pass count alone does not prove every optional mechanism was exercised."
+  ]
+}

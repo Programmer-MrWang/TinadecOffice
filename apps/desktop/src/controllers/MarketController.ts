@@ -50,6 +50,9 @@ const loading = ref(false)
  */
 const proposal = ref<MarketInstallProposalDto | null>(null)
 const proposalBusy = ref(false)
+const skillScope = ref<'shared' | 'project'>('shared')
+let catalogEpoch = 0
+let ledgerEpoch = 0
 
 const sourceForm = reactive({
   name: 'MCP Registry',
@@ -79,6 +82,7 @@ export function catalogKindLabel(kind: string): string {
 export function sourceKindLabel(kind: string): string {
   if (kind === 'mcp_registry') return t('market.kindMcpRegistry')
   if (kind === 'skill_repository') return t('market.kindSkillRepository')
+  if (kind === 'skill_git') return t('market.kindSkillGit')
   return kind
 }
 
@@ -106,6 +110,7 @@ const installationKeys = computed(() => {
 })
 
 function installationFor(item: MarketCatalogItemDto): MarketInstallationDto | null {
+  if (item.kind === 'skill' && skillScope.value === 'shared') return installations.value.find(row => row.extension_id === item.extension_id && row.scope === 'shared') ?? null
   const project = targetProjectId.value
   if (!project) return null
   return installationKeys.value.get(`${project}\u0000${item.extension_id}`) ?? null
@@ -124,7 +129,8 @@ const selectedInstallation = computed(() =>
 const activeProposal = computed(() => {
   const pending = proposal.value
   if (!pending) return null
-  if (pending.project_id !== targetProjectId.value) return null
+  if (!(pending.kind === 'skill' && pending.scope === 'shared') && pending.project_id !== targetProjectId.value) return null
+  if (pending.kind === 'skill' && pending.scope && pending.scope !== skillScope.value) return null
   if (pending.action === MARKET_INSTALL_ACTION_UNINSTALL) {
     return pending.installation_id && selectedInstallation.value?.id === pending.installation_id ? pending : null
   }
@@ -138,6 +144,9 @@ function awaitingDecision(row: MarketInstallationDto | null): boolean {
 
 function actionFinished(row: MarketInstallationDto | null): boolean {
   return !!row?.action_status && isUserToolActionTerminal(row.action_status)
+}
+function installationUsable(row: MarketInstallationDto | null): boolean {
+  return row?.action_status === 'completed' && row.state !== 'removing' && (row.kind !== 'skill' || row.availability === 'available')
 }
 
 /**
@@ -201,18 +210,21 @@ async function loadAll() {
 }
 
 async function loadCatalog() {
+  const current = ++catalogEpoch
   try {
     const page = await api.listMarketCatalog({
       kind: kindFilter.value,
       q: query.value.trim(),
       source_id: sourceFilter.value || undefined,
     })
+    if (current !== catalogEpoch) return
     catalog.value = page.items
     if (!catalog.value.some((item) => item.catalog_id === selectedCatalogId.value)) {
       selectedCatalogId.value = catalog.value[0]?.catalog_id ?? ''
     }
     dismissByKey('market-catalog')
   } catch (err) {
+    if (current !== catalogEpoch) return
     status.error({
       key: 'market-catalog',
       title: t('market.loadFailed'),
@@ -225,7 +237,9 @@ async function loadCatalog() {
 }
 
 async function loadInstallations() {
+  const current = ++ledgerEpoch
   const list = await api.listMarketInstallations()
+  if (current !== ledgerEpoch) return
   installations.value = list.installations
   syncLedgerPoll()
 }
@@ -297,7 +311,7 @@ function discardProposal() {
 async function previewInstall() {
   const item = selectedItem.value
   if (!item) return
-  if (!targetProjectId.value) {
+  if (!targetProjectId.value && !(item.kind === 'skill' && skillScope.value === 'shared')) {
     notify.warning({ message: t('market.installNeedsProject'), source: 'market' })
     return
   }
@@ -308,7 +322,10 @@ async function previewInstall() {
   proposalBusy.value = true
   try {
     await run('install preview', async () => {
-      proposal.value = await api.previewMarketInstall(item.catalog_id, targetProjectId.value!)
+      const project = targetProjectId.value
+      const scope = skillScope.value
+      const preview = item.kind === 'skill' ? await api.previewMarketInstall(item.catalog_id, project, scope) : await api.previewMarketInstall(item.catalog_id, project)
+      if (selectedItem.value?.catalog_id === item.catalog_id && (item.kind === 'skill' && scope === 'shared' || targetProjectId.value === project) && (item.kind !== 'skill' || skillScope.value === scope)) proposal.value = preview
     })
   } finally {
     proposalBusy.value = false
@@ -422,6 +439,7 @@ function start() {
 
 function stop() {
   stopLedgerPoll()
+  ++catalogEpoch; ++ledgerEpoch
 }
 
 export const marketController = {
@@ -429,7 +447,7 @@ export const marketController = {
   mcpInventory, mcpServers, mcpSource, mcpReadSucceeded, mcpReason, mcpConfigPath,
   selectedCatalogId, kindFilter, sourceFilter, query, busy, loading,
   proposal, activeProposal, proposalBusy, sourceForm,
-  selectedItem, selectedInstallation, installationFor, awaitingDecision, actionFinished,
+  selectedItem, selectedInstallation, installationFor, awaitingDecision, actionFinished, installationUsable, skillScope,
   targetProjectId, targetProject,
   start, stop,
   loadAll, loadCatalog, loadInstallations,

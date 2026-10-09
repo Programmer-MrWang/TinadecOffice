@@ -102,6 +102,13 @@ internal static class ShellToolRegistration
             return Fail(request.ToolCallId, "Shell tool requires a non-empty 'command' parameter.");
         }
 
+        if (ToolExecutionContext.Current is { } executionContext)
+        {
+            timeoutMs = Math.Min(timeoutMs, executionContext.Integer("shell", "max_timeout_ms", 1_800_000, 1, 1_800_000));
+            if (longLived && !executionContext.Boolean("shell", "allow_long_lived", true))
+                return Fail(request.ToolCallId, "Long-lived shell sessions are disabled by the frozen execution context.");
+        }
+
         var branchGuard = ProtectedBranchGuard.EvaluateShellCommand(command);
         if (!branchGuard.Allowed)
         {
@@ -166,6 +173,21 @@ internal static class ShellToolRegistration
     // Internal for tests: the cmd.exe quoting rule is the regression surface.
     internal static (string FileName, List<string> Arguments, string? ArgumentString) ResolveSandboxCommand(string command)
     {
+        var configured = ToolExecutionContext.Current?.String("shell", "shell") ?? "auto";
+        switch (configured)
+        {
+            case "powershell":
+                if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows PowerShell is unavailable on this platform.");
+                return ("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command], null);
+            case "pwsh":
+                return (OperatingSystem.IsWindows() ? "pwsh.exe" : "pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], null);
+            case "bash":
+                return (OperatingSystem.IsWindows() ? "bash.exe" : "/bin/bash", ["-lc", command], null);
+            case "cmd" when !OperatingSystem.IsWindows():
+                throw new PlatformNotSupportedException("cmd is unavailable on this platform.");
+            case "auto" or "cmd": break;
+            default: throw new InvalidOperationException($"Unknown configured shell '{configured}'.");
+        }
         if (OperatingSystem.IsWindows())
             // cmd has no backslash escaping, and .NET escapes ArgumentList entries with
             // MSVCRT rules (" -> \"), so the command cannot travel as an argv entry

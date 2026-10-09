@@ -1,0 +1,274 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="d4bda097-649b-4cf7-bea6-2e115089b0b3" name="lincu@LINSTATION 2026-10-08 19:07:41" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-08T19:07:41.3259285+08:00" queuing="2026-10-08T19:07:41.3259290+08:00" start="2026-10-08T19:07:21.5893107+08:00" finish="2026-10-08T19:08:37.2942156+08:00" />
+  <TestSettings name="default" id="eca1b343-9d87-45e7-b2fc-ce6375640b60">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-08_19_07_41" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="027b62d3-059a-459a-b28c-c916c1349c3f" testId="9c5f2e03-0a25-ebaf-d883-7cc268448345" testName="TinadecCore.Api.Tests.ToolChainEndpointTests.WorktreeSteward_AssignsTheCreatedWorktreeToItsRun_AndRemovalReleasesIt" computerName="LINSTATION" duration="00:00:03.1627940" startTime="2026-10-08T19:07:54.2535186+08:00" endTime="2026-10-08T19:07:57.4551064+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="027b62d3-059a-459a-b28c-c916c1349c3f" />
+    <UnitTestResult executionId="340650be-f3a3-4987-9209-233837eb7a72" testId="0af6ba0a-6854-dfca-20fe-f1e837a724dc" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.ProjectShadowing_OnlyAppliesToInheritedMcpBindings" computerName="LINSTATION" duration="00:00:02.1898489" startTime="2026-10-08T19:08:04.8040679+08:00" endTime="2026-10-08T19:08:07.0181945+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="340650be-f3a3-4987-9209-233837eb7a72" />
+    <UnitTestResult executionId="781812e7-2cd5-4b40-9fa7-77fc9273f84d" testId="0bb35b26-f9e2-46b0-fc11-7087152e1457" testName="TinadecCore.Api.Tests.UnattendedEndToEndTests.PreAuthorization_EndToEnd_GitCommitWithoutHuman" computerName="LINSTATION" duration="00:00:04.6127240" startTime="2026-10-08T19:08:20.5858606+08:00" endTime="2026-10-08T19:08:25.4283000+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="781812e7-2cd5-4b40-9fa7-77fc9273f84d">
+      <Output>
+        <ErrorInfo>
+          <Message>Interaction admission returned 400 BadRequest: {"code":"invalid_request","message":"permission_mode must be a string."} | server cause: the handler recorded no 5xx for this host, so this status did not come from a thrown exception</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.ServerFailureReports.AssertStatusAsync(WebApplicationFactory`1 factory, HttpResponseMessage response, HttpStatusCode expected, String what) in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\ServerFailureReports.cs:line 63&#xD;
+   at TinadecCore.Api.Tests.UnattendedEndToEndTests.&lt;&gt;c__DisplayClass26_0.&lt;&lt;StartStreamingInvoke&gt;b__0&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs:line 383&#xD;
+--- End of stack trace from previous location ---&#xD;
+   at TinadecCore.Api.Tests.UnattendedEndToEndTests.StartUnattendedRunAsync(String label, IReadOnlyDictionary`2 extraConfig, String permissionMode, Boolean useWriteFileForTests) in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs:line 181&#xD;
+   at TinadecCore.Api.Tests.UnattendedEndToEndTests.PreAuthorization_EndToEnd_GitCommitWithoutHuman() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs:line 98&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="5a3e2384-cbc8-490a-84cd-aeae358b4291" testId="50c30cd9-0ccc-45cd-f6d0-0f56ae617289" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.Admission_UsesOneResourceVersionAcrossAllAgentBindings" computerName="LINSTATION" duration="00:00:00.9600403" startTime="2026-10-08T19:08:03.8090769+08:00" endTime="2026-10-08T19:08:04.8036141+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5a3e2384-cbc8-490a-84cd-aeae358b4291" />
+    <UnitTestResult executionId="eb8d32f5-f2fd-46f5-8de1-1abd6c8b9b63" testId="8e183e4c-5ed1-ce7c-1c34-b77d24cef5ae" testName="TinadecCore.Api.Tests.ToolChainEndpointTests.AskMode_RunsOnNarrowedRoster_BrowserWorkerCompletesWithoutSupervisor" computerName="LINSTATION" duration="00:00:03.9686345" startTime="2026-10-08T19:07:57.4563364+08:00" endTime="2026-10-08T19:08:01.4808352+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="eb8d32f5-f2fd-46f5-8de1-1abd6c8b9b63" />
+    <UnitTestResult executionId="10a56cc0-c929-4f47-84f5-191cfc5773b3" testId="6aae058f-49f4-7ff4-6240-81b40fb864c9" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.McpSecrets_AreMaskedAndOldSnapshotKeepsItsCredentialVersion" computerName="LINSTATION" duration="00:00:01.8243113" startTime="2026-10-08T19:08:10.6707511+08:00" endTime="2026-10-08T19:08:12.5196959+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="10a56cc0-c929-4f47-84f5-191cfc5773b3" />
+    <UnitTestResult executionId="2472a1f6-b2a5-4c89-b2b8-3b3a6b39de85" testId="c497366f-d61d-5d3e-b978-10ad1463fef5" testName="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: True, workflow: False)" computerName="LINSTATION" duration="00:00:06.1159978" startTime="2026-10-08T19:07:48.0703022+08:00" endTime="2026-10-08T19:07:54.2503828+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2472a1f6-b2a5-4c89-b2b8-3b3a6b39de85" />
+    <UnitTestResult executionId="bd549d23-62fc-43a5-845d-1046e53b57fc" testId="7deebc9d-abb0-608f-5212-5f2cfe4892cc" testName="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: False, workflow: True)" computerName="LINSTATION" duration="00:00:18.0485885" startTime="2026-10-08T19:07:23.0888048+08:00" endTime="2026-10-08T19:07:41.2605591+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bd549d23-62fc-43a5-845d-1046e53b57fc" />
+    <UnitTestResult executionId="0367ac77-aaac-4934-9b4c-667e1579faa4" testId="cdeea0e7-fb07-361a-f543-bf497e0ea233" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.EffectiveInspection_ReportsDeletedExactBindingsWithoutFailingTheSettingsPage" computerName="LINSTATION" duration="00:00:01.7900418" startTime="2026-10-08T19:08:07.0188552+08:00" endTime="2026-10-08T19:08:08.8372247+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0367ac77-aaac-4934-9b4c-667e1579faa4" />
+    <UnitTestResult executionId="83e151fa-6d16-448d-b9f5-0808f37e0edc" testId="6bb32a52-9cec-1e14-1724-6fe0b3313002" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.ConditionalSettingsWrites_RejectUnknownFieldsAndStaleRevisions" computerName="LINSTATION" duration="00:00:01.7123219" startTime="2026-10-08T19:08:12.5199809+08:00" endTime="2026-10-08T19:08:14.2582043+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="83e151fa-6d16-448d-b9f5-0808f37e0edc" />
+    <UnitTestResult executionId="8c878084-3e38-4c12-9f31-ac687f4b9d54" testId="f9afc1f0-a207-ecba-d895-d68c351737a9" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.AdmissionSnapshots_FreezeSharedDefaultsAndPerAgentOverrides" computerName="LINSTATION" duration="00:00:03.3580332" startTime="2026-10-08T19:08:17.1674290+08:00" endTime="2026-10-08T19:08:20.5802393+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8c878084-3e38-4c12-9f31-ac687f4b9d54" />
+    <UnitTestResult executionId="a2d801f9-08c9-49f7-8734-a2442dce9f27" testId="b6b4fc4e-ba3e-426c-1547-394571c4efe5" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.BrokenLegacyImport_BlocksMcpButLeavesOtherToolsConfigured" computerName="LINSTATION" duration="00:00:02.2062150" startTime="2026-10-08T19:08:01.4884880+08:00" endTime="2026-10-08T19:08:03.8079771+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a2d801f9-08c9-49f7-8734-a2442dce9f27" />
+    <UnitTestResult executionId="7bbf5d51-6b85-48d7-b79d-278531c7692d" testId="403c1aa0-8bf8-034d-19bf-55ec7bd7ffab" testName="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: False, workflow: False)" computerName="LINSTATION" duration="00:00:06.7178277" startTime="2026-10-08T19:07:41.2998644+08:00" endTime="2026-10-08T19:07:48.0673361+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7bbf5d51-6b85-48d7-b79d-278531c7692d" />
+    <UnitTestResult executionId="55d2c4ca-22ec-4d4b-8852-2c48d43c7919" testId="7ea9f01f-dd3e-46e6-0d24-353574081521" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.McpCreate_RequiresTheRevisionZeroPrecondition" computerName="LINSTATION" duration="00:00:01.7756865" startTime="2026-10-08T19:08:08.8700175+08:00" endTime="2026-10-08T19:08:10.6704509+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="55d2c4ca-22ec-4d4b-8852-2c48d43c7919" />
+    <UnitTestResult executionId="2d8ccb22-00e6-4dcf-af75-e46e414f3b23" testId="a59d983b-2065-e07b-fb78-32a3981e4008" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.LegacyMcpFile_ImportsOnceWithoutBecomingLiveAuthority" computerName="LINSTATION" duration="00:00:01.9436251" startTime="2026-10-08T19:08:15.1967737+08:00" endTime="2026-10-08T19:08:17.1667635+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2d8ccb22-00e6-4dcf-af75-e46e414f3b23" />
+    <UnitTestResult executionId="1ae36b4f-2859-4a62-a2dc-f785d1db12a2" testId="dd517d36-40e3-79b0-c603-19658ca73009" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.AgentSettings_DeepMergeBudgetsButCannotWidenSharedLimits" computerName="LINSTATION" duration="00:00:00.0275859" startTime="2026-10-08T19:08:08.8392256+08:00" endTime="2026-10-08T19:08:08.8696067+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1ae36b4f-2859-4a62-a2dc-f785d1db12a2" />
+    <UnitTestResult executionId="f2720e4c-b541-4a3f-a22c-e961ceef3494" testId="7404f881-7951-36f1-c206-8881fc8180af" testName="TinadecCore.Api.Tests.ToolSettingsApiTests.SharedLimitChanges_RejectInvalidAgentOverridesWithoutAdvancingRevision" computerName="LINSTATION" duration="00:00:00.9090763" startTime="2026-10-08T19:08:14.2585260+08:00" endTime="2026-10-08T19:08:15.1963739+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f2720e4c-b541-4a3f-a22c-e961ceef3494" />
+    <UnitTestResult executionId="31199e69-2ae6-4e96-916c-7dd0576b10eb" testId="5a54257c-f7ed-f0dd-5e4c-c41072f8ec61" testName="TinadecCore.Api.Tests.AgentPackEndpointTests.AgentPackLifecycle_AgentModeSelectsPublishedConversationModeVersion" computerName="LINSTATION" duration="00:00:05.2700376" startTime="2026-10-08T19:08:25.4658991+08:00" endTime="2026-10-08T19:08:30.7387859+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="31199e69-2ae6-4e96-916c-7dd0576b10eb" />
+    <UnitTestResult executionId="43034443-b69f-42cf-88ff-6ee0b3b05a8f" testId="724637fb-6350-5262-8f2e-bc87bb60adc6" testName="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" computerName="LINSTATION" duration="00:00:06.2825000" startTime="2026-10-08T19:08:30.7434397+08:00" endTime="2026-10-08T19:08:37.0281939+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="43034443-b69f-42cf-88ff-6ee0b3b05a8f">
+      <Output>
+        <ErrorInfo>
+          <Message>OpenAPI snapshot drift at C:\git\agent\TinadecOffice\TinadecCore\tests\__snapshots__\openapi.core.json. Snapshot has been regenerated; review git diff and commit it if intentional.</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\CoreOpenApiSnapshotTests.cs:line 129&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: True, workflow: False)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="c497366f-d61d-5d3e-b978-10ad1463fef5">
+      <Execution id="2472a1f6-b2a5-4c89-b2b8-3b3a6b39de85" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolChainEndpointTests" name="SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolChainEndpointTests.WorktreeSteward_AssignsTheCreatedWorktreeToItsRun_AndRemovalReleasesIt" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="9c5f2e03-0a25-ebaf-d883-7cc268448345">
+      <Execution id="027b62d3-059a-459a-b28c-c916c1349c3f" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolChainEndpointTests" name="WorktreeSteward_AssignsTheCreatedWorktreeToItsRun_AndRemovalReleasesIt" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.AgentPackEndpointTests.AgentPackLifecycle_AgentModeSelectsPublishedConversationModeVersion" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="5a54257c-f7ed-f0dd-5e4c-c41072f8ec61">
+      <Execution id="31199e69-2ae6-4e96-916c-7dd0576b10eb" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.AgentPackEndpointTests" name="AgentPackLifecycle_AgentModeSelectsPublishedConversationModeVersion" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.McpCreate_RequiresTheRevisionZeroPrecondition" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7ea9f01f-dd3e-46e6-0d24-353574081521">
+      <Execution id="55d2c4ca-22ec-4d4b-8852-2c48d43c7919" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="McpCreate_RequiresTheRevisionZeroPrecondition" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.ProjectShadowing_OnlyAppliesToInheritedMcpBindings" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="0af6ba0a-6854-dfca-20fe-f1e837a724dc">
+      <Execution id="340650be-f3a3-4987-9209-233837eb7a72" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="ProjectShadowing_OnlyAppliesToInheritedMcpBindings" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="724637fb-6350-5262-8f2e-bc87bb60adc6">
+      <Execution id="43034443-b69f-42cf-88ff-6ee0b3b05a8f" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.CoreOpenApiSnapshotTests" name="CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.Admission_UsesOneResourceVersionAcrossAllAgentBindings" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="50c30cd9-0ccc-45cd-f6d0-0f56ae617289">
+      <Execution id="5a3e2384-cbc8-490a-84cd-aeae358b4291" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="Admission_UsesOneResourceVersionAcrossAllAgentBindings" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: False, workflow: True)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7deebc9d-abb0-608f-5212-5f2cfe4892cc">
+      <Execution id="bd549d23-62fc-43a5-845d-1046e53b57fc" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolChainEndpointTests" name="SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.McpSecrets_AreMaskedAndOldSnapshotKeepsItsCredentialVersion" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6aae058f-49f4-7ff4-6240-81b40fb864c9">
+      <Execution id="10a56cc0-c929-4f47-84f5-191cfc5773b3" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="McpSecrets_AreMaskedAndOldSnapshotKeepsItsCredentialVersion" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.AgentSettings_DeepMergeBudgetsButCannotWidenSharedLimits" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="dd517d36-40e3-79b0-c603-19658ca73009">
+      <Execution id="1ae36b4f-2859-4a62-a2dc-f785d1db12a2" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="AgentSettings_DeepMergeBudgetsButCannotWidenSharedLimits" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.ConditionalSettingsWrites_RejectUnknownFieldsAndStaleRevisions" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="6bb32a52-9cec-1e14-1724-6fe0b3313002">
+      <Execution id="83e151fa-6d16-448d-b9f5-0808f37e0edc" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="ConditionalSettingsWrites_RejectUnknownFieldsAndStaleRevisions" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.EffectiveInspection_ReportsDeletedExactBindingsWithoutFailingTheSettingsPage" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="cdeea0e7-fb07-361a-f543-bf497e0ea233">
+      <Execution id="0367ac77-aaac-4934-9b4c-667e1579faa4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="EffectiveInspection_ReportsDeletedExactBindingsWithoutFailingTheSettingsPage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.SharedLimitChanges_RejectInvalidAgentOverridesWithoutAdvancingRevision" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="7404f881-7951-36f1-c206-8881fc8180af">
+      <Execution id="f2720e4c-b541-4a3f-a22c-e961ceef3494" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="SharedLimitChanges_RejectInvalidAgentOverridesWithoutAdvancingRevision" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.BrokenLegacyImport_BlocksMcpButLeavesOtherToolsConfigured" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="b6b4fc4e-ba3e-426c-1547-394571c4efe5">
+      <Execution id="a2d801f9-08c9-49f7-8734-a2442dce9f27" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="BrokenLegacyImport_BlocksMcpButLeavesOtherToolsConfigured" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolChainEndpointTests.SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout(failCreation: False, workflow: False)" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="403c1aa0-8bf8-034d-19bf-55ec7bd7ffab">
+      <Execution id="7bbf5d51-6b85-48d7-b79d-278531c7692d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolChainEndpointTests" name="SpaceWorktree_IsPreparedBeforeWork_AndFailureNeverUsesOriginalCheckout" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.AdmissionSnapshots_FreezeSharedDefaultsAndPerAgentOverrides" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="f9afc1f0-a207-ecba-d895-d68c351737a9">
+      <Execution id="8c878084-3e38-4c12-9f31-ac687f4b9d54" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="AdmissionSnapshots_FreezeSharedDefaultsAndPerAgentOverrides" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolChainEndpointTests.AskMode_RunsOnNarrowedRoster_BrowserWorkerCompletesWithoutSupervisor" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="8e183e4c-5ed1-ce7c-1c34-b77d24cef5ae">
+      <Execution id="eb8d32f5-f2fd-46f5-8de1-1abd6c8b9b63" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolChainEndpointTests" name="AskMode_RunsOnNarrowedRoster_BrowserWorkerCompletesWithoutSupervisor" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.UnattendedEndToEndTests.PreAuthorization_EndToEnd_GitCommitWithoutHuman" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="0bb35b26-f9e2-46b0-fc11-7087152e1457">
+      <Execution id="781812e7-2cd5-4b40-9fa7-77fc9273f84d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.UnattendedEndToEndTests" name="PreAuthorization_EndToEnd_GitCommitWithoutHuman" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.ToolSettingsApiTests.LegacyMcpFile_ImportsOnceWithoutBecomingLiveAuthority" storage="c:\git\agent\tinadecoffice\.tinadec_dev\artifacts\core-tools-tests\bin\tinadeccore.api.tests\debug\tinadeccore.api.tests.dll" id="a59d983b-2065-e07b-fb78-32a3981e4008">
+      <Execution id="2d8ccb22-00e6-4dcf-af75-e46e414f3b23" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\.tinadec_dev\artifacts\core-tools-tests\bin\TinadecCore.Api.Tests\debug\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.ToolSettingsApiTests" name="LegacyMcpFile_ImportsOnceWithoutBecomingLiveAuthority" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="9c5f2e03-0a25-ebaf-d883-7cc268448345" executionId="027b62d3-059a-459a-b28c-c916c1349c3f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0af6ba0a-6854-dfca-20fe-f1e837a724dc" executionId="340650be-f3a3-4987-9209-233837eb7a72" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0bb35b26-f9e2-46b0-fc11-7087152e1457" executionId="781812e7-2cd5-4b40-9fa7-77fc9273f84d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="50c30cd9-0ccc-45cd-f6d0-0f56ae617289" executionId="5a3e2384-cbc8-490a-84cd-aeae358b4291" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8e183e4c-5ed1-ce7c-1c34-b77d24cef5ae" executionId="eb8d32f5-f2fd-46f5-8de1-1abd6c8b9b63" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6aae058f-49f4-7ff4-6240-81b40fb864c9" executionId="10a56cc0-c929-4f47-84f5-191cfc5773b3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c497366f-d61d-5d3e-b978-10ad1463fef5" executionId="2472a1f6-b2a5-4c89-b2b8-3b3a6b39de85" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7deebc9d-abb0-608f-5212-5f2cfe4892cc" executionId="bd549d23-62fc-43a5-845d-1046e53b57fc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cdeea0e7-fb07-361a-f543-bf497e0ea233" executionId="0367ac77-aaac-4934-9b4c-667e1579faa4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6bb32a52-9cec-1e14-1724-6fe0b3313002" executionId="83e151fa-6d16-448d-b9f5-0808f37e0edc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f9afc1f0-a207-ecba-d895-d68c351737a9" executionId="8c878084-3e38-4c12-9f31-ac687f4b9d54" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b6b4fc4e-ba3e-426c-1547-394571c4efe5" executionId="a2d801f9-08c9-49f7-8734-a2442dce9f27" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="403c1aa0-8bf8-034d-19bf-55ec7bd7ffab" executionId="7bbf5d51-6b85-48d7-b79d-278531c7692d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7ea9f01f-dd3e-46e6-0d24-353574081521" executionId="55d2c4ca-22ec-4d4b-8852-2c48d43c7919" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a59d983b-2065-e07b-fb78-32a3981e4008" executionId="2d8ccb22-00e6-4dcf-af75-e46e414f3b23" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dd517d36-40e3-79b0-c603-19658ca73009" executionId="1ae36b4f-2859-4a62-a2dc-f785d1db12a2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7404f881-7951-36f1-c206-8881fc8180af" executionId="f2720e4c-b541-4a3f-a22c-e961ceef3494" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5a54257c-f7ed-f0dd-5e4c-c41072f8ec61" executionId="31199e69-2ae6-4e96-916c-7dd0576b10eb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="724637fb-6350-5262-8f2e-bc87bb60adc6" executionId="43034443-b69f-42cf-88ff-6ee0b3b05a8f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="19" executed="19" passed="17" failed="2" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.37]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.54]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.59]   Starting:    TinadecCore.Api.Tests&#xD;
+warn: Microsoft.EntityFrameworkCore.Query[10102]&#xD;
+      The query uses a row limiting operator ('Skip'/'Take') without an 'OrderBy' operator. This may lead to unpredictable results. If the 'Distinct' operator is used after 'OrderBy', then make sure to use the 'OrderBy' operator after 'Distinct' as the ordering would otherwise get erased.&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: Legacy MCP configuration could not be imported. Fix the source file before retrying, or remove it to use the managed registry. 'b' is an invalid start of a value. LineNumber: 0 | BytePositionInLine: 0.&#xD;
+         at TinadecCore.Tools.McpResourceRegistry.ImportScopeAsync(Nullable`1 projectId, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Tools\McpResourceRegistry.cs:line 159&#xD;
+         at TinadecCore.Tools.McpResourceRegistry.ImportScopeAsync(Nullable`1 projectId, CancellationToken ct) in C:\git\agent\TinadecOffice\TinadecCore\Tools\McpResourceRegistry.cs:line 159&#xD;
+         at TinadecCore.Tools.McpResourceRegistry.EnsureImportedAsync(Nullable`1 projectId, CancellationToken cancellationToken) in C:\git\agent\TinadecOffice\TinadecCore\Tools\McpResourceRegistry.cs:line 99&#xD;
+         at TinadecCore.Tools.McpResourceRegistry.ListAsync(Nullable`1 projectId, CancellationToken cancellationToken) in C:\git\agent\TinadecOffice\TinadecCore\Tools\McpResourceRegistry.cs:line 24&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;ExecuteTaskOfT&gt;g__ExecuteAwaited|134_0[T](Task`1 task, HttpContext httpContext, JsonTypeInfo`1 jsonTypeInfo)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: If-Match is required. Reload the current configuration before saving.&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.Revision(HttpRequest request) in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 119&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_9&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 84&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: A new MCP resource requires revision zero.&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_9&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 84&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: If-Match is required. Reload the current configuration before saving.&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.Revision(HttpRequest request) in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 119&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_2&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 20&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: 'web.timeout_ms' must be an integer between 1000 and 60000.&#xD;
+         at TinadecCore.Tools.ToolSettingsSchema.Validate(JsonElement input) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsSchema.cs:line 83&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 22&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_2&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 20&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: Unknown or duplicated setting 'shell.unknown_flag'.&#xD;
+         at TinadecCore.Tools.ToolSettingsSchema.Validate(JsonElement input) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsSchema.cs:line 77&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 22&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_2&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 20&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: Tool settings changed since they were read.&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 45&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 61&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 61&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_2&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 20&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]&#xD;
+      An unhandled exception has occurred while executing the request.&#xD;
+      TinadecCore.Abstractions.Ports.ToolSettingsException: An MCP binding is invisible, stale or outside the selected project.&#xD;
+         at TinadecCore.Tools.ToolSettingsStore.SaveAsync(Nullable`1 agentDefinitionId, JsonElement settings, Int64 expectedRevision, CancellationToken cancellationToken, Nullable`1 projectId) in C:\git\agent\TinadecOffice\TinadecCore\Tools\ToolSettingsStore.cs:line 29&#xD;
+         at TinadecCore.AspNetCore.Endpoints.ToolSettingsEndpoints.&lt;&gt;c.&lt;&lt;MapToolSettingsEndpoints&gt;b__0_2&gt;d.MoveNext() in C:\git\agent\TinadecOffice\TinadecCore\AspNetCore\Endpoints\ToolSettingsEndpoints.cs:line 20&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.ExecuteTaskResult[T](Task`1 task, HttpContext httpContext)&#xD;
+         at Microsoft.AspNetCore.Http.RequestDelegateFactory.&lt;&gt;c__DisplayClass102_2.&lt;&lt;HandleRequestBodyAndCompileRequestDelegateForJson&gt;b__2&gt;d.MoveNext()&#xD;
+      --- End of stack trace from previous location ---&#xD;
+         at Microsoft.AspNetCore.Diagnostics.StatusCodePagesMiddleware.Invoke(HttpContext context)&#xD;
+         at Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddlewareImpl.&lt;Invoke&gt;g__Awaited|10_0(ExceptionHandlerMiddlewareImpl middleware, HttpContext context, Task task)&#xD;
+[xUnit.net 00:01:03.01]       Interaction admission returned 400 BadRequest: {"code":"invalid_request","message":"permission_mode must be a string."} | server cause: the handler recorded no 5xx for this host, so this status did not come from a thrown exception&#xD;
+[xUnit.net 00:01:03.01]       Stack Trace:&#xD;
+[xUnit.net 00:01:03.02]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\ServerFailureReports.cs(63,0): at TinadecCore.Api.Tests.ServerFailureReports.AssertStatusAsync(WebApplicationFactory`1 factory, HttpResponseMessage response, HttpStatusCode expected, String what)&#xD;
+[xUnit.net 00:01:03.02]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs(383,0): at TinadecCore.Api.Tests.UnattendedEndToEndTests.&lt;&gt;c__DisplayClass26_0.&lt;&lt;StartStreamingInvoke&gt;b__0&gt;d.MoveNext()&#xD;
+[xUnit.net 00:01:03.02]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:03.02]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs(181,0): at TinadecCore.Api.Tests.UnattendedEndToEndTests.StartUnattendedRunAsync(String label, IReadOnlyDictionary`2 extraConfig, String permissionMode, Boolean useWriteFileForTests)&#xD;
+[xUnit.net 00:01:03.02]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\UnattendedLaneEndToEndTests.cs(98,0): at TinadecCore.Api.Tests.UnattendedEndToEndTests.PreAuthorization_EndToEnd_GitCommitWithoutHuman()&#xD;
+[xUnit.net 00:01:03.02]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:14.59]       OpenAPI snapshot drift at C:\git\agent\TinadecOffice\TinadecCore\tests\__snapshots__\openapi.core.json. Snapshot has been regenerated; review git diff and commit it if intentional.&#xD;
+[xUnit.net 00:01:14.59]       Stack Trace:&#xD;
+[xUnit.net 00:01:14.59]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\CoreOpenApiSnapshotTests.cs(129,0): at TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline()&#xD;
+[xUnit.net 00:01:14.59]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:14.60]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-08T19:08:25.4443927+08:00">
+        <Text>[xUnit.net 00:01:03.00]     TinadecCore.Api.Tests.UnattendedEndToEndTests.PreAuthorization_EndToEnd_GitCommitWithoutHuman [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-08T19:08:37.0294926+08:00">
+        <Text>[xUnit.net 00:01:14.59]     TinadecCore.Api.Tests.CoreOpenApiSnapshotTests.CoreOpenApi_Snapshot_TitleContainsCore_AndFileBaseline [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

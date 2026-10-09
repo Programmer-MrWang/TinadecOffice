@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using TinadecCore.Abstractions;
 using TinadecCore.Abstractions.Ports;
+using Microsoft.EntityFrameworkCore;
+using TinadecCore.Persistence;
 
 namespace TinadecCore.Tools;
 
@@ -16,7 +18,13 @@ public sealed class ToolsModuleRegistrar : IModuleRegistrar
 
     public void Register(ITinadecCoreBuilder builder)
     {
+        builder.Services.AddDbContextFactory<ToolsSettingsDbContext>((sp, options) => options.UseTinadecDatabase(sp));
+        builder.Services.AddSingleton<IStorageMigrationParticipant, DbContextMigrationParticipant<ToolsSettingsDbContext>>();
+        builder.Services.AddSingleton<IToolSettingsStore, ToolSettingsStore>();
+        builder.Services.AddSingleton<IMcpResourceRegistry, McpResourceRegistry>();
+        builder.Services.AddSingleton<IToolConfigurationResolver, ToolConfigurationResolver>();
         builder.Services.AddSingleton<TinadecToolsProcessManager>();
+        builder.Services.AddSingleton<IToolExecutionContextLifecycle>(sp => sp.GetRequiredService<TinadecToolsProcessManager>());
         // Keep the old process-manager port available for existing embedders;
         builder.Services.AddSingleton<IToolProcessManager>(sp => sp.GetRequiredService<TinadecToolsProcessManager>());
         // Resolve the provider through the compatibility port so hosts that
@@ -41,7 +49,7 @@ public sealed class ToolsModuleRegistrar : IModuleRegistrar
         {
             ModuleId = ModuleId,
             Version = "0.1.0",
-            Dependencies = ["abstractions"],
+            Dependencies = ["abstractions", "persistence"],
             Capabilities = ["tool_process_management", "tool_registry", "tool_manifest_snapshot", "frozen_tool_catalog", "tool_dispatch", "durable_approval"],
             Language = "C#",
             MafPrimitives = [],

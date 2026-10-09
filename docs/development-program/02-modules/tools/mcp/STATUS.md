@@ -9,6 +9,12 @@
 | TOOLS-MCP-F001 | stdio MCP 连接池、目录搜索与调用 | 源码可见 | 本轮静态核对；未做功能验收 | 当前连接是 StdioClientTransport；mcp_invoke 要审批且不自动声明为工作区修改。 | [TinadecTools/Tools/Mcp/McpClientPool.cs](../../../../../TinadecTools/Tools/Mcp/McpClientPool.cs)<br>[TinadecTools/Tools/Mcp/McpInvokeTool.cs](../../../../../TinadecTools/Tools/Mcp/McpInvokeTool.cs)<br>[TinadecTools/Tools/Mcp/McpRuntime.cs](../../../../../TinadecTools/Tools/Mcp/McpRuntime.cs)<br>[tests/TinadecTools.Tests/McpPassThroughTests.cs](../../../../../tests/TinadecTools.Tests/McpPassThroughTests.cs) |
 | TOOLS-MCP-F002 | 外部扩展能力范围 | 范围边界 | 本轮静态核对；未做功能验收 | Tools 未自带 HTTP MCP transport、浏览器自动化或 A2A；这些扩展是否属于产品必需范围仍需定义，不能直接记成必补缺陷。 | [TinadecTools/Tools/Mcp/McpClientPool.cs](../../../../../TinadecTools/Tools/Mcp/McpClientPool.cs)<br>[TinadecTools/Tools/Mcp/McpModels.cs](../../../../../TinadecTools/Tools/Mcp/McpModels.cs) |
 
+## 2026-10-08 工具配置专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| TOOLS-MCP-F003 | 资源版本/环境连接隔离与运行持有回收 | 已验收 | 实际Node stdio、旧新连接、精确同名ID、活跃调用/多运行回收、市场安装调用卸载 | 外部生产MCP及Linux/macOS未实机；独立Tools仍使用文件；对应TOOLS-MCP-102 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

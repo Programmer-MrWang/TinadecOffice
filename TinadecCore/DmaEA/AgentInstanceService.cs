@@ -394,7 +394,7 @@ internal sealed class AgentInstanceService : IAgentInstanceService, IAgentToolAu
         if (row is null || row.Status is not ("created" or "running")) return null;
         var definition = await ReadDefinitionAsync(row, cancellationToken).ConfigureAwait(false);
         return new AgentToolAuthorization(scope.TenantId, scope.WorkspaceId, row.SessionId, row.RunId,
-            taskId, row.Id, definition.AllowedTools, definition.AllowedResources, definition.AllowedDispatchTargets);
+            taskId, row.Id, definition.AllowedTools, definition.AllowedResources, definition.AllowedDispatchTargets, row.AgentDefinitionId, row.AgentVersionId);
     }
 
     public async Task ReleaseRunInstancesAsync(Guid runId, CancellationToken cancellationToken = default)

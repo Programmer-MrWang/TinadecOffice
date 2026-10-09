@@ -137,10 +137,11 @@ import PromptEngineeringMerged from '@/settings/sections/PromptEngineeringMerged
 import RuntimeInstancesPanel from '@/settings/sections/RuntimeInstancesPanel.vue'
 import AgentPacksPanel from '@/settings/sections/AgentPacksPanel.vue'
 import ModelParametersEditor from '@/settings/sections/ModelParametersEditor.vue'
-import { consumeRequest, pendingAgentId, pendingModeId, pendingPromptId, pendingToolId, pendingModelProviderId, pendingSettingsSection } from '@/lib/pageRequests'
+import { consumeRequest, pendingAgentId, pendingModeId, pendingPromptId, pendingToolId, pendingToolAgentId, requestToolAgent, pendingModelProviderId, pendingSettingsSection } from '@/lib/pageRequests'
 import { routesAfterModelRemoval } from '@/lib/modelRouteEdits'
 import PanelStyleControl from '@/components/ui/panel-style-control.vue'
 import { usePanelStyles } from '@/composables/usePanelStyles'
+import { createSettingsLeaveGuard } from './settingsNavigation'
 import { useNotifications } from '@/composables/useNotifications'
 import { graphSeedPackManifest } from '@/agentPacks/GraphSeedPack'
 
@@ -229,7 +230,8 @@ function maximizeWindow() {
   window.tinadec?.maximizeWindow?.()
 }
 
-function closeWindow() {
+async function closeWindow() {
+  if (activeSection.value === 'tools' && toolCenterRef.value && !await toolCenterRef.value.canLeave()) return
   window.tinadec?.closeWindow?.()
 }
 
@@ -238,6 +240,7 @@ function openExternal(url: string) {
 }
 
 const activeSection = ref<SettingsSection>('personal')
+const toolCenterRef = ref<{ canLeave(): Promise<boolean> } | null>(null)
 const agentCenterTab = ref<AgentCenterTab>('agents')
 // Pets section moved to settings/sections/PetsSection.vue (D7.2)
 
@@ -248,26 +251,27 @@ const agentCenterTab = ref<AgentCenterTab>('agents')
  * that should use the full available width.
  */
 const CENTERED_SECTIONS: ReadonlySet<SettingsSection> = new Set([
-  'personal', 'general', 'tools', 'archive', 'appearance', 'language', 'about',
+  'personal', 'general', 'archive', 'appearance', 'language', 'about',
 ])
 const isCenteredSection = computed(() => CENTERED_SECTIONS.has(activeSection.value))
 
-function selectSettingsSection(section: SettingsSection) {
+async function selectSettingsSection(section: SettingsSection) {
+  if (section !== 'tools' && activeSection.value === 'tools' && toolCenterRef.value && !await toolCenterRef.value.canLeave()) return false
   activeSection.value = section
+  return true
 }
 
 // Spatial exit animation — declarative, class-driven.
 const settingsExiting = ref(false)
 const SETTINGS_EXIT_DURATION_MS = 530
 
-onBeforeRouteLeave((_to, _from, next) => {
-  if (settingsExiting.value) {
-    next()
-    return
-  }
-  settingsExiting.value = true
-  setTimeout(() => next(), SETTINGS_EXIT_DURATION_MS)
-})
+onBeforeRouteLeave(createSettingsLeaveGuard({
+  isTools: () => activeSection.value === 'tools',
+  canLeave: () => toolCenterRef.value?.canLeave() ?? Promise.resolve(true),
+  isExiting: () => settingsExiting.value,
+  markExiting: () => { settingsExiting.value = true },
+  durationMs: SETTINGS_EXIT_DURATION_MS,
+}))
 
 // ---- About section moved to settings/sections/AboutSection.vue (D7.2) ----
 const modelCenterOverview = ref<ModelCenterOverviewDto | null>(null)
@@ -1884,7 +1888,7 @@ consumeRequest(pendingSettingsSection, (section) => {
 consumeRequest(pendingModelProviderId, async (providerId) => {
   const generation = ++providerNavigationGeneration
   requestedProviderId.value = providerId
-  selectSettingsSection('model')
+  if (!await selectSettingsSection('model')) return
   modelCenterSection.value = 'api'
   modelProviderQuery.value = ''
   modelProviderFilter.value = 'all'
@@ -1902,7 +1906,7 @@ consumeRequest(pendingModelProviderId, async (providerId) => {
 })
 consumeRequest(pendingAgentId, async (agentId) => {
   const generation = ++agentNavigationGeneration
-  selectSettingsSection('agentCenter')
+  if (!await selectSettingsSection('agentCenter')) return
   switchAgentCenterTab('agents')
   agentViewMode.value = 'list'
   selectedAgentId.value = agentId
@@ -1919,18 +1923,21 @@ consumeRequest(pendingAgentId, async (agentId) => {
   }
 })
 // Child panels own these request IDs; activate their host before they consume.
-watch(pendingModeId, (id) => {
+watch(pendingModeId, async (id) => {
   if (!id) return
-  selectSettingsSection('agentCenter')
+  if (!await selectSettingsSection('agentCenter')) return
   switchAgentCenterTab('modes')
 }, { immediate: true })
-watch(pendingPromptId, (id) => {
+watch(pendingPromptId, async (id) => {
   if (!id) return
-  selectSettingsSection('agentCenter')
+  if (!await selectSettingsSection('agentCenter')) return
   switchAgentCenterTab('prompts')
 }, { immediate: true })
 watch(pendingToolId, (id) => {
   if (id) selectSettingsSection('tools')
+}, { immediate: true })
+watch(pendingToolAgentId, (id) => {
+  if (id) void selectSettingsSection('tools')
 }, { immediate: true })
 
 loadModelCenter()
@@ -3232,6 +3239,7 @@ import '../settings/settings.css'
                   <UiBadge v-if="agentToolSelectionSummary.approval > 0" variant="secondary">{{ t('settings.approvalRequired') }} {{ agentToolSelectionSummary.approval }}</UiBadge>
                 </div>
                 <p class="agent-config-hint">{{ t('settings.agentToolsHint') }}</p>
+                <UiButton variant="outline" size="sm" @click="requestToolAgent(configuringAgent.id)">{{ t('toolsSettings.agentSettingsLink') }}</UiButton>
                 <div class="agent-tool-toolbar">
                   <div class="agent-tool-search">
                     <Search :size="14" />
@@ -3406,7 +3414,7 @@ import '../settings/settings.css'
         </template>
 
         <template v-if="activeSection === 'tools'">
-          <ToolCenterSection />
+          <ToolCenterSection ref="toolCenterRef" />
         </template>
 
         <template v-if="activeSection === 'tinachat'">

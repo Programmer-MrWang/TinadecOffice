@@ -11,6 +11,9 @@ public sealed class McpServersFile
 
 public sealed class McpServerConfig
 {
+    [JsonPropertyName("resource_id")] public string? ResourceId { get; set; }
+    [JsonPropertyName("revision")] public long Revision { get; set; }
+    [JsonPropertyName("configuration_hash")] public string? ConfigurationHash { get; set; }
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("command")] public string Command { get; set; } = string.Empty;
@@ -36,6 +39,7 @@ public sealed class McpToolSummary
 public sealed class McpServerToolList
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("resource_id")] public string? ResourceId { get; set; }
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
     [JsonPropertyName("status")] public string Status { get; set; } = string.Empty;
     [JsonPropertyName("error")] public string? Error { get; set; }
@@ -66,7 +70,8 @@ public sealed class McpInvokeResponse
     [JsonPropertyName("error")] public string? Error { get; set; }
     [JsonPropertyName("server_id")] public string ServerId { get; set; } = string.Empty;
     [JsonPropertyName("tool_name")] public string ToolName { get; set; } = string.Empty;
-    [JsonPropertyName("result")] public JsonElement Result { get; set; }
+    [JsonPropertyName("result")] public JsonElement Result { get; set; } = JsonNull();
+    private static JsonElement JsonNull() { using var document = JsonDocument.Parse("null"); return document.RootElement.Clone(); }
 }
 
 public sealed class McpSearchParams
@@ -79,6 +84,7 @@ public sealed class McpSearchParams
 public sealed class McpSearchResult
 {
     [JsonPropertyName("server_id")] public string ServerId { get; set; } = string.Empty;
+    [JsonPropertyName("resource_id")] public string? ResourceId { get; set; }
     [JsonPropertyName("server_name")] public string ServerName { get; set; } = string.Empty;
     [JsonPropertyName("score")] public int Score { get; set; }
     [JsonPropertyName("tool")] public McpToolSummary Tool { get; set; } = new();

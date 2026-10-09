@@ -2,9 +2,13 @@
 
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-08
-**Last Updated By:** APP-HOME-105 Markdown扩展语法与卡片收口；同一工作树保留APP-HOME-104统一命令面板与APP-RENDERER-104空间组合执行。
-**Last Verified Commit:** 66d103e + 工作树；Markdown批次：Desktop全量1028 passed/14 skipped、类型检查与Electron真实剪贴板/MathML/Mermaid/三宽度夹具passed、生产vite build本轮未取证，见 .tinadec_dev/reports/2026-10-08-markdown-extended-syntax.zh-CN.md；命令面板分层验证与边界见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md，不将脚本模型/本地SFC验证写成真实外部模型或平台验收。
+**Last Updated By:** 工具配置APP-SETTINGS-102/CORE-TOOLS-101/CORE-SKILLS-101/TOOLS-PROTOCOL-102/TOOLS-MCP-102最终验收；同步五模块数据流图、生产Worker及窄窗口焦点证据；保留同日Markdown及命令面板记录。
+**Last Verified Commit:** cf5cbf7 + 工作树；工具设置Desktop全量1068通过及最终定向、生产构建/类型、Gateway86/86、Tools完整389与最后预算54、Core最新市场/Skills77及配置/编排定向、真实Electron三Agent/MCP/技能读取/命令冻结，见 .tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md。只验收Windows专项，PostgreSQL仅编译，Linux/macOS未实机；先前专项证据保留于下方。
 **Branch:** main
+
+### 2026-10-08 工具配置专项
+
+共享默认与持久Agent定义覆盖、九标签设置、MCP/Skills资源绑定、严格JSON显式保存和准入冻结已经接线。状态与任务分别更新APP-SETTINGS、CORE-TOOLS、CORE-SKILLS、TOOLS-PROTOCOL、TOOLS-MCP；受影响执行模块README同步。证据集中于共享报告和evidence，整体001审计任务保持独立，不因专项完成自动验收整模块或三平台。
 
 ### 2026-10-08 Markdown 扩展语法与卡片收口
 

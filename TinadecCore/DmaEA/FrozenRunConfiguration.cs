@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TinadecCore.Abstractions.Ports;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.DmaEA;
 
@@ -68,6 +69,7 @@ public sealed record FrozenRunConfigurationV1(
     IReadOnlyList<RunConfigurationBinding> Bindings,
     string ToolManifestHash = "")
 {
+    public FrozenToolConfigurationDto? ToolConfiguration { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SpaceRunOptions? SpaceOptions { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -265,19 +267,22 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
     private readonly IAgentModelResolver _models;
     private readonly ISessionLocator _sessions;
     private readonly IPolicySnapshotProvider? _policySnapshots;
+    private readonly IToolConfigurationResolver? _toolSettings;
 
     public AgentRuntimeConfigurationResolver(
         IAgentRuntimeConfiguration baseline,
         IFormalModeResolver formal,
         IAgentModelResolver models,
         ISessionLocator sessions,
-        IPolicySnapshotProvider? policySnapshots = null)
+        IPolicySnapshotProvider? policySnapshots = null,
+        IToolConfigurationResolver? toolSettings = null)
     {
         _baseline = baseline;
         _formal = formal;
         _models = models;
         _sessions = sessions;
         _policySnapshots = policySnapshots;
+        _toolSettings = toolSettings;
     }
 
     public Task<FrozenRunConfigurationV1> ResolveAsync(
@@ -476,6 +481,8 @@ internal sealed class AgentRuntimeConfigurationResolver : IAgentRuntimeConfigura
             execution,
             bindings)
         {
+            ToolConfiguration = _toolSettings is null ? null : await _toolSettings.ResolveForRunAsync(session.ProjectId,
+                operation.Concat(execution).Select(a => a.AgentDefinitionId).Concat(graph?.SpawnableTemplates.Select(a => (Guid?)a.AgentDefinitionId) ?? []).Where(id => id is not null).Select(id => id!.Value).Distinct().ToArray(), cancellationToken),
             PolicySnapshotHash = policySnapshot?.SnapshotHash ?? "",
             PolicyBundles = policySnapshot?.Bundles ?? [],
             Triggers = snapshot.Triggers,

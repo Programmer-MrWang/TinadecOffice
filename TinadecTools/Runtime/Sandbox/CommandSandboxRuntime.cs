@@ -50,6 +50,7 @@ internal static class CommandSandboxRuntime
         var workingDir = WorkspacePathResolver.WorkspaceRoot;
 
         var readPaths = new List<string> { workingDir };
+        if (ToolExecutionContext.Current is { } context) readPaths.AddRange(context.ReadRoots);
         if (additionalReadPaths is not null)
         {
             foreach (var p in additionalReadPaths)
@@ -67,6 +68,8 @@ internal static class CommandSandboxRuntime
                 ArgumentException.ThrowIfNullOrWhiteSpace(p);
                 var full = SandboxPaths.NormalizeGrantPath(p);
                 SandboxPaths.EnsureNotBroadWriteTarget(full);
+                if (ToolExecutionContext.Current is { } executionContext)
+                    SandboxPaths.EnsureNotOverlappingReadRoots(full, executionContext.ReadRoots);
                 writePaths.Add(full);
             }
         }
@@ -93,6 +96,9 @@ internal static class CommandSandboxRuntime
 
     internal static SandboxPermissions MergeWithPolicy(SandboxPermissions additional)
     {
+        // Governed calls have frozen grants. A later edit/reset of a legacy policy file must not
+        // widen or narrow a running agent's sandbox; standalone use retains its existing behavior.
+        if (ToolExecutionContext.Current is not null) return additional;
         var policy = SandboxPolicyStore.Load();
         return new SandboxPermissions
         {
@@ -115,6 +121,9 @@ internal static class CommandSandboxRuntime
     {
         SandboxRequestValidator.Validate(executable, arguments, workingDirectory, timeoutMs, argumentString: argumentString);
 
+        if (ToolExecutionContext.Current is { } context)
+            timeoutMs = Math.Min(timeoutMs, context.Integer("shell", "max_timeout_ms", 1_800_000, 1, 1_800_000));
+
         var fullWorkDir = SandboxPaths.ValidateWorkingDirectory(workingDirectory);
 
         await _backend.EnsureSetupAsync(ct).ConfigureAwait(false);
@@ -129,7 +138,14 @@ internal static class CommandSandboxRuntime
             TimeoutMs = timeoutMs
         };
 
-        return await _backend.ExecuteAsync(request, permissions, persistGrants, ct).ConfigureAwait(false);
+        var result = await _backend.ExecuteAsync(request, permissions, persistGrants, ct).ConfigureAwait(false);
+        if (ToolExecutionContext.Current is { } executionContext)
+        {
+            var limit = executionContext.Integer("shell", "max_output_chars", 65_536);
+            if (result.Stdout.Length > limit) { result.Stdout = result.Stdout[..limit]; result.StdoutTruncated = true; }
+            if (result.Stderr.Length > limit) { result.Stderr = result.Stderr[..limit]; result.StderrTruncated = true; }
+        }
+        return result;
     }
 
     internal static async Task<SandboxStreamingProcess> StartStreamingAsync(

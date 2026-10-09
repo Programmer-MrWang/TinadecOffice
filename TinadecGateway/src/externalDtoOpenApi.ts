@@ -379,10 +379,14 @@ const marketInstallEnvironmentRequest = t.Object({
   description: t.Optional(t.String()),
 }, { additionalProperties: false });
 
+const marketPackageFile = t.Object({
+  path: t.String(), content_hash: t.String(), size_bytes: t.Integer(),
+}, { additionalProperties: false });
+
 const marketInstallProposal = t.Object({
   id: t.String(),
   action: t.String(),
-  project_id: t.String(),
+  project_id: t.Optional(nullableString()),
   catalog_id: t.Optional(t.String()),
   installation_id: t.Optional(t.String()),
   source_name: t.String(),
@@ -400,6 +404,11 @@ const marketInstallProposal = t.Object({
   digest: t.String(),
   expires_at: t.String(),
   warnings: t.Array(t.String()),
+  scope: t.Optional(t.Union([t.Literal('shared'), t.Literal('project')])),
+  resource_id: t.Optional(nullableString()),
+  package_hash: t.Optional(nullableString()),
+  package_files: t.Optional(t.Array(marketPackageFile)),
+  availability: t.Optional(nullableString()),
 }, { additionalProperties: true });
 
 /**
@@ -409,7 +418,7 @@ const marketInstallProposal = t.Object({
  */
 const marketInstallation = t.Object({
   id: t.String(),
-  project_id: t.String(),
+  project_id: t.Optional(nullableString()),
   catalog_id: t.String(),
   source_name: t.String(),
   extension_id: t.String(),
@@ -423,6 +432,11 @@ const marketInstallation = t.Object({
   action_status: t.Optional(t.String()),
   created_at: t.String(),
   updated_at: t.String(),
+  scope: t.Optional(t.Union([t.Literal('shared'), t.Literal('project')])),
+  resource_id: t.Optional(nullableString()),
+  package_hash: t.Optional(nullableString()),
+  package_files: t.Optional(t.Array(marketPackageFile)),
+  availability: t.Optional(nullableString()),
 }, { additionalProperties: true });
 
 const marketInstallationList = t.Object({

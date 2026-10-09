@@ -146,6 +146,42 @@ public sealed class TinadecToolsProcessTests : IDisposable
         Assert.NotEmpty(manifest.Tools);
     }
 
+    [Fact]
+    public async Task ConcurrentWireCalls_KeepTheirFrozenReadDefaultsAndAgentIdentity()
+    {
+        File.WriteAllText(Path.Combine(_workspaceRoot, "lines.txt"), "a\nb\nc\nd\ne\n");
+        async Task<ToolWireResponseDto> ReadAsync(int limit)
+        {
+            var settings = ToolSettingsSchema.Merge(ToolSettingsSchema.Defaults, JsonElementFrom($"{{\"read\":{{\"sentinel_line_limit\":{limit}}}}}"));
+            return await _manager.CallAsync(_workspaceRoot, new ToolWireRequestDto
+            {
+                ToolId = "read_file", SessionId = "frozen-settings-test", Approved = false,
+                Params = JsonElementFrom("{\"filepath\":\"lines.txt\"}"),
+                ExecutionContext = new() { RunId = "settings-run", AgentDefinitionId = Guid.NewGuid(), Settings = settings, SettingsHash = ToolSettingsSchema.Hash(settings), AllowedToolIds = ["read_file"] }
+            });
+        }
+        var results = await Task.WhenAll(ReadAsync(2), ReadAsync(4));
+        Assert.All(results, result => Assert.True(result.IsSuccess, result.Error));
+        Assert.Equal(2, results[0].Result!.Value.GetProperty("all_contents").GetArrayLength());
+        Assert.Equal(4, results[1].Result!.Value.GetProperty("all_contents").GetArrayLength());
+        await _manager.ReleaseAsync("settings-run");
+        Assert.Equal(_manifest.ManifestHash, (await _manager.GetManifestAsync(_workspaceRoot)).ManifestHash);
+    }
+
+    [Fact]
+    public async Task ManagedMcpContext_DoesNotReadTheStandaloneFile()
+    {
+        File.WriteAllText(Path.Combine(_workspaceRoot, "mcp_servers.json"), "{\"servers\":[{\"id\":\"legacy-only\",\"command\":\"missing-command\"}]}");
+        var result = await _manager.CallAsync(_workspaceRoot, new ToolWireRequestDto
+        {
+            ToolId = "mcp_list", SessionId = "managed-mcp-test", Approved = false, Params = JsonElementFrom("{}"),
+            ExecutionContext = new() { Settings = ToolSettingsSchema.Defaults, SettingsHash = "managed-empty", AllowedToolIds = ["mcp_list"], McpServers = [] }
+        });
+        Assert.True(result.IsSuccess, result.Error);
+        Assert.Empty(result.Result!.Value.GetProperty("servers").EnumerateArray());
+        Assert.StartsWith("execution-context:", result.Result.Value.GetProperty("config_path").GetString());
+    }
+
     private static JsonElement JsonElementFrom(string json)
     {
         using var document = JsonDocument.Parse(json);

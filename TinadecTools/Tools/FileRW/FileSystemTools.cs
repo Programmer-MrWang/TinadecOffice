@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using TinadecTools.Abstractions;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.FileRW;
 
@@ -48,7 +49,14 @@ public sealed class WriteFileParams
 {
     [JsonPropertyName("filepath")] public string FilePath { get; set; } = string.Empty;
     [JsonPropertyName("content")] public string Content { get; set; } = string.Empty;
+    [JsonPropertyName("content_base64")] public string? ContentBase64 { get; set; }
     [JsonPropertyName("file_hash")] public string? FileHash { get; set; }
+}
+
+public sealed class DeleteFileParams
+{
+    [JsonPropertyName("filepath")] public string FilePath { get; set; } = string.Empty;
+    [JsonPropertyName("file_hash")] public string FileHash { get; set; } = string.Empty;
 }
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
@@ -58,6 +66,7 @@ public sealed class WriteFileParams
 [JsonSerializable(typeof(ListDirectoryResponse))]
 [JsonSerializable(typeof(StatPathResponse))]
 [JsonSerializable(typeof(WriteFileParams))]
+[JsonSerializable(typeof(DeleteFileParams))]
 [JsonSerializable(typeof(FileMutationResponse))]
 internal partial class FileSystemToolsJsonContext : JsonSerializerContext { }
 
@@ -65,6 +74,28 @@ public static class FileSystemTools
 {
     private const int MaxPageSize = 500;
     private static readonly UTF8Encoding Utf8NoBom = new(false);
+
+    [ToolFunction("delete_file", RequiresApproval = true, Description = "Delete one regular workspace file after verifying its current file_hash. Directory and link deletion are not supported. Approval-gated.")]
+    public static async ValueTask<FileMutationResponse> DeleteAsync(DeleteFileParams args, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var path = FileToolRuntime.ResolvePath(args.FilePath, writable: true);
+            if (new FileInfo(path).LinkTarget is not null) throw new InvalidOperationException("Deleting links is not supported.");
+            var slot = FileToolRuntime.GetFileHandle(path);
+            using (await slot.RwLock.WriteLockAsync(cancellationToken).ConfigureAwait(false))
+            {
+                using (var file = FileToolRuntime.OpenRead(path, cancellationToken))
+                {
+                    var hash = await file.ComputeFileHashAsync(cancellationToken).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(args.FileHash) || !string.Equals(args.FileHash, hash, StringComparison.Ordinal)) throw new InvalidOperationException("REJECT delete_file: file_hash mismatch.");
+                }
+                File.Delete(path);
+            }
+            return new FileMutationResponse { Success = true };
+        }
+        catch (Exception ex) { return new FileMutationResponse { Success = false, Error = ex.Message }; }
+    }
 
     [ToolFunction("ls", Description = "List the entries of one directory in the run workspace. path must be an absolute path inside the workspace ('.' or omitted = the workspace root); supports pagination.")]
     public static ValueTask<ListDirectoryResponse> ListAsync(ListDirectoryParams args, CancellationToken cancellationToken)
@@ -132,8 +163,15 @@ public static class FileSystemTools
             if (string.IsNullOrEmpty(parent))
                 throw new InvalidOperationException("The target path has no parent directory inside the workspace.");
 
+            if (args.ContentBase64 is not null && args.Content.Length > 0)
+                throw new ArgumentException("Provide content or content_base64, not both.");
+            var bytes = args.ContentBase64 is null ? Encoding.UTF8.GetBytes(NormalizeLineEndings(args.Content)) : Convert.FromBase64String(args.ContentBase64);
+            ToolExecutionContext.CheckFileSize("write", bytes.LongLength);
+
             if (!Directory.Exists(parent))
             {
+                if (ToolExecutionContext.Current is { } context && !context.Boolean("write", "create_parent_directories", true))
+                    throw new InvalidOperationException("Parent directory does not exist and write.create_parent_directories is disabled.");
                 // The chain is created because an install is one file in a folder that is not there
                 // yet: a workspace that never held a skill has no `skills/` either, and a second
                 // "create the directory" tool would turn every install into two approvals for one
@@ -151,9 +189,8 @@ public static class FileSystemTools
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     await using var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                    await using var writer = new StreamWriter(output, Utf8NoBom);
-                    await writer.WriteAsync(NormalizeLineEndings(args.Content)).ConfigureAwait(false);
-                    await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+                    await output.WriteAsync(bytes, cancellationToken).ConfigureAwait(false);
+                    await output.FlushAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 else
                 {
@@ -166,8 +203,7 @@ public static class FileSystemTools
                         throw new InvalidOperationException(
                             $"REJECT write_file: file_hash mismatch, expected {args.FileHash}, actual {actualHash}.");
 
-                    await writableFile.ReplaceBytes(0, writableFile.Length,
-                        Encoding.UTF8.GetBytes(NormalizeLineEndings(args.Content))).ConfigureAwait(false);
+                    await writableFile.ReplaceBytes(0, writableFile.Length, bytes).ConfigureAwait(false);
                     var overwrittenHash = await writableFile.ComputeFileHashAsync(CancellationToken.None).ConfigureAwait(false);
                     return new FileMutationResponse { Success = true, FileHash = overwrittenHash };
                 }

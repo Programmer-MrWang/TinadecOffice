@@ -1,0 +1,24 @@
+2026-10-09 runtime Skills verification, Windows x64, .NET 10.0
+
+Command:
+dotnet test TinadecCore/tests/TinadecCore.Api.Tests/TinadecCore.Api.Tests.csproj --no-restore --filter FullyQualifiedName~WorkspaceSkillApiTests --nologo
+
+Observed completion: passed 26, failed 0, skipped 0; test duration 58 seconds.
+Scope: frozen allowed tool index framing, no body-reader means no Skill evidence, bodies stay off Context, project-aware SkillProvider, immutable project admission copies (SKILL.md and assets), asset-only captured version change, shared package management.
+Build: full API dependency graph compiled including SQLite and PostgreSQL migration assemblies.
+Boundary: focused SQLite API and temporary filesystem tests on Windows. PostgreSQL database execution, Linux/macOS sandbox behavior, production model and interactive UI execution were not validated by this run.
+
+Tools command:
+dotnet test tests/TinadecTools.Tests/TinadecTools.Tests.csproj --no-restore --filter "FullyQualifiedName~ToolExecutionContextTests|FullyQualifiedName~SandboxRuntimeTests|FullyQualifiedName~CommandRunnerTests" --nologo
+
+Observed completion: passed 50, failed 0, skipped 0; test duration 56 seconds.
+Scope: frozen execution context, Skill read roots, additional_write_paths overlap and symlink rejection, sandbox permission construction, command runner validation/forwarding.
+Boundary: focused TinadecTools tests on Windows. POSIX kernel sandbox integration and live external command execution were not included.
+
+Source audit follow-up Tools command:
+dotnet test tests/TinadecTools.Tests/TinadecTools.Tests.csproj --no-restore --filter "FullyQualifiedName~ToolExecutionContextTests|FullyQualifiedName~FileSystemToolsTests|FullyQualifiedName~ToolManifestTests" --nologo
+
+Observed completion: passed 44, failed 0, skipped 0; test duration 58 seconds.
+Fixes: delete_file is governed by write.enabled in Core/Tools, contributes filepath claim, and is explicit in static mutation catalog. content_base64 is fingerprinted in approval summaries.
+Regression scope: binary write approval/hash/size checks, delete approval/hash/disabled write category, frozen Skill read roots reject binary write/delete, generated manifest metadata for both operations.
+Boundary: Core mapping/projector tests added for backend owner's next Core test batch; this command verifies Tools only on Windows.

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -27,7 +28,7 @@ namespace TinadecCore.Api.Tests;
 /// and an empty market are four different facts, and the old stubs collapsed all four into
 /// <c>[]</c>.
 /// </summary>
-public sealed class MarketCatalogApiTests : IAsyncLifetime
+public sealed partial class MarketCatalogApiTests : IAsyncLifetime
 {
     private const string RegistryLocation = "https://registry.example.com/v0/servers";
 
@@ -82,7 +83,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Assert.Empty(body.GetProperty("sources").EnumerateArray());
         var kinds = body.GetProperty("supported_kinds").EnumerateArray()
             .Select(x => x.GetString()!).ToArray();
-        Assert.Equal(["mcp_registry", "skill_repository"], kinds);
+        Assert.Equal(["mcp_registry", "skill_repository", "skill_git"], kinds);
     }
 
     [Theory]
@@ -604,31 +605,27 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
     // ─────────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task APreviewNamesTheExactVersionItPins_AndTheFileItWouldWrite()
+    public async Task APreviewNamesTheExactVersionItPins_AndTheManagedResourceItWouldSave()
     {
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/files", "1.2.3", "@ac/files-server"));
         var project = await CreateProjectAsync("install-target");
 
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
+            new { scope = "project", project_id = project });
 
         Assert.Equal("npx", proposal.GetProperty("command").GetString());
         var args = proposal.GetProperty("args").EnumerateArray().Select(a => a.GetString()).ToArray();
         Assert.Equal(new[] { "-y", "@ac/files-server@1.2.3" }, args);
         Assert.Equal("1.2.3", proposal.GetProperty("version").GetString());
 
-        // The target is the provider's own answer, and it is absolute: a relative path would be a
-        // second rule about where files go.
         var target = proposal.GetProperty("target_path").GetString()!;
-        Assert.True(Path.IsPathRooted(target), $"target_path should be absolute, got '{target}'.");
-        Assert.EndsWith("mcp_servers.json", target);
-        Assert.Equal(Path.Combine(_root, "workspace"), Path.GetDirectoryName(target));
-
-        // Nothing is conditioned on an overwrite until a config actually exists to overwrite.
-        // Core's JSON omits a null rather than writing it, so "no precondition" is absence.
-        Assert.False(proposal.TryGetProperty("expected_file_hash", out _),
-            "a create must not claim an overwrite precondition");
+        Assert.Equal("mcp-resource://new", target);
+        Assert.Equal("0", proposal.GetProperty("expected_file_hash").GetString());
+        var reviewed = JsonDocument.Parse(proposal.GetProperty("content").GetString()!).RootElement;
+        Assert.Equal("save", reviewed.GetProperty("action").GetString());
+        Assert.Equal(0, reviewed.GetProperty("expected_revision").GetInt64());
+        Assert.Equal(Guid.Parse(project), reviewed.GetProperty("project_id").GetGuid());
         Assert.Contains("@ac/files-server@1.2.3", proposal.GetProperty("content").GetString()!);
         Assert.True(proposal.GetProperty("expires_at").GetDateTimeOffset() > DateTimeOffset.UtcNow.AddMinutes(10));
     }
@@ -640,7 +637,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/g", "2.0.0", "@ac/g-server"));
 
         var content = (await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("pin") })).GetProperty("content").GetString()!;
+            new { scope = "project", project_id = await CreateProjectAsync("pin") })).GetProperty("content").GetString()!;
 
         Assert.DoesNotContain("latest", content, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("{version}", content, StringComparison.Ordinal);
@@ -660,7 +657,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Assert.Contains("no package", row.GetProperty("install_blocker").GetString(), StringComparison.OrdinalIgnoreCase);
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("remote") });
+            new { scope = "project", project_id = await CreateProjectAsync("remote") });
         await _factory!.AssertStatusAsync(response, HttpStatusCode.Conflict, "preview of a remote-only entry");
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
         Assert.Equal("market_install_not_expressible", body.GetProperty("code").GetString());
@@ -685,14 +682,14 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Assert.False(listed.GetProperty("items")[0].GetProperty("installable").GetBoolean());
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("unsafe") });
+            new { scope = "project", project_id = await CreateProjectAsync("unsafe") });
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         // The stored row is still readable: refusing to install is not refusing to display.
         Assert.Equal("@ac/odd", listed.GetProperty("items")[0].GetProperty("extension_id").GetString());
     }
 
     [Fact]
-    public async Task AProviderWhoseConfigLivesOutsideTheProjectIsRefused_NotWrittenSomewherePlausible()
+    public async Task ManagedInstallDoesNotWriteTheLegacyProviderConfigPath()
     {
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/x", "1.0.0", "@ac/x-server"));
@@ -701,11 +698,11 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Provider.ConfigPath = Path.Combine(Path.GetTempPath(), "not-the-project", "mcp_servers.json");
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
-        await _factory!.AssertStatusAsync(response, HttpStatusCode.Conflict, "preview with an outside config path");
+            new { scope = "project", project_id = project });
+        await _factory!.AssertStatusAsync(response, HttpStatusCode.OK, "managed preview with an outside legacy config path");
         var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
-        Assert.Equal("market_install_target_unresolved", body.GetProperty("code").GetString());
-        Assert.Contains("not-the-project", body.GetProperty("message").GetString());
+        Assert.Equal("mcp-resource://new", body.GetProperty("target_path").GetString());
+        Assert.False(File.Exists(Provider.ConfigPath));
         Provider.ConfigPath = null;
     }
 
@@ -717,7 +714,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var project = await CreateProjectAsync("queued");
         var target = Path.Combine(_root, "workspace", "mcp_servers.json");
 
-        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { project_id = project });
+        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { scope = "project", project_id = project });
         var applied = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
 
         var actionId = applied.GetProperty("install_action_id").GetString()!;
@@ -726,7 +723,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         // The whole point of routing through the user action path: nothing has happened yet.
         var action = await GetJsonAsync("/api/v1/user/tool-actions/" + actionId);
-        Assert.Equal("write_file", action.GetProperty("tool_id").GetString());
+        Assert.Equal("mcp_resource_update", action.GetProperty("tool_id").GetString());
         Assert.True(action.GetProperty("requires_approval").GetBoolean());
         Assert.False(File.Exists(target), "apply must not write the file; a human has to approve it first.");
 
@@ -742,7 +739,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/twice", "1.0.0", "@ac/twice-server"));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("twice") });
+            new { scope = "project", project_id = await CreateProjectAsync("twice") });
         var applyPath = $"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply";
 
         var first = await PostAsync(applyPath);
@@ -768,7 +765,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/moved", "1.0.0", "@ac/moved-server"));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("moved") });
+            new { scope = "project", project_id = await CreateProjectAsync("moved") });
 
         // The source changes its mind about this exact row while the proposal is pending.
         Provider.Replies.Enqueue(Wire.Ok(Listing(Pkg("@ac/moved", "1.1.0", "@ac/moved-server"))));
@@ -793,7 +790,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/tampered", "1.0.0", "@ac/tampered-server"));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("tampered") });
+            new { scope = "project", project_id = await CreateProjectAsync("tampered") });
         var proposalId = Guid.Parse(proposal.GetProperty("id").GetString()!);
 
         await using (var db = await ((Factory)_factory!).Services
@@ -802,11 +799,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         {
             var row = await db.InstallProposals.FirstAsync(x => x.Id == proposalId);
             var document = JsonNode.Parse(row.Content)!.AsObject();
-            document["servers"]!.AsArray().Add(new JsonObject
-            {
-                ["id"] = "extra",
-                ["command"] = "an-executable-nobody-reviewed",
-            });
+            document["command"] = "an-executable-nobody-reviewed";
             row.Content = document.ToJsonString();
             await db.SaveChangesAsync();
         }
@@ -831,7 +824,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var source = await CreateSourceAsync("registry");
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/keep", "1.0.0", "@ac/keep-server"));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("keep") });
+            new { scope = "project", project_id = await CreateProjectAsync("keep") });
         await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
 
         // The next listing no longer mentions it. An uninstalled row would be deleted; this one is
@@ -862,30 +855,25 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/rm", "2.1.0", "@ac/rm-server"));
         var project = await CreateProjectAsync("remover");
 
-        // The second entry is what Core's own install wrote: the config id is a slug of the
-        // extension id, not the package name, and this is the config as it would read afterwards.
-        var existing = """
-            {"servers":[{"id":"someone-elses","name":"Kept","command":"docker","args":["x"],"custom":{"a":1}},{"id":"ac-rm","name":"@ac/rm","command":"npx","args":["-y","@ac/rm-server@2.1.0"]}]}
-            """;
-        Provider.QueueConfig(existing, "sha256:abc");
-        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { project_id = project });
+        var kept = await PostAsync("/api/v1/tools/mcp/servers", new { scope = "project", project_id = project, id = "someone-elses", name = "Kept", command = "docker", args = new[] { "x" } });
+        var current = await PostAsync("/api/v1/tools/mcp/servers", new { scope = "project", project_id = project, id = "ac-rm", name = "@ac/rm", command = "npx", args = new[] { "-y", "@ac/rm-server@2.0.0" } });
+        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { scope = "project", project_id = project });
         var content = proposal.GetProperty("content").GetString()!;
 
-        // The unknown key and the untouched entry both have to survive: Core edits a document, it
-        // does not re-serialize the tool layer's config through its own idea of what belongs.
-        Assert.Contains("someone-elses", content);
-        Assert.Contains("custom", content);
-        Assert.Contains(@"""a"": 1", content);
-        Assert.Equal("sha256:abc", proposal.GetProperty("expected_file_hash").GetString());
+        var update = JsonDocument.Parse(content).RootElement;
+        Assert.Equal(current.GetProperty("resource_id").GetGuid(), update.GetProperty("resource_id").GetGuid());
+        Assert.Equal(current.GetProperty("revision").GetInt64(), update.GetProperty("expected_revision").GetInt64());
 
         var applied = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
         var installationId = applied.GetProperty("id").GetString()!;
 
-        Provider.QueueConfig(content, "sha256:after-install");
         var removal = await PreviewAsync($"/api/v1/market/installations/{installationId}/uninstall-preview", body: null);
         var removed = removal.GetProperty("content").GetString()!;
-        Assert.DoesNotContain("\"id\": \"ac-rm\"", removed);
-        Assert.Contains("someone-elses", removed);
+        var delete = JsonDocument.Parse(removed).RootElement;
+        Assert.Equal("delete", delete.GetProperty("action").GetString());
+        Assert.Equal(current.GetProperty("resource_id").GetGuid(), delete.GetProperty("resource_id").GetGuid());
+        var resources = await GetJsonAsync($"/api/v1/tools/mcp/servers?project_id={project}");
+        Assert.Contains(resources.EnumerateArray(), x => x.GetProperty("resource_id").GetGuid() == kept.GetProperty("resource_id").GetGuid());
         Assert.Equal("uninstall", removal.GetProperty("action").GetString());
     }
 
@@ -896,7 +884,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/ws", "1.0.0", "@ac/ws-server"));
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = Guid.NewGuid().ToString("N") });
+            new { scope = "project", project_id = Guid.NewGuid().ToString("N") });
         await _factory!.AssertStatusAsync(response, HttpStatusCode.NotFound, "preview for an unknown project");
         Assert.Equal("market_install_project_not_found",
             JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("code").GetString());
@@ -924,7 +912,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Assert.True(row.GetProperty("installable").GetBoolean());
 
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("legacy") });
+            new { scope = "project", project_id = await CreateProjectAsync("legacy") });
         Assert.Equal(new[] { "-y", "@ac/old-server@3.4.5" },
             proposal.GetProperty("args").EnumerateArray().Select(a => a.GetString()).ToArray());
     }
@@ -936,7 +924,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedEntryAsync(source, Pkg("@ac/env", "1.0.0", "@ac/env-server"));
 
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("env") });
+            new { scope = "project", project_id = await CreateProjectAsync("env") });
         var environment = proposal.GetProperty("environment")[0];
         Assert.Equal("API_KEY", environment.GetProperty("name").GetString());
         Assert.True(environment.GetProperty("required").GetBoolean());
@@ -1039,7 +1027,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("skill") });
+            new { scope = "project", project_id = await CreateProjectAsync("skill") });
 
         Assert.Equal(2, Provider.Urls.Count);
         Assert.Equal(SkillSource, Provider.Urls[1]);
@@ -1070,7 +1058,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var entry = await RefreshedSkillEntryAsync(source, new SkillRow("pdf-forms"));
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("freeze") });
+            new { scope = "project", project_id = await CreateProjectAsync("freeze") });
         var target = Path.GetFullPath(proposal.GetProperty("target_path").GetString()!);
 
         Provider.Urls.Clear();
@@ -1083,7 +1071,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         var action = await GetJsonAsync(
             "/api/v1/user/tool-actions/" + applied.GetProperty("install_action_id").GetString());
-        Assert.Equal("write_file", action.GetProperty("tool_id").GetString());
+        Assert.Equal("skill_project_package", action.GetProperty("tool_id").GetString());
         Assert.False(File.Exists(target), "an approval has to happen before anything is on disk.");
     }
 
@@ -1102,7 +1090,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Provider.Replies.Enqueue(Wire.Ok(body));
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("refused") });
+            new { scope = "project", project_id = await CreateProjectAsync("refused") });
 
         await _factory!.AssertStatusAsync(response, HttpStatusCode.Conflict, "preview of an unusable skill");
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
@@ -1122,7 +1110,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         Provider.QueueConfig("# my own notes about pdf\n", "sha256:mine");
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("replace") });
+            new { scope = "project", project_id = await CreateProjectAsync("replace") });
 
         Assert.Equal("sha256:mine", proposal.GetProperty("expected_file_hash").GetString());
         Assert.Contains("name: pdf-forms", proposal.GetProperty("content").GetString());
@@ -1140,7 +1128,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
             + new string('x', (int)MarketInstallPolicy.MaxSkillBodyBytes)));
 
         var response = await Client.PostAsJsonAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("huge") });
+            new { scope = "project", project_id = await CreateProjectAsync("huge") });
 
         await _factory!.AssertStatusAsync(response, HttpStatusCode.Conflict, "preview of an oversized skill");
         var message = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement
@@ -1153,14 +1141,15 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RemovingASkillIsRefusedWithTheSwitchThatActuallyExists()
+    public async Task RemovingASkillUsesGovernedProjectPackageDelete()
     {
         var source = await CreateSkillSourceAsync();
         var entry = await RefreshedSkillEntryAsync(source, new SkillRow("pdf-forms"));
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = await CreateProjectAsync("remove") });
-        await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
+            new { scope = "project", project_id = await CreateProjectAsync("remove") });
+        var install = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
+        await ApproveAsync(install.GetProperty("install_action_id").GetString()!);
 
         var installation = Assert.Single((await GetJsonAsync("/api/v1/market/installations"))
             .GetProperty("installations").EnumerateArray());
@@ -1170,12 +1159,10 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
             $"/api/v1/market/installations/{installation.GetProperty("id").GetString()}/uninstall-preview",
             new StringContent(string.Empty, Encoding.UTF8, "application/json"));
 
-        await _factory!.AssertStatusAsync(response, HttpStatusCode.Conflict, "uninstall of a skill");
-        var message = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement
-            .GetProperty("message").GetString();
-        Assert.Contains("no delete", message);
-        Assert.Contains("disabled: true", message, StringComparison.Ordinal);
-        Assert.Contains("skills/pdf-forms/SKILL.md", message, StringComparison.Ordinal);
+        await _factory!.AssertStatusAsync(response, HttpStatusCode.OK, "uninstall preview of a skill");
+        var removal = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        var applied = await PostAsync($"/api/v1/market/install-proposals/{removal.GetProperty("id").GetString()}/apply");
+        Assert.Equal("skill_project_package", (await GetJsonAsync("/api/v1/user/tool-actions/" + applied.GetProperty("install_action_id").GetString())).GetProperty("tool_id").GetString());
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -1209,7 +1196,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
     }
 
     [RequiresTinadecToolsFact]
-    public async Task AnApprovedServerInstallLandsInTheFileTheProviderItselfReads()
+    public async Task AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable()
     {
         Provider.Real = _factory!.Services.GetRequiredService<IToolProcessManager>();
         var source = await CreateSourceAsync("registry");
@@ -1217,63 +1204,52 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
         var project = await CreateProjectAsync("live");
         var root = Path.Combine(_root, "workspace");
         var target = Path.Combine(root, "mcp_servers.json");
-
-        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
-
-        // The path came out of the child process's own mcp_list, not out of a constant in here, so
-        // "the same path" is the strongest thing a test can say about it before anything is written.
-        // Spelling-normalized on purpose: macOS answers /private/var for the same directory the
-        // test declared as /var, and Core hands the provider the resolved form because that is the
-        // only one the child will accept.
-        Assert.Equal(SameSpelling(target), SameSpelling(proposal.GetProperty("target_path").GetString()!));
-        Assert.False(File.Exists(target), "Nothing is written before a human decides.");
-        Assert.True(!proposal.TryGetProperty("expected_file_hash", out var firstHash)
-            || string.IsNullOrEmpty(firstHash.GetString()), "There was no file for the first write to be conditioned on.");
-
-        var applied = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id").GetString()}/apply");
+        await File.WriteAllTextAsync(Path.Combine(root, "market-mcp-test.js"), """
+            const rl=require('node:readline').createInterface({input:process.stdin});
+            rl.on('line',line=>{const q=JSON.parse(line);if(q.id==null)return;
+            let result;if(q.method==='initialize')result={protocolVersion:q.params.protocolVersion,capabilities:{tools:{}},serverInfo:{name:'market-fixture',version:'2.3.4'}};
+            else if(q.method==='tools/list')result={tools:[{name:'echo',description:'Market installed echo',inputSchema:{type:'object',properties:{message:{type:'string'}}}}]};
+            else result={content:[{type:'text',text:'market:'+q.params.arguments.message}],isError:false};
+            process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:q.id,result})+'\n');});
+            """);
+        // A local stdio fixture avoids fetching an npm package. The reviewed executable/args
+        // are persisted in the catalog exactly as a registry adapter's pinned description is.
+        await using (var db = await _factory.Services.GetRequiredService<IDbContextFactory<IntegrationDbContext>>().CreateDbContextAsync())
+        {
+            var row = await db.CatalogEntries.SingleAsync(x => x.Id == Guid.Parse(entry));
+            row.DetailJson = JsonSerializer.Serialize(new { install = new { command = "node", args = new[] { "market-mcp-test.js" }, version = "2.3.4" } });
+            await db.SaveChangesAsync();
+        }
+        var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { scope = "project", project_id = project });
+        Assert.Equal("mcp-resource://new", proposal.GetProperty("target_path").GetString());
+        Assert.False(File.Exists(target));
+        var applied = await PostAsync($"/api/v1/market/install-proposals/{proposal.GetProperty("id")}/apply");
         Assert.Equal("completed", await ApproveAsync(applied.GetProperty("install_action_id").GetString()!));
-
-        var written = JsonDocument.Parse(await File.ReadAllTextAsync(target)).RootElement;
-        var server = Assert.Single(written.GetProperty("servers").EnumerateArray());
-        Assert.Equal(proposal.GetProperty("server_id").GetString(), server.GetProperty("id").GetString());
-        Assert.Equal("npx", server.GetProperty("command").GetString());
-        Assert.Contains("@ac/live-server@2.3.4", server.GetProperty("args").EnumerateArray()
-            .Select(arg => arg.GetString()).ToArray());
-
-        // The closed loop, and the reason this test exists: a second preview has to describe the
-        // entry that is now in the file, and it can only do that by reading it back through the same
-        // process that wrote it. The `-y` is the tell — that argument is in the proposal only as one
-        // element of a list, so a joined command line can only have come out of the bytes on disk.
-        var again = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
-        Assert.Equal("npx -y @ac/live-server@2.3.4", again.GetProperty("replaces_command").GetString());
-        Assert.Equal(
-            await ProviderFileHashAsync(root, target),
-            again.GetProperty("expected_file_hash").GetString());
-
-        var row = Assert.Single((await GetJsonAsync("/api/v1/market/installations"))
-            .GetProperty("installations").EnumerateArray());
-        Assert.Equal("completed", row.GetProperty("action_status").GetString());
-
-        // The way out has to be a real edit of the same file rather than a rewrite of it: this
-        // server disappears and the document around it survives. Then the ledger stops carrying a
-        // row for something that is no longer installed, which is the only reason "installed" is an
-        // observable rather than a claim.
-        var removal = await PostAsync($"/api/v1/market/installations/{row.GetProperty("id").GetString()}/uninstall-preview");
-        await PostAsync($"/api/v1/market/install-proposals/{removal.GetProperty("id").GetString()}/apply");
-
-        var removing = Assert.Single((await GetJsonAsync("/api/v1/market/installations"))
-            .GetProperty("installations").EnumerateArray());
-        Assert.Equal("removing", removing.GetProperty("state").GetString());
+        var resources = await GetJsonAsync($"/api/v1/tools/mcp/servers?project_id={project}");
+        var server = Assert.Single(resources.EnumerateArray());
+        Assert.Equal("node", server.GetProperty("command").GetString());
+        Assert.False(File.Exists(target), "Managed install must not create a second configuration authority.");
+        var resolver = _factory.Services.GetRequiredService<IToolConfigurationResolver>();
+        var context = await resolver.MaterializeForCallAsync(await resolver.ResolveAsync(Guid.Parse(project)), ["mcp_list", "mcp_invoke"]);
+        var listed = await Provider.Real.CallAsync(root, new ToolWireRequestDto { ToolId = "mcp_list", SessionId = "market-test", ExecutionContext = context,
+            Params = JsonSerializer.SerializeToElement(new { include_schema = false }) }, TimeSpan.FromSeconds(30));
+        Assert.True(listed.IsSuccess, listed.Error);
+        var connected = Assert.Single(listed.Result!.Value.GetProperty("servers").EnumerateArray());
+        Assert.True(connected.GetProperty("status").GetString() == "connected", connected.GetRawText());
+        Assert.Equal("echo", Assert.Single(connected.GetProperty("tools").EnumerateArray()).GetProperty("id").GetString());
+        var invoked = await Provider.Real.CallAsync(root, new ToolWireRequestDto { ToolId = "mcp_invoke", SessionId = "market-test", Approved = true, ExecutionContext = context,
+            Params = JsonSerializer.SerializeToElement(new { server_id = connected.GetProperty("id").GetString(), tool_name = "echo", arguments = new { message = "works" } }) }, TimeSpan.FromSeconds(30));
+        Assert.True(invoked.IsSuccess, invoked.Error);
+        Assert.Contains("market:works", invoked.Result!.Value.GetRawText());
+        var again = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview", new { scope = "project", project_id = project });
+        Assert.Equal(server.GetProperty("revision").GetInt64().ToString(), again.GetProperty("expected_file_hash").GetString());
+        var rowDto = Assert.Single((await GetJsonAsync("/api/v1/market/installations")).GetProperty("installations").EnumerateArray());
+        var removal = await PostAsync($"/api/v1/market/installations/{rowDto.GetProperty("id")}/uninstall-preview");
+        var removing = await PostAsync($"/api/v1/market/install-proposals/{removal.GetProperty("id")}/apply");
         Assert.Equal("completed", await ApproveAsync(removing.GetProperty("uninstall_action_id").GetString()!));
-
-        Assert.Empty(JsonDocument.Parse(await File.ReadAllTextAsync(target)).RootElement
-            .GetProperty("servers").EnumerateArray());
-        Assert.Empty((await GetJsonAsync("/api/v1/market/installations"))
-            .GetProperty("installations").EnumerateArray());
+        Assert.Empty((await GetJsonAsync($"/api/v1/tools/mcp/servers?project_id={project}")).EnumerateArray());
+        Assert.Empty((await GetJsonAsync("/api/v1/market/installations")).GetProperty("installations").EnumerateArray());
     }
-
     [RequiresTinadecToolsFact]
     public async Task AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn()
     {
@@ -1286,7 +1262,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var proposal = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
+            new { scope = "project", project_id = project });
         Assert.Equal(SameSpelling(target), SameSpelling(proposal.GetProperty("target_path").GetString()!));
 
         // The workspace has never held a skill, so `skills/` does not exist and the approved write
@@ -1304,7 +1280,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
         Provider.Replies.Enqueue(Wire.Ok(SkillDocument("pdf-forms")));
         var again = await PreviewAsync($"/api/v1/market/catalog/{entry}/install-preview",
-            new { project_id = project });
+            new { scope = "project", project_id = project });
         // Both halves of this answer are read back out of the file the child process just created:
         // the warning names a path Core only knows because read_file succeeded, and the hash is the
         // tool's own value for those bytes — the shape of it is the tool's business, not Core's.
@@ -1442,9 +1418,12 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
 
     private async Task<JsonElement> PostAsync(string path, object? body = null)
     {
-        var response = body is null
-            ? await Client.PostAsync(path, new StringContent(string.Empty, Encoding.UTF8, "application/json"))
-            : await Client.PostAsJsonAsync(path, body);
+        using var request = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = body is null ? new StringContent(string.Empty, Encoding.UTF8, "application/json") : JsonContent.Create(body),
+        };
+        if (path == "/api/v1/tools/mcp/servers") request.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
+        var response = await Client.SendAsync(request);
         await _factory!.AssertStatusAsync(response, HttpStatusCode.OK, $"POST {path}");
         return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
     }
@@ -1712,10 +1691,31 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
     private sealed class Factory : WebApplicationFactory<Program>
     {
         private readonly string _root;
+        private readonly string? _toolsExecutable;
 
         public MarketProvider Provider { get; } = new();
 
-        public Factory(string root) => _root = root;
+        public Factory(string root)
+        {
+            _root = root;
+            // ASP.NET excludes assemblies supplied by its shared framework from this test output.
+            // The standalone tool apphost does not use that framework: launch its own complete
+            // output directory for real MCP calls rather than the flattened project-reference copy.
+            var output = AppContext.BaseDirectory;
+            var executableName = OperatingSystem.IsWindows() ? "TinadecTools.exe" : "TinadecTools";
+            var candidates = new List<string>
+            {
+                Path.GetFullPath(Path.Combine(output, "..", "..", "TinadecTools", "debug")),
+                Path.GetFullPath(Path.Combine(output, "..", "..", "TinadecTools", "release")),
+            };
+            for (var ancestor = new DirectoryInfo(output); ancestor is not null; ancestor = ancestor.Parent)
+            {
+                candidates.Add(Path.Combine(ancestor.FullName, "TinadecTools", "bin", "Debug", "net10.0"));
+                candidates.Add(Path.Combine(ancestor.FullName, "TinadecTools", "bin", "Release", "net10.0"));
+            }
+            _toolsExecutable = candidates.Where(path => File.Exists(Path.Combine(path, "Microsoft.Extensions.Logging.Abstractions.dll")))
+                .Select(path => Path.Combine(path, executableName)).FirstOrDefault(File.Exists);
+        }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -1724,6 +1724,7 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
                 ["TinadecPersistence:Sqlite:DatabasePath"] = Path.Combine(_root, "tinadec.db"),
                 ["TinadecPersistence:DataRoot"] = Path.Combine(_root, "data"),
                 ["TinadecTools:DefaultWorkspaceRoot"] = Path.Combine(_root, "workspace"),
+                ["TinadecTools:ExecutablePath"] = _toolsExecutable,
                 ["Logging:LogLevel:Default"] = "Warning"
             }));
             builder.ConfigureTestServices(services =>
@@ -1868,11 +1869,55 @@ public sealed class MarketCatalogApiTests : IAsyncLifetime
                     }));
                 }
 
+                // Complete-package project installs intentionally use the existing file tools for
+                // every byte. Keep this fake provider honest with that contract so the lifecycle
+                // tests exercise the governed writer/deleter instead of failing on an unmodelled
+                // transport call.
+                case "write_file":
+                {
+                    if (request.Params is not { } write
+                        || !write.TryGetProperty("filepath", out var writePath)
+                        || writePath.ValueKind != JsonValueKind.String)
+                        return Task.FromResult(Failure("filepath is required."));
+                    var path = Path.GetFullPath(writePath.GetString()!);
+                    if (write.TryGetProperty("file_hash", out var expected)
+                        && expected.ValueKind == JsonValueKind.String && File.Exists(path)
+                        && !string.Equals(Hash(path), expected.GetString(), StringComparison.Ordinal))
+                        return Task.FromResult(Failure("file hash changed."));
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    var bytes = write.TryGetProperty("content_base64", out var encoded)
+                        ? Convert.FromBase64String(encoded.GetString() ?? string.Empty)
+                        : Encoding.UTF8.GetBytes(write.TryGetProperty("content", out var text) ? text.GetString() ?? string.Empty : string.Empty);
+                    File.WriteAllBytes(path, bytes);
+                    return Task.FromResult(Ok(new JsonObject { ["success"] = true, ["file_hash"] = Hash(path) }));
+                }
+
+                case "delete_file":
+                {
+                    if (request.Params is not { } remove
+                        || !remove.TryGetProperty("filepath", out var removePath)
+                        || removePath.ValueKind != JsonValueKind.String)
+                        return Task.FromResult(Failure("filepath is required."));
+                    var path = Path.GetFullPath(removePath.GetString()!);
+                    if (!File.Exists(path)) return Task.FromResult(Failure("file does not exist."));
+                    if (remove.TryGetProperty("file_hash", out var expected)
+                        && expected.ValueKind == JsonValueKind.String
+                        && !string.Equals(Hash(path), expected.GetString(), StringComparison.Ordinal))
+                        return Task.FromResult(Failure("file hash changed."));
+                    File.Delete(path);
+                    return Task.FromResult(Ok(new JsonObject { ["success"] = true }));
+                }
+
                 default:
                     throw new InvalidOperationException(
                         $"The market surface called an unexpected tool '{request.ToolId}'.");
             }
         }
+
+        private static string Hash(string path) => "sha256:" + Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
+
+        private static ToolWireResponseDto Failure(string message) => new() { IsSuccess = false, Error = message,
+            Result = JsonSerializer.SerializeToElement(new { success = false, error = message }) };
 
         /// <summary>What <c>read_file</c> answers for a config that exists, in the tool's own wire shape.</summary>
         internal void QueueConfig(string json, string fileHash = "sha256:existing")

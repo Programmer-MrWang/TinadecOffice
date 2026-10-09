@@ -64,7 +64,9 @@ public sealed partial class ToolChainEndpointTests
 
         // Between creation and removal the worktree belongs to this run: not to the call, not to the task.
         var ledger = _factory.Services.GetRequiredService<IResourceLeaseService>();
-        var assignment = Assert.Single(await ledger.ListActiveAsync(sessionId), lease => lease.Purpose == ResourceLeasePurposes.Assignment);
+        var activeLeases = await ledger.ListActiveAsync(sessionId);
+        Assert.True(activeLeases.Any(lease => lease.Purpose == ResourceLeasePurposes.Assignment), await RunDiagnosticAsync(client, runId));
+        var assignment = Assert.Single(activeLeases, lease => lease.Purpose == ResourceLeasePurposes.Assignment);
         Assert.Equal(ResourceLeaseKinds.Worktree, assignment.Kind);
         Assert.Equal(runId, assignment.RunId);
         Assert.Null(assignment.TaskId);

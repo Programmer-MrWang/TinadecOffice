@@ -8,7 +8,7 @@ import { catalogKindLabel, marketController } from '@/controllers/MarketControll
 const { t } = useI18n()
 
 const {
-  catalog, selectedCatalogId, installationFor, awaitingDecision, actionFinished,
+  catalog, selectedCatalogId, installationFor, awaitingDecision, actionFinished, installationUsable,
 } = marketController
 
 function kindIcon(kind: string) {
@@ -28,6 +28,7 @@ function statusLabel(item: MarketCatalogItemDto) {
   if (!row) return item.installable ? t('market.available') : t('market.notInstallable')
   if (awaitingDecision(row)) return t('market.awaitingDecision')
   if (row.state === 'removing') return t('market.removing')
+  if (row.action_status === 'completed' && !installationUsable(row)) return t('market.unavailable')
   if (row.action_status === 'completed') return t('market.installed')
   return actionFinished(row) ? t('market.installFailed') : t('market.installing')
 }
@@ -36,6 +37,7 @@ function statusVariant(item: MarketCatalogItemDto) {
   const row = installationFor(item)
   if (!row) return item.installable ? 'secondary' : 'outline'
   if (awaitingDecision(row)) return 'default'
+  if (row.action_status === 'completed' && !installationUsable(row)) return 'destructive'
   if (row.action_status === 'completed') return 'default'
   return actionFinished(row) ? 'destructive' : 'outline'
 }

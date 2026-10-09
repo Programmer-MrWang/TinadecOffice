@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TinadecCore.Abstractions.Ports;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.Api.Tests;
 
@@ -280,6 +282,292 @@ public sealed class WorkspaceSkillApiTests : IAsyncLifetime
         var after = await SkillEvidenceAsync(sessionId, binding, runId: "run-stable-2");
         Assert.NotNull(after);
         Assert.Contains("skills/second/SKILL.md", after!.Content);
+    }
+
+    [Fact]
+    public async Task SharedPackagesUseExactBindingsImmutableVersionsAndConditionalSaves()
+    {
+        var (_, _, projectId) = await OpenWorkspaceAsync("shared-shadow",
+            ("skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
+        var client = _factory!.CreateClient();
+        var input = new
+        {
+            scope = "shared", name = "probe", content = Skill("probe", "Shared procedure.", "old-body"),
+            files = new Dictionary<string, string> { ["references/example.txt"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("asset-body")) },
+        };
+        Assert.Equal((HttpStatusCode)428, (await client.PostAsJsonAsync("/api/v1/tools/skills/import", input)).StatusCode);
+        using var import = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tools/skills/import") { Content = JsonContent.Create(input) };
+        import.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
+        var create = await client.SendAsync(import);
+        Assert.Equal(HttpStatusCode.OK, create.StatusCode);
+        var receipt = await create.Content.ReadFromJsonAsync<JsonElement>();
+        // The write is queued, not done: the settings surface has to show what a human is approving,
+        // and nothing may be readable under this id until that approval completes.
+        Assert.Equal("pending", receipt.GetProperty("availability").GetString());
+        Assert.Equal("awaiting_user", receipt.GetProperty("action_status").GetString());
+        Assert.Contains("references/example.txt", receipt.GetProperty("package_files").GetRawText());
+        var id = receipt.GetProperty("resource_id").GetGuid();
+        var actionId = receipt.GetProperty("user_action_id").GetGuid();
+        Assert.Null(await _factory.Services.GetRequiredService<IToolSkillResourceService>().GetAsync(id, null));
+
+        var shared = await ApproveSkillAsync(id, actionId);
+        Assert.NotNull(shared);
+        var revision = shared!.Value.GetProperty("revision").GetInt64();
+        var catalog = _factory.Services.GetRequiredService<IToolSkillCatalog>();
+        var inherited = await catalog.ResolveAsync(projectId, null);
+        Assert.Single(inherited);
+        Assert.Equal("Project procedure.", inherited[0].Description);
+        var explicitShared = Assert.Single(await catalog.ResolveAsync(projectId, [id]));
+        Assert.Equal("Shared procedure.", explicitShared.Description);
+        Assert.Equal("asset-body", await File.ReadAllTextAsync(Path.Combine(explicitShared.RootPath, "references", "example.txt")));
+        Assert.Empty(await catalog.ResolveAsync(projectId, []));
+        await Assert.ThrowsAsync<ToolSettingsException>(() => catalog.ResolveAsync(projectId, [Guid.NewGuid()]));
+
+        var noCondition = await client.PutAsJsonAsync($"/api/v1/tools/skills/{id}", new { content = Skill("probe", "New procedure.", "new-body") });
+        Assert.Equal((HttpStatusCode)428, noCondition.StatusCode);
+        using var save = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/tools/skills/{id}")
+        {
+            Content = JsonContent.Create(new { content = Skill("probe", "New procedure.", "new-body") }),
+        };
+        save.Headers.TryAddWithoutValidation("If-Match", $"\"{revision}\"");
+        var saved = await client.SendAsync(save);
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        var updateReceipt = await saved.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("awaiting_user", updateReceipt.GetProperty("action_status").GetString());
+        var updated = await ApproveSkillAsync(id, updateReceipt.GetProperty("user_action_id").GetGuid());
+        Assert.NotNull(updated);
+        var next = Assert.Single(await catalog.ResolveAsync(projectId, [id]));
+        Assert.NotEqual(explicitShared.RootPath, next.RootPath);
+        Assert.Contains("old-body", await File.ReadAllTextAsync(explicitShared.SkillPath));
+        Assert.Contains("new-body", await File.ReadAllTextAsync(next.SkillPath));
+        Assert.Equal("asset-body", await File.ReadAllTextAsync(Path.Combine(next.RootPath, "references", "example.txt")));
+        using var stale = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/tools/skills/{id}") { Content = JsonContent.Create(new { enabled = false }) };
+        stale.Headers.TryAddWithoutValidation("If-Match", $"\"{revision}\"");
+        Assert.Equal(HttpStatusCode.PreconditionFailed, (await client.SendAsync(stale)).StatusCode);
+        var list = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tools/skills?project_id={projectId}");
+        Assert.Equal(2, list.GetProperty("skills").GetArrayLength());
+        Assert.Contains("shadowed", list.GetProperty("skills").EnumerateArray().Single(x => x.GetProperty("scope").GetString() == "shared").GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public async Task ARejectedSharedSkillApprovalLeavesNothingBehind()
+    {
+        var client = _factory!.CreateClient();
+        var input = new
+        {
+            scope = "shared", name = "rejected-skill", content = Skill("rejected-skill", "Never lands."),
+        };
+        using var import = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tools/skills/import") { Content = JsonContent.Create(input) };
+        import.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
+        var created = await client.SendAsync(import);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var receipt = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = receipt.GetProperty("resource_id").GetGuid();
+        var actionId = receipt.GetProperty("user_action_id").GetGuid();
+
+        var queued = await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}");
+        var permission = await client.PostAsJsonAsync(
+            $"/api/v1/governance/permission-requests/{queued.GetProperty("permission_request_id").GetString()}/decision",
+            new { approve = true, reason = "Envelope approved; the write itself is refused next." });
+        Assert.Equal(HttpStatusCode.Accepted, permission.StatusCode);
+        queued = await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}");
+        var refused = await client.PostAsJsonAsync(
+            $"/api/v1/approvals/{queued.GetProperty("action_approval_id").GetString()}/decision",
+            new { decision = "rejected", reason = "Reviewer refused the skill write." });
+        Assert.Equal(HttpStatusCode.OK, refused.StatusCode);
+
+        // A refusal is terminal: the resource never becomes discoverable, and no package directory
+        // is left in Core content storage for a write that was turned down.
+        Assert.Equal(0, (await _factory.Services.GetRequiredService<IToolSkillResourceService>().ListAsync(null)).Skills.Count(x => x.ResourceId == id));
+        // "blocked" is the durable terminal status for a refused approval — the same value the
+        // rest of the user-tool-action surface uses, not a skill-specific spelling.
+        Assert.Equal("blocked", (await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}")).GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task PackageDetailsExposeFilesAndAssetReplacementRequiresExplicitOptIn()
+    {
+        var client = _factory!.CreateClient();
+        var input = new
+        {
+            scope = "shared", name = "package-details", source = "market", version = "1.2.3", commit = "0123456789abcdef",
+            content = Skill("package-details", "Package detail test."),
+            files = new Dictionary<string, string> { ["references/guide.txt"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("guide")) },
+        };
+        using var import = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tools/skills/import") { Content = JsonContent.Create(input) };
+        import.Headers.TryAddWithoutValidation("If-Match", "\"0\"");
+        var created = await client.SendAsync(import);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var receipt = await created.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("references/guide.txt", receipt.GetProperty("package_files").GetRawText());
+        var id = receipt.GetProperty("resource_id").GetGuid();
+        await ApproveSkillAsync(id, receipt.GetProperty("user_action_id").GetGuid());
+        var dto = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tools/skills/{id}");
+        var file = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tools/skills/{id}/files?path=references%2Fguide.txt");
+        Assert.Equal("guide", file.GetProperty("content").GetString());
+        Assert.Equal("guide", Encoding.UTF8.GetString(Convert.FromBase64String(file.GetProperty("base64").GetString()!)));
+        var revision = dto.GetProperty("revision").GetInt64();
+        using var accidental = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/tools/skills/{id}") { Content = JsonContent.Create(new { content = Skill("package-details", "changed") , files = new Dictionary<string,string>() }) };
+        accidental.Headers.TryAddWithoutValidation("If-Match", $"\"{revision}\"");
+        Assert.Equal((HttpStatusCode)428, (await client.SendAsync(accidental)).StatusCode);
+    }
+
+    [Fact]
+    public async Task FrozenAgentSkillIndexesDoNotCrossContaminateWithinOneRun()
+    {
+        var (root, sessionId, projectId) = await OpenWorkspaceAsync("agent-index",
+            ("skills/coding/SKILL.md", Skill("coding", "Code procedure.")),
+            ("skills/research/SKILL.md", Skill("research", "Research procedure.")));
+        var resources = await _factory!.Services.GetRequiredService<IToolSkillCatalog>().ResolveAsync(projectId, null);
+        var context = _factory.Services.GetRequiredService<IContextProvider>();
+        async Task<ContextEvidence?> Index(string name)
+        {
+            var pack = await context.BuildContextAsync(new ContextBuildRequest(sessionId.ToString(), "same-run", AgentId: name)
+            {
+                Workspace = BindingOf(projectId, root),
+                ToolExecutionContext = new ToolExecutionContextDto
+                {
+                    AgentDefinitionId = Guid.NewGuid(), SettingsHash = name,
+                    Settings = JsonSerializer.SerializeToElement(new { skills = new { enabled = true, max_skills = 40, max_index_chars = 8000 } }),
+                    SkillResources = resources.Where(x => x.Name == name).ToArray(),
+                    AllowedToolIds = ["read_file", "command_run"],
+                },
+            });
+            return pack.Evidence.FirstOrDefault(x => x.Source == "workspace_skills");
+        }
+        var results = await Task.WhenAll(Index("coding"), Index("research"));
+        Assert.Contains("Code procedure.", results[0]!.Content);
+        Assert.DoesNotContain("Research procedure.", results[0]!.Content);
+        Assert.Contains("read_file, command_run", results[0]!.Content);
+        Assert.Contains("Research procedure.", results[1]!.Content);
+        Assert.DoesNotContain("Code procedure.", results[1]!.Content);
+        Assert.Equal("coding", results[0]!.Metadata["tool_settings_hash"]);
+        Assert.Equal("research", results[1]!.Metadata["tool_settings_hash"]);
+    }
+
+    [Theory]
+    [InlineData("shell", false, true, "shell")]
+    [InlineData("command_run", false, true, "command_run")]
+    [InlineData("read_file", true, false, "read_file")]
+    [InlineData("ls", true, false, null)]
+    [InlineData("stat", true, false, null)]
+    [InlineData("read_file", false, false, null)]
+    [InlineData("shell", true, false, null)]
+    [InlineData("*", false, true, "shell, command_run")]
+    [InlineData("", true, true, null)]
+    public async Task FrozenSkillIndexNamesOnlyEnabledBodyReaders(string tool, bool readEnabled, bool shellEnabled, string? expected)
+    {
+        var (root, sessionId, projectId) = await OpenWorkspaceAsync("body-readers-" + Guid.NewGuid().ToString("N"),
+            ("skills/probe/SKILL.md", Skill("probe", "One procedure.", "BODY-MUST-STAY-ON-DISK")));
+        var resources = await _factory!.Services.GetRequiredService<IToolSkillCatalog>().ResolveAsync(projectId, null);
+        var pack = await _factory.Services.GetRequiredService<IContextProvider>().BuildContextAsync(new ContextBuildRequest(sessionId.ToString(), null)
+        {
+            Workspace = BindingOf(projectId, root),
+            AllowedToolIds = tool.Length == 0 ? [] : [tool],
+            ToolExecutionContext = new ToolExecutionContextDto
+            {
+                Settings = JsonSerializer.SerializeToElement(new { skills = new { enabled = true }, read = new { enabled = readEnabled }, shell = new { enabled = shellEnabled } }),
+                SkillResources = resources,
+            },
+        });
+        if (expected is null)
+        {
+            Assert.DoesNotContain(pack.Evidence, x => x.Source == "workspace_skills");
+            Assert.DoesNotContain(pack.Dropped, x => x.Source == "workspace_skills");
+            return;
+        }
+        var text = Assert.Single(pack.Evidence.Where(x => x.Source == "workspace_skills")).Content;
+        Assert.Contains(expected, text);
+        Assert.DoesNotContain("open its file with a file tool", text);
+        Assert.DoesNotContain("BODY-MUST-STAY-ON-DISK", text);
+    }
+
+    [Fact]
+    public async Task SkillProviderDiscoversOnlyTheExplicitlyBoundProject()
+    {
+        var (_, _, projectId) = await OpenWorkspaceAsync("provider-project",
+            ("skills/probe/SKILL.md", Skill("probe", "Project procedure.")));
+        var (_, _, otherProjectId) = await OpenWorkspaceAsync("provider-other");
+        var provider = _factory!.Services.GetRequiredService<ISkillProvider>();
+        Assert.Empty(await provider.ListSkillsAsync());
+        var skill = Assert.Single(await provider.ListSkillsForProjectAsync(projectId));
+        Assert.Equal("probe", skill.Name);
+        Assert.NotNull(await provider.GetSkillForProjectAsync(skill.Id, projectId));
+        Assert.Null(await provider.GetSkillAsync(skill.Id));
+        Assert.Null(await provider.GetSkillForProjectAsync(skill.Id, otherProjectId));
+    }
+
+    [Fact]
+    public async Task ProjectAdmissionRetainsBodyAndAssetsWhileManagementUsesLiveFiles()
+    {
+        var (root, _, projectId) = await OpenWorkspaceAsync("retained-project",
+            ("skills/probe/SKILL.md", Skill("probe", "Original procedure.", "old-body")),
+            ("skills/probe/references/guide.txt", "old-asset"));
+        var resolver = _factory!.Services.GetRequiredService<IToolConfigurationResolver>();
+        var first = await resolver.ResolveForRunAsync(projectId, []);
+        var original = Assert.Single(first.SharedContext.SkillResources);
+        Assert.False(WorkspaceSkillDiscovery.IsContained(root, original.RootPath));
+        Assert.Contains("old-body", await File.ReadAllTextAsync(original.SkillPath));
+        var liveBody = Path.Combine(root, "skills", "probe", "SKILL.md");
+        var liveAsset = Path.Combine(root, "skills", "probe", "references", "guide.txt");
+        await File.WriteAllTextAsync(liveBody, Skill("probe", "Updated procedure.", "new-body"));
+        await File.WriteAllTextAsync(liveAsset, "new-asset");
+        var second = await resolver.ResolveForRunAsync(projectId, []);
+        var updated = Assert.Single(second.SharedContext.SkillResources);
+        Assert.NotEqual(original.RootPath, updated.RootPath);
+        Assert.Contains("old-body", await File.ReadAllTextAsync(original.SkillPath));
+        Assert.Equal("old-asset", await File.ReadAllTextAsync(Path.Combine(original.RootPath, "references", "guide.txt")));
+        Assert.Contains("new-body", await File.ReadAllTextAsync(updated.SkillPath));
+        Assert.Equal("new-asset", await File.ReadAllTextAsync(Path.Combine(updated.RootPath, "references", "guide.txt")));
+        var management = Assert.Single((await _factory.Services.GetRequiredService<IToolSkillResourceService>().ListAsync(projectId)).Skills);
+        Assert.Equal(liveBody, management.Path);
+        Assert.Equal("Updated procedure.", management.Description);
+    }
+
+    [Fact]
+    public async Task ProjectAdmissionCapturesAssetOnlyChangesAsAnotherVersion()
+    {
+        var (root, _, projectId) = await OpenWorkspaceAsync("retained-assets",
+            ("skills/probe/SKILL.md", Skill("probe", "Same procedure.")),
+            ("skills/probe/references/guide.txt", "first"));
+        var catalog = _factory!.Services.GetRequiredService<IToolSkillCatalog>();
+        var first = Assert.Single((await catalog.CaptureAsync(projectId)).Skills);
+        await File.WriteAllTextAsync(Path.Combine(root, "skills", "probe", "references", "guide.txt"), "second");
+        var second = Assert.Single((await catalog.CaptureAsync(projectId)).Skills);
+        Assert.NotEqual(first.RootPath, second.RootPath);
+        Assert.NotEqual(first.ContentHash, second.ContentHash);
+        Assert.Equal("first", await File.ReadAllTextAsync(Path.Combine(first.RootPath, "references", "guide.txt")));
+        Assert.Equal("second", await File.ReadAllTextAsync(Path.Combine(second.RootPath, "references", "guide.txt")));
+    }
+
+    /// <summary>
+    /// A shared Skill write is now a governed action like any other: the settings surface queues it
+    /// and a human has to pass both gates before a byte lands. The two decisions are walked in the
+    /// durable order — permission envelope first, then the action's own approval — matching the
+    /// market and approval-flow suites.
+    /// </summary>
+    private async Task<JsonElement?> ApproveSkillAsync(Guid resourceId, Guid actionId)
+    {
+        var client = _factory!.CreateClient();
+        var queued = await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}");
+        var status = queued.GetProperty("status").GetString();
+        if (status is "awaiting_user" or "awaiting_delegate")
+        {
+            var permission = await client.PostAsJsonAsync(
+                $"/api/v1/governance/permission-requests/{queued.GetProperty("permission_request_id").GetString()}/decision",
+                new { approve = true, reason = "Reviewer confirmed the skill write." });
+            Assert.Equal(HttpStatusCode.Accepted, permission.StatusCode);
+            queued = await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}");
+            status = queued.GetProperty("status").GetString();
+        }
+        Assert.Equal("awaiting_approval", status);
+        var decided = await client.PostAsJsonAsync(
+            $"/api/v1/approvals/{queued.GetProperty("action_approval_id").GetString()}/decision",
+            new { decision = "approved", reason = "Reviewer approved the skill write." });
+        Assert.Equal(HttpStatusCode.OK, decided.StatusCode);
+        var final = await client.GetFromJsonAsync<JsonElement>($"/api/v1/user/tool-actions/{actionId}");
+        Assert.Equal("completed", final.GetProperty("status").GetString());
+        return await client.GetFromJsonAsync<JsonElement?>($"/api/v1/tools/skills/{resourceId}");
     }
 
     private sealed class SkillFactory : WebApplicationFactory<Program>

@@ -70,6 +70,16 @@ public sealed class ApprovalEvidenceProjectorTests
         Assert.NotEqual(first.Arguments, other.Arguments);
     }
 
+    [Fact]
+    public void BinaryWritePayloadIsFingerprintedInsteadOfExposedInApprovalLists()
+    {
+        var encoded = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("private-package-content"));
+        var evidence = ApprovalEvidenceProjector.Project("write_file", $$"""{"filepath":"asset.bin","content_base64":"{{encoded}}"}""");
+        Assert.Equal("asset.bin", evidence.ResourcePath);
+        Assert.DoesNotContain(encoded, evidence.Arguments);
+        Assert.Contains("sha256 ", evidence.Arguments);
+    }
+
     [Theory]
     [InlineData("api_key")]
     [InlineData("token")]

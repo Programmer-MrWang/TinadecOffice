@@ -22,7 +22,7 @@ public static class McpInvokeTool
             return new McpInvokeResponse
             {
                 Success = true,
-                ServerId = server.Id,
+                ServerId = args.ServerId,
                 ToolName = args.ToolName,
                 Result = result
             };

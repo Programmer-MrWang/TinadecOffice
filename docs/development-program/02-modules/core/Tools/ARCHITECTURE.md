@@ -45,3 +45,19 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[CORE-TOOLS-001](TODO.md#core-tools-001)。
+
+## 2026-10-08 版本配置与运行快照
+
+```mermaid
+flowchart LR
+  API["ToolSettingsEndpoints"] -->|"严格JSON与If-Match"| Store["ToolSettingsStore / ToolsSettingsDbContext"]
+  Admission["AgentRuntimeConfigurationResolver：准入"] -->|"参与及可派生定义ID"| Resolver["ToolConfigurationResolver"]
+  Resolver -->|"共享与稀疏覆盖"| Store
+  Resolver -->|"一次捕获可见版本"| MCP["McpResourceRegistry"]
+  Resolver -->|"一次捕获技能包"| Skills["IToolSkillCatalog"]
+  Admission -->|"持久冻结配置"| Frozen["FrozenRunConfigurationV1"]
+  Frozen -->|"定义/父模板选择原快照"| Dispatch["ToolDispatcher / ScopeResolver"]
+  Dispatch -->|"可信execution_context及授权交集"| Host["TinadecTools进程"]
+```
+
+箭头依据：[配置端点](../../../../../TinadecCore/AspNetCore/Endpoints/ToolSettingsEndpoints.cs)、[解析实现](../../../../../TinadecCore/Tools/ToolConfigurationResolver.cs)、[准入冻结](../../../../../TinadecCore/DmaEA/FrozenRunConfiguration.cs)、[调用](../../../../../TinadecCore/Tools/ToolDispatcher.cs)、[范围恢复](../../../../../TinadecCore/Tools/ToolInvocationScopeResolver.cs)。凭据引用在冻结配置保留版本，调用前从SecretStore物化；编辑响应不包含实际凭据。恢复、待审批、派生及取消清理消费原快照，保存不重启宿主。

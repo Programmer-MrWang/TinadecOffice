@@ -17,7 +17,8 @@ public static class McpListTool
         {
             var item = new McpServerToolList
             {
-                Id = server.Id,
+                Id = McpServerRepository.ServerHandle(server, servers),
+                ResourceId = server.ResourceId,
                 Name = string.IsNullOrWhiteSpace(server.Name) ? server.Id : server.Name
             };
 

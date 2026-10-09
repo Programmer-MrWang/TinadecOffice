@@ -1,0 +1,22 @@
+{
+  "asset": {
+    "texts": [
+      "ASSET-CORE-PROOF"
+    ],
+    "status": "completed"
+  },
+  "core_governance": "permission approvals retained",
+  "shared_resource_id": "c30176e5-d3d5-42cb-906d-57d457ee62af",
+  "body": {
+    "texts": [
+      "---",
+      "name: shared-call-proof",
+      "description: Shared package real Core read fixture",
+      "---",
+      "",
+      "BODY-CORE-PROOF"
+    ],
+    "status": "completed"
+  },
+  "environment": "isolated Windows Core48881 -> real TinadecTools"
+}

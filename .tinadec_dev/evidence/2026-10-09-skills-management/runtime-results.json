@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-09",
+  "platform": "Windows x64; .NET 10.0",
+  "core": {
+    "command": "dotnet test TinadecCore/tests/TinadecCore.Api.Tests/TinadecCore.Api.Tests.csproj --no-restore --filter FullyQualifiedName~WorkspaceSkillApiTests --nologo",
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0,
+    "test_duration_seconds": 58,
+    "scope": [
+      "Skill body disclosure",
+      "frozen reader visibility and no-reader omission",
+      "project-aware SkillProvider",
+      "project admission body and asset retention",
+      "asset-only captured versions",
+      "shared versions and package management"
+    ],
+    "boundary": "Focused API tests using real Core DI, SQLite and temporary filesystem packages. API dependency graph including SQLite/PostgreSQL migration assemblies compiled. No PostgreSQL database run, Linux/macOS sandbox, production model or interactive UI execution verified."
+  },
+  "tools_source_audit_followup": {
+    "command": "dotnet test tests/TinadecTools.Tests/TinadecTools.Tests.csproj --no-restore --filter \"FullyQualifiedName~ToolExecutionContextTests|FullyQualifiedName~FileSystemToolsTests|FullyQualifiedName~ToolManifestTests\" --nologo",
+    "passed": 44,
+    "failed": 0,
+    "skipped": 0,
+    "test_duration_seconds": 58,
+    "fixes": [
+      "delete_file follows write.enabled in Core and Tools",
+      "delete_file filepath claims and static mutation catalog",
+      "content_base64 approval fingerprinting"
+    ],
+    "scope": [
+      "Binary write approval/hash/size checks",
+      "delete approval/hash/disabled category preservation",
+      "read-only Skill roots reject binary write and delete",
+      "generated manifest approval/mutation/unsafe classification"
+    ],
+    "boundary": "Core mapping/projector regressions were added for the backend owner's next Core test batch. Windows Tools checks passed; no new POSIX integration run."
+  },
+  "tools": {
+    "command": "dotnet test tests/TinadecTools.Tests/TinadecTools.Tests.csproj --no-restore --filter \"FullyQualifiedName~ToolExecutionContextTests|FullyQualifiedName~SandboxRuntimeTests|FullyQualifiedName~CommandRunnerTests\" --nologo",
+    "passed": 50,
+    "failed": 0,
+    "skipped": 0,
+    "test_duration_seconds": 56,
+    "scope": [
+      "Frozen execution context",
+      "Skill read roots",
+      "additional_write_paths overlap and symlink rejection",
+      "sandbox permission construction",
+      "command runner validation and forwarding"
+    ],
+    "boundary": "Focused TinadecTools tests on Windows. POSIX kernel sandbox integration and live external command execution were not included."
+  },
+  "2026-10-09-skills-governed-import": {
+    "core": {
+      "market": 76,
+      "workspaceSkills": 27,
+      "joint116": 116,
+      "marketPlusSkillsRerun": 103,
+      "openapiSnapshot": "regenerated (expected_package_digest)"
+    },
+    "gateway": {
+      "tests": 88
+    },
+    "desktop": {
+      "settings": 160,
+      "full": "1091 passed / 14 skipped",
+      "localeAndSettingsRerun": 165,
+      "typecheck": "pass",
+      "productionBuild": "pass"
+    },
+    "notes": [
+      "POST /api/v1/tools/skills/import and PUT /api/v1/tools/skills/{id} for shared packages now return a pending skill_resource_update receipt.",
+      "Nothing is readable under the new resource id until the governed approval completes; a refused approval is terminal (status blocked) and leaves no package directory.",
+      "expected_package_digest is frozen at request time and re-verified before the package bytes are written.",
+      "Market 76/76 green after adding write_file/delete_file to the test provider fixture."
+    ]
+  }
+}

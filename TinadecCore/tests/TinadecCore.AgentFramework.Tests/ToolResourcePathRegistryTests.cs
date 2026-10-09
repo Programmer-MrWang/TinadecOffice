@@ -1,6 +1,7 @@
 using System.Text.Json;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Tools;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.AgentFramework.Tests;
 
@@ -14,8 +15,57 @@ namespace TinadecCore.AgentFramework.Tests;
 public sealed class ToolResourcePathRegistryTests
 {
     [Theory]
+    [InlineData("ls", "path", false)]
+    [InlineData("git_status", "repository_path", false)]
+    [InlineData("git_worktree_create", "repository_path", true)]
+    public void ManagedWorkspaceRootRetainsItsClaimAndPrefixBoundary(string tool, string parameter, bool mutating)
+    {
+        var workspace = Path.Combine(Path.GetTempPath(), "root-claim-workspace");
+        foreach (var target in new[] { ".", "./", workspace })
+        {
+            var claim = ToolResourcePathRegistry.TryBuildResourceClaim(tool,
+                JsonSerializer.Serialize(new Dictionary<string, string> { [parameter] = target }),
+                workspace, mutating, new ToolExecutionContextDto())!;
+            Assert.Equal("workspace-root://root", claim.Resource);
+            var relative = ToolResourcePathRegistry.TryReadResourceClaimPath(claim);
+            Assert.Equal(".", relative);
+            Assert.True(ToolResourceAllowList.Evaluate([mutating ? "write:" : "read:"], relative, mutating).Allowed);
+            Assert.False(ToolResourceAllowList.Evaluate([mutating ? "write:src" : "read:src"], relative, mutating).Allowed);
+        }
+    }
+
+    [Fact]
+    public void ManagedSharedPackagesRequireExactFrozenRootAndReadTool()
+    {
+        var testRoot = Path.Combine(Path.GetTempPath(), "tool-claim-test", Guid.NewGuid().ToString("N"));
+        var workspace = Path.Combine(testRoot, "workspace");
+        var package = Path.Combine(testRoot, "shared", "probe");
+        Directory.CreateDirectory(workspace);
+        Directory.CreateDirectory(package);
+        try
+        {
+        var id = Guid.NewGuid();
+        var context = new ToolExecutionContextDto { ReadRoots = [new ToolReadRootDto { ResourceId = id, Path = package }] };
+        var path = Path.Combine(package, "references", "example.txt");
+        var parameters = JsonSerializer.Serialize(new { filepath = path });
+        var read = ToolResourcePathRegistry.TryBuildResourceClaim("read_file", parameters, workspace, false, context)!;
+        Assert.StartsWith($"skill://{id:D}/", read.Resource);
+        Assert.True(ToolResourcePathRegistry.IsAuthorizedSkillClaim(read, context.ReadRoots));
+        Assert.False(ToolResourcePathRegistry.IsAuthorizedSkillClaim(read, []));
+        var write = ToolResourcePathRegistry.TryBuildResourceClaim("write_file", parameters, workspace, true, context)!;
+        Assert.StartsWith("denied-path://", write.Resource);
+        var sibling = ToolResourcePathRegistry.TryBuildResourceClaim("read_file", JsonSerializer.Serialize(new { filepath = package + "-sibling/SKILL.md" }), workspace, false, context)!;
+        Assert.StartsWith("denied-path://", sibling.Resource);
+        var escape = new CapabilityClaim("resource.access", "read", $"skill://{id:D}/%2E%2E%2Fsecret.txt");
+        Assert.False(ToolResourcePathRegistry.IsAuthorizedSkillClaim(escape, context.ReadRoots));
+        }
+        finally { Directory.Delete(testRoot, true); }
+    }
+
+    [Theory]
     [InlineData("read_file")]
     [InlineData("write_file")]
+    [InlineData("delete_file")]
     public void FileTools_ExtractTheWorkspaceRelativeTarget(string toolId)
     {
         var path = ToolResourcePathRegistry.TryExtractRelativePath(

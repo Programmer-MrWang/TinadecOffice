@@ -34,3 +34,21 @@
 
 - [TinadecCore/Tools/ToolsModuleRegistrar.cs:19](../../../../../TinadecCore/Tools/ToolsModuleRegistrar.cs#L19)
 
+<a id="core-tools-101"></a>
+
+### CORE-TOOLS-101 实现共享及 Agent 工具配置、托管 MCP 与冻结执行上下文
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：CORE-TOOLS
+- 关联功能：CORE-TOOLS-F003
+- 范围：严格版本 JSON、共享安全上限、持久定义覆盖、428/412、SQLite/PostgreSQL 迁移、MCP 导入/凭据版本/审批链路、准入及派生模板冻结、恢复/待审批沿旧配置、可信 execution_context、窄技能读取根。
+- 验收：新旧配置并发不串用，目录与执行授权一致，市场安装实际可调用，凭据普通响应不泄漏，保存不重启工具进程，资源失效有诊断。
+- 完成证据：[实施与验证报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)。CORE-TOOLS-001 整体审计保持待核查。
+
+**验收条件**
+
+- [x] 完成任务列出的实现范围及条件保存、冻结配置和资源隔离回归。
+- [x] 取得真实 Windows Core/Desktop/Tools 证据；PostgreSQL 及 Linux/macOS 边界单独记录。
+- [x] 同步模块说明、API/客户端及共享实施报告，不将专项完成扩大为整体模块验收。

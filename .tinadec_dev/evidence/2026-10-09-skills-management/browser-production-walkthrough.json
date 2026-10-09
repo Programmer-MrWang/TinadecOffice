@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-09",
+  "platform": "Windows x64",
+  "renderer": "apps/desktop production dist via vite preview http://127.0.0.1:4173/#/settings",
+  "interaction_tool": "cua_repl browser UI",
+  "cases": [
+    { "name": "Skills import", "result": "Skills tab shows shared scope, SKILL.md editor, asset files and directory package import; project scope disabled without selected project" },
+    { "name": "draft keyboard guard", "result": "After name changed to qa-skill, ArrowRight/ArrowLeft raises Save / Discard / Continue editing; Continue retains value, Discard navigates to MCP" },
+    { "name": "narrow keyboard", "width": 700, "height": 650, "document_width": 700, "active_tab": "技能", "result": "ArrowRight from MCP selects/focuses Skills; tab row scrolls within window, no document horizontal overflow" },
+    { "name": "editor load", "result": "Built lazy Monaco editor loaded and no console error messages were returned" }
+  ],
+  "boundary": "Production renderer UI only. Gateway unavailable in this browser session. Actual resource actions and Agent tool calls validated in Core/Tools integration tests, not this browser walk. No real Electron shell or external model run asserted."
+}

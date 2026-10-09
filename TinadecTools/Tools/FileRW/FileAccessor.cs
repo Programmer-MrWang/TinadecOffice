@@ -61,6 +61,11 @@ internal class FileAccessor : IDisposable
         _file = new FileStream(filepath, FileMode.Open, canWrite ? FileAccess.ReadWrite : FileAccess.Read,
             canWrite ? FileShare.Read | FileShare.Delete : FileShare.ReadWrite | FileShare.Delete, 1024,
             FileOptions.Asynchronous);
+        try
+        {
+            if (!canWrite) TinadecTools.Runtime.ToolExecutionContext.CheckFileSize("read", _file.Length);
+        }
+        catch { _file.Dispose(); throw; }
         _handle = _file.SafeFileHandle;
         BuildIndex();
     }
@@ -231,6 +236,8 @@ internal class FileAccessor : IDisposable
 
         if (byteCount > _file.Length - byteOffset)
             throw new ArgumentOutOfRangeException(nameof(byteCount), $"字节数量 {byteCount} 超出范围，无法从偏移 {byteOffset} 开始替换");
+
+        TinadecTools.Runtime.ToolExecutionContext.CheckFileSize("write", checked(_file.Length - byteCount + replacement.Length));
 
         if (byteCount == 0 && replacement.Length == 0)
             return true;

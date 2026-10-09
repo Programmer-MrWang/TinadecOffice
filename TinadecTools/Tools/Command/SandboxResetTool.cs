@@ -42,6 +42,8 @@ public static class SandboxResetTool
         {
             var backend = CommandSandboxRuntime.GetBackend();
             await backend.ResetAsync(scope, cancellationToken).ConfigureAwait(false);
+            // The persisted policy is platform-independent, even when backend setup is per-process.
+            SandboxPolicyStore.Delete();
             return new SandboxResetResponse { Success = true, Scope = scope.ToString().ToLowerInvariant() };
         }
         catch (Exception ex)

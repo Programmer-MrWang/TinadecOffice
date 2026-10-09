@@ -1,0 +1,59 @@
+{
+  "id": 14,
+  "result": {
+    "cases": [
+      {
+        "case": "mcp-created-secret-masked",
+        "name": "Desktop QA Echo",
+        "env": {
+          "TOKEN": "********"
+        },
+        "revision": 1
+      },
+      {
+        "case": "real-mcp-connection-test",
+        "receipt": "{\n  \"resource_id\": \"270075a8-505c-49a4-a16a-b98720aa1eaf\",\n  \"status\": \"connected\",\n  \"tool_count\": 2\n}"
+      },
+      {
+        "case": "explicit-mcp-none",
+        "settings": {
+          "mcp": {
+            "server_resource_ids": []
+          },
+          "shell": {
+            "timeout_ms": 123456
+          },
+          "skills": {
+            "resource_ids": []
+          }
+        },
+        "mcpCount": 0
+      },
+      {
+        "case": "specific-mcp-binding",
+        "ids": [
+          "270075a8-505c-49a4-a16a-b98720aa1eaf"
+        ],
+        "mcpCount": 1
+      },
+      {
+        "case": "shared-skill-package-import",
+        "name": "desktop-qa-skill",
+        "valid": true,
+        "scope": "shared",
+        "revision": 1
+      },
+      {
+        "case": "specific-skill-binding",
+        "effective": [
+          {
+            "name": "desktop-qa-skill",
+            "revision": 1
+          }
+        ]
+      }
+    ],
+    "text": "资源目录\n共享\n当前项目\n导入技能\n\n技能绑定控制自动提供的技能索引。未提供的技能文件仍受普通文件与 Shell 授权约束，不代表禁止读取。\n\n为此配置提供的资源\n继承默认\n所有可用资源\n不选择任何资源\n自定义选择\ndesktop-qa-skill\n4520265d-7540-40a7-abc8-4b0e3aba2ffa\nDesktop settings QA fixture\n启用\n编辑"
+  },
+  "errors": []
+}

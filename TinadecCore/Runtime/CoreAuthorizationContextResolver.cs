@@ -90,8 +90,9 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         // A resource denial quotes the frozen root so the message stays actionable;
         // a body without the workspace section (projectless) simply omits it.
         var workspaceRoot = ReadFrozenWorkspaceRoot(frozen.Content);
+        var toolContext = ToolInvocationScopeResolver.ReadFrozenToolContext(frozen.Content, instance.AgentDefinitionId);
         var (resourceRules, resourceDenyReason, resourceUpgradeReason) = await ResourceRulesAsync(
-            instance, claim, request.ResourceClaim, workspaceRoot, cancellationToken).ConfigureAwait(false);
+            instance, claim, request.ResourceClaim, workspaceRoot, toolContext, cancellationToken).ConfigureAwait(false);
 
         var rules = new List<AuthorizationBoundary>
         {
@@ -216,10 +217,22 @@ internal sealed class CoreAuthorizationContextResolver : IAuthorizationContextRe
         CapabilityClaim claim,
         CapabilityClaim? resourceClaim,
         string? workspaceRoot,
+        TinadecCore.Contracts.Dtos.ToolExecutionContextDto? toolContext,
         CancellationToken cancellationToken)
     {
         if (IsCoreReservedClaim(claim.Resource))
             return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null, null);
+
+        if (resourceClaim?.Resource.StartsWith("skill://", StringComparison.Ordinal) == true)
+        {
+            var id = claim.Resource.StartsWith("tool://", StringComparison.Ordinal) ? claim.Resource[7..] : "";
+            if (claim.Action == "read" && id is "read_file" or "ls" or "stat" && toolContext is not null
+                && ToolResourcePathRegistry.IsAuthorizedSkillClaim(resourceClaim, toolContext.ReadRoots))
+                return ([new CapabilityRule("allow", "tool.invoke", claim.Action, claim.Resource)], null, null);
+            return ([new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)], "The target is outside this Agent's frozen skill package read scope.", null);
+        }
+        if (resourceClaim?.Resource.StartsWith("denied-path://", StringComparison.Ordinal) == true)
+            return ([new CapabilityRule("deny", "tool.invoke", claim.Action, claim.Resource)], "The target is outside the frozen workspace and selected skill package roots.", null);
 
         var grants = await ReadInstanceResourceGrantsAsync(instance, cancellationToken).ConfigureAwait(false);
         var mutating = string.Equals(claim.Action, "mutate", StringComparison.OrdinalIgnoreCase);

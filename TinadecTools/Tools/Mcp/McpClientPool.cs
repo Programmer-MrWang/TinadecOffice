@@ -1,5 +1,7 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Diagnostics;
+using TinadecTools.Runtime;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 
@@ -7,57 +9,167 @@ namespace TinadecTools.Tools.Mcp;
 
 internal sealed class McpClientPool : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<string, Lazy<Task<McpClient>>> _clients = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ClientEntry> _clients = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _releasedRuns = new(StringComparer.Ordinal);
+    private readonly object _gate = new();
+    private bool _disposed;
 
-    public async Task<McpClient> GetOrCreateAsync(McpServerConfig config, CancellationToken cancellationToken = default)
+    // A lease holds a frozen resource revision between calls. Active call refs separately protect
+    // calls already underway when Core cancels/releases a run. A saved revision is never a kill.
+    private sealed class ClientEntry
     {
-        var lazy = _clients.GetOrAdd(config.Id, _ => new Lazy<Task<McpClient>>(() => CreateAsync(config, cancellationToken)));
-        try
+        public ClientEntry(string key, McpServerConfig config, bool governed)
         {
-            return await lazy.Value.ConfigureAwait(false);
+            Key = key;
+            Client = new Lazy<Task<McpClient>>(() => CreateAsync(config, governed));
         }
-        catch
+        public string Key { get; }
+        public CancellationTokenSource Shutdown { get; } = new();
+        public Lazy<Task<McpClient>> Client { get; }
+        public HashSet<string> Runs { get; } = new(StringComparer.Ordinal);
+        public int ActiveCalls { get; set; }
+        public bool Standalone { get; set; }
+
+        private async Task<McpClient> CreateAsync(McpServerConfig resource, bool governed)
         {
-            _clients.TryRemove(config.Id, out _);
-            throw;
+            using var startup = CancellationTokenSource.CreateLinkedTokenSource(Shutdown.Token);
+            // Each waiter has its own configured deadline. Sharing a handshake must not let the
+            // first agent's short deadline cancel another agent's longer one. Only the immutable
+            // provider ceiling bounds shared initialization; releasing its last owner cancels it.
+            if (governed) startup.CancelAfter(1_800_000);
+            return await McpClientPool.CreateAsync(resource, startup.Token).ConfigureAwait(false);
         }
+    }
+
+    internal int CachedClientCount { get { lock (_gate) return _clients.Count; } }
+
+    private ClientEntry BeginCall(McpServerConfig config)
+    {
+        var context = ToolExecutionContext.Current;
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (context?.RunId is { } runId && _releasedRuns.Contains(runId))
+                throw new InvalidOperationException($"Execution context '{runId}' has already been released.");
+            var key = PoolKey(config);
+            if (!_clients.TryGetValue(key, out var entry))
+                _clients.Add(key, entry = new ClientEntry(key, config, context is not null));
+            entry.ActiveCalls++;
+            if (context is null) entry.Standalone = true;
+            else if (context.RunId is { } leaseId) entry.Runs.Add(leaseId);
+            return entry;
+        }
+    }
+
+    private async ValueTask EndCallAsync(ClientEntry entry)
+    {
+        bool remove;
+        lock (_gate)
+        {
+            entry.ActiveCalls--;
+            // Failed connections are retriable and must not remain cached under a live run lease.
+            if (entry.Client.IsValueCreated && entry.Client.Value.IsCompleted && !entry.Client.Value.IsCompletedSuccessfully)
+            {
+                entry.Runs.Clear();
+                entry.Standalone = false;
+            }
+            remove = RemoveIfUnused(entry);
+        }
+        if (remove) await DisposeEntryAsync(entry).ConfigureAwait(false);
+    }
+
+    private bool RemoveIfUnused(ClientEntry entry)
+    {
+        if (entry.ActiveCalls != 0 || entry.Standalone || entry.Runs.Count != 0) return false;
+        if (!_clients.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry)) return false;
+        return _clients.Remove(entry.Key);
+    }
+
+    public async ValueTask ReleaseRunAsync(string runId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        var retired = new List<ClientEntry>();
+        lock (_gate)
+        {
+            _releasedRuns.Add(runId);
+            foreach (var entry in _clients.Values.ToArray())
+            {
+                entry.Runs.Remove(runId);
+                if (RemoveIfUnused(entry)) retired.Add(entry);
+            }
+        }
+        foreach (var entry in retired) await DisposeEntryAsync(entry).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<McpToolSummary>> ListToolsAsync(McpServerConfig config, bool includeSchema, CancellationToken cancellationToken = default)
     {
-        var client = await GetOrCreateAsync(config, cancellationToken).ConfigureAwait(false);
-        var tools = await client.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        return tools.Select(tool => ToSummary(tool, includeSchema)).ToArray();
+        var timeoutMs = ToolExecutionContext.Current?.Integer("mcp", "timeout_ms", 30_000, 1, 1_800_000);
+        var started = Stopwatch.GetTimestamp();
+        using var deadline = CallDeadline(cancellationToken, timeoutMs);
+        cancellationToken = deadline.Token;
+        var entry = BeginCall(config);
+        try
+        {
+            var client = await entry.Client.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
+            CheckDeadline(deadline, started, timeoutMs);
+            var tools = await client.ListToolsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            CheckDeadline(deadline, started, timeoutMs);
+            return tools.Select(tool => ToSummary(tool, includeSchema)).ToArray();
+        }
+        finally { await EndCallAsync(entry).ConfigureAwait(false); }
     }
 
     public async Task<JsonElement> InvokeAsync(McpServerConfig config, string toolName, JsonElement? arguments, CancellationToken cancellationToken = default)
     {
+        var timeoutMs = ToolExecutionContext.Current?.Integer("mcp", "timeout_ms", 30_000, 1, 1_800_000);
+        var started = Stopwatch.GetTimestamp();
+        using var deadline = CallDeadline(cancellationToken, timeoutMs);
+        cancellationToken = deadline.Token;
         ArgumentException.ThrowIfNullOrWhiteSpace(toolName);
-        var client = await GetOrCreateAsync(config, cancellationToken).ConfigureAwait(false);
-        var dictionary = McpJsonArguments.ToDictionary(arguments);
-        var result = await client.CallToolAsync(toolName, dictionary, cancellationToken: cancellationToken).ConfigureAwait(false);
-        return JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult);
+        var entry = BeginCall(config);
+        try
+        {
+            var client = await entry.Client.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
+            CheckDeadline(deadline, started, timeoutMs);
+            var dictionary = McpJsonArguments.ToDictionary(arguments);
+            var result = await client.CallToolAsync(toolName, dictionary, cancellationToken: cancellationToken).ConfigureAwait(false);
+            CheckDeadline(deadline, started, timeoutMs);
+            return JsonSerializer.SerializeToElement(result, McpJsonContext.Default.CallToolResult);
+        }
+        finally { await EndCallAsync(entry).ConfigureAwait(false); }
     }
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var lazy in _clients.Values)
+        var retired = new List<ClientEntry>();
+        lock (_gate)
         {
-            if (!lazy.IsValueCreated)
-                continue;
-
-            try
+            _disposed = true;
+            foreach (var entry in _clients.Values.ToArray())
             {
-                var client = await lazy.Value.ConfigureAwait(false);
-                await client.DisposeAsync().ConfigureAwait(false);
-            }
-            catch
-            {
-                // Best-effort shutdown during process exit.
+                entry.Runs.Clear();
+                entry.Standalone = false;
+                if (RemoveIfUnused(entry)) retired.Add(entry);
             }
         }
+        foreach (var entry in retired) await DisposeEntryAsync(entry).ConfigureAwait(false);
+    }
 
-        _clients.Clear();
+    private static async ValueTask DisposeEntryAsync(ClientEntry entry)
+    {
+        try
+        {
+            // A cancelled caller may leave an initialization in flight. Once no owner/call needs
+            // it, cancellation reclaims that transport instead of waiting for a full handshake.
+            entry.Shutdown.Cancel();
+            if (entry.Client.IsValueCreated)
+            {
+                var client = await entry.Client.Value.ConfigureAwait(false);
+                await client.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        catch { /* Best-effort shutdown; failed handshakes have no reusable client. */ }
+        finally { entry.Shutdown.Dispose(); }
     }
 
     private static Task<McpClient> CreateAsync(McpServerConfig config, CancellationToken cancellationToken)
@@ -73,6 +185,46 @@ internal sealed class McpClientPool : IAsyncDisposable
         });
 
         return McpClient.CreateAsync(transport, cancellationToken: cancellationToken);
+    }
+
+    private static CancellationTokenSource CallDeadline(CancellationToken cancellationToken, int? timeoutMs)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (timeoutMs is { } milliseconds) deadline.CancelAfter(milliseconds);
+        return deadline;
+    }
+
+    private static void CheckDeadline(CancellationTokenSource deadline, long started, int? timeoutMs)
+    {
+        if (timeoutMs is { } milliseconds && Stopwatch.GetElapsedTime(started).TotalMilliseconds >= milliseconds)
+            deadline.Cancel();
+        deadline.Token.ThrowIfCancellationRequested();
+    }
+
+    // Reusing only the user-facing id silently kept old commands and environments after a save.
+    // Old fingerprints remain available while their runs/calls hold leases; saving never kills
+    // live clients. Core releases a run through the private control channel when it ends.
+    internal static string PoolKey(McpServerConfig config)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            writer.WriteString("resource_id", config.ResourceId ?? config.Id);
+            writer.WriteNumber("revision", config.Revision);
+            writer.WriteString("command", config.Command);
+            writer.WriteString("cwd", config.Cwd);
+            writer.WriteStartArray("args");
+            foreach (var argument in config.Args) writer.WriteStringValue(argument);
+            writer.WriteEndArray();
+            writer.WriteStartObject("env");
+            if (config.Env is not null)
+                foreach (var variable in config.Env.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                    writer.WriteString(variable.Key, variable.Value);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+        return Convert.ToHexString(SHA256.HashData(stream.ToArray()));
     }
 
     private static McpToolSummary ToSummary(McpClientTool tool, bool includeSchema)

@@ -40,11 +40,13 @@ rl.on('line', (line) => {
   if (request.id === undefined || request.id === null) return;
 
   if (request.method === 'initialize') {
-    respond(request.id, {
+    const initialize = () => respond(request.id, {
       protocolVersion: request.params?.protocolVersion ?? '2025-06-18',
       capabilities: { tools: {} },
       serverInfo: { name: 'tinadec-mock-mcp', version: '1.0.0' }
     });
+    if (process.env.TINADEC_MCP_INIT_DELAY_MS) setTimeout(initialize, Number(process.env.TINADEC_MCP_INIT_DELAY_MS));
+    else initialize();
     return;
   }
 
@@ -57,7 +59,9 @@ rl.on('line', (line) => {
     const name = request.params?.name;
     const args = request.params?.arguments ?? {};
     if (name === 'echo') {
-      respond(request.id, { content: [{ type: 'text', text: `echo:${args.message ?? ''}` }], isError: false });
+      const send = () => respond(request.id, { content: [{ type: 'text', text: `${process.env.TINADEC_MCP_ECHO_PREFIX ?? 'echo'}:${args.message ?? ''}` }], isError: false });
+      if (args.delay_ms > 0) setTimeout(send, args.delay_ms);
+      else send();
       return;
     }
 

@@ -47,10 +47,11 @@ public sealed class FrozenToolManifestCatalog : IFrozenToolManifestCatalog
             throw new InvalidOperationException("The run does not contain a valid frozen TinadecTools v2 manifest.");
 
         var allowed = authorization.AllowedTools;
+        var context = ToolInvocationScopeResolver.ReadFrozenToolContext(frozen.Content, authorization.AgentDefinitionId);
         if (allowed.Count == 0) return [];
         var all = allowed.Any(value => string.Equals(value, "*", StringComparison.OrdinalIgnoreCase));
         return manifest.Tools
-            .Where(tool => all || allowed.Any(value => string.Equals(value, tool.Id, StringComparison.OrdinalIgnoreCase)))
+            .Where(tool => (all || allowed.Any(value => string.Equals(value, tool.Id, StringComparison.OrdinalIgnoreCase))) && (context is null || ToolSettingsSchema.IsEnabled(context.Settings, tool.Id)))
             .Select(tool => tool with { InputSchema = tool.InputSchema.Clone(), ConfirmationFields = tool.ConfirmationFields.ToArray() })
             .ToArray();
     }

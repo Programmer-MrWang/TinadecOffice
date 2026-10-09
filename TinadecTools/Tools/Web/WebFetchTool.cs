@@ -1,10 +1,12 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TinadecTools.Abstractions;
 using TinadecTools.Tools;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.Web;
 
@@ -135,9 +137,22 @@ public static class WebFetchTool
         var maxBytes = Clamp(args.MaxBytes, 1, MaxCeilingBytes, DefaultMaxBytes);
         var maxChars = Clamp(args.MaxChars, 1, MaxCeilingChars, DefaultMaxChars);
         var timeoutMs = Clamp(args.TimeoutMs, MinTimeoutMs, MaxTimeoutMs, DefaultTimeoutMs);
+        if (ToolExecutionContext.Current is { } context)
+        {
+            maxBytes = Math.Min(maxBytes, context.Integer("web", "max_bytes", MaxCeilingBytes, 1, MaxCeilingBytes));
+            maxChars = Math.Min(maxChars, context.Integer("web", "max_chars", MaxCeilingChars, 1, MaxCeilingChars));
+        }
 
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budget.CancelAfter(timeoutMs);
+        var started = Stopwatch.GetTimestamp();
+        void CheckBudget()
+        {
+            // Timer callbacks may be delayed by thread-pool pressure. A response that arrives
+            // after the whole-call budget is still a timeout even if its timer has not run yet.
+            if (Stopwatch.GetElapsedTime(started).TotalMilliseconds >= timeoutMs) budget.Cancel();
+            budget.Token.ThrowIfCancellationRequested();
+        }
 
         var resolver = resolve ?? ((host, token) => Dns.GetHostAddressesAsync(host, token));
         using var client = new HttpClient(handlerFactory?.Invoke() ?? CreateGuardedHandler(resolver), disposeHandler: true)
@@ -148,24 +163,28 @@ public static class WebFetchTool
         };
 
         var redirects = 0;
+        var maxRedirects = ToolExecutionContext.Current?.Integer("web", "max_redirects", WebFetchGuard.MaxRedirections,
+            0, WebFetchGuard.MaxRedirections) ?? WebFetchGuard.MaxRedirections;
         var note = (string?)null;
         while (true)
         {
             try
             {
+                CheckBudget();
                 using var request = new HttpRequestMessage(HttpMethod.Get, target);
                 request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
                 request.Headers.TryAddWithoutValidation("Accept", AcceptHeader);
 
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, budget.Token).ConfigureAwait(false);
+                CheckBudget();
                 var status = (int)response.StatusCode;
                 var mediaType = WebFetchContent.MediaTypeOf(response.Content.Headers.ContentType?.MediaType);
                 var declared = response.Content.Headers.ContentLength ?? -1;
 
                 if (status is >= 300 and < 400)
                 {
-                    if (redirects >= WebFetchGuard.MaxRedirections)
-                        return Refused($"'{target}' redirected more than {WebFetchGuard.MaxRedirections} times; web_fetch stopped instead of following the chain.", target, status, redirects);
+                    if (redirects >= maxRedirects)
+                        return Refused($"'{target}' redirected more than {maxRedirects} times; web_fetch stopped instead of following the chain.", target, status, redirects);
 
                     if (response.Headers.Location is not { } location)
                         return Refused($"HTTP {status} carried no Location, so the redirect could not be followed.", target, status, redirects);
@@ -192,6 +211,7 @@ public static class WebFetchTool
                 note = AppendNote(note, charsetNote);
 
                 var (bytes, byteTruncated) = await ReadCappedAsync(response, maxBytes, budget.Token).ConfigureAwait(false);
+                CheckBudget();
                 if (mediaType.Length == 0 || !WebFetchContent.IsTextual(mediaType))
                 {
                     return new WebFetchResult
@@ -212,6 +232,7 @@ public static class WebFetchTool
                     ? WebFetchContent.ToText(encoding.GetString(bytes))
                     : encoding.GetString(bytes);
                 text = WebFetchContent.CapChars(text, maxChars, out var charTruncated);
+                CheckBudget();
 
                 return new WebFetchResult
                 {

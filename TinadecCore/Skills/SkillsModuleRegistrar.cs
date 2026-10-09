@@ -17,6 +17,9 @@ public sealed class SkillsModuleRegistrar : IModuleRegistrar
     {
         builder.Services.AddDbContextFactory<IntegrationDbContext>((sp, options) => options.UseTinadecDatabase(sp));
         builder.Services.AddSingleton<IStorageMigrationParticipant, DbContextMigrationParticipant<IntegrationDbContext>>();
+        builder.Services.AddSingleton<ToolSkillResourceService>();
+        builder.Services.AddSingleton<IToolSkillResourceService>(sp => sp.GetRequiredService<ToolSkillResourceService>());
+        builder.Services.AddSingleton<IToolSkillCatalog>(sp => sp.GetRequiredService<ToolSkillResourceService>());
         builder.Services.AddSingleton<ISkillProvider, SkillProvider>();
         builder.Services.AddSingleton<IMarketCatalogService, MarketCatalogService>();
         builder.Services.AddSingleton<IMarketInstallService, MarketInstallService>();
@@ -40,19 +43,35 @@ public sealed class SkillsModuleRegistrar : IModuleRegistrar
 /// Skeleton skill provider. Uses MAF AgentSkillsProvider, file/class/inline skills, SKILL.md.
 /// Script execution delegates to TinadecTools; all writes go through Core approval.
 /// </summary>
-internal sealed class SkillProvider : ISkillProvider
+internal sealed class SkillProvider(IToolSkillResourceService resources) : ISkillProvider
 {
-    public Task<SkillDescriptor[]> ListSkillsAsync(
+    public async Task<SkillDescriptor[]> ListSkillsAsync(
         string? agentId = null,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Array.Empty<SkillDescriptor>());
+        return (await resources.ListAsync(null, cancellationToken)).Skills.Where(x => x.Valid && x.Enabled)
+            .Select(x => new SkillDescriptor { Id = x.ResourceId.ToString(), Name = x.Name, Description = x.Description, AgentId = agentId }).ToArray();
     }
 
-    public Task<SkillDescriptor?> GetSkillAsync(
+    public async Task<SkillDescriptor?> GetSkillAsync(
         string skillId,
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<SkillDescriptor?>(null);
+        if (!Guid.TryParse(skillId, out var id)) return null;
+        var resource = await resources.GetAsync(id, null, cancellationToken);
+        return resource is { Valid: true, Enabled: true } ? new SkillDescriptor { Id = skillId, Name = resource.Name, Description = resource.Description } : null;
+    }
+
+    public async Task<SkillDescriptor[]> ListSkillsForProjectAsync(Guid projectId, string? agentId = null, CancellationToken cancellationToken = default)
+        => (await resources.ListAsync(projectId, cancellationToken)).Skills.Where(x => x.Valid && x.Enabled)
+            .Select(x => new SkillDescriptor { Id = x.ResourceId.ToString(), Name = x.Name, Description = x.Description, AgentId = agentId }).ToArray();
+
+    public async Task<SkillDescriptor?> GetSkillForProjectAsync(string skillId, Guid projectId, CancellationToken cancellationToken = default)
+    {
+        if (!Guid.TryParse(skillId, out var id)) return null;
+        var resource = await resources.GetAsync(id, projectId, cancellationToken);
+        return resource is { Valid: true, Enabled: true }
+            ? new SkillDescriptor { Id = skillId, Name = resource.Name, Description = resource.Description }
+            : null;
     }
 }

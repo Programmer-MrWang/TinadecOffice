@@ -1,0 +1,80 @@
+[
+  {
+    "id": "e11ad817-d32e-48d8-a91b-5060946d6a45",
+    "slug": "tools-qa-test",
+    "display_name": "Tools QA Test",
+    "layer": "operation",
+    "role": "",
+    "source_kind": "custom",
+    "source_key": "tools-qa-test",
+    "managed": false,
+    "writable": true,
+    "capabilities": [],
+    "tool_scope": [
+      "read_file",
+      "file_search",
+      "content_search",
+      "shell",
+      "git_status",
+      "write_file",
+      "web_fetch",
+      "mcp_search",
+      "mcp_call"
+    ],
+    "enabled": true,
+    "status": "draft",
+    "revision": 1,
+    "version": 0,
+    "created_at": "2026-10-08T17:55:14.4101974+08:00",
+    "updated_at": "2026-10-08T17:55:14.410457+08:00"
+  },
+  {
+    "id": "40e907d2-9b62-4353-8ae9-5f5a32363c6f",
+    "slug": "tools-qa-coding",
+    "display_name": "Tools QA Coding",
+    "layer": "operation",
+    "role": "",
+    "source_kind": "custom",
+    "source_key": "tools-qa-coding",
+    "managed": false,
+    "writable": true,
+    "capabilities": [],
+    "tool_scope": [
+      "read_file",
+      "shell",
+      "git_status",
+      "write_file",
+      "content_search"
+    ],
+    "enabled": true,
+    "status": "draft",
+    "revision": 1,
+    "version": 0,
+    "created_at": "2026-10-08T17:55:15.6294708+08:00",
+    "updated_at": "2026-10-08T17:55:15.6294714+08:00"
+  },
+  {
+    "id": "00ccac2b-2f32-49ac-b951-4a9a5376d439",
+    "slug": "tools-qa-research",
+    "display_name": "Tools QA Research",
+    "layer": "operation",
+    "role": "",
+    "source_kind": "custom",
+    "source_key": "tools-qa-research",
+    "managed": false,
+    "writable": true,
+    "capabilities": [],
+    "tool_scope": [
+      "read_file",
+      "file_search",
+      "content_search",
+      "web_fetch"
+    ],
+    "enabled": true,
+    "status": "draft",
+    "revision": 1,
+    "version": 0,
+    "created_at": "2026-10-08T17:55:15.7760675+08:00",
+    "updated_at": "2026-10-08T17:55:15.7760677+08:00"
+  }
+]

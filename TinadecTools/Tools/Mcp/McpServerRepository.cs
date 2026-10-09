@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.Mcp;
 
@@ -6,15 +7,18 @@ internal sealed class McpServerRepository
 {
     public const string ConfigPathEnvironmentVariable = "TINADEC_TOOLS_MCP_CONFIG";
 
-    public string ConfigPath { get; }
+    private readonly string _configPath;
+    public string ConfigPath => ToolExecutionContext.Current is { } context
+        ? $"execution-context:{context.SettingsHash}" : _configPath;
 
     public McpServerRepository(string? configPath = null)
     {
-        ConfigPath = ResolveConfigPath(configPath);
+        _configPath = ResolveConfigPath(configPath);
     }
 
     public async Task<IReadOnlyList<McpServerConfig>> ListAsync(CancellationToken cancellationToken = default)
     {
+        if (ToolExecutionContext.Current is { } context) return context.McpServers;
         if (!File.Exists(ConfigPath))
             return [];
 
@@ -29,9 +33,20 @@ internal sealed class McpServerRepository
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serverId);
         var servers = await ListAsync(cancellationToken).ConfigureAwait(false);
-        return servers.FirstOrDefault(server => string.Equals(server.Id, serverId, StringComparison.OrdinalIgnoreCase))
-               ?? throw new InvalidOperationException($"MCP server '{serverId}' was not found in {ConfigPath}.");
+        var exactResources = servers.Where(server => !string.IsNullOrWhiteSpace(server.ResourceId)
+            && string.Equals(server.ResourceId, serverId, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (exactResources.Length == 1) return exactResources[0];
+        var friendly = servers.Where(server => string.Equals(server.Id, serverId, StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (exactResources.Length > 1 || friendly.Length > 1)
+            throw new InvalidOperationException($"MCP server id '{serverId}' is ambiguous; use the exact resource_id returned by mcp_list or mcp_search.");
+        return friendly.SingleOrDefault()
+            ?? throw new InvalidOperationException($"MCP server '{serverId}' was not found in {ConfigPath}.");
     }
+
+    internal static string ServerHandle(McpServerConfig server, IReadOnlyList<McpServerConfig> servers) =>
+        !string.IsNullOrWhiteSpace(server.ResourceId)
+        && servers.Count(other => string.Equals(other.Id, server.Id, StringComparison.OrdinalIgnoreCase)) > 1
+            ? server.ResourceId : server.Id;
 
     private static bool IsValid(McpServerConfig server)
     {

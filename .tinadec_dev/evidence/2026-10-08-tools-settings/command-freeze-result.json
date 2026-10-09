@@ -1,0 +1,20 @@
+{
+  "environment": "isolated Windows Core -> real TinadecTools -> Node",
+  "pending_approval_kept_original_config": true,
+  "save_while_command_running": true,
+  "original_command_timeout_ms": 30000,
+  "saved_pending_timeout_ms": 100,
+  "saved_active_timeout_ms": 50,
+  "status": "completed",
+  "result": {
+    "success": true,
+    "exit_code": 0,
+    "stdout": "SNAPSHOT-COMMAND-FINISHED\n",
+    "stderr": "",
+    "timed_out": false,
+    "duration_ms": 5278,
+    "sandbox_error": null,
+    "stdout_truncated": false,
+    "stderr_truncated": false
+  }
+}

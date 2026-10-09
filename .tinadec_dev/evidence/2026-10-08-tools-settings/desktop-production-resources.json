@@ -1,0 +1,15 @@
+{
+  "id": 83,
+  "result": {
+    "case": "final-resource-checkbox",
+    "url": "app://bundle/index.html#/settings",
+    "width": "16px",
+    "height": "16px",
+    "resources": [
+      "desktop-qa-skill\n4520265d-7540-40a7-abc8-4b0e3aba2ffa\nDesktop settings QA fixture\n启用\n编辑\n删除",
+      "shared-call-proof\nc30176e5-d3d5-42cb-906d-57d457ee62af\nShared package real Core read fixture\n启用\n编辑\n删除"
+    ],
+    "errors": []
+  },
+  "errors": []
+}

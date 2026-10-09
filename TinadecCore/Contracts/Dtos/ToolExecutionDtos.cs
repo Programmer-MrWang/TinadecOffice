@@ -21,6 +21,9 @@ public sealed class ToolWireRequestDto
     [JsonPropertyName("params")]
     public JsonElement? Params { get; init; }
 
+    [JsonPropertyName("execution_context")]
+    public ToolExecutionContextDto? ExecutionContext { get; init; }
+
 }
 
 /// <summary>Wire response a TinadecTools child process returns for one call.</summary>

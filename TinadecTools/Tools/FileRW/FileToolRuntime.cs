@@ -165,7 +165,9 @@ internal static class WorkspacePathResolver
 {
     internal const string ReadOnlyRootsEnvironmentVariable = WorkspaceRootSet.ReadOnlyRootsEnvironmentVariable;
 
-    private static readonly WorkspaceRootSet Roots = WorkspaceRootSet.FromProcess();
+    private static readonly WorkspaceRootSet BootstrapRoots = WorkspaceRootSet.FromProcess();
+    private static WorkspaceRootSet Roots => ToolExecutionContext.Current is { } context
+        ? new WorkspaceRootSet(BootstrapRoots.WritableRoot, context.ReadRoots) : BootstrapRoots;
 
     /// <summary>The single writable root: the directory this process was started from.</summary>
     public static string WorkspaceRoot => Roots.WritableRoot;

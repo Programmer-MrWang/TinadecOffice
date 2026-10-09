@@ -21,6 +21,7 @@ export const pendingAgentId = ref<string | null>(null)
 export const pendingModeId = ref<string | null>(null)
 export const pendingPromptId = ref<string | null>(null)
 export const pendingToolId = ref<string | null>(null)
+export const pendingToolAgentId = ref<string | null>(null)
 
 export function requestConversation(sessionId: string): void {
   pendingConversationId.value = sessionId
@@ -40,6 +41,7 @@ export function requestAgent(agentId: string): void { pendingAgentId.value = age
 export function requestMode(modeId: string): void { pendingModeId.value = modeId }
 export function requestPrompt(promptId: string): void { pendingPromptId.value = promptId }
 export function requestTool(toolId: string): void { pendingToolId.value = toolId }
+export function requestToolAgent(agentId: string): void { pendingToolAgentId.value = agentId }
 
 /**
  * A page arms one consumer per request. The callback runs when a value lands

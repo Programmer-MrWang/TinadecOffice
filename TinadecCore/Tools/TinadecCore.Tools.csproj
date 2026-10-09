@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Abstractions\TinadecCore.Abstractions.csproj" />
+    <ProjectReference Include="..\Persistence\TinadecCore.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,6 +24,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
   </ItemGroup>
 
 </Project>

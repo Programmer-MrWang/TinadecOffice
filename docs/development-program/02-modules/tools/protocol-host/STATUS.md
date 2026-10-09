@@ -10,6 +10,12 @@
 | TOOLS-PROTOCOL-F002 | 工具控制面与按执行目标分片的写调用串行 | 源码可见 | 本轮静态核对；未做功能验收 | #manifest/#terminal 和只读工具并发，写调用按显式 cwd/worktree key 串行；它与 Core 资源租约和跨进程冲突裁决是不同机制。 | [TinadecTools/Runtime/ToolDispatchLoop.cs](../../../../../TinadecTools/Runtime/ToolDispatchLoop.cs)<br>[tests/TinadecTools.Tests/ToolDispatchLoopTests.cs](../../../../../tests/TinadecTools.Tests/ToolDispatchLoopTests.cs) |
 | TOOLS-PROTOCOL-F003 | 可信宿主批准与 Tools 二次约束 | 范围边界 | 本轮静态核对；未做功能验收 | Tools 接收宿主 approved 后继续检查确认字段、路径、保护分支及沙箱，不读取 Core 数据库或独立裁决 Core 用户权限。 | [TinadecTools/Abstractions/ToolRegistry.cs](../../../../../TinadecTools/Abstractions/ToolRegistry.cs)<br>[TinadecTools/Tools/ToolConfirmations.cs](../../../../../TinadecTools/Tools/ToolConfirmations.cs) |
 
+## 2026-10-08 工具配置专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| TOOLS-PROTOCOL-F004 | 可信每调用执行上下文及配置限制 | 已验收 | 完整389/389、最后预算54/54、真实Core并发与命令冻结 | 结构manifest稳定，控制接口不暴露模型；Linux/macOS未实机；对应TOOLS-PROTOCOL-102 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

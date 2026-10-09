@@ -28,6 +28,12 @@ public sealed class FileSearchParams
     [JsonPropertyName("fixed_strings")]
     public bool FixedStrings { get; set; } = false;
 
+    [JsonPropertyName("include_hidden")]
+    public bool IncludeHidden { get; set; }
+
+    [JsonPropertyName("respect_ignore_files")]
+    public bool RespectIgnoreFiles { get; set; } = true;
+
     /// <summary>上下文行数（rg -C N）</summary>
     [JsonPropertyName("context_lines")]
     public int ContextLines { get; set; } = 0;

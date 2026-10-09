@@ -1,0 +1,43 @@
+{
+  "id": 15,
+  "result": {
+    "cases": [
+      {
+        "case": "real-schema-completion",
+        "labels": [
+          "shell",
+          "read",
+          "write",
+          "search",
+          "git",
+          "web",
+          "mcp",
+          "skills"
+        ]
+      },
+      {
+        "case": "three-choice-dirty-dialog",
+        "choices": [
+          "继续编辑",
+          "丢弃草稿",
+          "保存后离开"
+        ]
+      },
+      {
+        "case": "continue-retains-draft",
+        "agent": "e11ad817-d32e-48d8-a91b-5060946d6a45",
+        "value": "{\n  \"mcp\": {\n    \"server_resource_ids\": [\n      \"270075a8-505c-49a4-a16a-b98720aa1eaf\"\n    ]\n  },\n  \"shell\": {\n    \"timeout_ms\": 234567\n  },\n  \"skills\": {\n    \"resource_ids\": [\n      \"4520265d-7540-40a7-abc8-4b0e3aba2ffa\"\n    ]\n  }\n}"
+      },
+      {
+        "case": "save-before-leaving",
+        "timeout": 234567
+      },
+      {
+        "case": "discard-does-not-save",
+        "timeout": 234567
+      }
+    ],
+    "errors": []
+  },
+  "errors": []
+}

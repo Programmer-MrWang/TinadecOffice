@@ -14,6 +14,17 @@ public interface ISkillProvider
     Task<SkillDescriptor?> GetSkillAsync(
         string skillId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Project-scoped discovery for hosts that have a project binding in their context.</summary>
+    Task<SkillDescriptor[]> ListSkillsForProjectAsync(
+        Guid projectId,
+        string? agentId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<SkillDescriptor?> GetSkillForProjectAsync(
+        string skillId,
+        Guid projectId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class SkillDescriptor

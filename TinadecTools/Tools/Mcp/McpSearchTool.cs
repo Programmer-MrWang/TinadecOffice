@@ -1,5 +1,6 @@
 using NLog;
 using TinadecTools.Abstractions;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.Mcp;
 
@@ -26,7 +27,9 @@ public static class McpSearchTool
             // No server configured: say so, and point at the built-in alternative.
             // An unexplained empty result is what made an agent report "the tool
             // returned nothing" and then guess a server id that never existed.
-            response.Reason =
+            response.Reason = ToolExecutionContext.Current is not null
+                ? "No MCP server is provided by this agent's frozen Tools configuration. Select or add an enabled shared/project MCP resource in Tools settings."
+                :
                 $"No MCP server is configured in '{response.ConfigPath}', so mcp_search has no tool catalog to search. "
                 + "Add a server there (or point TINADEC_TOOLS_MCP_CONFIG at one), or use the built-in workspace tools "
                 + "(ls, file_search, read_file, git_status) instead.";
@@ -43,7 +46,7 @@ public static class McpSearchTool
             catch (Exception ex)
             {
                 Logger.Warn(ex, "mcp_search failed for server {serverId}", server.Id);
-                response.Failures.Add(new McpSearchFailure { ServerId = server.Id, Error = ex.Message });
+                response.Failures.Add(new McpSearchFailure { ServerId = McpServerRepository.ServerHandle(server, servers), Error = ex.Message });
                 continue;
             }
 
@@ -56,7 +59,8 @@ public static class McpSearchTool
 
                 response.Results.Add(new McpSearchResult
                 {
-                    ServerId = server.Id,
+                    ServerId = McpServerRepository.ServerHandle(server, servers),
+                    ResourceId = server.ResourceId,
                     ServerName = string.IsNullOrWhiteSpace(server.Name) ? server.Id : server.Name,
                     Score = score,
                     Tool = tool

@@ -7,7 +7,9 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | CORE-SKILLS-F001 | 市场目录与受控安装 | 源码可见 | 本轮静态核对；未做功能验收 | 市场与集成配置已有实现；可安装不等于通用技能 provider 已实现。 | [TinadecCore/Skills/MarketCatalogService.cs](../../../../../TinadecCore/Skills/MarketCatalogService.cs)<br>[TinadecCore/Skills/MarketInstallService.cs](../../../../../TinadecCore/Skills/MarketInstallService.cs) |
-| CORE-SKILLS-F002 | 通用 ISkillProvider 为空实现 | 缺口已确认 | 本轮静态核对；未做功能验收 | ListSkillsAsync 返回空数组，GetSkillAsync 返回 null；实际 SKILL.md 读取仍由 Context 完成。 | [TinadecCore/Skills/SkillsModuleRegistrar.cs:43](../../../../../TinadecCore/Skills/SkillsModuleRegistrar.cs#L43) |
+| CORE-SKILLS-F002 | 统一技能目录、共享包及精确 Agent 绑定 | 已验收 | 46 项 Skills 回归、真实文件发现、不可变包及资源、并发 Agent 索引 | PostgreSQL 未实库；项目变更仍走治理操作；对应 CORE-SKILLS-101 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
+| CORE-SKILLS-F003 | 本地导入与市场安装统一审批落盘 | 已验收 | 共享导入/PUT 返回 `skill_resource_update` 待审批回执，审批前不可读、拒绝后无残留；市场 76/76、Skills 27/27、联合 116/116 | PostgreSQL 未实库；项目包继续走 `skill_project_package` | [专项报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md) |
+| CORE-SKILLS-F004 | Skills 包发现、审批、安装与 Agent 调用闭环 | 已验收 | 市场 76/76、Skills 27/27、联合 116/116；固定提交 GitHub 来源、完整包清单与摘要、项目准入快照 | PostgreSQL 实库与 POSIX 沙箱未验证；对应 CORE-SKILLS-102 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md) |
 
 ## 状态词汇
 

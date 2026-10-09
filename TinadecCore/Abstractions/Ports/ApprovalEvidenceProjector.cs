@@ -49,7 +49,7 @@ public static class ApprovalEvidenceProjector
     /// </summary>
     private static readonly HashSet<string> BulkKeys = new(StringComparer.OrdinalIgnoreCase)
     {
-        "content", "contents", "file_contents", "body", "text", "data", "payload",
+        "content", "content_base64", "contents", "file_contents", "body", "text", "data", "payload",
         "patch", "diff", "message", "messages", "prompt", "stdin", "input",
         "arguments", "parameters", "env", "environment", "rows", "cells", "source",
     };

@@ -13,9 +13,23 @@ public sealed class IntegrationDbContext : DbContext
     public DbSet<IntegrationInstanceVersionRecord> IntegrationVersions => Set<IntegrationInstanceVersionRecord>();
     public DbSet<MarketInstallProposalRecord> InstallProposals => Set<MarketInstallProposalRecord>();
     public DbSet<MarketInstallationRecord> Installations => Set<MarketInstallationRecord>();
+    public DbSet<SharedSkillResourceRecord> SharedSkills => Set<SharedSkillResourceRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<SharedSkillResourceRecord>(entity =>
+        {
+            entity.ToTable("tool_skill_resources"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1024).IsRequired();
+            entity.Property(x => x.PackageReference).HasMaxLength(2048).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Version).HasMaxLength(128);
+            entity.Property(x => x.Commit).HasMaxLength(64);
+            entity.Property(x => x.ContentHash).HasMaxLength(128).IsRequired();
+            entity.Property(x => x.Revision).IsConcurrencyToken();
+            entity.HasIndex(x => new { x.TenantId, x.WorkspaceId, x.Name }).IsUnique().HasFilter("deleted_at IS NULL");
+        });
         modelBuilder.Entity<ExtensionSourceRecord>(entity => { entity.ToTable("extension_sources"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(256).IsRequired(); entity.Property(x => x.Kind).HasMaxLength(64).IsRequired(); entity.Property(x => x.Location).HasMaxLength(2048).IsRequired(); entity.Property(x => x.LastError).HasMaxLength(2048); entity.HasIndex(x => new { x.TenantId, x.Name, x.DeletedAt }).IsUnique(); });
         modelBuilder.Entity<ExtensionCatalogRecord>(entity => { entity.ToTable("extension_catalog_entries"); entity.HasKey(x => x.Id); entity.Property(x => x.ExtensionId).HasMaxLength(256).IsRequired(); entity.Property(x => x.Version).HasMaxLength(128).IsRequired(); entity.Property(x => x.ManifestReference).HasMaxLength(1024).IsRequired(); entity.Property(x => x.Kind).HasMaxLength(64).IsRequired(); entity.Property(x => x.DisplayName).HasMaxLength(512).IsRequired(); entity.Property(x => x.Description).HasMaxLength(4096); entity.Property(x => x.DetailJson).HasMaxLength(16384); entity.HasIndex(x => new { x.SourceId, x.ExtensionId, x.Version }).IsUnique(); entity.HasIndex(x => new { x.TenantId, x.Kind, x.ExtensionId }); });
         modelBuilder.Entity<WorkspaceExtensionRecord>(entity => { entity.ToTable("workspace_extensions"); entity.HasKey(x => x.Id); entity.Property(x => x.ExtensionId).HasMaxLength(256).IsRequired(); entity.Property(x => x.Status).HasMaxLength(32).IsRequired(); entity.HasIndex(x => new { x.WorkspaceId, x.ExtensionId, x.DeletedAt }).IsUnique(); });
@@ -28,10 +42,28 @@ public sealed class IntegrationDbContext : DbContext
         // workspace_extensions pair is workspace-scoped and versions its rows with an int
         // revision, so it cannot say "this project's config, this published version string"
         // without lying about the scope or the identity.
-        modelBuilder.Entity<MarketInstallProposalRecord>(entity => { entity.ToTable("market_install_proposals"); entity.HasKey(x => x.Id); entity.Property(x => x.Action).HasMaxLength(32).IsRequired(); entity.Property(x => x.ExtensionId).HasMaxLength(256).IsRequired(); entity.Property(x => x.Version).HasMaxLength(128).IsRequired(); entity.Property(x => x.Kind).HasMaxLength(64).IsRequired(); entity.Property(x => x.ServerId).HasMaxLength(128).IsRequired(); entity.Property(x => x.Command).HasMaxLength(256); entity.Property(x => x.TargetPath).HasMaxLength(2048).IsRequired(); entity.Property(x => x.Digest).HasMaxLength(128).IsRequired(); entity.Property(x => x.Status).HasMaxLength(32).IsRequired(); entity.Property(x => x.ExpectedFileHash).HasMaxLength(128); entity.Property(x => x.ManifestHash).HasMaxLength(128); entity.Property(x => x.ArgsJson).HasMaxLength(4096).IsRequired(); entity.Property(x => x.EnvironmentJson).HasMaxLength(8192).IsRequired(); entity.Property(x => x.Content).HasMaxLength(65536).IsRequired(); entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt }); entity.HasIndex(x => new { x.TenantId, x.ProjectId, x.Digest }).IsUnique(); });
+        modelBuilder.Entity<MarketInstallProposalRecord>(entity => { entity.ToTable("market_install_proposals"); entity.HasKey(x => x.Id); entity.Property(x => x.Action).HasMaxLength(32).IsRequired(); entity.Property(x => x.ExtensionId).HasMaxLength(256).IsRequired(); entity.Property(x => x.Version).HasMaxLength(128).IsRequired(); entity.Property(x => x.Kind).HasMaxLength(64).IsRequired(); entity.Property(x => x.ServerId).HasMaxLength(128).IsRequired(); entity.Property(x => x.Command).HasMaxLength(256); entity.Property(x => x.TargetPath).HasMaxLength(2048).IsRequired(); entity.Property(x => x.Digest).HasMaxLength(128).IsRequired(); entity.Property(x => x.Status).HasMaxLength(32).IsRequired(); entity.Property(x => x.ExpectedFileHash).HasMaxLength(128); entity.Property(x => x.ManifestHash).HasMaxLength(128); entity.Property(x => x.ArgsJson).HasMaxLength(4096).IsRequired(); entity.Property(x => x.EnvironmentJson).HasMaxLength(8192).IsRequired(); entity.Property(x => x.Content).HasMaxLength(65536).IsRequired(); entity.Property(x => x.Scope).HasMaxLength(16).IsRequired(); entity.Property(x => x.PackageFilesJson).HasMaxLength(65536); entity.Property(x => x.PackageHash).HasMaxLength(128); entity.HasIndex(x => new { x.TenantId, x.Status, x.ExpiresAt }); entity.HasIndex(x => new { x.TenantId, x.ProjectId, x.Digest }).IsUnique(); });
         modelBuilder.Entity<MarketInstallationRecord>(entity => { entity.ToTable("market_installations"); entity.HasKey(x => x.Id); entity.Property(x => x.ExtensionId).HasMaxLength(256).IsRequired(); entity.Property(x => x.Version).HasMaxLength(128).IsRequired(); entity.Property(x => x.Kind).HasMaxLength(64).IsRequired(); entity.Property(x => x.ServerId).HasMaxLength(128).IsRequired(); entity.Property(x => x.ConfigPath).HasMaxLength(2048).IsRequired(); entity.Property(x => x.ManifestHash).HasMaxLength(128).IsRequired(); entity.Property(x => x.State).HasMaxLength(32).IsRequired(); entity.HasIndex(x => new { x.TenantId, x.ProjectId, x.ServerId }).IsUnique(); });
         modelBuilder.UseTinadecSnakeCase();
     }
+}
+
+public sealed class SharedSkillResourceRecord
+{
+    public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    public string Name { get; set; } = "";
+    public string Description { get; set; } = "";
+    public bool Enabled { get; set; }
+    public long Revision { get; set; }
+    public string ContentHash { get; set; } = "";
+    public string PackageReference { get; set; } = "";
+    public string Source { get; set; } = "manual";
+    public string? Version { get; set; }
+    public string? Commit { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public DateTimeOffset? DeletedAt { get; set; }
 }
 
 public sealed class ExtensionSourceRecord { public Guid Id { get; set; } public Guid TenantId { get; set; } public string Name { get; set; } = string.Empty; public string Kind { get; set; } = string.Empty; public string Location { get; set; } = string.Empty; public bool Enabled { get; set; } = true; public long Revision { get; set; } public DateTimeOffset? LastRefreshedAt { get; set; } public string? LastError { get; set; } public Guid CreatedByPrincipalId { get; set; } public Guid UpdatedByPrincipalId { get; set; } public DateTimeOffset CreatedAt { get; set; } public DateTimeOffset UpdatedAt { get; set; } public DateTimeOffset? DeletedAt { get; set; } }
@@ -68,6 +100,10 @@ public sealed class MarketInstallProposalRecord
     public string? ReplacesCommand { get; set; }
     public string TargetPath { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+    public string Scope { get; set; } = "project";
+    public Guid? ResourceId { get; set; }
+    public string? PackageFilesJson { get; set; }
+    public string? PackageHash { get; set; }
     /// <summary>Null while the file does not exist yet — a create needs no precondition.</summary>
     public string? ExpectedFileHash { get; set; }
     /// <summary>The catalog row's content hash when this was computed; a refresh moves it.</summary>
@@ -94,6 +130,10 @@ public sealed class MarketInstallationRecord
     public string Kind { get; set; } = string.Empty;
     public string ServerId { get; set; } = string.Empty;
     public string ConfigPath { get; set; } = string.Empty;
+    public string Scope { get; set; } = "project";
+    public Guid? ResourceId { get; set; }
+    public string? PackageFilesJson { get; set; }
+    public string? PackageHash { get; set; }
     public string ManifestHash { get; set; } = string.Empty;
     public Guid InstallActionId { get; set; }
     public Guid? UninstallActionId { get; set; }

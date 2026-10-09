@@ -327,6 +327,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         {
             await _instances.ReleaseRunInstancesAsync(runId, cancellationToken).ConfigureAwait(false);
             await ReleaseRunLeasesAsync(runId, cancellationToken).ConfigureAwait(false);
+            if (_services.GetService<IToolExecutionContextLifecycle>() is { } contexts) await contexts.ReleaseAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
             await SetRunMembersOfflineAsync(runId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
@@ -1259,7 +1260,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 }, cancellationToken, soloTask.TaskId).ConfigureAwait(false);
             return checkpoint;
         }
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         await AppendEventAsync(Guid.Parse(run.RunId), "context.packed", "Planner context assembled.", new
         {
@@ -2619,7 +2620,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         string? closeoutPrompt = null)
     {
         var workerDefinition = GetAssignedWorkerDefinition(configuration, task);
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), workerDefinition.Id,
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), workerDefinition,
             WithSpaceContext(checkpoint, $"Task: {task.Title}\nDescription: {task.Description}\nSuccess criteria: {string.Join("; ", task.SuccessCriteria)}"
                 + (task.WriteScope is { Count: > 0 } scope
                     ? $"\nWrite scope (reserved for you; change files only inside it — changes elsewhere are reported to the reviewer): {string.Join("; ", scope)}"
@@ -4163,7 +4164,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
                 ValidateFrozenAgent(supervisorDefinition, "supervisor");
                 var supervisorInstance = await EnsureSupervisorAgentAsync(run, configuration, checkpoint, supervisorDefinition, cancellationToken).ConfigureAwait(false);
                 checkpoint.SupervisorAgentId = supervisorInstance.Id;
-                var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), supervisorDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+                var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), supervisorDefinition, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
                 var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), supervisorDefinition, context, cancellationToken).ConfigureAwait(false);
                 var supervisor = new SupervisionAgent(CreateModelFactory(configuration, checkpoint, supervisorDefinition,
                     supervisorInstance.Id, supervisorInstance.ParentInstanceId), _logger);
@@ -4487,7 +4488,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         checkpoint.PlannerAgentId = author.Id;
         var plannerDefinition = RequiredConversationAgent(configuration);
 
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var assembly = await AssemblePromptAsync(SpacePromptConfiguration(configuration, checkpoint), plannerDefinition, context, cancellationToken).ConfigureAwait(false);
         var instructions = SupervisionReplanInstructions(checkpoint, assembly.Instructions, verdict, reviseIndexes);
         // Revise indexes address the pre-replan list, which the merge below
@@ -4631,7 +4632,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         CancellationToken cancellationToken)
     {
         var meetingDefinition = RequiredConversationAgent(configuration);
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, meetingDefinition, checkpoint.MeetingAgentId, null);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable)
@@ -4827,7 +4828,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             }
             await PersistRunEvidenceAsync(runId, run, checkpoint, cancellationToken).ConfigureAwait(false);
             var meetingDefinition = RequiredConversationAgent(configuration);
-            var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+            var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), meetingDefinition, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
             try
             {
                 checkpoint.MeetingResponse = await GenerateMeetingResponseAsync(configuration, checkpoint, meetingDefinition, context, cancellationToken).ConfigureAwait(false);
@@ -4959,6 +4960,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         await EvaluateAndDispatchOperationsAsync(OperationalTriggerPoint.RunFinalized, run, configuration, checkpoint, cancellationToken).ConfigureAwait(false);
         await _instances.ReleaseRunInstancesAsync(runId, cancellationToken).ConfigureAwait(false);
         await ReleaseRunLeasesAsync(runId, cancellationToken).ConfigureAwait(false);
+        if (_services.GetService<IToolExecutionContextLifecycle>() is { } contexts) await contexts.ReleaseAsync(runId.ToString(), cancellationToken).ConfigureAwait(false);
         await SetRunMembersOfflineAsync(runId, cancellationToken).ConfigureAwait(false);
     }
 
@@ -5264,8 +5266,13 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         }
     }
 
-    private async Task<ContextPack> BuildContextAsync(RunState run, FrozenRunConfigurationV1 config, string agentId, string taskContext, CancellationToken cancellationToken)
+    private async Task<ContextPack> BuildContextAsync(RunState run, FrozenRunConfigurationV1 config, RuntimeAgentDefinition agentDefinition, string taskContext, CancellationToken cancellationToken)
     {
+        var agentId = agentDefinition.Id;
+        var definitionId = agentDefinition.AgentDefinitionId;
+        var toolContext = config.ToolConfiguration is { } tools
+            ? definitionId is { } id ? tools.AgentContexts.TryGetValue(id, out var selected) ? selected : throw new UnauthorizedAccessException("The Agent definition is absent from the frozen tool configuration.") : tools.SharedContext
+            : null;
         var pack = await _contextProvider.BuildContextAsync(new ContextBuildRequest(
             run.SessionId,
             run.RunId,
@@ -5280,6 +5287,8 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             // Same rule as the prompt assembly: the root comes from the freeze, so the context
             // builder reads the project's own instructions from the directory this run was granted.
             Workspace = config.Workspace,
+            ToolExecutionContext = toolContext,
+            AllowedToolIds = agentDefinition.AllowedTools,
         }, cancellationToken).ConfigureAwait(false);
         return await WithOpenReportsAsync(run, config, agentId, pack, cancellationToken).ConfigureAwait(false);
     }
@@ -5804,7 +5813,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
             return;
         }
 
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         if (context.EstimatedTokens < configuration.Triggers.ContextTokenThreshold)
         {
             await AppendEventAsync(runId, "context.compaction.skipped", "Compression skipped: context is below the token threshold.", new
@@ -5885,7 +5894,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         CancellationToken cancellationToken)
     {
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
@@ -5996,7 +6005,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         }
 
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");
@@ -6135,7 +6144,7 @@ internal sealed partial class FullDuplexRunEngine : BackgroundService, IFullDupl
         if (!touchedGit) return;
 
         var runId = Guid.Parse(run.RunId);
-        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent.Id, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
+        var context = await BuildContextAsync(run, SpacePromptConfiguration(configuration, checkpoint), match.Agent, WithSpaceContext(checkpoint, checkpoint.UserGoal), cancellationToken).ConfigureAwait(false);
         var factory = CreateModelFactory(configuration, checkpoint, match.Agent, null, null, observeOutput: false, interruptible: false);
         var resolution = await factory.ResolveChatAsync("chat", cancellationToken).ConfigureAwait(false);
         if (!resolution.IsAvailable) throw new InvalidOperationException(resolution.Error ?? "Chat route is unavailable.");

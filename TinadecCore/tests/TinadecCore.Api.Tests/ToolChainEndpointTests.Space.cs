@@ -210,7 +210,9 @@ public sealed partial class ToolChainEndpointTests
             await WaitForRunStatusAsync(fixture.Client, run, "awaiting_user", "failed", "completed");
             await _factory!.Services.GetRequiredService<IFullDuplexRunCoordinator>().ControlAsync(run, new RunControlCommand("cancel", "stop-failed-worktree"));
         }
-        await active.Completion.WaitAsync(TimeSpan.FromSeconds(60));
+        try { await active.Completion.WaitAsync(TimeSpan.FromSeconds(60)); }
+        catch (TimeoutException) { throw new Xunit.Sdk.XunitException(await RunDiagnosticAsync(fixture.Client, run)); }
+        if (provider.ReceivedToolIds.Count == 0) throw new Xunit.Sdk.XunitException(await RunDiagnosticAsync(fixture.Client, run));
         Assert.Equal("git_worktree_create", provider.ReceivedToolIds[0]);
         if (failCreation)
         {
@@ -241,5 +243,12 @@ public sealed partial class ToolChainEndpointTests
             foreach (var file in Directory.EnumerateFiles(fixture.Workspace, "*", SearchOption.AllDirectories))
                 File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
         }
+    }
+    private async Task<string> RunDiagnosticAsync(HttpClient client, Guid runId)
+    {
+        var orchestration = await client.GetFromJsonAsync<JsonElement>($"/api/v1/runs/{runId}/orchestration");
+        var state = await _factory!.Services.GetRequiredService<ILifecycleManager>().GetRunStateAsync(runId.ToString());
+        var events = await _factory.Services.GetRequiredService<ILifecycleManager>().ReplayEventsAsync(Guid.Parse(state.SessionId), 0);
+        return "Run: " + orchestration.GetRawText() + "\nEvents: " + JsonSerializer.Serialize(events.Where(x => x.RunId == runId.ToString()).TakeLast(20));
     }
 }

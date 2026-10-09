@@ -9,6 +9,12 @@
 | CORE-TOOLS-F001 | Core 中的工具治理与提供方派发 | 源码可见 | 本轮静态核对；未做功能验收 | 负责可信调用准备、授权、审批、租约及恢复；实际执行产品 TinadecTools 独立。 | [TinadecCore/Tools/ToolsModuleRegistrar.cs](../../../../../TinadecCore/Tools/ToolsModuleRegistrar.cs)<br>[TinadecCore/Tools/ToolDispatcher.cs](../../../../../TinadecCore/Tools/ToolDispatcher.cs) |
 | CORE-TOOLS-F002 | 资源账本到本地 provider 根的绑定 | 部分实现 | 本轮静态核对；未做功能验收 | 支持明确本地目标；平台沙箱、远程 provider 与多目标行为由对应模块/跨模块任务验收，不继承历史未实现或全面隔离标签。 | [TinadecCore/AgentGraph/ToolExecutionTargetResolver.cs](../../../../../TinadecCore/AgentGraph/ToolExecutionTargetResolver.cs) |
 
+## 2026-10-08 工具配置专项
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| CORE-TOOLS-F003 | 共享/Agent 配置、托管 MCP 资源及运行冻结 | 已验收 | 实际 SQLite、条件保存、SecretStore 版本、一次准入目录、并发上下文、真实 MCP/共享技能/命令冻结 | PostgreSQL 迁移仅编译，Linux/macOS 未实机；完整批次的失败复查透明记录；对应 CORE-TOOLS-101 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

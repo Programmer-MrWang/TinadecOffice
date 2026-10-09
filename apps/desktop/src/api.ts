@@ -4,6 +4,8 @@ import type { components } from '@/generated/schema'
 import type { MessageAttachmentDto, MessageDto, SseChunk } from '@/generated/client'
 import { createRunStream, runStreamDelta, type RunStreamHandle } from '@/lib/runStream'
 import { isAbortError } from '@/lib/isAbortError'
+import type { ToolSettingsDocument, ToolSettingsSchema, ToolSettingsEffective, ToolMcpResource, ToolMcpInput, ToolSkillResource, ToolCapabilities } from '@/settings/toolSettings'
+export type { ToolSettingsDocument, ToolSettingsSchema, ToolSettingsEffective, ToolMcpResource, ToolMcpInput, ToolSkillResource, ToolCapabilities } from '@/settings/toolSettings'
 
 export type { MessageDto }
 
@@ -785,7 +787,7 @@ export interface MarketEnvironmentRequestDto {
 export interface MarketInstallProposalDto {
   id: string;
   action: string;
-  project_id: string;
+  project_id?: string | null;
   catalog_id?: string | null;
   installation_id?: string | null;
   source_name: string;
@@ -807,6 +809,11 @@ export interface MarketInstallProposalDto {
   expires_at: string;
   /** What this phase cannot guarantee, stated for the reader of the approval. */
   warnings: string[];
+  scope?: 'shared' | 'project';
+  resource_id?: string | null;
+  package_hash?: string | null;
+  package_files?: { path: string; content_hash: string; size_bytes: number }[];
+  availability?: string | null;
 }
 
 /**
@@ -816,7 +823,7 @@ export interface MarketInstallProposalDto {
  */
 export interface MarketInstallationDto {
   id: string;
-  project_id: string;
+  project_id?: string | null;
   catalog_id: string;
   source_name: string;
   extension_id: string;
@@ -832,6 +839,12 @@ export interface MarketInstallationDto {
   action_status?: string | null;
   created_at: string;
   updated_at: string;
+  scope?: 'shared' | 'project';
+  resource_id?: string | null;
+  package_hash?: string | null;
+  package_files?: { path: string; content_hash: string; size_bytes: number }[];
+  availability?: string | null;
+  reason?: string | null;
 }
 
 /** Vocabulary for `MarketInstallProposalDto.action`; Core owns the words, this mirrors them. */
@@ -2814,6 +2827,35 @@ function streamAdmittedInteraction(
 
 export const api = {
   gatewayUrl,
+  getToolSettingsSchema: () => request<ToolSettingsSchema>('/api/v1/tools/settings/schema'),
+  getToolSettingsDefaults: () => request<ToolSettingsDocument>('/api/v1/tools/settings/defaults'),
+  saveToolSettingsDefaults: (settings: Record<string, unknown>, revision: number, projectId?: string) => request<ToolSettingsDocument>(`/api/v1/tools/settings/defaults${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'PUT', headers: { 'if-match': `"${revision}"` }, body: JSON.stringify({ settings }) }),
+  getAgentToolSettings: (agentId: string) => request<ToolSettingsDocument>(`/api/v1/tools/settings/agents/${encodeURIComponent(agentId)}`),
+  saveAgentToolSettings: (agentId: string, settings: Record<string, unknown>, revision: number, projectId?: string) => request<ToolSettingsDocument>(`/api/v1/tools/settings/agents/${encodeURIComponent(agentId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'PUT', headers: { 'if-match': `"${revision}"` }, body: JSON.stringify({ settings }) }),
+  resetAgentToolSettings: (agentId: string, revision: number) => request<ToolSettingsDocument>(`/api/v1/tools/settings/agents/${encodeURIComponent(agentId)}`, { method: 'DELETE', headers: { 'if-match': `"${revision}"` } }),
+  getEffectiveToolSettings: (agentId?: string, projectId?: string) => {
+    const query = new URLSearchParams()
+    if (agentId) query.set('agent_id', agentId)
+    if (projectId) query.set('project_id', projectId)
+    return request<ToolSettingsEffective>(`/api/v1/tools/settings/effective${query.size ? `?${query}` : ''}`)
+  },
+  getToolCapabilities: (agentId?: string, projectId?: string) => {
+    const query = new URLSearchParams()
+    if (agentId) query.set('agent_id', agentId)
+    if (projectId) query.set('project_id', projectId)
+    return request<ToolCapabilities>(`/api/v1/tools/settings/capabilities${query.size ? `?${query}` : ''}`)
+  },
+  listToolMcpResources: (projectId?: string) => request<ToolMcpResource[]>(`/api/v1/tools/mcp/servers${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`),
+  createToolMcpResource: (body: ToolMcpInput, projectId?: string) => request<ToolMcpResource>(`/api/v1/tools/mcp/servers${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'POST', headers: { 'if-match': '"0"' }, body: JSON.stringify(body) }),
+  saveToolMcpResource: (resourceId: string, body: ToolMcpInput, revision: number, projectId?: string) => request<ToolMcpResource>(`/api/v1/tools/mcp/servers/${encodeURIComponent(resourceId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'PUT', headers: { 'if-match': `"${revision}"` }, body: JSON.stringify(body) }),
+  deleteToolMcpResource: (resourceId: string, revision: number, projectId?: string) => request<void>(`/api/v1/tools/mcp/servers/${encodeURIComponent(resourceId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'DELETE', headers: { 'if-match': `"${revision}"` } }),
+  testToolMcpResource: (resourceId: string, projectId?: string) => request<Record<string, unknown>>(`/api/v1/tools/mcp/servers/${encodeURIComponent(resourceId)}/test${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'POST' }),
+  listToolSkills: (projectId?: string) => request<{ skills: ToolSkillResource[]; diagnostics: string[]; source: string }>(`/api/v1/tools/skills${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`),
+  getToolSkill: (resourceId: string, projectId?: string) => request<ToolSkillResource>(`/api/v1/tools/skills/${encodeURIComponent(resourceId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`),
+  importToolSkill: (body: { scope: 'shared' | 'project'; project_id?: string; name: string; content: string; files?: Record<string, string>; enabled?: boolean }) => request<ToolSkillResource>('/api/v1/tools/skills/import', { method: 'POST', headers: { 'if-match': '"0"' }, body: JSON.stringify(body) }),
+  getToolSkillFile: (resourceId: string, path: string, projectId?: string) => request<{ path: string; content_hash: string; size_bytes: number; content: string | null; base64: string }>(`/api/v1/tools/skills/${encodeURIComponent(resourceId)}/files?${new URLSearchParams({ path, ...(projectId ? { project_id: projectId } : {}) })}`),
+  saveToolSkill: (resourceId: string, body: { content?: string; enabled?: boolean; files?: Record<string, string>; replace_files?: boolean; expected_file_hash?: string }, revision: number, projectId?: string) => request<ToolSkillResource>(`/api/v1/tools/skills/${encodeURIComponent(resourceId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'PUT', headers: { 'if-match': `"${revision}"` }, body: JSON.stringify(body) }),
+  deleteToolSkill: (resourceId: string, revision: number, projectId?: string) => request<ToolSkillResource>(`/api/v1/tools/skills/${encodeURIComponent(resourceId)}${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { method: 'DELETE', headers: { 'if-match': `"${revision}"` } }),
   // Participant and conversation writes below are actor-scoped: Core re-verifies the authenticated
   // principal against every actor_id on each call, so a stale local identity fails closed here.
   tinaChatParticipants: (query?: string, signal?: AbortSignal) => {
@@ -3128,11 +3170,10 @@ export const api = {
     return request<MarketCatalogPageDto>(`/api/v1/market/catalog${suffix}`);
   },
   getMarketCatalogItem: (catalogId: string) => request<MarketCatalogItemDto>(`/api/v1/market/catalog/${encodeURIComponent(catalogId)}`),
-  // A market install is always for one project: the config file written is that project's tool
-  // workspace, which is also what decides which Tool Provider process performs the write.
-  previewMarketInstall: (catalogId: string, projectId: string) => request<MarketInstallProposalDto>(`/api/v1/market/catalog/${encodeURIComponent(catalogId)}/install-preview`, {
+  // The project is the approval context; Skills can target the shared resource library.
+  previewMarketInstall: (catalogId: string, projectId?: string | null, scope?: 'shared' | 'project') => request<MarketInstallProposalDto>(`/api/v1/market/catalog/${encodeURIComponent(catalogId)}/install-preview`, {
     method: 'POST',
-    body: JSON.stringify({ project_id: projectId })
+    body: JSON.stringify({ ...(projectId ? { project_id: projectId } : {}), ...(scope ? { scope } : {}) })
   }),
   previewMarketUninstall: (installationId: string) => request<MarketInstallProposalDto>(`/api/v1/market/installations/${encodeURIComponent(installationId)}/uninstall-preview`, {
     method: 'POST'

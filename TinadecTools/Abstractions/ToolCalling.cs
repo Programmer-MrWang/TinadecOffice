@@ -31,6 +31,10 @@ internal class ToolCallRequest<TParams> where TParams : notnull
     public bool Approved { get; set; } = false;
 
     [JsonPropertyName("params")] public TParams? Params { get; set; }
+
+    [JsonPropertyName("execution_context")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JsonElement? ExecutionContext { get; set; }
 }
 
 internal class ToolCallResponse<TResponse>

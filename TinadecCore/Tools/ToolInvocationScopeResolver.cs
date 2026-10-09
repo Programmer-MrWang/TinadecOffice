@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TinadecCore.Abstractions.Ports;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.Tools;
 
@@ -87,14 +88,18 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             throw new UnauthorizedAccessException($"Agent instance is not allowed to invoke '{request.ToolId}'.");
         // WS-4 resource envelope: a non-empty grant list authorizes the workspace
         // root; read/write levels are enforced by the PDP resource_access boundary.
-        if (project is not null && !CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && !IsResourceAllowed(authorization.AllowedResources))
-            throw new UnauthorizedAccessException("Agent instance holds no workspace resource grant.");
 
         var frozen = await _lifecycle.GetFrozenRunConfigurationAsync(request.RunId.ToString(), cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Frozen run configuration body is unavailable.");
         if (!string.Equals(frozen.ContentHash, run.FrozenConfigurationHash, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Run frozen configuration hash does not match its durable binding.");
         var frozenManifest = ReadFrozenToolManifest(frozen.Content);
+        var toolContext = ReadFrozenToolContext(frozen.Content, authorization.AgentDefinitionId);
+        if (project is not null && !CoreVirtualToolPolicy.IsSpecPropose(request.ToolId) && !IsResourceAllowed(authorization.AllowedResources)
+            && !(request.ToolId is "read_file" or "ls" or "stat" && toolContext?.ReadRoots.Count > 0))
+            throw new UnauthorizedAccessException("Agent instance holds no workspace or selected Skill resource grant.");
+        if (toolContext is not null && !ToolSettingsSchema.IsEnabled(toolContext.Settings, request.ToolId))
+            throw new UnauthorizedAccessException($"Tool '{request.ToolId}' is disabled in this Agent's frozen settings.");
         var spaceOptions = ReadSpaceOptions(frozen.Content);
         if (frozenManifest.ProtocolVersion != 2 || string.IsNullOrWhiteSpace(frozenManifest.ManifestHash))
         {
@@ -163,7 +168,18 @@ public sealed class ToolInvocationScopeResolver : IToolInvocationScopeResolver
             ReadFrozenDispatchRoster(frozen.Content),
             authorization.AllowedDispatchTargets,
             executionTarget?.RootPath,
-            spaceOptions);
+            spaceOptions,
+            toolContext);
+    }
+
+    internal static ToolExecutionContextDto? ReadFrozenToolContext(string content, Guid? agentDefinitionId)
+    {
+        using var document = JsonDocument.Parse(content);
+        if (!TryGetProperty(document.RootElement, out var configNode, "toolConfiguration", "tool_configuration") || configNode.ValueKind == JsonValueKind.Null) return null;
+        var config = configNode.Deserialize<FrozenToolConfigurationDto>(new JsonSerializerOptions(JsonSerializerDefaults.Web)) ?? throw new InvalidDataException("Frozen tool configuration is invalid.");
+        if (agentDefinitionId is { } id)
+            return config.AgentContexts.TryGetValue(id, out var context) ? context : throw new UnauthorizedAccessException("The Agent definition is absent from the admitted tool configuration.");
+        return config.SharedContext;
     }
 
     internal static SpaceRunOptions? ReadSpaceOptions(string content)

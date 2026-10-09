@@ -223,6 +223,8 @@ public sealed class MarketCatalogEntryDto
 /// </summary>
 public sealed class MarketInstallRequestDto
 {
+    [JsonPropertyName("scope")]
+    public string Scope { get; init; } = "shared";
     [JsonPropertyName("project_id")]
     public string? ProjectId { get; init; }
 }
@@ -235,6 +237,14 @@ public sealed class MarketInstallRequestDto
 /// </summary>
 public sealed class MarketInstallProposalDto
 {
+    [JsonPropertyName("scope")]
+    public string Scope { get; init; } = "project";
+    [JsonPropertyName("resource_id")]
+    public Guid? ResourceId { get; init; }
+    [JsonPropertyName("package_hash")]
+    public string? PackageHash { get; init; }
+    [JsonPropertyName("package_files")]
+    public IReadOnlyList<ToolSkillPackageFileDto> PackageFiles { get; init; } = [];
     [JsonPropertyName("id")]
     public string Id { get; init; } = string.Empty;
 
@@ -333,6 +343,16 @@ public sealed class MarketEnvironmentRequestDto
 /// </summary>
 public sealed class MarketInstallationDto
 {
+    [JsonPropertyName("scope")]
+    public string Scope { get; init; } = "project";
+    [JsonPropertyName("resource_id")]
+    public Guid? ResourceId { get; init; }
+    [JsonPropertyName("package_hash")]
+    public string? PackageHash { get; init; }
+    [JsonPropertyName("package_files")]
+    public IReadOnlyList<ToolSkillPackageFileDto> PackageFiles { get; init; } = [];
+    [JsonPropertyName("availability")]
+    public string Availability { get; init; } = "pending";
     [JsonPropertyName("id")]
     public string Id { get; init; } = string.Empty;
 

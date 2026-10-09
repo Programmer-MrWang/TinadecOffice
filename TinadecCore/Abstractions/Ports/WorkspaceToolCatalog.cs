@@ -22,6 +22,7 @@ public static class WorkspaceToolCatalog
     {
         // File mutations (FileWriter / write_file).
         "write_file",
+        "delete_file",
         "replace_lines",
         "replace_bytes",
         "insert_line",

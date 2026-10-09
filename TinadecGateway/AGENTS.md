@@ -1,9 +1,14 @@
 # GATEWAY KNOWLEDGE
 
-**Last Updated:** 2026-10-08
-**Last Updated By:** 上游不可达一律 502 ProblemDetails；onError 显式落状态并记录 Elysia 的钳制事实；CORS 死条目 'file://' 换成 app://bundle。
-**Last Verified Commit:** 66d103e + 工作树；Gateway全量84/84（含新增 errorStatus 4 例）及公开OpenAPI快照通过；其余产品层验收见 .tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md。
+**Last Updated:** 2026-10-09
+**Last Updated By:** Skills 市场作用域、完整包文件预览及受治理删除代理；OpenAPI 快照和 Desktop 客户端同步。
+**Last Verified Commit:** d3cf53e + 工作树；Gateway88/88、OpenAPI快照与 Desktop generated client 通过。边界见 `.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md`。
 **Branch:** main
+
+## 2026-10-08 Tools settings proxy
+
+`src/toolsSettingsRoutes.ts` proxies `/api/v1/tools/settings/*`, `/tools/mcp/servers*` and `/tools/skills*` to Core, including relative package-file preview and governed Skill DELETE receipts. Preserve If-Match, ETag, HTTP 428/412 and ProblemDetails without a second configuration store or invented status. Projects scope resource visibility, Agents use persistent definition IDs. Market proposals expose shared/project scope, stable resource ID, package files and availability; API/schema snapshots and generated Desktop types move together. Verification lives in `.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md`.
+GET capabilities and effective resource diagnostics are Core receipts, including host-unavailable and exact missing UUIDs. MCP/Skills create returns200; resource delete returns204. Shared Skills DELETE has an explicit revision guard; project removal remains governed file work.
 
 ## 2026-10-08 上游失败必须报 502
 

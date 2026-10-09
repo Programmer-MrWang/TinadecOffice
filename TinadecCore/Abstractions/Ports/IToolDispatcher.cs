@@ -174,7 +174,8 @@ public sealed record ToolInvocationScope(
     IReadOnlyList<DispatchRosterEntry>? DispatchRoster = null,
     IReadOnlyList<string>? DispatchTargets = null,
     string? ExecutionRootOverride = null,
-    SpaceRunOptions? SpaceOptions = null)
+    SpaceRunOptions? SpaceOptions = null,
+    ToolExecutionContextDto? ToolExecutionContext = null)
 {
     /// <summary>The root actually handed to the provider after worktree/environment binding.</summary>
     public string ExecutionRoot => string.IsNullOrWhiteSpace(ExecutionRootOverride) ? WorkspaceRoot : ExecutionRootOverride;
@@ -218,7 +219,9 @@ public sealed record AgentToolAuthorization(
     Guid AgentInstanceId,
     IReadOnlyList<string> AllowedTools,
     IReadOnlyList<string> AllowedResources,
-    IReadOnlyList<string>? AllowedDispatchTargets = null);
+    IReadOnlyList<string>? AllowedDispatchTargets = null,
+    Guid? AgentDefinitionId = null,
+    Guid? AgentVersionId = null);
 
 /// <summary>
 /// Durable execution and approval state transitions. The Lifecycle module owns

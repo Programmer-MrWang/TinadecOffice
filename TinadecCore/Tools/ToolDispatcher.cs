@@ -69,6 +69,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
     private readonly IApprovalRules? _approvalRules;
     /// <summary>Per-member visibility into run internals (todo E5). Optional; an absent organization answers "unrestricted".</summary>
     private readonly ISessionOrganization? _organization;
+    private readonly IToolConfigurationResolver? _toolSettings;
 
     public ToolDispatcher(
         IToolProvider provider,
@@ -90,7 +91,8 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         IEvidenceArchive? evidence = null,
         IEnvironmentRegistry? environments = null,
         IApprovalRules? approvalRules = null,
-        ISessionOrganization? organization = null)
+        ISessionOrganization? organization = null,
+        IToolConfigurationResolver? toolSettings = null)
     {
         _provider = provider;
         _scopeResolver = scopeResolver;
@@ -112,6 +114,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         _environments = environments;
         _approvalRules = approvalRules;
         _organization = organization;
+        _toolSettings = toolSettings;
     }
 
     public Task<ToolDispatchResultDto> ExecuteAsync(ToolDispatchRequestDto request, CancellationToken cancellationToken = default) =>
@@ -631,7 +634,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         // The wire timeout must cover the tool's own budget: a shell call with
         // timeout_ms above the configured default must not be killed by Core
         // before the tool's own deadline fires.
-        var timeout = ResolveWireTimeout(parameters, TimeSpan.FromSeconds(timeoutSeconds));
+        var timeout = scope.ToolExecutionContext is { } frozenSettings ? ToolSettingsSchema.WireBudget(frozenSettings.Settings, descriptor.Id, parameters, TimeSpan.FromSeconds(timeoutSeconds)) : ResolveWireTimeout(parameters, TimeSpan.FromSeconds(timeoutSeconds));
         var streaming = _provider as IToolProcessManager;
         var streams = streaming is not null && StreamingTools.Contains(descriptor.Id);
         ToolEventPump? pump = null;
@@ -654,7 +657,11 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
                     ToolId = descriptor.Id,
                     SessionId = execution.SessionId.ToString(),
                     Approved = execution.RequiresApproval,
-                    Params = parameters
+                    Params = parameters,
+                    ExecutionContext = scope.ToolExecutionContext is not null && _toolSettings is not null
+                        ? await _toolSettings.MaterializeForCallAsync(scope.ToolExecutionContext,
+                            (scope.AuthorizedToolManifest ?? []).Where(t => scope.AllowedTools.Contains("*") || scope.AllowedTools.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).Select(t => t.Id).ToArray(), callToken, scope.RunId.ToString(), descriptor.Id).ConfigureAwait(false)
+                        : null
                 };
 
                 ToolWireResponseDto response;
@@ -1765,7 +1772,7 @@ public sealed class ToolDispatcher : ILeaseFencedToolDispatcher
         ToolExecutionSnapshot execution,
         ToolInvocationScope scope) =>
         ToolResourcePathRegistry.TryBuildResourceClaim(
-            descriptor.Id, execution.ParametersJson, scope.ExecutionRoot, descriptor.MutatesWorkspace);
+            descriptor.Id, execution.ParametersJson, scope.ExecutionRoot, descriptor.MutatesWorkspace, scope.ToolExecutionContext);
 
     private static ToolDispatchResultDto PreparedResult(ToolExecutionSnapshot execution, bool existing, DispatchAuthorization? authorization)
     {

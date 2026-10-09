@@ -45,7 +45,9 @@ internal static class GitCli
             ["rev-parse", "--show-toplevel"],
             path,
             stdin: null,
-            timeoutMs: 10_000).GetAwaiter().GetResult();
+            timeoutMs: Math.Min(10_000, ToolExecutionContext.Current?.IntegerForCurrentTool("git", "timeout_ms", 60_000, 1, 1_800_000) ?? 10_000),
+            maxOutputChars: Math.Min(65_536, ToolExecutionContext.Current?.IntegerForCurrentTool("git", "max_output_chars", 4 * 1024 * 1024, 1, 4 * 1024 * 1024) ?? 65_536))
+            .GetAwaiter().GetResult();
 
         if (!revParse.Success || string.IsNullOrWhiteSpace(revParse.Stdout.Trim()))
         {
@@ -102,6 +104,15 @@ internal static class GitCli
     {
         try
         {
+            if (ToolExecutionContext.Current is { } context)
+            {
+                var configuredTimeout = context.IntegerForCurrentTool("git", "timeout_ms", 60_000, 1, 1_800_000);
+                var configuredOutput = context.IntegerForCurrentTool("git", "max_output_chars", 4 * 1024 * 1024, 1, 4 * 1024 * 1024);
+                // Main commands share the configurable defaults. Narrower internal probes and
+                // per-operation capture ceilings remain narrower than those configured defaults.
+                timeoutMs = timeoutMs == 60_000 ? configuredTimeout : Math.Min(timeoutMs, configuredTimeout);
+                maxOutputChars = maxOutputChars == 4 * 1024 * 1024 ? configuredOutput : Math.Min(maxOutputChars, configuredOutput);
+            }
             var r = await TerminalRunner.RunAsync(
                 "git",
                 arguments,

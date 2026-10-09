@@ -5,12 +5,12 @@
 | 状态 | 数量 |
 | --- | --- |
 | 待核查 | 74 |
-| 未开始 | 17 |
+| 未开始 | 16 |
 | 待方案 | 10 |
-| 进行中 | 1 |
+| 进行中 | 2 |
 | 阻塞 | 0 |
 | 待验收 | 0 |
-| 已完成 | 4 |
+| 已完成 | 10 |
 | 不做 | 0 |
 | 已被替代 | 0 |
 
@@ -31,18 +31,24 @@
 | [APP-RENDERER-104](../02-modules/app/shared-renderer/TODO.md#app-renderer-104) | 空间模式：会话画布、工作事实与可组合运行方式 | 实现 | 进行中 | P1 | APP-RENDERER |
 | [APP-SERVICES-102](../02-modules/app/local-services/TODO.md#app-services-102) | 实现并验收 Office 对 Manager 机器注册的受控消费 | 实现 | 未开始 | P1 | APP-SERVICES |
 | [APP-SETTINGS-101](../02-modules/app/settings/TODO.md#app-settings-101) | 验收配置发布到真实供应商与冻结 run 的生效范围 | 验收 | 未开始 | P1 | APP-SETTINGS |
+| [APP-SETTINGS-102](../02-modules/app/settings/TODO.md#app-settings-102) | 提供工具及 Agent 工具配置设置 | 实现 | 已完成 | P1 | APP-SETTINGS |
+| [APP-SETTINGS-103](../02-modules/app/settings/TODO.md#app-settings-103) | Skills 包安装与资源管理界面 | 实现 | 已完成 | P1 | APP-SETTINGS |
 | [CORE-AGENT-GRAPH-101](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-101) | 将证据全文与检索摘要分离保存 | 实现 | 未开始 | P1 | CORE-AGENT-GRAPH |
 | [CORE-CONTEXT-101](../02-modules/core/Context/TODO.md#core-context-101) | 定义预算驱动的上下文压缩与恢复协议 | 方案 | 待方案 | P1 | CORE-CONTEXT |
 | [CORE-DMAEA-001](../02-modules/core/DmaEA/TODO.md#core-dmaea-001) | 完成 DmaEA / 双层调用与持久运行引擎 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | CORE-DMAEA |
 | [CORE-DMAEA-101](../02-modules/core/DmaEA/TODO.md#core-dmaea-101) | 把 task_dispatch 接入持久执行子 run | 实现 | 未开始 | P1 | CORE-DMAEA |
 | [CORE-GOVERNANCE-001](../02-modules/core/Governance/TODO.md#core-governance-001) | 完成 Governance · 授权与审批 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | CORE-GOVERNANCE |
+| [CORE-SKILLS-102](../02-modules/core/Skills/TODO.md#core-skills-102) | Skills 包发现、审批、安装与 Agent 调用闭环 | 实现 | 进行中 | P1 | CORE-SKILLS |
+| [CORE-TOOLS-101](../02-modules/core/Tools/TODO.md#core-tools-101) | 实现共享及 Agent 工具配置、托管 MCP 与冻结执行上下文 | 实现 | 已完成 | P1 | CORE-TOOLS |
 | [GW-HTTP-101](../02-modules/gateway/http-auth/TODO.md#gw-http-101) | 验收云端身份与跨租户传输链路 | 验收 | 未开始 | P1 | GW-HTTP |
 | [GW-SESSIONS-101](../02-modules/gateway/session-control/TODO.md#gw-sessions-101) | 验收 run 控制与 SSE 续接透传 | 验收 | 未开始 | P1 | GW-SESSIONS |
 | [GW-STREAMING-101](../02-modules/gateway/streaming/TODO.md#gw-streaming-101) | 建立长期连接与 Bun 版本升级的稳定性验收 | 验收 | 未开始 | P1 | GW-STREAMING |
 | [TOOLS-COMMAND-101](../02-modules/tools/commands-terminals/TODO.md#tools-command-101) | 验收智能体一次性和长驻命令生命周期 | 验收 | 待核查 | P1 | TOOLS-COMMAND |
 | [TOOLS-FILES-101](../02-modules/tools/files-search/TODO.md#tools-files-101) | 核查文件工具边界与跨平台真实操作矩阵 | 验收 | 待核查 | P1 | TOOLS-FILES |
 | [TOOLS-GIT-101](../02-modules/tools/git/TODO.md#tools-git-101) | 用临时仓库与临时远端验收 Git 全部操作类别 | 验收 | 待核查 | P1 | TOOLS-GIT |
+| [TOOLS-MCP-102](../02-modules/tools/mcp/TODO.md#tools-mcp-102) | 按 Core 资源版本绑定 MCP 连接 | 实现 | 已完成 | P1 | TOOLS-MCP |
 | [TOOLS-PROTOCOL-101](../02-modules/tools/protocol-host/TODO.md#tools-protocol-101) | 验收真实工具进程的协议、并发与故障返回 | 验收 | 待核查 | P1 | TOOLS-PROTOCOL |
+| [TOOLS-PROTOCOL-102](../02-modules/tools/protocol-host/TODO.md#tools-protocol-102) | 承接 Core 冻结的每调用工具配置 | 实现 | 已完成 | P1 | TOOLS-PROTOCOL |
 | [TOOLS-SANDBOX-101](../02-modules/tools/sandbox/TODO.md#tools-sandbox-101) | 复验三平台真实内核沙箱与缺失机制行为 | 验收 | 待核查 | P1 | TOOLS-SANDBOX |
 | [TOOLS-WEB-101](../02-modules/tools/web-fetch/TODO.md#tools-web-101) | 复现 WebFetch deadline 分类并形成可验证归因 | 核查 | 待核查 | P1 | TOOLS-WEB |
 | [X-DATA-101](../02-modules/cross-cutting/data-security/TODO.md#x-data-101) | 形成 SQLite 与 PostgreSQL 同场景持久化验收矩阵 | 验收 | 待核查 | P1 | X-DATA |
@@ -94,7 +100,7 @@
 | [CORE-RUNTIME-001](../02-modules/core/Runtime/TODO.md#core-runtime-001) | 完成 Runtime · 唯一组合根 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-RUNTIME |
 | [CORE-RUNTIME-101](../02-modules/core/Runtime/TODO.md#core-runtime-101) | 确定剩余治理动作的范围与实施顺序 | 方案 | 待方案 | P2 | CORE-RUNTIME |
 | [CORE-SKILLS-001](../02-modules/core/Skills/TODO.md#core-skills-001) | 完成 Skills · 市场与集成配置 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-SKILLS |
-| [CORE-SKILLS-101](../02-modules/core/Skills/TODO.md#core-skills-101) | 实现通用技能 provider 的列出与读取 | 实现 | 未开始 | P2 | CORE-SKILLS |
+| [CORE-SKILLS-101](../02-modules/core/Skills/TODO.md#core-skills-101) | 实现通用技能 provider 的列出与读取 | 实现 | 已完成 | P2 | CORE-SKILLS |
 | [CORE-SQLITE-001](../02-modules/core/Storage.Migrations.Sqlite/TODO.md#core-sqlite-001) | 完成 Storage.Migrations.Sqlite 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-SQLITE |
 | [CORE-STRATEGIES-001](../02-modules/core/Strategies/TODO.md#core-strategies-001) | 完成 Strategies · F# 纯策略 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-STRATEGIES |
 | [CORE-TENANCY-001](../02-modules/core/Tenancy/TODO.md#core-tenancy-001) | 完成 Tenancy · 身份与隔离 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | CORE-TENANCY |

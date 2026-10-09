@@ -38,3 +38,16 @@ flowchart LR
 - 已确认缺口使用不同标记；目标图与当前图分别说明，避免合并成假现状。
 
 任务入口：[APP-SETTINGS-001](TODO.md#app-settings-001)。
+
+## 2026-10-08 工具配置数据流
+
+```mermaid
+flowchart LR
+  UI["ToolCenterSection：项目与持久Agent定义"] -->|"有效配置、Schema、资源；条件保存"| API["Desktop api.ts"]
+  API -->|"HTTP /tools/settings /tools/mcp /tools/skills"| GW["Gateway toolsSettingsRoutes"]
+  GW -->|"转发If-Match及428/412"| Core["Core配置及资源端点"]
+  UI -->|"tool_scope授权编辑跳转"| AC["AgentCenter"]
+  UI -->|"共享总览读取各定义有效工具"| Usage["useToolAgentUsage：并发4与请求序号"]
+```
+
+箭头依据：[ToolCenterSection](../../../../../apps/desktop/src/settings/sections/ToolCenterSection.vue)、[api.ts](../../../../../apps/desktop/src/api.ts)、[Gateway路由](../../../../../TinadecGateway/src/toolsSettingsRoutes.ts)、[使用者查询](../../../../../apps/desktop/src/settings/toolAgentUsage.ts)。高级草稿只由明确保存发布；普通资源编辑独立保存。共享与项目 Skill 写入都显示 Core 审批动作状态：共享导入/PUT 返回 `skill_resource_update` 待审批回执，提交前显示目标作用域与文件数；拒绝审批后资源不可见且无残留。旧运行保留准入快照，UI 不修改冻结运行。

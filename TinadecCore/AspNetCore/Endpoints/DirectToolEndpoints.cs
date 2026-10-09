@@ -1,6 +1,7 @@
 using System.Text.Json;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Contracts.Dtos;
+using TinadecCore.Tools;
 
 namespace TinadecCore.AspNetCore.Endpoints;
 
@@ -18,6 +19,7 @@ public static class DirectToolEndpoints
             ToolDirectExecuteRequestDto? input,
             IWorkspaceRootResolver roots,
             IToolProvider provider,
+            IToolConfigurationResolver settings,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(toolId))
@@ -49,6 +51,8 @@ public static class DirectToolEndpoints
 
             if (!TryValidateManifest(manifest, out var manifestError))
                 return Results.Json(new { code = manifestError!.Value.Code, message = manifestError.Value.Message }, statusCode: StatusCodes.Status503ServiceUnavailable);
+            var frozenContext = await settings.ResolveAsync(project.ProjectId, null, ct).ConfigureAwait(false);
+            provider = new ContextualReadOnlyProvider(provider, settings, frozenContext, manifest.Tools.Select(t => t.Id).ToArray());
 
             var requestedToolId = toolId.Trim();
             if (!IsObjectOrNull(input.Arguments))
@@ -68,6 +72,19 @@ public static class DirectToolEndpoints
         });
 
         return app;
+    }
+
+    private sealed class ContextualReadOnlyProvider(IToolProvider inner, IToolConfigurationResolver resolver, ToolExecutionContextDto frozen, IReadOnlyList<string> toolIds) : IToolProvider
+    {
+        public Task<ToolManifestDto> EnsureStartedAsync(string root, CancellationToken ct = default) => inner.EnsureStartedAsync(root, ct);
+        public Task<ToolManifestDto> GetManifestAsync(string root, CancellationToken ct = default) => inner.GetManifestAsync(root, ct);
+        public Task ShutdownAsync(CancellationToken ct = default) => inner.ShutdownAsync(ct);
+        public async Task<ToolWireResponseDto> CallAsync(string root, ToolWireRequestDto request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            var context = await resolver.MaterializeForCallAsync(frozen, toolIds, cancellationToken, toolId: request.ToolId);
+            if (!context.AllowedToolIds.Contains(request.ToolId, StringComparer.OrdinalIgnoreCase)) return new() { IsSuccess = false, Error = "The tool is disabled in shared settings." };
+            return await inner.CallAsync(root, new() { ToolId = request.ToolId, SessionId = request.SessionId, ToolCallId = request.ToolCallId, Approved = request.Approved, Params = request.Params, ExecutionContext = context }, ToolSettingsSchema.WireBudget(context.Settings, request.ToolId, request.Params, timeout ?? TimeSpan.FromSeconds(600)), cancellationToken);
+        }
     }
 
     private static async Task<IResult> ExecuteConcreteToolAsync(

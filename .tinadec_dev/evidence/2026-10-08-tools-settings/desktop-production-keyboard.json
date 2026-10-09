@@ -1,0 +1,13 @@
+{
+  "id": 89,
+  "result": {
+    "case": "final-production-keyboard-focus",
+    "url": "app://bundle/index.html#/settings",
+    "tabs": 9,
+    "active": "tools-tab-advanced",
+    "focused": "tools-tab-advanced",
+    "category": "高级配置 · 严格 JSON根据 Core 提供的 schema 编辑行为参数；校验与差异预览通过后显式保存。Schema 1 · 版本 3",
+    "errors": []
+  },
+  "errors": []
+}

@@ -66,3 +66,43 @@
 
 - [docs/model-settings-review-2026-10-05.zh-CN.md](../../../../model-settings-review-2026-10-05.zh-CN.md)：验证与后续事项；只作来源，不继承完成勾选
 
+<a id="app-settings-103"></a>
+
+### APP-SETTINGS-103 Skills 包安装与资源管理界面
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-SETTINGS
+- 前置依赖：APP-SETTINGS-102、CORE-SKILLS-102
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md)、[Desktop 定向证据](../../../../../.tinadec_dev/evidence/2026-10-09-skills-management/desktop-focused.log)
+- 范围：共享/项目包、完整文件与正文预览、导入/更新/停用/删除、市场作用域、审批轮询、迟到请求保护、Agent 绑定与窄窗口键盘导航。
+- 证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md)、[Desktop 证据](../../../../../.tinadec_dev/evidence/2026-10-09-skills-management/desktop-focused.log)
+
+- [x] 组件、Gateway 契约、生成客户端、类型检查通过：设置 160/160，Desktop 全量 1091 passed/14 skipped，Gateway 88/88。
+- [x] 生产 renderer 构建通过；共享导入/PUT 现在显示待审批回执与提交前目标/文件数确认，作用域文案区分共享与项目。
+
+**验收条件**
+
+- [x] Skills 共享/项目包显示清单、正文、附件预览、来源/提交/可用状态及审批回执。
+- [x] 编辑按完整包替换语义保留附件，迟到请求不会覆盖当前项目或 Agent；窄窗口标签可键盘导航。
+
+<a id="app-settings-102"></a>
+
+### APP-SETTINGS-102 提供工具及 Agent 工具配置设置
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-SETTINGS
+- 前置依赖：CORE-TOOLS-101、CORE-SKILLS-101
+- 关联功能：APP-SETTINGS-F002
+- 范围：九标签、项目/持久 Agent 选择、有效值与来源、严格 JSON Schema 编辑、差异和明确保存、退出保护、资源绑定与诊断、键盘和窄窗口。
+- 验收：组件/类型/生产构建、Gateway 条件保存与错误转发、真实 Desktop 三类 Agent 授权及资源隔离。三平台实际验证边界分别记录。
+- 完成证据：[实施与验证报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md)。不替代 APP-SETTINGS-001 的整体审计或 APP-SETTINGS-101 的外部模型验收。
+
+**验收条件**
+
+- [x] 完成任务列出的实现范围及条件保存、冻结配置和资源隔离回归。
+- [x] 取得真实 Windows Core/Desktop/Tools 证据；PostgreSQL 及 Linux/macOS 边界单独记录。
+- [x] 同步模块说明、API/客户端及共享实施报告，不将专项完成扩大为整体模块验收。

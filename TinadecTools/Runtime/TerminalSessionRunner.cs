@@ -411,8 +411,12 @@ public static class TerminalSessionRunner
 
         await DrainOutputAsync(session, 500).ConfigureAwait(false);
         session.AttachedCallId = -1;
+        var initialOutput = TerminalSessionHost.ReadReplay(session);
+        var initialTruncated = false;
+        if (ToolExecutionContext.Current is not null)
+            (initialOutput, _, initialTruncated) = SplitReplay(initialOutput);
         return new ShellToolResult(true, session.TerminalSessionId, session.Command, "long_lived", -1,
-            TerminalSessionHost.ReadReplay(session), string.Empty, false, false, false,
+            initialOutput, string.Empty, initialTruncated, false, false,
             stopwatch.ElapsedMilliseconds);
     }
 
@@ -529,8 +533,10 @@ public static class TerminalSessionRunner
     {
         // Replay interleaves both streams; the buffered result is informational —
         // the authoritative live stream is the event channel.
-        var truncated = combined.Length > MaxCapturedChars;
-        if (truncated) combined = combined[..MaxCapturedChars];
+        var limit = Math.Min(MaxCapturedChars,
+            ToolExecutionContext.Current?.Integer("shell", "max_output_chars", MaxCapturedChars) ?? MaxCapturedChars);
+        var truncated = combined.Length > limit;
+        if (truncated) combined = combined[..limit];
         return (combined, string.Empty, truncated);
     }
 }

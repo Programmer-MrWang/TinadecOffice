@@ -34,3 +34,7 @@
 ## 本模块的开发工作方式
 
 先拆分STATUS中的功能、核对实际行为并定位缺口，再逐项执行TODO。每次实现同步功能状态、模块图和证据；目标行为与验收边界写清后才进入该任务的实施。核查任务完成不代表该模块所有能力已经完成。
+
+## 2026-10-08 版本化工具配置
+
+Core持有共享默认、持久Agent覆盖和MCP资源；Desktop经Gateway调用GET/PUT/Schema及资源管理接口。写入必须If-Match。新准入运行冻结所有参与Agent及可派生模板的配置，execution_context与模型params分离。保存不重启宿主；Core与Tools分别校验技能包读取根及路径。见[实施契约](../../../../../.tinadec_dev/specs/2026-10-08-agent-tool-settings.zh-CN.md)。

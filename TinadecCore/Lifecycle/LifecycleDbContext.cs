@@ -371,6 +371,9 @@ public sealed class UserToolActionRecord
     public string ToolDescriptorReference { get; set; } = string.Empty;
     public string ToolDescriptorHash { get; set; } = string.Empty;
     public long ToolDescriptorLength { get; set; }
+    public string ToolConfigurationReference { get; set; } = string.Empty;
+    public string ToolConfigurationHash { get; set; } = string.Empty;
+    public long ToolConfigurationLength { get; set; }
     public string ParametersReference { get; set; } = string.Empty;
     public long ParametersLength { get; set; }
     public string ParametersHash { get; set; } = string.Empty;

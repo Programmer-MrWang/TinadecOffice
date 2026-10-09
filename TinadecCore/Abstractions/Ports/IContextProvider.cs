@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using TinadecCore.Contracts.Dtos;
 
 namespace TinadecCore.Abstractions.Ports;
 
@@ -70,4 +71,11 @@ public sealed record ContextBuildRequest(
     /// store could read a directory the run was never granted.
     /// </summary>
     public FrozenWorkspaceBinding? Workspace { get; init; }
+    public ToolExecutionContextDto? ToolExecutionContext { get; init; }
+
+    /// <summary>
+    /// The frozen tool surface for this agent. Context uses it only to describe how a selected
+    /// skill may be opened; it never exposes the skill body or expands this set of grants.
+    /// </summary>
+    public IReadOnlyList<string>? AllowedToolIds { get; init; }
 }

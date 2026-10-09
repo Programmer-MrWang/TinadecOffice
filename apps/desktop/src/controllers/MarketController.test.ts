@@ -459,3 +459,27 @@ describe('marketController kind labels', () => {
     expect(catalogKindLabel('cli-runtime')).toBe('cli-runtime')
   })
 })
+
+describe('skill package installation state', () => {
+  it('previews a shared skill without a selected project and keeps the shared proposal across project changes', async () => {
+    seam = await projectSeam()
+    seam.selectedProjectId.value = null
+    marketController.skillScope.value = 'shared'
+    h.previewMarketInstall.mockResolvedValue(proposalOf({ kind: 'skill', scope: 'shared', project_id: null }))
+    await showItem(catalogItem({ kind: 'skill' }))
+    await marketController.previewInstall()
+    expect(h.previewMarketInstall).toHaveBeenLastCalledWith('cat-1', null, 'shared')
+    expect(marketController.activeProposal.value?.scope).toBe('shared')
+    seam.selectedProjectId.value = 'proj-2'
+    expect(marketController.activeProposal.value?.scope).toBe('shared')
+    marketController.skillScope.value = 'project'
+    expect(marketController.activeProposal.value).toBeNull()
+    marketController.skillScope.value = 'shared'
+    marketController.stop()
+  })
+  it('requires both a completed action and readable resource before declaring a skill usable', () => {
+    expect(marketController.installationUsable(installationOf({ kind: 'skill', action_status: 'completed', availability: 'invalid' }))).toBe(false)
+    expect(marketController.installationUsable(installationOf({ kind: 'skill', action_status: 'awaiting_user', availability: 'available' }))).toBe(false)
+    expect(marketController.installationUsable(installationOf({ kind: 'skill', action_status: 'completed', availability: 'available' }))).toBe(true)
+  })
+})

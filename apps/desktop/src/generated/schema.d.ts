@@ -845,13 +845,75 @@ export interface paths {
     /** List tools (Core registry) */
     get: operations["getApiV1Tools"];
   };
+  "/api/v1/tools/mcp/servers": {
+    /** GET mcp/servers */
+    get: operations["getApiV1ToolsMcpServers"];
+    /** POST mcp/servers */
+    post: operations["postApiV1ToolsMcpServers"];
+  };
+  "/api/v1/tools/mcp/servers/{resourceId}": {
+    /** PUT mcp/servers/:resourceId */
+    put: operations["putApiV1ToolsMcpServersByResourceId"];
+    /** DELETE mcp/servers/:resourceId */
+    delete: operations["deleteApiV1ToolsMcpServersByResourceId"];
+  };
+  "/api/v1/tools/mcp/servers/{resourceId}/test": {
+    /** POST mcp/servers/:resourceId/test */
+    post: operations["postApiV1ToolsMcpServersByResourceIdTest"];
+  };
   "/api/v1/tools/search": {
     /** Search tools (Core registry) */
     get: operations["getApiV1ToolsSearch"];
   };
+  "/api/v1/tools/settings/agents/{agentId}": {
+    /** GET settings/agents/:agentId */
+    get: operations["getApiV1ToolsSettingsAgentsByAgentId"];
+    /** PUT settings/agents/:agentId */
+    put: operations["putApiV1ToolsSettingsAgentsByAgentId"];
+    /** DELETE settings/agents/:agentId */
+    delete: operations["deleteApiV1ToolsSettingsAgentsByAgentId"];
+  };
+  "/api/v1/tools/settings/capabilities": {
+    /** GET settings/capabilities */
+    get: operations["getApiV1ToolsSettingsCapabilities"];
+  };
+  "/api/v1/tools/settings/defaults": {
+    /** GET settings/defaults */
+    get: operations["getApiV1ToolsSettingsDefaults"];
+    /** PUT settings/defaults */
+    put: operations["putApiV1ToolsSettingsDefaults"];
+  };
+  "/api/v1/tools/settings/effective": {
+    /** GET settings/effective */
+    get: operations["getApiV1ToolsSettingsEffective"];
+  };
+  "/api/v1/tools/settings/schema": {
+    /** GET settings/schema */
+    get: operations["getApiV1ToolsSettingsSchema"];
+  };
   "/api/v1/tools/shell": {
     /** Shell tool (blocked until implemented) */
     post: operations["postApiV1ToolsShell"];
+  };
+  "/api/v1/tools/skills": {
+    /** GET skills */
+    get: operations["getApiV1ToolsSkills"];
+  };
+  "/api/v1/tools/skills/import": {
+    /** POST skills/import */
+    post: operations["postApiV1ToolsSkillsImport"];
+  };
+  "/api/v1/tools/skills/{resourceId}": {
+    /** GET skills/:resourceId */
+    get: operations["getApiV1ToolsSkillsByResourceId"];
+    /** PUT skills/:resourceId */
+    put: operations["putApiV1ToolsSkillsByResourceId"];
+    /** DELETE skills/:resourceId */
+    delete: operations["deleteApiV1ToolsSkillsByResourceId"];
+  };
+  "/api/v1/tools/skills/{resourceId}/files": {
+    /** GET skills/:resourceId/files */
+    get: operations["getApiV1ToolsSkillsByResourceIdFiles"];
   };
   "/api/v1/user/tool-actions": {
     /** List user tool actions */
@@ -1306,6 +1368,7 @@ export interface components {
     MarketInstallProposal: {
       action: string;
       args: string[];
+      availability?: string | null;
       catalog_id?: string;
       command?: string;
       content: string;
@@ -1322,8 +1385,16 @@ export interface components {
       id: string;
       installation_id?: string;
       kind: string;
-      project_id: string;
+      package_files?: ({
+          content_hash: string;
+          path: string;
+          size_bytes: string | number;
+        })[];
+      package_hash?: string | null;
+      project_id?: string | null;
       replaces_command?: string;
+      resource_id?: string | null;
+      scope?: "shared" | "project";
       server_id: string;
       source_name: string;
       target_path: string;
@@ -1333,6 +1404,7 @@ export interface components {
     };
     MarketInstallation: {
       action_status?: string;
+      availability?: string | null;
       catalog_id: string;
       config_path: string;
       created_at: string;
@@ -1340,7 +1412,15 @@ export interface components {
       id: string;
       install_action_id: string;
       kind: string;
-      project_id: string;
+      package_files?: ({
+          content_hash: string;
+          path: string;
+          size_bytes: string | number;
+        })[];
+      package_hash?: string | null;
+      project_id?: string | null;
+      resource_id?: string | null;
+      scope?: "shared" | "project";
       server_id: string;
       source_name: string;
       state: string;
@@ -2116,6 +2196,136 @@ export interface components {
       allow_cross_workspace_messaging?: boolean;
       /** Format: int64 */
       expected_revision: number | string;
+    };
+    ToolCapabilities: {
+      capabilities?: {
+        [key: string]: unknown;
+      } | null;
+      reason?: string | null;
+      settings_hash?: string | null;
+      /** @enum {string} */
+      status: "available" | "unavailable";
+    };
+    ToolMcpResource: {
+      args: string[];
+      command: string;
+      configuration_hash: string;
+      cwd?: string | null;
+      enabled: boolean;
+      env: ({
+        [key: string]: string | null;
+      }) | null;
+      id: string;
+      import_source?: string | null;
+      name: string;
+      project_id?: string | null;
+      resource_id: string;
+      revision: number;
+      /** Format: date-time */
+      updated_at?: string;
+    };
+    ToolMcpResourceList: components["schemas"]["ToolMcpResource"][];
+    ToolResourceDiagnostic: {
+      /** @enum {string} */
+      kind: "mcp" | "skills" | "host";
+      reason: string;
+      /** Format: uuid */
+      resource_id?: string | null;
+      /** @enum {string} */
+      status: "missing" | "invalid" | "disabled" | "import_failed" | "unavailable";
+    };
+    ToolSettingsDocument: {
+      agent_definition_id?: string | null;
+      effective_settings: {
+        [key: string]: unknown;
+      };
+      revision: number;
+      schema_version: number;
+      settings: {
+        [key: string]: unknown;
+      };
+      settings_hash: string;
+      /** Format: date-time */
+      updated_at?: string | null;
+    };
+    ToolSettingsEffective: {
+      agent_definition_id?: string | null;
+      allowed_tool_ids: string[];
+      mcp_servers: {
+          [key: string]: unknown;
+        }[];
+      read_roots: {
+          [key: string]: unknown;
+        }[];
+      resource_diagnostics?: components["schemas"]["ToolResourceDiagnostic"][];
+      schema_version: number;
+      settings: {
+        [key: string]: unknown;
+      };
+      settings_hash: string;
+      skill_resources: {
+          [key: string]: unknown;
+        }[];
+      [key: string]: unknown;
+    };
+    ToolSettingsSchema: {
+      defaults: {
+        [key: string]: unknown;
+      };
+      host_settings: {
+        [key: string]: unknown;
+      };
+      schema: {
+        [key: string]: unknown;
+      };
+      schema_version: number;
+    };
+    ToolSettingsWrite: {
+      settings: {
+        [key: string]: unknown;
+      };
+    };
+    ToolSkillCatalog: {
+      diagnostics: string[];
+      skills: components["schemas"]["ToolSkillResource"][];
+      source: string;
+    };
+    ToolSkillFile: {
+      base64?: string | null;
+      content?: string | null;
+      content_hash: string;
+      path: string;
+      size_bytes: number;
+    };
+    ToolSkillPackageFile: {
+      content_hash: string;
+      path: string;
+      size_bytes: number;
+    };
+    ToolSkillResource: {
+      action_status?: string | null;
+      availability?: string;
+      commit?: string | null;
+      content?: string | null;
+      content_hash: string;
+      description: string;
+      enabled: boolean;
+      file_hash?: string | null;
+      name: string;
+      package_files?: components["schemas"]["ToolSkillPackageFile"][];
+      package_hash?: string;
+      package_reference?: string;
+      path: string;
+      project_id?: string | null;
+      reason?: string | null;
+      resource_id: string;
+      revision: number;
+      scope: string;
+      source?: string;
+      user_action_id?: string | null;
+      valid: boolean;
+      version?: string | null;
+      [key: string]: unknown;
     };
     UpdateSessionRequest: {
       clear_meeting_model_override?: boolean;
@@ -3444,8 +3654,25 @@ export interface operations {
         catalogId: string;
       };
     };
+    requestBody: {
+      content: {
+        "application/json": {
+          /**
+           * Format: uuid
+           * @description Required for project Skills and MCP installation.
+           */
+          project_id?: string;
+          /**
+           * @description Skills default to shared. A shared skill does not require project_id.
+           * @default shared
+           * @enum {string}
+           */
+          scope?: "shared" | "project";
+        };
+      };
+    };
     responses: {
-      /** @description The frozen proposal: pinned command, exact file, exact bytes, and the moment it stops being applyable. Nothing was written by asking. */
+      /** @description Frozen scope, stable resource ID, complete package files and digest or pinned MCP command. Nothing was written by asking. */
       200: {
         content: {
           "application/json": components["schemas"]["MarketInstallProposal"];
@@ -5458,6 +5685,86 @@ export interface operations {
       };
     };
   };
+  /** GET mcp/servers */
+  getApiV1ToolsMcpServers: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolMcpResourceList"];
+        };
+      };
+    };
+  };
+  /** POST mcp/servers */
+  postApiV1ToolsMcpServers: {
+    parameters: {
+      header: {
+        /** @description Quoted zero revision for a new resource */
+        "If-Match": string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolMcpResource"];
+        };
+      };
+    };
+  };
+  /** PUT mcp/servers/:resourceId */
+  putApiV1ToolsMcpServersByResourceId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolMcpResource"];
+        };
+      };
+    };
+  };
+  /** DELETE mcp/servers/:resourceId */
+  deleteApiV1ToolsMcpServersByResourceId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      204: {
+        content: never;
+      };
+    };
+  };
+  /** POST mcp/servers/:resourceId/test */
+  postApiV1ToolsMcpServersByResourceIdTest: {
+    parameters: {
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: never;
+      };
+    };
+  };
   /** Search tools (Core registry) */
   getApiV1ToolsSearch: {
     responses: {
@@ -5466,11 +5773,243 @@ export interface operations {
       };
     };
   };
+  /** GET settings/agents/:agentId */
+  getApiV1ToolsSettingsAgentsByAgentId: {
+    parameters: {
+      path: {
+        agentId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsDocument"];
+        };
+      };
+    };
+  };
+  /** PUT settings/agents/:agentId */
+  putApiV1ToolsSettingsAgentsByAgentId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        agentId: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ToolSettingsWrite"];
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsDocument"];
+        };
+      };
+    };
+  };
+  /** DELETE settings/agents/:agentId */
+  deleteApiV1ToolsSettingsAgentsByAgentId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        agentId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsDocument"];
+        };
+      };
+    };
+  };
+  /** GET settings/capabilities */
+  getApiV1ToolsSettingsCapabilities: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolCapabilities"];
+        };
+      };
+    };
+  };
+  /** GET settings/defaults */
+  getApiV1ToolsSettingsDefaults: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsDocument"];
+        };
+      };
+    };
+  };
+  /** PUT settings/defaults */
+  putApiV1ToolsSettingsDefaults: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ToolSettingsWrite"];
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsDocument"];
+        };
+      };
+    };
+  };
+  /** GET settings/effective */
+  getApiV1ToolsSettingsEffective: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsEffective"];
+        };
+      };
+    };
+  };
+  /** GET settings/schema */
+  getApiV1ToolsSettingsSchema: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSettingsSchema"];
+        };
+      };
+    };
+  };
   /** Shell tool (blocked until implemented) */
   postApiV1ToolsShell: {
     responses: {
       200: {
         content: never;
+      };
+    };
+  };
+  /** GET skills */
+  getApiV1ToolsSkills: {
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillCatalog"];
+        };
+      };
+    };
+  };
+  /** POST skills/import */
+  postApiV1ToolsSkillsImport: {
+    parameters: {
+      header: {
+        /** @description Quoted zero revision for a new resource */
+        "If-Match": string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillResource"];
+        };
+      };
+    };
+  };
+  /** GET skills/:resourceId */
+  getApiV1ToolsSkillsByResourceId: {
+    parameters: {
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillResource"];
+        };
+      };
+    };
+  };
+  /** PUT skills/:resourceId */
+  putApiV1ToolsSkillsByResourceId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillResource"];
+        };
+      };
+    };
+  };
+  /** DELETE skills/:resourceId */
+  deleteApiV1ToolsSkillsByResourceId: {
+    parameters: {
+      header: {
+        /** @description Quoted revision returned by Core */
+        "If-Match": string;
+      };
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillResource"];
+        };
+      };
+    };
+  };
+  /** GET skills/:resourceId/files */
+  getApiV1ToolsSkillsByResourceIdFiles: {
+    parameters: {
+      query: {
+        /** @description Exact relative package file path; Core enforces the resource root. */
+        path: string;
+        project_id?: string;
+      };
+      path: {
+        resourceId: string;
+      };
+    };
+    responses: {
+      /** @description Core-owned configuration and resource result */
+      200: {
+        content: {
+          "application/json": components["schemas"]["ToolSkillFile"];
+        };
       };
     };
   };

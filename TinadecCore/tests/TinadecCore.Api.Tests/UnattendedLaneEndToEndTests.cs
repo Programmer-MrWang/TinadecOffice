@@ -181,7 +181,13 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         var runId = (await active.Acknowledgement.WaitAsync(TimeSpan.FromSeconds(30))).GetProperty("run_id").GetGuid();
         // The main worker holds the run loop open so the deferred instruction
         // lands as a directive while the run is still mid-flight.
-        await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(45));
+        try { await workerStarted.Task.WaitAsync(TimeSpan.FromSeconds(45)); }
+        catch (TimeoutException)
+        {
+            var orchestration = await client.GetFromJsonAsync<JsonElement>($"/api/v1/runs/{runId}/orchestration");
+            throw new Xunit.Sdk.XunitException("The scripted worker never started. Model routing trace: "
+                + string.Join("\n", script.InvocationTrace.TakeLast(4)) + "\nRun: " + orchestration.GetRawText());
+        }
 
         return (client, workerGate, runId, workspace);
     }
@@ -371,7 +377,7 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         var chunks = new List<JsonElement>();
         using var admissionRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/sessions/{sessionId}/interactions")
         {
-            Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+            Content = new StringContent(JsonSerializer.Serialize(body, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull }), Encoding.UTF8, "application/json")
         };
         using var admissionResponse = await client.SendAsync(admissionRequest, HttpCompletionOption.ResponseHeadersRead);
         await _factory!.AssertStatusAsync(admissionResponse, HttpStatusCode.Created, "Interaction admission");
@@ -410,6 +416,8 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
             }
             return chunks;
         });
+        _ = completion.ContinueWith(failed => acknowledgement.TrySetException(failed.Exception!.InnerExceptions),
+            CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         return new ActiveInvoke(acknowledgement.Task, completion);
     }
 
@@ -481,6 +489,7 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         public TaskCompletionSource? WorkerStarted { private get; set; }
         public bool UseWriteFileForTests { private get; set; }
         public int WorkerCalls;
+        public System.Collections.Concurrent.ConcurrentQueue<string> InvocationTrace { get; } = new();
 
         public void Dispose() { }
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
@@ -489,6 +498,7 @@ public sealed class UnattendedEndToEndTests : IAsyncLifetime
         {
             var prompt = string.Join('\n', messages.Select(m => m.Text));
             var instructions = options?.Instructions;
+            InvocationTrace.Enqueue(JsonSerializer.Serialize(new { instructions, prompt }));
 
             if (instructions?.Contains("You are the capability advisor", StringComparison.Ordinal) == true)
                 return new ChatResponse(new ChatMessage(ChatRole.Assistant, "{\"recommendations\":[]}"));

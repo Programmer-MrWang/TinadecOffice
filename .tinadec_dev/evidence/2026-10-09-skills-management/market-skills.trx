@@ -1,0 +1,591 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="915e2438-4b7d-4ce6-8a38-e1c6ef6c844e" name="lincu@LINSTATION 2026-10-09 04:01:17" runUser="LINSTATION\lincu" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-09T04:01:17.8720399+08:00" queuing="2026-10-09T04:01:17.8720410+08:00" start="2026-10-09T04:01:10.7930375+08:00" finish="2026-10-09T04:03:29.8216184+08:00" />
+  <TestSettings name="default" id="9ae38827-5c0f-41d7-a4bf-9bd832fd1f9c">
+    <Deployment runDeploymentRoot="lincu_LINSTATION_2026-10-09_04_01_17" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="c3ae9e3b-3163-46b9-86a5-cf0015b29207" testId="b69cafa0-1c2d-8f06-9c9a-5335bc9e0795" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://github.com/acme/skills/tree/12345678901234&quot;···)" computerName="LINSTATION" duration="00:00:01.4222359" startTime="2026-10-09T04:01:38.9389379+08:00" endTime="2026-10-09T04:01:40.3895139+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c3ae9e3b-3163-46b9-86a5-cf0015b29207" />
+    <UnitTestResult executionId="d7e63082-e36b-457a-af19-ccc0a938a503" testId="e32eeeb5-98f5-418b-33bb-a3918c196640" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ARowWithoutAVersionIsRefusedAndCounted_NotStoredAndNotMentioned" computerName="LINSTATION" duration="00:00:01.3258365" startTime="2026-10-09T04:02:55.3247662+08:00" endTime="2026-10-09T04:02:56.6699226+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d7e63082-e36b-457a-af19-ccc0a938a503" />
+    <UnitTestResult executionId="d2540607-6079-4d42-be5a-9e40d2676768" testId="adcce07c-fce9-b7a5-915d-d70195a5bc14" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ACompleteListingThatDropsARowReportsTheRemoval" computerName="LINSTATION" duration="00:00:01.2146402" startTime="2026-10-09T04:02:39.7085470+08:00" endTime="2026-10-09T04:02:40.9385506+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d2540607-6079-4d42-be5a-9e40d2676768" />
+    <UnitTestResult executionId="8c324e3d-74d7-4fe1-812a-58d7aa52a51a" testId="7d18390a-0340-765d-45fc-a43d6789d38f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://registry.example.com/v0/servers#frag&quot;)" computerName="LINSTATION" duration="00:00:01.2985297" startTime="2026-10-09T04:02:37.0480956+08:00" endTime="2026-10-09T04:02:38.3712254+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8c324e3d-74d7-4fe1-812a-58d7aa52a51a" />
+    <UnitTestResult executionId="6a879287-8cd7-4a14-85bb-bdb82580e449" testId="bd01c0e5-71b6-5776-8941-b9d325cd9a35" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APartialListingNeverDeletesRowsItDidNotSee" computerName="LINSTATION" duration="00:00:01.7812682" startTime="2026-10-09T04:03:27.8513365+08:00" endTime="2026-10-09T04:03:29.6534408+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6a879287-8cd7-4a14-85bb-bdb82580e449" />
+    <UnitTestResult executionId="039fb40a-cd3b-4649-a772-c1b4b24cedaf" testId="ca240f4d-64e1-4172-18aa-c74a33d7ec27" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASuccessFlagFromTheProviderIsNotEnough_TheBodyCarriesTheOutcome" computerName="LINSTATION" duration="00:00:02.7249227" startTime="2026-10-09T04:03:08.4427494+08:00" endTime="2026-10-09T04:03:11.2061944+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="039fb40a-cd3b-4649-a772-c1b4b24cedaf" />
+    <UnitTestResult executionId="ba6a49c5-b5f2-414d-962e-16b1a9dfa37d" testId="e2a07442-6edc-afb1-e255-96b13ced005d" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRejectsTruncatedTreeWithoutPublishingPartialPackage" computerName="LINSTATION" duration="00:00:01.3251753" startTime="2026-10-09T04:02:30.5600030+08:00" endTime="2026-10-09T04:02:31.9023186+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ba6a49c5-b5f2-414d-962e-16b1a9dfa37d" />
+    <UnitTestResult executionId="0204d555-ec1d-4bfa-a544-03d85189959d" testId="8c762713-88c4-4afa-08c2-3e444252f5c5" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TheInstallSurfaceIsStillRefused_NotPretendImplemented" computerName="LINSTATION" duration="00:00:01.4211464" startTime="2026-10-09T04:01:40.3902123+08:00" endTime="2026-10-09T04:01:41.8327627+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0204d555-ec1d-4bfa-a544-03d85189959d" />
+    <UnitTestResult executionId="850d8c12-27ea-4af1-ba32-a31ebb61f776" testId="cf42b213-62de-4d0c-09e8-d34d81a580cd" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.DeletingASourceTakesItsRows_WithoutLeavingAnOrphanPage" computerName="LINSTATION" duration="00:00:01.3689544" startTime="2026-10-09T04:02:27.8711993+08:00" endTime="2026-10-09T04:02:29.2657656+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="850d8c12-27ea-4af1-ba32-a31ebb61f776" />
+    <UnitTestResult executionId="58dbcfcf-a6ad-4bf5-a6a3-08e22606d45f" testId="a80330e6-d4fb-c2ed-165b-cb78839bec4f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ARowWhoseNameIsNotASkillNameIsCounted_AndNeverStored" computerName="LINSTATION" duration="00:00:01.2895745" startTime="2026-10-09T04:02:56.6701345+08:00" endTime="2026-10-09T04:02:57.9801286+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="58dbcfcf-a6ad-4bf5-a6a3-08e22606d45f" />
+    <UnitTestResult executionId="cc9b454f-709c-4f12-973c-8b4a001e273f" testId="5045ae66-90ef-c1c4-0716-840fc7df1d20" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" computerName="LINSTATION" duration="00:00:14.4763828" startTime="2026-10-09T04:01:43.3160797+08:00" endTime="2026-10-09T04:02:00.8865925+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cc9b454f-709c-4f12-973c-8b4a001e273f" />
+    <UnitTestResult executionId="dc685e1b-7998-48fb-a42b-7941c1bdcb3b" testId="c4fc8818-1007-d924-7604-ab7dc2578fd3" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://github.com/acme/skills/tree/main/pdf-forms&quot;)" computerName="LINSTATION" duration="00:00:01.4253518" startTime="2026-10-09T04:01:34.7743148+08:00" endTime="2026-10-09T04:01:36.2256154+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="dc685e1b-7998-48fb-a42b-7941c1bdcb3b" />
+    <UnitTestResult executionId="8f49ad7e-53e8-44d9-b502-9d6778a087a9" testId="29d8f8c5-ffd3-2559-5f6c-75250cce5c9a" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APinnedArgumentCarriesThePackageVersion_NotAWordForWhateverIsLatest" computerName="LINSTATION" duration="00:00:02.0724904" startTime="2026-10-09T04:02:57.9804119+08:00" endTime="2026-10-09T04:03:00.1188908+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8f49ad7e-53e8-44d9-b502-9d6778a087a9" />
+    <UnitTestResult executionId="4b763dc8-373d-4ddd-bd39-25bc41c13057" testId="c54741db-03e9-9a8d-9d14-c800b5fbcf3b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CatalogCanNarrowToOneSource_AndAnUnusedSourceAnswersEmpty" computerName="LINSTATION" duration="00:00:01.3307067" startTime="2026-10-09T04:02:19.6753471+08:00" endTime="2026-10-09T04:02:21.0244915+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4b763dc8-373d-4ddd-bd39-25bc41c13057" />
+    <UnitTestResult executionId="0e98cd41-30c5-48fc-97fb-5f76e394fa57" testId="9d698b4c-6d11-a24a-e21b-d2f44055a243" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg &amp;&amp; curl evil&quot;)" computerName="LINSTATION" duration="00:00:01.6342250" startTime="2026-10-09T04:01:23.0898022+08:00" endTime="2026-10-09T04:01:24.7409987+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0e98cd41-30c5-48fc-97fb-5f76e394fa57" />
+    <UnitTestResult executionId="e1056417-e583-48c5-b53d-7005cd375003" testId="86f3d1d6-cf9c-9e08-9d64-0a225455214a" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TheOlderPackageSpellingStillProjects_AndStillPins" computerName="LINSTATION" duration="00:00:01.4625941" startTime="2026-10-09T04:02:21.0251498+08:00" endTime="2026-10-09T04:02:22.5188848+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e1056417-e583-48c5-b53d-7005cd375003" />
+    <UnitTestResult executionId="c326924f-d5b8-43fa-a06f-c9beadc41618" testId="f480382e-1a74-55cd-4a67-e1c290dd1f79" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg\\path&quot;)" computerName="LINSTATION" duration="00:00:05.8847819" startTime="2026-10-09T04:01:11.8667735+08:00" endTime="2026-10-09T04:01:17.8068291+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c326924f-d5b8-43fa-a06f-c9beadc41618" />
+    <UnitTestResult executionId="723b1ac4-db3f-401f-b080-f186844b2305" testId="d306b2ca-db44-9ba4-f61e-8eb8c795b82f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.Refresh_FollowsTheCursor_AndSaysWhenTheCeilingCutItShort" computerName="LINSTATION" duration="00:00:01.6065097" startTime="2026-10-09T04:03:02.1132293+08:00" endTime="2026-10-09T04:03:03.7444384+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="723b1ac4-db3f-401f-b080-f186844b2305" />
+    <UnitTestResult executionId="a8f54bf3-0666-448d-a9d5-4ed6e14390ab" testId="d934a314-4503-4f5f-b1de-ed654f3b1d1b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingAProposalWithoutAPreviewIsRefused_AndAnUnknownProposalIdNamesItself" computerName="LINSTATION" duration="00:00:01.2908289" startTime="2026-10-09T04:02:40.9387649+08:00" endTime="2026-10-09T04:02:42.2804275+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a8f54bf3-0666-448d-a9d5-4ed6e14390ab" />
+    <UnitTestResult executionId="0c33af72-42fa-43e1-977d-0195f7323d1d" testId="2f19deca-3cc9-630c-760b-d6ccb6aa9ce3" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg$(id)&quot;)" computerName="LINSTATION" duration="00:00:01.7132805" startTime="2026-10-09T04:01:26.4035405+08:00" endTime="2026-10-09T04:01:28.1388225+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0c33af72-42fa-43e1-977d-0195f7323d1d" />
+    <UnitTestResult executionId="ca5ad0a9-d425-4074-a87e-ee738a5ac1fd" testId="1c21d963-a96b-e4cf-bf53-138150a03f6b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.Refresh_FetchesThroughTheProviderAndStoresWhatItSaw" computerName="LINSTATION" duration="00:00:01.6061802" startTime="2026-10-09T04:01:30.0753472+08:00" endTime="2026-10-09T04:01:31.7023150+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ca5ad0a9-d425-4074-a87e-ee738a5ac1fd" />
+    <UnitTestResult executionId="d7613edc-faa2-4933-a7cb-ad3e040508b6" testId="8aab5259-0eb9-ed66-fc3a-a0d41f1ef0a0" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASurvivingEntryKeepsItsRowIdAcrossRefreshes_AndItsHashTracksTheBody" computerName="LINSTATION" duration="00:00:01.2368555" startTime="2026-10-09T04:02:31.9025516+08:00" endTime="2026-10-09T04:02:33.1552624+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d7613edc-faa2-4933-a7cb-ad3e040508b6" />
+    <UnitTestResult executionId="509a3647-aa05-445a-a7ea-d0e7346b1518" testId="3fd833d9-ab33-f094-af32-98fc10e0b69f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://registry.example.com/v0/servers?page=2&quot;)" computerName="LINSTATION" duration="00:00:01.2996269" startTime="2026-10-09T04:02:35.6970156+08:00" endTime="2026-10-09T04:02:37.0479007+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="509a3647-aa05-445a-a7ea-d0e7346b1518" />
+    <UnitTestResult executionId="2e9e747d-80b6-480a-bfb4-ed33b0692729" testId="b6e75212-cff8-1a94-1a6f-3c8fd8a65825" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://user:secret@github.com/acme/skills/tree/12&quot;···)" computerName="LINSTATION" duration="00:00:01.3491908" startTime="2026-10-09T04:01:37.5700695+08:00" endTime="2026-10-09T04:01:38.9386306+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2e9e747d-80b6-480a-bfb4-ed33b0692729" />
+    <UnitTestResult executionId="bd805247-e6e2-432b-9b38-1f984e2261f0" testId="2e7bd3cd-7e5b-6965-7bb6-d49c7435ce8d" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AProviderThatNeverAnsweredIsUnavailable_NotAnEmptyMarket" computerName="LINSTATION" duration="00:00:01.4987360" startTime="2026-10-09T04:02:09.4638134+08:00" endTime="2026-10-09T04:02:10.9872380+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bd805247-e6e2-432b-9b38-1f984e2261f0" />
+    <UnitTestResult executionId="4102a9d9-f75c-4bc7-83d2-1ba788cf3a0c" testId="acae3a82-9458-31e3-0834-8e1f6ad8af39" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnEntryWithNoPackageIsNotInstallable_AndSaysWhy_WithoutAProposal" computerName="LINSTATION" duration="00:00:01.4018458" startTime="2026-10-09T04:02:03.5872031+08:00" endTime="2026-10-09T04:02:05.0077112+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4102a9d9-f75c-4bc7-83d2-1ba788cf3a0c" />
+    <UnitTestResult executionId="5f689fed-e62b-4972-8b90-300a6a35abcc" testId="68600c2b-27c7-2f12-07cf-716e44199d93" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceSupportsRootAndSubdirectoryPackages(prefix: &quot;&quot;)" computerName="LINSTATION" duration="00:00:01.5151404" startTime="2026-10-09T04:01:33.2350849+08:00" endTime="2026-10-09T04:01:34.7729715+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5f689fed-e62b-4972-8b90-300a6a35abcc" />
+    <UnitTestResult executionId="c23b17e9-00c4-4d89-82e1-f0098d0da401" testId="52f7d7c2-a0b4-3086-e4ae-0466761158ef" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;http://registry.example.com/v0/servers&quot;)" computerName="LINSTATION" duration="00:00:01.2863948" startTime="2026-10-09T04:02:38.3714019+08:00" endTime="2026-10-09T04:02:39.7082730+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c23b17e9-00c4-4d89-82e1-f0098d0da401" />
+    <UnitTestResult executionId="cdec186d-96c2-4c6d-ae85-467f9853cbd8" testId="239b92d8-23de-8d28-d2aa-b8d1994c76b4" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: pdf-forms\n---\n&quot;, because: &quot;no 'description'&quot;)" computerName="LINSTATION" duration="00:00:01.2961549" startTime="2026-10-09T04:02:25.1985598+08:00" endTime="2026-10-09T04:02:26.5196888+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cdec186d-96c2-4c6d-ae85-467f9853cbd8" />
+    <UnitTestResult executionId="95396368-c30e-4c51-8e3e-a6fa6c7a3ad1" testId="62fa0e40-6542-85f7-ec38-dddbae80b040" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies(mode: &quot;160000&quot;)" computerName="LINSTATION" duration="00:00:01.3085056" startTime="2026-10-09T04:02:00.8873205+08:00" endTime="2026-10-09T04:02:02.2160379+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="95396368-c30e-4c51-8e3e-a6fa6c7a3ad1" />
+    <UnitTestResult executionId="576f0954-d024-4b6e-b5a9-4eeb3a9c0872" testId="4a29fecf-b3fd-80db-f11c-fd36c34244ed" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://user:pass@registry.example.com/v0/servers&quot;)" computerName="LINSTATION" duration="00:00:01.3318451" startTime="2026-10-09T04:02:34.3481872+08:00" endTime="2026-10-09T04:02:35.6968479+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="576f0954-d024-4b6e-b5a9-4eeb3a9c0872" />
+    <UnitTestResult executionId="e59059cd-046b-43a3-9f79-c7ca6c5c7311" testId="01f64296-ea20-4eb0-8e0c-1e2f56490121" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn" computerName="LINSTATION" duration="00:00:01.3084286" startTime="2026-10-09T04:02:46.0547534+08:00" endTime="2026-10-09T04:02:47.3867963+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e59059cd-046b-43a3-9f79-c7ca6c5c7311">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ&#xD;
+               ↓ (pos 3)&#xD;
+Expected: "C:\\Users\\lincu\\AppData\\Local\\Temp\\tinadec"···&#xD;
+Actual:   "C:\\git\\agent\\TinadecOffice\\TinadecCore\\te"···&#xD;
+               ↑ (pos 3)</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1266&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="7ebe10b9-7014-4a0c-99c3-6c23aafc91a9" testId="676bf2a3-f4d4-c837-8fb8-b8fbc59a4a6b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ARefreshThatRepublishesTheEntryInvalidatesAPendingProposal" computerName="LINSTATION" duration="00:00:01.3348829" startTime="2026-10-09T04:02:47.3882812+08:00" endTime="2026-10-09T04:02:48.7380733+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7ebe10b9-7014-4a0c-99c3-6c23aafc91a9" />
+    <UnitTestResult executionId="16d72c78-f0b7-4339-ad99-7c0d911a7f64" testId="4bff55ee-1e7e-7552-5bc0-e3a665199a96" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AProposalWhoseFrozenBytesMovedIsRefused_NotAppliedOnTheReviewersBehalf" computerName="LINSTATION" duration="00:00:01.9083614" startTime="2026-10-09T04:01:28.1429964+08:00" endTime="2026-10-09T04:01:30.0741263+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="16d72c78-f0b7-4339-ad99-7c0d911a7f64" />
+    <UnitTestResult executionId="b84c799f-a90e-4ffc-8b2b-714c140dc354" testId="bbf1d5ba-0571-96f8-1d9a-9919c0facdd6" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.OneEntryById_AndAnUnknownIdAnswersWithItsOwnCode" computerName="LINSTATION" duration="00:00:01.3405028" startTime="2026-10-09T04:02:51.4134715+08:00" endTime="2026-10-09T04:02:52.7849479+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b84c799f-a90e-4ffc-8b2b-714c140dc354" />
+    <UnitTestResult executionId="fd42c7a7-7aaf-4147-b7ef-1d40a1a86675" testId="6bd3ba62-f8f2-43a7-7b90-5fc064900f9f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: pdf-forms\ndescription: d\ndisabled: tr&quot;···, because: &quot;marked off by its own&quot;)" computerName="LINSTATION" duration="00:00:01.3218157" startTime="2026-10-09T04:02:26.5206344+08:00" endTime="2026-10-09T04:02:27.8709014+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="fd42c7a7-7aaf-4147-b7ef-1d40a1a86675" />
+    <UnitTestResult executionId="cd53036a-7331-4a41-ae4f-82d6d4189b59" testId="548eb4e1-7d77-eac8-4267-83bb5bead6d9" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesAKindWithNoAdapter_AndListsWhatWorks" computerName="LINSTATION" duration="00:00:01.4246313" startTime="2026-10-09T04:02:14.0555927+08:00" endTime="2026-10-09T04:02:15.5006962+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="cd53036a-7331-4a41-ae4f-82d6d4189b59" />
+    <UnitTestResult executionId="41317290-f624-4e3b-ac33-d0cf88f7a03d" testId="088087db-d81b-9f7b-316a-566643b40872" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceSupportsRootAndSubdirectoryPackages(prefix: &quot;packages/pdf-forms/&quot;)" computerName="LINSTATION" duration="00:00:01.5147402" startTime="2026-10-09T04:01:31.7031458+08:00" endTime="2026-10-09T04:01:33.2328897+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="41317290-f624-4e3b-ac33-d0cf88f7a03d" />
+    <UnitTestResult executionId="035bbd9d-8479-4b59-9dc6-27aba2e1b6bb" testId="0e80e138-ea06-7e0b-5a93-75897b56ed5e" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnUninstallProposalTakesTheEntryBackOut_AndLeavesEveryOtherServerAlone" computerName="LINSTATION" duration="00:00:01.8683264" startTime="2026-10-09T04:03:20.6092021+08:00" endTime="2026-10-09T04:03:22.5046610+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="035bbd9d-8479-4b59-9dc6-27aba2e1b6bb" />
+    <UnitTestResult executionId="f38a1967-1682-4d4d-b248-2cca4aeda08c" testId="b85c5d3f-a98d-7fd7-007c-bc816dc452dd" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CatalogPagingIsHonoured_AndSaysThereAreMore" computerName="LINSTATION" duration="00:00:02.1504049" startTime="2026-10-09T04:03:03.7450160+08:00" endTime="2026-10-09T04:03:05.9189590+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f38a1967-1682-4d4d-b248-2cca4aeda08c" />
+    <UnitTestResult executionId="2cd170d6-d79b-4fc3-9417-7194406c31af" testId="7d64f284-7174-ce23-eff3-05738a7ec7d5" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies(mode: &quot;120000&quot;)" computerName="LINSTATION" duration="00:00:01.3511835" startTime="2026-10-09T04:02:02.2167257+08:00" endTime="2026-10-09T04:02:03.5868543+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2cd170d6-d79b-4fc3-9417-7194406c31af" />
+    <UnitTestResult executionId="f940bc4c-b678-40ca-a4e8-228096a92148" testId="09d7bd0b-877d-4d91-ad35-80b7df928c09" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.RefreshingAnUnknownSourceIs404_AndNothingIsFetched" computerName="LINSTATION" duration="00:00:01.3357979" startTime="2026-10-09T04:02:16.8018513+08:00" endTime="2026-10-09T04:02:18.1622429+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f940bc4c-b678-40ca-a4e8-228096a92148" />
+    <UnitTestResult executionId="f6f57347-3d20-4bc5-b92a-de238c1c9a83" testId="d744dd71-97de-4f64-1de5-a5fd8d907dab" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;http://github.com/acme/skills/tree/123456789012345&quot;···)" computerName="LINSTATION" duration="00:00:01.3246104" startTime="2026-10-09T04:01:36.2259133+08:00" endTime="2026-10-09T04:01:37.5698202+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f6f57347-3d20-4bc5-b92a-de238c1c9a83" />
+    <UnitTestResult executionId="dbd73f40-041f-4482-8075-128cc7cde5e4" testId="fbe01c38-abf8-9808-64c9-329bb388a434" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;# no frontmatter here\n&quot;, because: &quot;no YAML frontmatter&quot;)" computerName="LINSTATION" duration="00:00:01.2728786" startTime="2026-10-09T04:02:23.9046367+08:00" endTime="2026-10-09T04:02:25.1983710+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="dbd73f40-041f-4482-8075-128cc7cde5e4" />
+    <UnitTestResult executionId="1c0be79b-519c-430d-95be-b8d6cb761ecb" testId="66a4b907-a54f-c319-f33e-56793d201560" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ADocumentsLargerThanAWorkspaceWouldReadIsRefusedWhole" computerName="LINSTATION" duration="00:00:01.3000833" startTime="2026-10-09T04:02:42.2809045+08:00" endTime="2026-10-09T04:02:43.6021626+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1c0be79b-519c-430d-95be-b8d6cb761ecb" />
+    <UnitTestResult executionId="3190af70-f6c0-44f5-927c-f26d5a308ac4" testId="705b2212-2563-7800-f881-be3f070054d0" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.Sources_AnswerWithAnEnvelope_AndNameTheKindsThisBuildCanRead" computerName="LINSTATION" duration="00:00:01.6609964" startTime="2026-10-09T04:03:24.2648203+08:00" endTime="2026-10-09T04:03:25.9549948+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3190af70-f6c0-44f5-927c-f26d5a308ac4" />
+    <UnitTestResult executionId="905ed645-801e-4329-bd05-e035f4dba86c" testId="e5b2a4fd-6a69-0756-7324-de1f1aa527c2" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TogglingWithoutTheFieldDoesNotSwitchTheSourceOff" computerName="LINSTATION" duration="00:00:01.8676432" startTime="2026-10-09T04:03:18.7144419+08:00" endTime="2026-10-09T04:03:20.6083932+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="905ed645-801e-4329-bd05-e035f4dba86c" />
+    <UnitTestResult executionId="20bf5d9d-a6fb-456a-ac2b-d30df9767ee7" testId="b24253fb-3b55-22c4-3283-316e994a117d" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.SharedSkillWithoutProjectUsesStableIdAndCanBeDisabledAfterApproval" computerName="LINSTATION" duration="00:00:03.3145737" startTime="2026-10-09T04:03:13.2106061+08:00" endTime="2026-10-09T04:03:16.5887985+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="20bf5d9d-a6fb-456a-ac2b-d30df9767ee7" />
+    <UnitTestResult executionId="5bd0d6c2-a681-4430-bb78-4b489dabf42a" testId="86fce1b1-d4ef-326c-ac0e-b437d4215cb8" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever" computerName="LINSTATION" duration="00:00:01.9643561" startTime="2026-10-09T04:03:00.1199833+08:00" endTime="2026-10-09T04:03:02.1099183+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5bd0d6c2-a681-4430-bb78-4b489dabf42a">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ&#xD;
+           ↓ (pos 0)&#xD;
+Expected: "write_file"&#xD;
+Actual:   "skill_resource_update"&#xD;
+           ↑ (pos 0)</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1073&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="e25a2868-ccf6-4eaf-9989-dbb8e7dea963" testId="ee33bd1c-6df8-4b6a-ae67-258e65f9c96f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.WildcardsInAQueryAreData_NotAPattern" computerName="LINSTATION" duration="00:00:01.4634263" startTime="2026-10-09T04:01:41.8337189+08:00" endTime="2026-10-09T04:01:43.3158116+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e25a2868-ccf6-4eaf-9989-dbb8e7dea963" />
+    <UnitTestResult executionId="71bdd73d-eca9-4213-ab1d-2e12533827bf" testId="88d5a8d0-e5e1-0a9c-4d61-0b8a410a900b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AFilterValueThatCannotMatchIsRejected_NotAnsweredWithAnEmptyPage" computerName="LINSTATION" duration="00:00:01.3166762" startTime="2026-10-09T04:02:48.7382753+08:00" endTime="2026-10-09T04:02:50.0794268+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="71bdd73d-eca9-4213-ab1d-2e12533827bf" />
+    <UnitTestResult executionId="c43376bc-8ef3-4c04-bac9-4b0bba590d7d" testId="9a95b149-e466-c213-0cf9-9f5303944613" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: other-skill\ndescription: d\n---\n&quot;, because: &quot;does not match its directory&quot;)" computerName="LINSTATION" duration="00:00:01.3614143" startTime="2026-10-09T04:02:22.5191319+08:00" endTime="2026-10-09T04:02:23.9040283+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c43376bc-8ef3-4c04-bac9-4b0bba590d7d" />
+    <UnitTestResult executionId="ee0473a2-ed2b-4355-8b2f-49a83dc44f05" testId="2b6734d4-6da3-44e8-6265-310c0ef456c0" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AGarbageBodyIsNotStoredAsAnEmptyMarket" computerName="LINSTATION" duration="00:00:01.5175536" startTime="2026-10-09T04:02:06.5022040+08:00" endTime="2026-10-09T04:02:08.0434644+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ee0473a2-ed2b-4355-8b2f-49a83dc44f05" />
+    <UnitTestResult executionId="7558ae56-5df1-4a32-84a6-c0334fa52c37" testId="95c9ed0a-a8a6-b02b-85c5-d12bf7abc878" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg\nname&quot;)" computerName="LINSTATION" duration="00:00:01.7216256" startTime="2026-10-09T04:01:17.8324484+08:00" endTime="2026-10-09T04:01:19.5826180+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7558ae56-5df1-4a32-84a6-c0334fa52c37" />
+    <UnitTestResult executionId="3bfd3146-bcad-4527-80b2-22fa02daa353" testId="b9931d05-3462-e8c1-5f30-49f9c75a1461" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TheEnvListCarriesNamesAndFlags_AndNeverAValue" computerName="LINSTATION" duration="00:00:01.2699123" startTime="2026-10-09T04:02:29.2662269+08:00" endTime="2026-10-09T04:02:30.5597778+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3bfd3146-bcad-4527-80b2-22fa02daa353" />
+    <UnitTestResult executionId="c4005132-3bc3-436b-a543-c7fa490c0961" testId="e743b1bb-e7a4-58b2-1473-9654979b89aa" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TheEntryProjectionCarriesOnlyWhatTheSourceActuallySaid" computerName="LINSTATION" duration="00:00:02.4688267" startTime="2026-10-09T04:03:05.9196463+08:00" endTime="2026-10-09T04:03:08.4419173+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c4005132-3bc3-436b-a543-c7fa490c0961" />
+    <UnitTestResult executionId="0897524d-7bd8-44b8-8510-785f181cc9c8" testId="d2cc72ba-6003-17aa-0eb1-9ee2f3ed8a2f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg|tee&quot;)" computerName="LINSTATION" duration="00:00:01.7870825" startTime="2026-10-09T04:01:21.2820473+08:00" endTime="2026-10-09T04:01:23.0890490+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="0897524d-7bd8-44b8-8510-785f181cc9c8" />
+    <UnitTestResult executionId="a0f27a65-c3ea-4785-afa8-8755c89d2eb9" testId="d0898e9a-70ea-5817-4eff-ef08ac2f977a" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingAProposalQueuesOneGovernedWrite_AndWritesNothingItself" computerName="LINSTATION" duration="00:00:02.0882576" startTime="2026-10-09T04:03:16.5894803+08:00" endTime="2026-10-09T04:03:18.7140008+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a0f27a65-c3ea-4785-afa8-8755c89d2eb9" />
+    <UnitTestResult executionId="b3a43617-7303-40fe-b823-5bfa22c719b4" testId="618ef196-6588-e5c2-84ae-fabfc443991b" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnIndexThatIsNotASkillIndexNamesTheShapeItExpected" computerName="LINSTATION" duration="00:00:01.2332235" startTime="2026-10-09T04:02:44.8037371+08:00" endTime="2026-10-09T04:02:46.0545500+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b3a43617-7303-40fe-b823-5bfa22c719b4" />
+    <UnitTestResult executionId="6be45564-4914-4e2f-9089-bf3a97f41707" testId="d5927dc7-45d9-6117-d057-b5de24cb774e" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess" computerName="LINSTATION" duration="00:00:01.2768832" startTime="2026-10-09T04:02:52.7852371+08:00" endTime="2026-10-09T04:02:54.0839680+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="6be45564-4914-4e2f-9089-bf3a97f41707">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ&#xD;
+           ↓ (pos 0)&#xD;
+Expected: "sha256:mine"&#xD;
+Actual:   "0"&#xD;
+           ↑ (pos 0)</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1114&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="89872cbb-f597-43f2-84a7-567bafcc2ea7" testId="20f1eed2-1269-45ac-5c4f-75dcdb437f83" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.TwoSourcesWithOneNameAreRefused_BecauseTheNameIsTheHandle" computerName="LINSTATION" duration="00:00:01.2804194" startTime="2026-10-09T04:02:15.5010711+08:00" endTime="2026-10-09T04:02:16.8016101+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="89872cbb-f597-43f2-84a7-567bafcc2ea7" />
+    <UnitTestResult executionId="f9ae5a31-da02-4915-8ce4-5eb1b5382707" testId="05087bb2-1d8c-3f07-5c83-3016e92c44d5" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;file:///c:/temp/market.json&quot;)" computerName="LINSTATION" duration="00:00:01.1398295" startTime="2026-10-09T04:02:33.1554804+08:00" endTime="2026-10-09T04:02:34.3480194+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f9ae5a31-da02-4915-8ce4-5eb1b5382707" />
+    <UnitTestResult executionId="846dfc89-f568-42cc-9bf6-b97a78672688" testId="23cbcf73-3067-c62c-7702-812fa3f4822f" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ManagedInstallDoesNotWriteTheLegacyProviderConfigPath" computerName="LINSTATION" duration="00:00:01.5869305" startTime="2026-10-09T04:02:12.4467172+08:00" endTime="2026-10-09T04:02:14.0553040+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="846dfc89-f568-42cc-9bf6-b97a78672688" />
+    <UnitTestResult executionId="d984a3f6-2621-4cdd-884a-12074c0bb3f7" testId="aaabfd54-589c-f4a3-68c2-89034292f222" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.RemovingASkillIsRefusedWithTheSwitchThatActuallyExists" computerName="LINSTATION" duration="00:00:01.8640591" startTime="2026-10-09T04:03:25.9554970+08:00" endTime="2026-10-09T04:03:27.8490659+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d984a3f6-2621-4cdd-884a-12074c0bb3f7">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Contains() Failure: Sub-string not found&#xD;
+String:    "The installed Skill resource is unavailab"···&#xD;
+Not found: "no delete"</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.RemovingASkillIsRefusedWithTheSwitchThatActuallyExists() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1163&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="7a53e52d-f3a1-4bad-9dbf-44f4b42b914a" testId="addf82d2-e9fa-b3bc-bf0d-6860bdbbdefd" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg&gt;out&quot;)" computerName="LINSTATION" duration="00:00:01.6775269" startTime="2026-10-09T04:01:19.5857929+08:00" endTime="2026-10-09T04:01:21.2813384+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="7a53e52d-f3a1-4bad-9dbf-44f4b42b914a" />
+    <UnitTestResult executionId="123dd062-b6de-40fe-915d-4351401b0cd3" testId="0c311e2b-5295-45b5-fb5e-3b0b0fa44cff" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillIndexListsItsRows_AndReadsNoDocumentToDone" computerName="LINSTATION" duration="00:00:01.4388642" startTime="2026-10-09T04:02:10.9875091+08:00" endTime="2026-10-09T04:02:12.4464183+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="123dd062-b6de-40fe-915d-4351401b0cd3" />
+    <UnitTestResult executionId="1de51774-c214-434c-bdaa-2360266aeb5a" testId="cac37e84-b3da-f6e4-1c56-3a5d6f6b3cd1" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ABlockedFetchKeepsTheOldRows_AndStoresWhy" computerName="LINSTATION" duration="00:00:01.3938870" startTime="2026-10-09T04:02:08.0437652+08:00" endTime="2026-10-09T04:02:09.4635011+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1de51774-c214-434c-bdaa-2360266aeb5a" />
+    <UnitTestResult executionId="47950717-b841-4b70-8217-14e4a03bb992" testId="dfee6875-df14-e95a-6d8d-f5a128373f8e" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.ReApplyingAConsumedProposalAnswersWithTheSameAction_NotASecondApproval" computerName="LINSTATION" duration="00:00:01.3132578" startTime="2026-10-09T04:02:50.0796482+08:00" endTime="2026-10-09T04:02:51.4132694+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="47950717-b841-4b70-8217-14e4a03bb992" />
+    <UnitTestResult executionId="8f968d65-6f5d-4963-b7db-8c3efa515c9e" testId="74cc2021-9431-4a83-d820-1a6e85911ea9" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnInstalledEntrySurvivesAListingThatDroppedIt_AndSaysItWasRetained" computerName="LINSTATION" duration="00:00:01.4889499" startTime="2026-10-09T04:02:18.1625427+08:00" endTime="2026-10-09T04:02:19.6747548+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8f968d65-6f5d-4963-b7db-8c3efa515c9e" />
+    <UnitTestResult executionId="842b6fdd-d464-4d98-b467-6cbcad2795b5" testId="a9e55db6-babc-3328-3ca9-1da6b867ed77" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceVerifiesBlobObjectHash" computerName="LINSTATION" duration="00:00:01.2222317" startTime="2026-10-09T04:02:54.0850938+08:00" endTime="2026-10-09T04:02:55.3245514+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="842b6fdd-d464-4d98-b467-6cbcad2795b5" />
+    <UnitTestResult executionId="5bfdf179-23ba-4c2f-8f20-c9c2f23c6ecf" testId="35689991-4dbd-b012-2577-d76efb7e8e79" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg; rm -rf /&quot;)" computerName="LINSTATION" duration="00:00:01.6375143" startTime="2026-10-09T04:01:24.7423560+08:00" endTime="2026-10-09T04:01:26.4027734+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="5bfdf179-23ba-4c2f-8f20-c9c2f23c6ecf" />
+    <UnitTestResult executionId="af6e56b9-d02c-4023-89da-cc527334c006" testId="8f5fc3e6-3e0e-1262-0887-a2744f0f1b90" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks" computerName="LINSTATION" duration="00:00:01.4449093" startTime="2026-10-09T04:02:05.0083804+08:00" endTime="2026-10-09T04:02:06.4865673+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="af6e56b9-d02c-4023-89da-cc527334c006">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Strings differ&#xD;
+               ↓ (pos 3)&#xD;
+Expected: "C:\\Users\\lincu\\AppData\\Local\\Temp\\tinadec"···&#xD;
+Actual:   "C:\\git\\agent\\TinadecOffice\\TinadecCore\\te"···&#xD;
+               ↑ (pos 3)</Message>
+          <StackTrace>   at TinadecCore.Api.Tests.MarketCatalogApiTests.PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks() in C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs:line 1040&#xD;
+--- End of stack trace from previous location ---</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="90169cba-2077-4495-961b-221969c05aee" testId="54b2bc1f-03a5-18fb-5991-96a3ad4bb29c" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.AnInstallForAProjectInTheWrongWorkspaceIsRefused" computerName="LINSTATION" duration="00:00:01.9763090" startTime="2026-10-09T04:03:11.2068441+08:00" endTime="2026-10-09T04:03:13.2098940+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="90169cba-2077-4495-961b-221969c05aee" />
+    <UnitTestResult executionId="91f691ad-b8fa-450e-8cbd-404a43ba9bf7" testId="9bb12bdf-1e65-6f5d-12a5-7e2a62f792ed" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.DisablingASourceBlocksRefresh_AndReEnablingClearsIt" computerName="LINSTATION" duration="00:00:01.1853744" startTime="2026-10-09T04:02:43.6024145+08:00" endTime="2026-10-09T04:02:44.8034937+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="91f691ad-b8fa-450e-8cbd-404a43ba9bf7" />
+    <UnitTestResult executionId="1fb09b46-e860-4e59-b4d2-b423d9953177" testId="e299f691-09b9-f1b9-86d6-ffc8efe265eb" testName="TinadecCore.Api.Tests.MarketCatalogApiTests.APreviewNamesTheExactVersionItPins_AndTheManagedResourceItWouldSave" computerName="LINSTATION" duration="00:00:01.7271319" startTime="2026-10-09T04:03:22.5050842+08:00" endTime="2026-10-09T04:03:24.2642185+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="1fb09b46-e860-4e59-b4d2-b423d9953177" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AFilterValueThatCannotMatchIsRejected_NotAnsweredWithAnEmptyPage" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="88d5a8d0-e5e1-0a9c-4d61-0b8a410a900b">
+      <Execution id="71bdd73d-eca9-4213-ab1d-2e12533827bf" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AFilterValueThatCannotMatchIsRejected_NotAnsweredWithAnEmptyPage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://user:pass@registry.example.com/v0/servers&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="4a29fecf-b3fd-80db-f11c-fd36c34244ed">
+      <Execution id="576f0954-d024-4b6e-b5a9-4eeb3a9c0872" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ABlockedFetchKeepsTheOldRows_AndStoresWhy" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="cac37e84-b3da-f6e4-1c56-3a5d6f6b3cd1">
+      <Execution id="1de51774-c214-434c-bdaa-2360266aeb5a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ABlockedFetchKeepsTheOldRows_AndStoresWhy" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;file:///c:/temp/market.json&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="05087bb2-1d8c-3f07-5c83-3016e92c44d5">
+      <Execution id="f9ae5a31-da02-4915-8ce4-5eb1b5382707" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: pdf-forms\ndescription: d\ndisabled: tr&quot;···, because: &quot;marked off by its own&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="6bd3ba62-f8f2-43a7-7b90-5fc064900f9f">
+      <Execution id="fd42c7a7-7aaf-4147-b7ef-1d40a1a86675" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillDocumentThatWouldNotAdvertiseItselfIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.DisablingASourceBlocksRefresh_AndReEnablingClearsIt" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="9bb12bdf-1e65-6f5d-12a5-7e2a62f792ed">
+      <Execution id="91f691ad-b8fa-450e-8cbd-404a43ba9bf7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="DisablingASourceBlocksRefresh_AndReEnablingClearsIt" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d5927dc7-45d9-6117-d057-b5de24cb774e">
+      <Execution id="6be45564-4914-4e2f-9089-bf3a97f41707" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AProviderThatNeverAnsweredIsUnavailable_NotAnEmptyMarket" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="2e7bd3cd-7e5b-6965-7bb6-d49c7435ce8d">
+      <Execution id="bd805247-e6e2-432b-9b38-1f984e2261f0" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AProviderThatNeverAnsweredIsUnavailable_NotAnEmptyMarket" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesAKindWithNoAdapter_AndListsWhatWorks" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="548eb4e1-7d77-eac8-4267-83bb5bead6d9">
+      <Execution id="cd53036a-7331-4a41-ae4f-82d6d4189b59" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesAKindWithNoAdapter_AndListsWhatWorks" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg\nname&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="95c9ed0a-a8a6-b02b-85c5-d12bf7abc878">
+      <Execution id="7558ae56-5df1-4a32-84a6-c0334fa52c37" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TheInstallSurfaceIsStillRefused_NotPretendImplemented" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="8c762713-88c4-4afa-08c2-3e444252f5c5">
+      <Execution id="0204d555-ec1d-4bfa-a544-03d85189959d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TheInstallSurfaceIsStillRefused_NotPretendImplemented" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRejectsTruncatedTreeWithoutPublishingPartialPackage" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="e2a07442-6edc-afb1-e255-96b13ced005d">
+      <Execution id="ba6a49c5-b5f2-414d-962e-16b1a9dfa37d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceRejectsTruncatedTreeWithoutPublishingPartialPackage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AProposalWhoseFrozenBytesMovedIsRefused_NotAppliedOnTheReviewersBehalf" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="4bff55ee-1e7e-7552-5bc0-e3a665199a96">
+      <Execution id="16d72c78-f0b7-4339-ad99-7c0d911a7f64" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AProposalWhoseFrozenBytesMovedIsRefused_NotAppliedOnTheReviewersBehalf" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.WildcardsInAQueryAreData_NotAPattern" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="ee33bd1c-6df8-4b6a-ae67-258e65f9c96f">
+      <Execution id="e25a2868-ccf6-4eaf-9989-dbb8e7dea963" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="WildcardsInAQueryAreData_NotAPattern" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;http://github.com/acme/skills/tree/123456789012345&quot;···)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d744dd71-97de-4f64-1de5-a5fd8d907dab">
+      <Execution id="f6f57347-3d20-4bc5-b92a-de238c1c9a83" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceRequiresPublicHttpsPinnedCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CatalogPagingIsHonoured_AndSaysThereAreMore" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="b85c5d3f-a98d-7fd7-007c-bc816dc452dd">
+      <Execution id="f38a1967-1682-4d4d-b248-2cca4aeda08c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CatalogPagingIsHonoured_AndSaysThereAreMore" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APartialListingNeverDeletesRowsItDidNotSee" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="bd01c0e5-71b6-5776-8941-b9d325cd9a35">
+      <Execution id="6a879287-8cd7-4a14-85bb-bdb82580e449" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APartialListingNeverDeletesRowsItDidNotSee" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ARefreshThatRepublishesTheEntryInvalidatesAPendingProposal" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="676bf2a3-f4d4-c837-8fb8-b8fbc59a4a6b">
+      <Execution id="7ebe10b9-7014-4a0c-99c3-6c23aafc91a9" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ARefreshThatRepublishesTheEntryInvalidatesAPendingProposal" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies(mode: &quot;120000&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="7d64f284-7174-ce23-eff3-05738a7ec7d5">
+      <Execution id="2cd170d6-d79b-4fc3-9417-7194406c31af" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnIndexThatIsNotASkillIndexNamesTheShapeItExpected" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="618ef196-6588-e5c2-84ae-fabfc443991b">
+      <Execution id="b3a43617-7303-40fe-b823-5bfa22c719b4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnIndexThatIsNotASkillIndexNamesTheShapeItExpected" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://github.com/acme/skills/tree/12345678901234&quot;···)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="b69cafa0-1c2d-8f06-9c9a-5335bc9e0795">
+      <Execution id="c3ae9e3b-3163-46b9-86a5-cf0015b29207" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceRequiresPublicHttpsPinnedCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.RemovingASkillIsRefusedWithTheSwitchThatActuallyExists" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="aaabfd54-589c-f4a3-68c2-89034292f222">
+      <Execution id="d984a3f6-2621-4cdd-884a-12074c0bb3f7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="RemovingASkillIsRefusedWithTheSwitchThatActuallyExists" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASurvivingEntryKeepsItsRowIdAcrossRefreshes_AndItsHashTracksTheBody" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="8aab5259-0eb9-ed66-fc3a-a0d41f1ef0a0">
+      <Execution id="d7613edc-faa2-4933-a7cb-ad3e040508b6" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASurvivingEntryKeepsItsRowIdAcrossRefreshes_AndItsHashTracksTheBody" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.SharedSkillWithoutProjectUsesStableIdAndCanBeDisabledAfterApproval" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="b24253fb-3b55-22c4-3283-316e994a117d">
+      <Execution id="20bf5d9d-a6fb-456a-ac2b-d30df9767ee7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="SharedSkillWithoutProjectUsesStableIdAndCanBeDisabledAfterApproval" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://registry.example.com/v0/servers#frag&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="7d18390a-0340-765d-45fc-a43d6789d38f">
+      <Execution id="8c324e3d-74d7-4fe1-812a-58d7aa52a51a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APreviewNamesTheExactVersionItPins_AndTheManagedResourceItWouldSave" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="e299f691-09b9-f1b9-86d6-ffc8efe265eb">
+      <Execution id="1fb09b46-e860-4e59-b4d2-b423d9953177" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APreviewNamesTheExactVersionItPins_AndTheManagedResourceItWouldSave" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ACompleteListingThatDropsARowReportsTheRemoval" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="adcce07c-fce9-b7a5-915d-d70195a5bc14">
+      <Execution id="d2540607-6079-4d42-be5a-9e40d2676768" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ACompleteListingThatDropsARowReportsTheRemoval" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg|tee&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d2cc72ba-6003-17aa-0eb1-9ee2f3ed8a2f">
+      <Execution id="0897524d-7bd8-44b8-8510-785f181cc9c8" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AGarbageBodyIsNotStoredAsAnEmptyMarket" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="2b6734d4-6da3-44e8-6265-310c0ef456c0">
+      <Execution id="ee0473a2-ed2b-4355-8b2f-49a83dc44f05" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AGarbageBodyIsNotStoredAsAnEmptyMarket" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: other-skill\ndescription: d\n---\n&quot;, because: &quot;does not match its directory&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="9a95b149-e466-c213-0cf9-9f5303944613">
+      <Execution id="c43376bc-8ef3-4c04-bac9-4b0bba590d7d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillDocumentThatWouldNotAdvertiseItselfIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TwoSourcesWithOneNameAreRefused_BecauseTheNameIsTheHandle" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="20f1eed2-1269-45ac-5c4f-75dcdb437f83">
+      <Execution id="89872cbb-f597-43f2-84a7-567bafcc2ea7" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TwoSourcesWithOneNameAreRefused_BecauseTheNameIsTheHandle" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;---\nname: pdf-forms\n---\n&quot;, because: &quot;no 'description'&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="239b92d8-23de-8d28-d2aa-b8d1994c76b4">
+      <Execution id="cdec186d-96c2-4c6d-ae85-467f9853cbd8" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillDocumentThatWouldNotAdvertiseItselfIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ARowWithoutAVersionIsRefusedAndCounted_NotStoredAndNotMentioned" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="e32eeeb5-98f5-418b-33bb-a3918c196640">
+      <Execution id="d7e63082-e36b-457a-af19-ccc0a938a503" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ARowWithoutAVersionIsRefusedAndCounted_NotStoredAndNotMentioned" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillIndexListsItsRows_AndReadsNoDocumentToDone" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="0c311e2b-5295-45b5-fb5e-3b0b0fa44cff">
+      <Execution id="123dd062-b6de-40fe-915d-4351401b0cd3" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillIndexListsItsRows_AndReadsNoDocumentToDone" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;http://registry.example.com/v0/servers&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="52f7d7c2-a0b4-3086-e4ae-0466761158ef">
+      <Execution id="c23b17e9-00c4-4d89-82e1-f0098d0da401" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg$(id)&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="2f19deca-3cc9-630c-760b-d6ccb6aa9ce3">
+      <Execution id="0c33af72-42fa-43e1-977d-0195f7323d1d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ManagedInstallDoesNotWriteTheLegacyProviderConfigPath" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="23cbcf73-3067-c62c-7702-812fa3f4822f">
+      <Execution id="846dfc89-f568-42cc-9bf6-b97a78672688" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ManagedInstallDoesNotWriteTheLegacyProviderConfigPath" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TheEnvListCarriesNamesAndFlags_AndNeverAValue" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="b9931d05-3462-e8c1-5f30-49f9c75a1461">
+      <Execution id="3bfd3146-bcad-4527-80b2-22fa02daa353" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TheEnvListCarriesNamesAndFlags_AndNeverAValue" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.Sources_AnswerWithAnEnvelope_AndNameTheKindsThisBuildCanRead" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="705b2212-2563-7800-f881-be3f070054d0">
+      <Execution id="3190af70-f6c0-44f5-927c-f26d5a308ac4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="Sources_AnswerWithAnEnvelope_AndNameTheKindsThisBuildCanRead" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnUninstallProposalTakesTheEntryBackOut_AndLeavesEveryOtherServerAlone" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="0e80e138-ea06-7e0b-5a93-75897b56ed5e">
+      <Execution id="035bbd9d-8479-4b59-9dc6-27aba2e1b6bb" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnUninstallProposalTakesTheEntryBackOut_AndLeavesEveryOtherServerAlone" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.OneEntryById_AndAnUnknownIdAnswersWithItsOwnCode" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="bbf1d5ba-0571-96f8-1d9a-9919c0facdd6">
+      <Execution id="b84c799f-a90e-4ffc-8b2b-714c140dc354" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="OneEntryById_AndAnUnknownIdAnswersWithItsOwnCode" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingAProposalWithoutAPreviewIsRefused_AndAnUnknownProposalIdNamesItself" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d934a314-4503-4f5f-b1de-ed654f3b1d1b">
+      <Execution id="a8f54bf3-0666-448d-a9d5-4ed6e14390ab" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ApplyingAProposalWithoutAPreviewIsRefused_AndAnUnknownProposalIdNamesItself" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CatalogCanNarrowToOneSource_AndAnUnusedSourceAnswersEmpty" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="c54741db-03e9-9a8d-9d14-c800b5fbcf3b">
+      <Execution id="4b763dc8-373d-4ddd-bd39-25bc41c13057" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CatalogCanNarrowToOneSource_AndAnUnusedSourceAnswersEmpty" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASuccessFlagFromTheProviderIsNotEnough_TheBodyCarriesTheOutcome" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="ca240f4d-64e1-4172-18aa-c74a33d7ec27">
+      <Execution id="039fb40a-cd3b-4649-a772-c1b4b24cedaf" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASuccessFlagFromTheProviderIsNotEnough_TheBodyCarriesTheOutcome" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceSupportsRootAndSubdirectoryPackages(prefix: &quot;&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="68600c2b-27c7-2f12-07cf-716e44199d93">
+      <Execution id="5f689fed-e62b-4972-8b90-300a6a35abcc" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceSupportsRootAndSubdirectoryPackages" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ADocumentsLargerThanAWorkspaceWouldReadIsRefusedWhole" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="66a4b907-a54f-c319-f33e-56793d201560">
+      <Execution id="1c0be79b-519c-430d-95be-b8d6cb761ecb" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ADocumentsLargerThanAWorkspaceWouldReadIsRefusedWhole" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.Refresh_FollowsTheCursor_AndSaysWhenTheCeilingCutItShort" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d306b2ca-db44-9ba4-f61e-8eb8c795b82f">
+      <Execution id="723b1ac4-db3f-401f-b080-f186844b2305" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="Refresh_FollowsTheCursor_AndSaysWhenTheCeilingCutItShort" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg; rm -rf /&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="35689991-4dbd-b012-2577-d76efb7e8e79">
+      <Execution id="5bfdf179-23ba-4c2f-8f20-c9c2f23c6ecf" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="5045ae66-90ef-c1c4-0716-840fc7df1d20">
+      <Execution id="cc9b454f-709c-4f12-973c-8b4a001e273f" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnApprovedServerInstallUsesTheManagedRegistryAndIsActuallyCallable" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg &amp;&amp; curl evil&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="9d698b4c-6d11-a24a-e21b-d2f44055a243">
+      <Execution id="0e98cd41-30c5-48fc-97fb-5f76e394fa57" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ARowWhoseNameIsNotASkillNameIsCounted_AndNeverStored" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="a80330e6-d4fb-c2ed-165b-cb78839bec4f">
+      <Execution id="58dbcfcf-a6ad-4bf5-a6a3-08e22606d45f" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ARowWhoseNameIsNotASkillNameIsCounted_AndNeverStored" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnEntryWithNoPackageIsNotInstallable_AndSaysWhy_WithoutAProposal" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="acae3a82-9458-31e3-0834-8e1f6ad8af39">
+      <Execution id="4102a9d9-f75c-4bc7-83d2-1ba788cf3a0c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnEntryWithNoPackageIsNotInstallable_AndSaysWhy_WithoutAProposal" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APinnedArgumentCarriesThePackageVersion_NotAWordForWhateverIsLatest" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="29d8f8c5-ffd3-2559-5f6c-75250cce5c9a">
+      <Execution id="8f49ad7e-53e8-44d9-b502-9d6778a087a9" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APinnedArgumentCarriesThePackageVersion_NotAWordForWhateverIsLatest" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TheOlderPackageSpellingStillProjects_AndStillPins" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="86f3d1d6-cf9c-9e08-9d64-0a225455214a">
+      <Execution id="e1056417-e583-48c5-b53d-7005cd375003" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TheOlderPackageSpellingStillProjects_AndStillPins" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TheEntryProjectionCarriesOnlyWhatTheSourceActuallySaid" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="e743b1bb-e7a4-58b2-1473-9654979b89aa">
+      <Execution id="c4005132-3bc3-436b-a543-c7fa490c0961" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TheEntryProjectionCarriesOnlyWhatTheSourceActuallySaid" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="01f64296-ea20-4eb0-8e0c-1e2f56490121">
+      <Execution id="e59059cd-046b-43a3-9f79-c7ca6c5c7311" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ReApplyingAConsumedProposalAnswersWithTheSameAction_NotASecondApproval" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="dfee6875-df14-e95a-6d8d-f5a128373f8e">
+      <Execution id="47950717-b841-4b70-8217-14e4a03bb992" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ReApplyingAConsumedProposalAnswersWithTheSameAction_NotASecondApproval" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="86fce1b1-d4ef-326c-ac0e-b437d4215cb8">
+      <Execution id="5bd0d6c2-a681-4430-bb78-4b489dabf42a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceVerifiesBlobObjectHash" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="a9e55db6-babc-3328-3ca9-1da6b867ed77">
+      <Execution id="842b6fdd-d464-4d98-b467-6cbcad2795b5" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceVerifiesBlobObjectHash" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnInstalledEntrySurvivesAListingThatDroppedIt_AndSaysItWasRetained" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="74cc2021-9431-4a83-d820-1a6e85911ea9">
+      <Execution id="8f968d65-6f5d-4963-b7db-8c3efa515c9e" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnInstalledEntrySurvivesAListingThatDroppedIt_AndSaysItWasRetained" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.DeletingASourceTakesItsRows_WithoutLeavingAnOrphanPage" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="cf42b213-62de-4d0c-09e8-d34d81a580cd">
+      <Execution id="850d8c12-27ea-4af1-ba32-a31ebb61f776" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="DeletingASourceTakesItsRows_WithoutLeavingAnOrphanPage" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="8f5fc3e6-3e0e-1262-0887-a2744f0f1b90">
+      <Execution id="af6e56b9-d02c-4023-89da-cc527334c006" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.RefreshingAnUnknownSourceIs404_AndNothingIsFetched" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="09d7bd0b-877d-4d91-ad35-80b7df928c09">
+      <Execution id="f940bc4c-b678-40ca-a4e8-228096a92148" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="RefreshingAnUnknownSourceIs404_AndNothingIsFetched" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingAProposalQueuesOneGovernedWrite_AndWritesNothingItself" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="d0898e9a-70ea-5817-4eff-ef08ac2f977a">
+      <Execution id="a0f27a65-c3ea-4785-afa8-8755c89d2eb9" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ApplyingAProposalQueuesOneGovernedWrite_AndWritesNothingItself" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceSupportsRootAndSubdirectoryPackages(prefix: &quot;packages/pdf-forms/&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="088087db-d81b-9f7b-316a-566643b40872">
+      <Execution id="41317290-f624-4e3b-ac33-d0cf88f7a03d" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceSupportsRootAndSubdirectoryPackages" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://github.com/acme/skills/tree/main/pdf-forms&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="c4fc8818-1007-d924-7604-ab7dc2578fd3">
+      <Execution id="dc685e1b-7998-48fb-a42b-7941c1bdcb3b" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceRequiresPublicHttpsPinnedCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom(location: &quot;https://registry.example.com/v0/servers?page=2&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="3fd833d9-ab33-f094-af32-98fc10e0b69f">
+      <Execution id="509a3647-aa05-445a-a7ea-d0e7346b1518" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="CreatingASource_RefusesALocationCoreCouldNotBuildASafeRequestFrom" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies(mode: &quot;160000&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="62fa0e40-6542-85f7-ec38-dddbae80b040">
+      <Execution id="95396368-c30e-4c51-8e3e-a6fa6c7a3ad1" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillPackageRefusesLinksAndSubmodulesBeforeFetchingBodies" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg&gt;out&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="addf82d2-e9fa-b3bc-bf0d-6860bdbbdefd">
+      <Execution id="7a53e52d-f3a1-4bad-9dbf-44f4b42b914a" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillDocumentThatWouldNotAdvertiseItselfIsRefused(body: &quot;# no frontmatter here\n&quot;, because: &quot;no YAML frontmatter&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="fbe01c38-abf8-9808-64c9-329bb388a434">
+      <Execution id="dbd73f40-041f-4482-8075-128cc7cde5e4" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="ASkillDocumentThatWouldNotAdvertiseItselfIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.TogglingWithoutTheFieldDoesNotSwitchTheSourceOff" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="e5b2a4fd-6a69-0756-7324-de1f1aa527c2">
+      <Execution id="905ed645-801e-4329-bd05-e035f4dba86c" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="TogglingWithoutTheFieldDoesNotSwitchTheSourceOff" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.GitSkillSourceRequiresPublicHttpsPinnedCommit(location: &quot;https://user:secret@github.com/acme/skills/tree/12&quot;···)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="b6e75212-cff8-1a94-1a6f-3c8fd8a65825">
+      <Execution id="2e9e747d-80b6-480a-bfb4-ed33b0692729" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="GitSkillSourceRequiresPublicHttpsPinnedCommit" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.APackageNameThatCannotBeSafeOnACommandLineIsRefused(identifier: &quot;pkg\\path&quot;)" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="f480382e-1a74-55cd-4a67-e1c290dd1f79">
+      <Execution id="c326924f-d5b8-43fa-a06f-c9beadc41618" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="APackageNameThatCannotBeSafeOnACommandLineIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.AnInstallForAProjectInTheWrongWorkspaceIsRefused" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="54b2bc1f-03a5-18fb-5991-96a3ad4bb29c">
+      <Execution id="90169cba-2077-4495-961b-221969c05aee" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="AnInstallForAProjectInTheWrongWorkspaceIsRefused" />
+    </UnitTest>
+    <UnitTest name="TinadecCore.Api.Tests.MarketCatalogApiTests.Refresh_FetchesThroughTheProviderAndStoresWhatItSaw" storage="c:\git\agent\tinadecoffice\tinadeccore\tests\tinadeccore.api.tests\bin\debug\net10.0\tinadeccore.api.tests.dll" id="1c21d963-a96b-e4cf-bf53-138150a03f6b">
+      <Execution id="ca5ad0a9-d425-4074-a87e-ee738a5ac1fd" />
+      <TestMethod codeBase="C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\bin\Debug\net10.0\TinadecCore.Api.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="TinadecCore.Api.Tests.MarketCatalogApiTests" name="Refresh_FetchesThroughTheProviderAndStoresWhatItSaw" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="b69cafa0-1c2d-8f06-9c9a-5335bc9e0795" executionId="c3ae9e3b-3163-46b9-86a5-cf0015b29207" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e32eeeb5-98f5-418b-33bb-a3918c196640" executionId="d7e63082-e36b-457a-af19-ccc0a938a503" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="adcce07c-fce9-b7a5-915d-d70195a5bc14" executionId="d2540607-6079-4d42-be5a-9e40d2676768" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7d18390a-0340-765d-45fc-a43d6789d38f" executionId="8c324e3d-74d7-4fe1-812a-58d7aa52a51a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bd01c0e5-71b6-5776-8941-b9d325cd9a35" executionId="6a879287-8cd7-4a14-85bb-bdb82580e449" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ca240f4d-64e1-4172-18aa-c74a33d7ec27" executionId="039fb40a-cd3b-4649-a772-c1b4b24cedaf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e2a07442-6edc-afb1-e255-96b13ced005d" executionId="ba6a49c5-b5f2-414d-962e-16b1a9dfa37d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8c762713-88c4-4afa-08c2-3e444252f5c5" executionId="0204d555-ec1d-4bfa-a544-03d85189959d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cf42b213-62de-4d0c-09e8-d34d81a580cd" executionId="850d8c12-27ea-4af1-ba32-a31ebb61f776" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a80330e6-d4fb-c2ed-165b-cb78839bec4f" executionId="58dbcfcf-a6ad-4bf5-a6a3-08e22606d45f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="5045ae66-90ef-c1c4-0716-840fc7df1d20" executionId="cc9b454f-709c-4f12-973c-8b4a001e273f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c4fc8818-1007-d924-7604-ab7dc2578fd3" executionId="dc685e1b-7998-48fb-a42b-7941c1bdcb3b" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="29d8f8c5-ffd3-2559-5f6c-75250cce5c9a" executionId="8f49ad7e-53e8-44d9-b502-9d6778a087a9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c54741db-03e9-9a8d-9d14-c800b5fbcf3b" executionId="4b763dc8-373d-4ddd-bd39-25bc41c13057" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9d698b4c-6d11-a24a-e21b-d2f44055a243" executionId="0e98cd41-30c5-48fc-97fb-5f76e394fa57" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="86f3d1d6-cf9c-9e08-9d64-0a225455214a" executionId="e1056417-e583-48c5-b53d-7005cd375003" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="f480382e-1a74-55cd-4a67-e1c290dd1f79" executionId="c326924f-d5b8-43fa-a06f-c9beadc41618" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d306b2ca-db44-9ba4-f61e-8eb8c795b82f" executionId="723b1ac4-db3f-401f-b080-f186844b2305" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d934a314-4503-4f5f-b1de-ed654f3b1d1b" executionId="a8f54bf3-0666-448d-a9d5-4ed6e14390ab" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2f19deca-3cc9-630c-760b-d6ccb6aa9ce3" executionId="0c33af72-42fa-43e1-977d-0195f7323d1d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1c21d963-a96b-e4cf-bf53-138150a03f6b" executionId="ca5ad0a9-d425-4074-a87e-ee738a5ac1fd" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8aab5259-0eb9-ed66-fc3a-a0d41f1ef0a0" executionId="d7613edc-faa2-4933-a7cb-ad3e040508b6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="3fd833d9-ab33-f094-af32-98fc10e0b69f" executionId="509a3647-aa05-445a-a7ea-d0e7346b1518" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b6e75212-cff8-1a94-1a6f-3c8fd8a65825" executionId="2e9e747d-80b6-480a-bfb4-ed33b0692729" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2e7bd3cd-7e5b-6965-7bb6-d49c7435ce8d" executionId="bd805247-e6e2-432b-9b38-1f984e2261f0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="acae3a82-9458-31e3-0834-8e1f6ad8af39" executionId="4102a9d9-f75c-4bc7-83d2-1ba788cf3a0c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="68600c2b-27c7-2f12-07cf-716e44199d93" executionId="5f689fed-e62b-4972-8b90-300a6a35abcc" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="52f7d7c2-a0b4-3086-e4ae-0466761158ef" executionId="c23b17e9-00c4-4d89-82e1-f0098d0da401" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="239b92d8-23de-8d28-d2aa-b8d1994c76b4" executionId="cdec186d-96c2-4c6d-ae85-467f9853cbd8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="62fa0e40-6542-85f7-ec38-dddbae80b040" executionId="95396368-c30e-4c51-8e3e-a6fa6c7a3ad1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4a29fecf-b3fd-80db-f11c-fd36c34244ed" executionId="576f0954-d024-4b6e-b5a9-4eeb3a9c0872" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="01f64296-ea20-4eb0-8e0c-1e2f56490121" executionId="e59059cd-046b-43a3-9f79-c7ca6c5c7311" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="676bf2a3-f4d4-c837-8fb8-b8fbc59a4a6b" executionId="7ebe10b9-7014-4a0c-99c3-6c23aafc91a9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4bff55ee-1e7e-7552-5bc0-e3a665199a96" executionId="16d72c78-f0b7-4339-ad99-7c0d911a7f64" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="bbf1d5ba-0571-96f8-1d9a-9919c0facdd6" executionId="b84c799f-a90e-4ffc-8b2b-714c140dc354" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="6bd3ba62-f8f2-43a7-7b90-5fc064900f9f" executionId="fd42c7a7-7aaf-4147-b7ef-1d40a1a86675" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="548eb4e1-7d77-eac8-4267-83bb5bead6d9" executionId="cd53036a-7331-4a41-ae4f-82d6d4189b59" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="088087db-d81b-9f7b-316a-566643b40872" executionId="41317290-f624-4e3b-ac33-d0cf88f7a03d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0e80e138-ea06-7e0b-5a93-75897b56ed5e" executionId="035bbd9d-8479-4b59-9dc6-27aba2e1b6bb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b85c5d3f-a98d-7fd7-007c-bc816dc452dd" executionId="f38a1967-1682-4d4d-b248-2cca4aeda08c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7d64f284-7174-ce23-eff3-05738a7ec7d5" executionId="2cd170d6-d79b-4fc3-9417-7194406c31af" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="09d7bd0b-877d-4d91-ad35-80b7df928c09" executionId="f940bc4c-b678-40ca-a4e8-228096a92148" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d744dd71-97de-4f64-1de5-a5fd8d907dab" executionId="f6f57347-3d20-4bc5-b92a-de238c1c9a83" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="fbe01c38-abf8-9808-64c9-329bb388a434" executionId="dbd73f40-041f-4482-8075-128cc7cde5e4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="66a4b907-a54f-c319-f33e-56793d201560" executionId="1c0be79b-519c-430d-95be-b8d6cb761ecb" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="705b2212-2563-7800-f881-be3f070054d0" executionId="3190af70-f6c0-44f5-927c-f26d5a308ac4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e5b2a4fd-6a69-0756-7324-de1f1aa527c2" executionId="905ed645-801e-4329-bd05-e035f4dba86c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b24253fb-3b55-22c4-3283-316e994a117d" executionId="20bf5d9d-a6fb-456a-ac2b-d30df9767ee7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="86fce1b1-d4ef-326c-ac0e-b437d4215cb8" executionId="5bd0d6c2-a681-4430-bb78-4b489dabf42a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ee33bd1c-6df8-4b6a-ae67-258e65f9c96f" executionId="e25a2868-ccf6-4eaf-9989-dbb8e7dea963" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="88d5a8d0-e5e1-0a9c-4d61-0b8a410a900b" executionId="71bdd73d-eca9-4213-ab1d-2e12533827bf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9a95b149-e466-c213-0cf9-9f5303944613" executionId="c43376bc-8ef3-4c04-bac9-4b0bba590d7d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="2b6734d4-6da3-44e8-6265-310c0ef456c0" executionId="ee0473a2-ed2b-4355-8b2f-49a83dc44f05" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="95c9ed0a-a8a6-b02b-85c5-d12bf7abc878" executionId="7558ae56-5df1-4a32-84a6-c0334fa52c37" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="b9931d05-3462-e8c1-5f30-49f9c75a1461" executionId="3bfd3146-bcad-4527-80b2-22fa02daa353" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e743b1bb-e7a4-58b2-1473-9654979b89aa" executionId="c4005132-3bc3-436b-a543-c7fa490c0961" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d2cc72ba-6003-17aa-0eb1-9ee2f3ed8a2f" executionId="0897524d-7bd8-44b8-8510-785f181cc9c8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d0898e9a-70ea-5817-4eff-ef08ac2f977a" executionId="a0f27a65-c3ea-4785-afa8-8755c89d2eb9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="618ef196-6588-e5c2-84ae-fabfc443991b" executionId="b3a43617-7303-40fe-b823-5bfa22c719b4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d5927dc7-45d9-6117-d057-b5de24cb774e" executionId="6be45564-4914-4e2f-9089-bf3a97f41707" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="20f1eed2-1269-45ac-5c4f-75dcdb437f83" executionId="89872cbb-f597-43f2-84a7-567bafcc2ea7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="05087bb2-1d8c-3f07-5c83-3016e92c44d5" executionId="f9ae5a31-da02-4915-8ce4-5eb1b5382707" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="23cbcf73-3067-c62c-7702-812fa3f4822f" executionId="846dfc89-f568-42cc-9bf6-b97a78672688" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="aaabfd54-589c-f4a3-68c2-89034292f222" executionId="d984a3f6-2621-4cdd-884a-12074c0bb3f7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="addf82d2-e9fa-b3bc-bf0d-6860bdbbdefd" executionId="7a53e52d-f3a1-4bad-9dbf-44f4b42b914a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0c311e2b-5295-45b5-fb5e-3b0b0fa44cff" executionId="123dd062-b6de-40fe-915d-4351401b0cd3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cac37e84-b3da-f6e4-1c56-3a5d6f6b3cd1" executionId="1de51774-c214-434c-bdaa-2360266aeb5a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dfee6875-df14-e95a-6d8d-f5a128373f8e" executionId="47950717-b841-4b70-8217-14e4a03bb992" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="74cc2021-9431-4a83-d820-1a6e85911ea9" executionId="8f968d65-6f5d-4963-b7db-8c3efa515c9e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="a9e55db6-babc-3328-3ca9-1da6b867ed77" executionId="842b6fdd-d464-4d98-b467-6cbcad2795b5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="35689991-4dbd-b012-2577-d76efb7e8e79" executionId="5bfdf179-23ba-4c2f-8f20-c9c2f23c6ecf" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8f5fc3e6-3e0e-1262-0887-a2744f0f1b90" executionId="af6e56b9-d02c-4023-89da-cc527334c006" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="54b2bc1f-03a5-18fb-5991-96a3ad4bb29c" executionId="90169cba-2077-4495-961b-221969c05aee" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9bb12bdf-1e65-6f5d-12a5-7e2a62f792ed" executionId="91f691ad-b8fa-450e-8cbd-404a43ba9bf7" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="e299f691-09b9-f1b9-86d6-ffc8efe265eb" executionId="1fb09b46-e860-4e59-b4d2-b423d9953177" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="列表中未列出的结果" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="所有已加载的结果" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="75" executed="75" passed="70" failed="5" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.11)&#xD;
+[xUnit.net 00:00:00.19]   Discovering: TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.34]   Discovered:  TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:00.39]   Starting:    TinadecCore.Api.Tests&#xD;
+[xUnit.net 00:00:55.05]       Assert.Equal() Failure: Strings differ&#xD;
+[xUnit.net 00:00:55.05]                      ↓ (pos 3)&#xD;
+[xUnit.net 00:00:55.05]       Expected: "C:\\Users\\lincu\\AppData\\Local\\Temp\\tinadec"···&#xD;
+[xUnit.net 00:00:55.05]       Actual:   "C:\\git\\agent\\TinadecOffice\\TinadecCore\\te"···&#xD;
+[xUnit.net 00:00:55.05]                      ↑ (pos 3)&#xD;
+[xUnit.net 00:00:55.05]       Stack Trace:&#xD;
+[xUnit.net 00:00:55.06]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1040,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks()&#xD;
+[xUnit.net 00:00:55.06]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:35.95]       Assert.Equal() Failure: Strings differ&#xD;
+[xUnit.net 00:01:35.95]                      ↓ (pos 3)&#xD;
+[xUnit.net 00:01:35.95]       Expected: "C:\\Users\\lincu\\AppData\\Local\\Temp\\tinadec"···&#xD;
+[xUnit.net 00:01:35.95]       Actual:   "C:\\git\\agent\\TinadecOffice\\TinadecCore\\te"···&#xD;
+[xUnit.net 00:01:35.95]                      ↑ (pos 3)&#xD;
+[xUnit.net 00:01:35.95]       Stack Trace:&#xD;
+[xUnit.net 00:01:35.95]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1266,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn()&#xD;
+[xUnit.net 00:01:35.95]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:42.65]       Assert.Equal() Failure: Strings differ&#xD;
+[xUnit.net 00:01:42.65]                  ↓ (pos 0)&#xD;
+[xUnit.net 00:01:42.65]       Expected: "sha256:mine"&#xD;
+[xUnit.net 00:01:42.65]       Actual:   "0"&#xD;
+[xUnit.net 00:01:42.65]                  ↑ (pos 0)&#xD;
+[xUnit.net 00:01:42.65]       Stack Trace:&#xD;
+[xUnit.net 00:01:42.65]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1114,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess()&#xD;
+[xUnit.net 00:01:42.65]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:01:50.67]       Assert.Equal() Failure: Strings differ&#xD;
+[xUnit.net 00:01:50.67]                  ↓ (pos 0)&#xD;
+[xUnit.net 00:01:50.67]       Expected: "write_file"&#xD;
+[xUnit.net 00:01:50.67]       Actual:   "skill_resource_update"&#xD;
+[xUnit.net 00:01:50.67]                  ↑ (pos 0)&#xD;
+[xUnit.net 00:01:50.67]       Stack Trace:&#xD;
+[xUnit.net 00:01:50.67]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1073,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever()&#xD;
+[xUnit.net 00:01:50.67]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:02:16.41]       Assert.Contains() Failure: Sub-string not found&#xD;
+[xUnit.net 00:02:16.41]       String:    "The installed Skill resource is unavailab"···&#xD;
+[xUnit.net 00:02:16.41]       Not found: "no delete"&#xD;
+[xUnit.net 00:02:16.41]       Stack Trace:&#xD;
+[xUnit.net 00:02:16.41]         C:\git\agent\TinadecOffice\TinadecCore\tests\TinadecCore.Api.Tests\MarketCatalogApiTests.cs(1163,0): at TinadecCore.Api.Tests.MarketCatalogApiTests.RemovingASkillIsRefusedWithTheSwitchThatActuallyExists()&#xD;
+[xUnit.net 00:02:16.41]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:02:18.22]   Finished:    TinadecCore.Api.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-09T04:02:06.4900069+08:00">
+        <Text>[xUnit.net 00:00:55.05]     TinadecCore.Api.Tests.MarketCatalogApiTests.PreviewingASkillFetchesTheDocumentOnce_AndWritesWhereTheLoaderLooks [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-09T04:02:47.3875506+08:00">
+        <Text>[xUnit.net 00:01:35.95]     TinadecCore.Api.Tests.MarketCatalogApiTests.AnApprovedSkillInstallCreatesTheFolderTheLoaderLooksIn [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-09T04:02:54.0844822+08:00">
+        <Text>[xUnit.net 00:01:42.65]     TinadecCore.Api.Tests.MarketCatalogApiTests.ASkillAlreadyInTheWayIsReplacedOnItsOwnTerms_NotByGuess [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-09T04:03:02.1106880+08:00">
+        <Text>[xUnit.net 00:01:50.67]     TinadecCore.Api.Tests.MarketCatalogApiTests.ApplyingASkillProposalQueuesTheFrozenBytes_AndGoesBackToTheNetworkNever [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="LINSTATION" outcome="Error" timestamp="2026-10-09T04:03:27.8510379+08:00">
+        <Text>[xUnit.net 00:02:16.41]     TinadecCore.Api.Tests.MarketCatalogApiTests.RemovingASkillIsRefusedWithTheSwitchThatActuallyExists [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

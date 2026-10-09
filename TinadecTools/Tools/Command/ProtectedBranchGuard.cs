@@ -1,4 +1,5 @@
 using System.Text;
+using TinadecTools.Runtime;
 
 namespace TinadecTools.Tools.Command;
 
@@ -20,7 +21,9 @@ internal static class ProtectedBranchGuard
     private const string EnvVar = "TINADEC_PROTECTED_BRANCHES";
     private const int MaxRecursionDepth = 3;
 
-    private static readonly HashSet<string> Protected = BuildProtected();
+    private static readonly HashSet<string> BootstrapProtected = BuildProtected();
+    private static HashSet<string> Protected => ToolExecutionContext.Current?.Strings("git", "protected_branches") is { } branches
+        ? new HashSet<string>(branches, StringComparer.OrdinalIgnoreCase) : BootstrapProtected;
 
     private static HashSet<string> BuildProtected()
     {

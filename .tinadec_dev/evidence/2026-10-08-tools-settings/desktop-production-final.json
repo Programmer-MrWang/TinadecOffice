@@ -1,0 +1,165 @@
+{
+  "built_url": "app://bundle/index.html#/settings",
+  "gateway": "http://127.0.0.1:48880",
+  "core": "http://127.0.0.1:48881",
+  "cases": [
+    {
+      "id": 51,
+      "result": {
+        "case": "production-schema-worker",
+        "labels": [
+          "read",
+          "write",
+          "search",
+          "git",
+          "web",
+          "mcp"
+        ],
+        "markers": [],
+        "model": "inmemory://tinadec-tools/cd016349-f132-4188-b8fe-c9f01b205b8d.json",
+        "workerAssets": [],
+        "focus": "native-edit-context",
+        "agent": "e11ad817-d32e-48d8-a91b-5060946d6a45"
+      },
+      "errors": []
+    },
+    {
+      "id": 52,
+      "result": {
+        "case": "production-schema-error-location",
+        "markers": [
+          {
+            "range": {
+              "start": {
+                "line": 1,
+                "character": 27
+              },
+              "end": {
+                "line": 1,
+                "character": 29
+              }
+            },
+            "message": "Value is below the minimum of 1.",
+            "severity": 2
+          }
+        ],
+        "saveDisabled": true,
+        "uiErrors": []
+      },
+      "errors": []
+    },
+    {
+      "id": 54,
+      "result": {
+        "case": "production-schema-completion-popup",
+        "popup": "git\nmcp\nread\nsearch\nshell\nskills\nweb\nwrite",
+        "previousEditorMarkers": [
+          {
+            "message": "Value is below the minimum of 1.",
+            "line": 2,
+            "column": 28
+          }
+        ],
+        "focus": "native-edit-context"
+      },
+      "errors": []
+    },
+    {
+      "id": 57,
+      "result": {
+        "filename": "desktop-production-json-completion.png",
+        "url": "app://bundle/index.html#/settings",
+        "bounds": {
+          "x": 560,
+          "y": 298,
+          "width": 1440,
+          "height": 920
+        }
+      },
+      "errors": []
+    },
+    {
+      "id": 61,
+      "result": {
+        "url": "app://bundle/index.html#/settings",
+        "tabs": 9,
+        "onboarding": true,
+        "tools": "Tools QA Test"
+      },
+      "errors": []
+    },
+    {
+      "id": 62,
+      "result": {
+        "usage": [
+          "来源未声明 · low\n使用智能体：Tools QA Test",
+          "来源未声明 · low\n使用智能体：Tools QA Test",
+          "来源未声明 · low\n使用智能体：Tools QA Test",
+          "来源未声明 · low\n使用智能体：Tools QA Test",
+          "来源未声明 · high\n需要审批\n使用智能体：Tools QA Test",
+          "来源未声明 · high\n需要审批\n使用智能体：Tools QA Test",
+          "来源未声明 · high\n需要审批\n使用智能体：Tools QA Test"
+        ],
+        "onboarding": false
+      },
+      "errors": []
+    },
+    {
+      "id": 64,
+      "result": {
+        "case": "production-project-skill-governed-import",
+        "receipt": "项目技能操作状态：awaiting_user。工具操作 071a948b-84e0-491c-930d-0bc77a4e5de0 的后续处理由 Core 审批状态决定。",
+        "rows": [],
+        "deleteButtons": 0
+      },
+      "errors": []
+    },
+    {
+      "id": 65,
+      "result": {
+        "filename": "desktop-production-skill-action.png",
+        "url": "app://bundle/index.html#/settings",
+        "bounds": {
+          "x": 560,
+          "y": 298,
+          "width": 1440,
+          "height": 920
+        }
+      },
+      "errors": []
+    },
+    {
+      "id": 66,
+      "result": {
+        "case": "production-final-worker",
+        "popup": "",
+        "focus": "native-edit-context"
+      },
+      "errors": []
+    },
+    {
+      "id": 67,
+      "result": {
+        "filename": "desktop-production-final-advanced.png",
+        "url": "app://bundle/index.html#/settings",
+        "bounds": {
+          "x": 560,
+          "y": 298,
+          "width": 1440,
+          "height": 920
+        }
+      },
+      "errors": []
+    },
+    {
+      "id": 68,
+      "result": {
+        "case": "final-production-completion-popup",
+        "popup": "git\nmcp\nread\nsearch\nshell\nskills\nweb\nwrite",
+        "agent": "e11ad817-d32e-48d8-a91b-5060946d6a45"
+      },
+      "errors": []
+    }
+  ],
+  "note": "No application API or component mocks. Worker instrumentation invokes the bundled Monaco API. Project skill import retains Core action status."
+}
