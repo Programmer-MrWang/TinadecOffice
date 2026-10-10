@@ -7,6 +7,7 @@ import { ensureGraphSeedPack } from '@/agentPacks/graphSeedPackBootstrap'
 
 const connection = vi.hoisted(() => ({ state: { value: 'connecting' }, hostStatus: { value: { state: 'checking', managed: true } }, start: vi.fn() }))
 const route = vi.hoisted(() => ({ name: 'home' as string | undefined }))
+const notifications = vi.hoisted(() => ({ error: vi.fn(), dismissByKey: vi.fn() }))
 vi.mock('@/composables/useConnection', () => ({
   useConnection: () => ({ connectionState: connection.state, hostStatus: connection.hostStatus, start: connection.start }),
   retryConnection: vi.fn(), CONNECTION_BANNER_KEY: 'backend',
@@ -20,7 +21,7 @@ vi.mock('@/composables/useBackground', () => ({
   useBackground: () => ({ settings: ref({ type: 'none' }), applyBackground: vi.fn() }),
 }))
 vi.mock('@/composables/useNotifications', () => ({
-  useNotifications: () => ({ status: { error: vi.fn() }, dismissByKey: vi.fn() }),
+  useNotifications: () => ({ status: { error: notifications.error }, dismissByKey: notifications.dismissByKey }),
   startStatusSync: () => vi.fn(),
 }))
 vi.mock('@/agentPacks/graphSeedPackBootstrap', () => ({ ensureGraphSeedPack: vi.fn(), setGraphSeedPackTranslator: vi.fn() }))
@@ -122,6 +123,27 @@ describe('startup handoff', () => {
     connection.state.value = 'host_rejected'
     await nextTick()
     expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+    connection.state.value = 'host_restart_required'
+    await nextTick()
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+  })
+  it('clears backend alerts for a host version mismatch without reporting a backend failure', async () => {
+    const { wrapper, page } = start()
+    connection.state.value = 'host_restart_required'
+    await nextTick()
+    expect(wrapper.find('.page').exists()).toBe(true)
+    expect(notifications.dismissByKey).toHaveBeenLastCalledWith('backend')
+    expect(notifications.error).not.toHaveBeenCalled()
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+    wrapper.findComponent(page).vm.$emit('ready'); await nextTick()
+    const pageElement = wrapper.get('.page').element
+    connection.state.value = 'timeout'; await nextTick()
+    expect(notifications.error).toHaveBeenCalledOnce()
+    notifications.error.mockClear(); notifications.dismissByKey.mockClear()
+    connection.state.value = 'host_restart_required'; await nextTick()
+    expect(notifications.dismissByKey).toHaveBeenCalledWith('backend')
+    expect(notifications.error).not.toHaveBeenCalled()
+    expect(wrapper.get('.page').element).toBe(pageElement)
   })
   it('bootstraps once on authenticated startup and preserves failures across reconnect', async () => {
     start()

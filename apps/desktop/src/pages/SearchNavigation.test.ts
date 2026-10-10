@@ -6,6 +6,7 @@ import { createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import en from '@/locales/en'
 import { refreshSpotlight, searchSpotlight, type SpotlightHost } from '@/lib/spotlight'
+import { setHostAccessStatus } from '@/lib/hostAccess'
 import {
   pendingAgentId, pendingConversationId, pendingModeId, pendingProjectId, pendingPromptId,
   pendingWorkspaceFile, pendingSettingsSection, pendingModelProviderId, pendingToolId,
@@ -79,7 +80,8 @@ beforeEach(() => {
     id, description: 'Read file', requires_approval: false, input_schema: {}, risk: 'low', mutates_workspace: false,
     retry_safety: 'safe', confirmation_fields: [],
   }))), { headers: { 'content-type': 'application/json' } })))
-  Object.defineProperty(window, 'tinadec', { configurable: true, value: { gatewayUrl: () => 'http://127.0.0.1:48730', getAppConfig: vi.fn(async () => ({})) } })
+  Object.defineProperty(window, 'tinadec', { configurable: true, value: { gatewayUrl: () => 'http://127.0.0.1:48730', getAppConfig: vi.fn(async () => ({})), getHostStatus: vi.fn(async () => ({ state: 'ready', managed: true })) } })
+  setHostAccessStatus({ state: 'ready', managed: true })
   mocks.listAgents.mockResolvedValue(['agent-a', 'agent-b'].map(id => ({ id, slug: id, display_name: id, layer: 'execution', role: 'worker', enabled: true, source_kind: 'custom', status: 'published', configured_strategy: {} })))
   mocks.home = { projects: ref([]), sessions: ref([]), busy: ref(false), selectedProjectId: ref(null), selectedSessionId: ref(null) }
   mocks.home.start = vi.fn(() => { mocks.home.busy.value = true })

@@ -1,10 +1,10 @@
 import { computed, ref } from 'vue'
 import { api } from '@/api'
 import { setHostAccessStatus } from '@/lib/hostAccess'
-import type { HostConnectionStatus } from '@/lib/hostConnection'
+import { readHostStatus, retryHostStatus, type HostConnectionStatus } from '@/lib/hostConnection'
 
 /** Public liveness and private host readiness are separate. Only both admit business work. */
-export type ConnectionState = 'connecting' | 'connected' | 'timeout' | 'disconnected' | 'host_unavailable' | 'host_rejected' | 'preview'
+export type ConnectionState = 'connecting' | 'connected' | 'timeout' | 'disconnected' | 'host_unavailable' | 'host_rejected' | 'host_restart_required' | 'preview'
 export const CONNECTION_TIMEOUT_MS = 30_000
 export const CONNECTION_POLL_INTERVAL_MS = 1_500
 export const CONNECTION_BANNER_KEY = 'backend-connection'
@@ -36,17 +36,19 @@ function applyHostStatus(next: HostConnectionStatus) {
   setHostAccessStatus(next)
   if (next.state === 'ready') return
   connectionState.value = next.state === 'preview' ? 'preview'
+    : next.state === 'restart_required' ? 'host_restart_required'
     : next.state === 'rejected' ? 'host_rejected'
     : next.state === 'unavailable' ? 'host_unavailable'
     : connectionState.value === 'connected' ? 'disconnected' : 'connecting'
   if (next.state !== 'checking') {
     clearStartupTimers()
-    if (next.state === 'preview') { clearInterval(watchHandle); watchHandle = undefined }
+    if (next.state === 'preview' || next.state === 'restart_required') { clearInterval(watchHandle); watchHandle = undefined }
     else startHealthWatch()
   }
 }
 function bridge() { return typeof window === 'undefined' ? undefined : window.tinadec }
 function probe(refreshHost = true): Promise<boolean> {
+  if (hostStatus.value.state === 'restart_required') return Promise.resolve(false)
   if (pendingProbe) return pendingProbe
   const epoch = generation
   const revision = hostRevision
@@ -54,8 +56,7 @@ function probe(refreshHost = true): Promise<boolean> {
     try {
       const host = bridge()
       if (refreshHost) {
-        const next: HostConnectionStatus = host?.getHostStatus
-          ? await host.getHostStatus() : { state: 'preview', managed: false }
+        const next = await readHostStatus(host)
         if (epoch !== generation) return false
         // A newer main-process event outranks an older IPC read.
         if (revision === hostRevision) applyHostStatus(next)
@@ -78,20 +79,23 @@ function startHealthWatch() {
   watchHandle = setInterval(() => { void probe() }, CONNECTION_POLL_INTERVAL_MS * 4)
 }
 export function retryConnection(): Promise<boolean> {
+  if (hostStatus.value.state === 'restart_required') return Promise.resolve(false)
   if (pendingRetry) return pendingRetry
   const epoch = generation
+  const revision = hostRevision
   pendingRetry = (async () => {
     try {
       const host = bridge()
-      if (!host?.retryHostConnection) { applyHostStatus({ state: 'preview', managed: false }); return false }
-      const next = await host.retryHostConnection()
+      const next = await retryHostStatus(host)
       if (epoch !== generation) return false
-      applyHostStatus(next)
+      // A main-process event published during retry is newer than its IPC receipt.
+      if (revision === hostRevision) applyHostStatus(next)
+      if (hostStatus.value.state !== 'ready') return false
       // An older public probe must settle before the explicit authenticated retry.
       if (pendingProbe) await pendingProbe
       return await probe(false)
     } catch {
-      if (epoch === generation) applyHostStatus({ state: 'unavailable', managed: true,
+      if (epoch === generation && revision === hostRevision) applyHostStatus({ state: 'unavailable', managed: true,
         error: { code: 'host_connection_unavailable', message: 'The host connection could not be checked. Retry the desktop host.' } })
       return false
     }

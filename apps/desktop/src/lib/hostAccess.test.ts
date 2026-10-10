@@ -5,6 +5,29 @@ const original = window.tinadec
 const ready = { state: 'ready' as const, managed: true }
 afterEach(() => { Object.defineProperty(window, 'tinadec', { configurable: true, value: original }); setHostAccessStatus(ready) })
 describe('host business admission', () => {
+  it('revokes access on IPC mismatch and never repeats the missing call for business requests', async () => {
+    setHostAccessStatus(ready)
+    const getHostStatus = vi.fn().mockRejectedValue(new Error("Error invoking remote method 'tinadec:host-status': Error: No handler registered for 'tinadec:host-status'"))
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus } })
+    await expect(assertHostAccess('/api/v1/readiness')).rejects.toMatchObject({ code: 'desktop_restart_required', category: 'environment_unavailable', retryable: false, actions: [] })
+    expect(useHostAccess().status.value?.state).toBe('restart_required')
+    expect(useHostAccess().canAccessBackend.value).toBe(false)
+    await expect(assertHostAccess('/api/v1/projects')).rejects.toMatchObject({ code: 'desktop_restart_required' })
+    expect(getHostStatus).toHaveBeenCalledTimes(1)
+  })
+  it('fails closed for an old preload with no host-status method', async () => {
+    setHostAccessStatus(ready)
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { gatewayUrl: () => 'http://127.0.0.1:48730' } })
+    await expect(assertHostAccess('/api/v1/projects')).rejects.toMatchObject({ code: 'desktop_restart_required' })
+    expect(useHostAccess().canAccessBackend.value).toBe(false)
+  })
+  it('revokes on other IPC failures without classifying them as a backend or version failure', async () => {
+    setHostAccessStatus(ready)
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus: async () => { throw new Error('private-error-value') } } })
+    await expect(assertHostAccess('/api/v1/projects')).rejects.toMatchObject({ code: 'host_bridge_unavailable', actions: ['retry'] })
+    expect(useHostAccess().canAccessBackend.value).toBe(false)
+    expect(useHostAccess().reason.value).not.toContain('private-error-value')
+  })
   it('permits public probes while refusing business access in preview', async () => {
     const getHostStatus = vi.fn(async () => ({ state: 'preview' as const, managed: false }))
     Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus } })

@@ -101,6 +101,7 @@ vi.mock('@/composables/useAgentActivity', () => ({
 
 import { homeController } from './HomeController'
 import { setHostAccessStatus } from '@/lib/hostAccess'
+import { ApiError } from '@/lib/apiError'
 import * as durableStream from '@/lib/runStream'
 
 function seedProject(): void {
@@ -739,6 +740,28 @@ describe('HomeController initial load', () => {
 })
 
 describe('HomeController independent storage scopes', () => {
+  it('leaves local IPC recovery to the host banner without three backend-load notifications', async () => {
+    homeController.start()
+    await flushPromises()
+    setHostAccessStatus({ state: 'unavailable', managed: true })
+    await nextTick()
+    h.bannerError.mockClear()
+    h.dismissByKey.mockClear()
+    const unavailable = new ApiError('Restart desktop', 503, { code: 'desktop_restart_required', category: 'environment_unavailable', retryable: false, actions: [] })
+    h.listProjects.mockRejectedValueOnce(unavailable)
+    h.doctor.mockRejectedValueOnce(unavailable)
+    h.readiness.mockRejectedValueOnce(unavailable)
+    setHostAccessStatus({ state: 'ready', managed: true })
+    await flushPromises()
+    expect(h.bannerError).not.toHaveBeenCalled()
+    for (const key of ['home-load', 'home-doctor', 'home-readiness']) expect(h.dismissByKey).toHaveBeenCalledWith(key)
+    h.dismissByKey.mockClear()
+    setHostAccessStatus({ state: 'restart_required', managed: true, error: { code: 'desktop_restart_required', message: 'Restart desktop' } })
+    await nextTick()
+    for (const key of ['home-load', 'home-doctor', 'home-readiness']) expect(h.dismissByKey).toHaveBeenCalledWith(key)
+    setHostAccessStatus({ state: 'ready', managed: true })
+    await flushPromises()
+  })
   it('keeps workspace data when diagnostics fail during a read-only host recovery', async () => {
     setHostAccessStatus({ state: 'unavailable', managed: true })
     await nextTick()

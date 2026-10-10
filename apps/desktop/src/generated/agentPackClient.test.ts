@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { generatedApi } from './client'
 import { setHostAccessStatus } from '@/lib/hostAccess'
+import { ApiError } from '@/lib/apiError'
 const originalBridge = window.tinadec
 import { GRAPH_SEED_PACK_ID, graphSeedPackEnvelope } from '@/agentPacks/GraphSeedPack'
 
@@ -13,6 +14,24 @@ afterEach(() => {
 })
 
 describe('generated agent pack client', () => {
+  it.each(['ordinary', 'installation'] as const)('preserves and caches a missing host IPC contract starting with an %s request', async first => {
+    setHostAccessStatus({ state: 'ready', managed: true })
+    const getHostStatus = vi.fn().mockRejectedValue(new Error("Error invoking remote method 'tinadec:host-status': Error: No handler registered for 'tinadec:host-status'"))
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus } })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const ordinary = () => generatedApi.listAgentPacks()
+    const installation = () => generatedApi.installAgentPack('pack', { preview_id: 'preview', envelope: graphSeedPackEnvelope }, { idempotency_key: 'host-contract-test' })
+    const operations = first === 'ordinary' ? [ordinary, installation] : [installation, ordinary]
+    for (const operation of [...operations, () => generatedApi.getAgentPack('pack'), ...operations]) {
+      const error = await operation().catch((reason: unknown) => reason)
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ code: 'desktop_restart_required', status: 503, category: 'environment_unavailable', retryable: false, actions: [] })
+      expect((error as Error).message).not.toContain('Cannot connect to backend')
+    }
+    expect(getHostStatus).toHaveBeenCalledOnce()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
   it('blocks ETag reads and installation requests before fetch in preview', async () => {
     Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus: async () => ({ state: 'preview', managed: false }) } })
     const fetchMock = vi.fn()

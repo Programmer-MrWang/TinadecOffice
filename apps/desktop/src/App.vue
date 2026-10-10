@@ -75,7 +75,7 @@ watch(connectionState, (state) => {
     }
     return
   }
-  if (state === 'host_unavailable' || state === 'host_rejected') { dismissByKey(CONNECTION_BANNER_KEY); return }
+  if (state === 'host_unavailable' || state === 'host_rejected' || state === 'host_restart_required') { dismissByKey(CONNECTION_BANNER_KEY); return }
   if (state === 'preview') { dismissByKey(CONNECTION_BANNER_KEY); return }
   if (state === 'timeout') {
     status.error({

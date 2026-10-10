@@ -3,6 +3,8 @@
 import { describe, expect, it, afterEach, vi } from 'vitest'
 vi.mock('@/lib/scopedEventSource', () => ({ ScopedEventSource: class { constructor(url: string) { return new EventSource(url) } } }))
 import { api, normalizeEventEnvelope, type EventEnvelope, type ModelStreamChunkDto } from './api'
+import { ApiError } from '@/lib/apiError'
+import { setHostAccessStatus } from '@/lib/hostAccess'
 import type {
   ApprovalGateDto, ApprovalGatesDto, EvidenceHitDto, EvidenceRecallDto,
   EnvironmentDto, EnvironmentHolderDto, EnvironmentRegisterInput, EnvironmentUpdateInput,
@@ -456,6 +458,32 @@ describe('session organization requests', () => {
       true satisfies SameKeys<EnvironmentUpdateInput, C['EnvironmentUpdateRequest']>,
     ]
     expect(mirrors).toHaveLength(24)
+  })
+})
+
+describe('request host contract failures', () => {
+  const originalBridge = window.tinadec
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: originalBridge })
+    setHostAccessStatus({ state: 'ready', managed: true })
+  })
+
+  it('preserves a missing host IPC contract as a cached restart requirement before fetch', async () => {
+    setHostAccessStatus({ state: 'ready', managed: true })
+    const getHostStatus = vi.fn().mockRejectedValue(new Error("Error invoking remote method 'tinadec:host-status': Error: No handler registered for 'tinadec:host-status'"))
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus } })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const error = await api.readiness().catch((reason: unknown) => reason)
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error).toMatchObject({ code: 'desktop_restart_required', status: 503, category: 'environment_unavailable', retryable: false, actions: [] })
+      expect((error as Error).message).not.toContain('Cannot connect to backend')
+    }
+    expect(getHostStatus).toHaveBeenCalledOnce()
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })
 

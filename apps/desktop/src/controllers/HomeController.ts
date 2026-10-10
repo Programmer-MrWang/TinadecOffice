@@ -273,6 +273,10 @@ async function loadInitial() {
   busy.value = true
   const failure = (reason: unknown, key: string, title: string) => {
     if (read !== initialRead || isAbortError(reason)) return
+    if (reason instanceof ApiError && (reason.code === 'desktop_restart_required' || reason.code === 'host_bridge_unavailable')) {
+      dismissByKey(key)
+      return // The shared host banner owns recovery; these reads never reached the backend.
+    }
     const error = toErrorState(reason, '加载失败')
     banner.error({ key, title, message: error.message, details: [error.details, error.traceId ? 'trace_id: ' + error.traceId : ''].filter(Boolean).join('\n'), action: { label: '重试', run: () => loadInitial() } })
   }
@@ -1220,7 +1224,7 @@ watch([selectedSessionId, selectedStorage], ([, storageId], [, previousStorage])
 
 /** Start the controller's data pipeline (idempotent). */
 let started = false
-const { canAccessBackend } = useHostAccess()
+const { canAccessBackend, status: hostAccessStatus } = useHostAccess()
 let recoveryRead = 0
 watch(canAccessBackend, ready => {
   if (!started) return
@@ -1233,6 +1237,9 @@ watch(canAccessBackend, ready => {
       if (recovery === recoveryRead && canAccessBackend.value && currentSession.value && selectionKey(currentSession.value) === key) followSession(key)
     }).catch(error => { if (recovery === recoveryRead && !isAbortError(error)) notify.error(error, { title: '会话恢复失败' }) })
     return
+  }
+  if (hostAccessStatus.value?.error?.code === 'desktop_restart_required' || hostAccessStatus.value?.error?.code === 'host_bridge_unavailable') {
+    for (const key of ['home-load', 'home-doctor', 'home-readiness']) dismissByKey(key)
   }
   initialRead++; sessionListRead++; sessionListAbort?.abort(); sessionLoadAbort?.abort()
   for (const stream of runStreams.values()) stream.disconnect()
