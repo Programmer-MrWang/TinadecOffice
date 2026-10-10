@@ -46,6 +46,11 @@ public static class TinadecCoreHttpExtensions
             };
         });
 
+        // Register before the framework writer, including in a host that already
+        // registered AddProblemDetails: its default writer replaces an explicit trace.
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(IProblemDetailsWriter) &&
+                descriptor.ImplementationType == typeof(TracePreservingProblemDetailsWriter)))
+            services.Insert(0, ServiceDescriptor.Singleton<IProblemDetailsWriter, TracePreservingProblemDetailsWriter>());
         services.AddProblemDetails(options =>
         {
             options.CustomizeProblemDetails = context =>
@@ -73,7 +78,6 @@ public static class TinadecCoreHttpExtensions
                         _ => "request_failed",
                     };
                     problem.Extensions["code"] = code;
-                    AddClassification(problem, code, problem.Status ?? StatusCodes.Status500InternalServerError);
                     problem.Type = $"https://tinadec.dev/errors/{code}";
                     problem.Title = code;
                     problem.Detail ??= code switch
@@ -88,7 +92,8 @@ public static class TinadecCoreHttpExtensions
                         _ => "The request was rejected.",
                     };
                 }
-                problem.Extensions["trace_id"] = context.HttpContext.TraceIdentifier;
+                AddClassification(problem, problem.Extensions["code"]?.ToString(), problem.Status ?? StatusCodes.Status500InternalServerError);
+                problem.Extensions.TryAdd("trace_id", context.HttpContext.TraceIdentifier);
             };
         });
 
@@ -114,7 +119,7 @@ public static class TinadecCoreHttpExtensions
                 var (status, code, detail) = exception switch
                 {
                     TinadecCore.Abstractions.Ports.ConfigurationDocumentException configuration =>
-                        (configuration.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400, configuration.Code, configuration.Message),
+                        (configuration.Code == "workspace_authorization_required" ? 403 : configuration.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400, configuration.Code, configuration.Message),
                     TinadecCore.Abstractions.Ports.ToolSettingsException toolSettings => (toolSettings.StatusCode, toolSettings.Code, toolSettings.Message),
                     TinadecCore.Abstractions.Ports.TinaChatException chat => (chat.StatusCode, chat.Code, chat.Message),
                     TinadecCore.AgentConfiguration.AgentPackDomainException ape => (ape.StatusCode, ape.Code, ape.Message),
@@ -168,8 +173,8 @@ public static class TinadecCoreHttpExtensions
     internal static void AddClassification(ProblemDetails problem, string? code, int status)
     {
         var classification = ErrorClassification.Classify(code, status);
-        problem.Extensions["category"] = classification.Category;
-        problem.Extensions["retryable"] = classification.Retryable;
-        problem.Extensions["actions"] = classification.Actions;
+        problem.Extensions.TryAdd("category", classification.Category);
+        problem.Extensions.TryAdd("retryable", classification.Retryable);
+        problem.Extensions.TryAdd("actions", classification.Actions);
     }
 }

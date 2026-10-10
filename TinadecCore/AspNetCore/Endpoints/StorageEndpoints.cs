@@ -31,13 +31,14 @@ public static class StorageEndpoints
                         var workspace = (registry as IWorkspaceRegistry)?.ReadWorkspace(scope.StorageId);
                         projects.AddRange((await lease.Services.GetRequiredService<ProjectSessionStore>().ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, scope.StorageId, workspace, scope)));
                     }
-                    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException or DirectoryNotFoundException or Tomlyn.TomlException or ConfigurationDocumentException)
+                    catch (Exception ex) when (!ct.IsCancellationRequested && StorageScopeRowError.CanRepresent(ex))
                     {
                         // A scope that cannot mount is still listed: a workspace the person can see and act on
                         // beats one that silently disappears. The row carries the same classification contract as
                         // an error response, so the client can offer the same recovery actions here and in a toast.
+                        var failure = StorageScopeRowError.From(http, ex);
                         if (selected == TinadecCore.Memory.LifecycleStatuses.Active)
-                            projects.Add(UnavailableProject(scope, ex));
+                            projects.Add(UnavailableProject(scope, failure));
                     }
                 }
                 return Results.Ok(projects);
@@ -486,21 +487,16 @@ public static class StorageEndpoints
     /// needs one row shape, and names the reason on the error contract instead of leaking a raw
     /// exception string that has no category and no recovery path.
     /// </summary>
-    private static object UnavailableProject(StorageScopeDescriptor scope, Exception error)
+    private static object UnavailableProject(StorageScopeDescriptor scope, StorageScopeRowError error) => new
     {
-        var code = error is TinadecCore.Abstractions.Ports.ConfigurationDocumentException document
-            ? document.Code
-            : "storage_scope_unavailable";
-        var classification = ErrorClassification.Classify(code, 409);
-        return new
-        {
-            id = scope.ProjectId, storage_id = scope.StorageId, name = Path.GetFileName(scope.ProjectRoot), path = scope.ProjectRoot,
-            kind = "local", lifecycle_status = "active", created_at = DateTimeOffset.UnixEpoch, updated_at = DateTimeOffset.UnixEpoch,
-            storage_root = scope.Root, external = scope.External,
-            availability = "error", availability_error = error.Message, availability_code = code,
-            category = classification.Category, retryable = classification.Retryable, actions = classification.Actions,
-        };
-    }
+        id = scope.ProjectId, storage_id = scope.StorageId, name = Path.GetFileName(scope.ProjectRoot), path = scope.ProjectRoot,
+        // A mount failure cannot tell us the persisted lifecycle. Never invent an active record.
+        kind = "local", lifecycle_status = (string?)null, created_at = DateTimeOffset.UnixEpoch, updated_at = DateTimeOffset.UnixEpoch,
+        storage_root = scope.Root, external = scope.External,
+        availability = "error", availability_error = error.Message, availability_code = error.Code,
+        category = error.Classification.Category, retryable = error.Classification.Retryable, actions = error.Classification.Actions,
+        trace_id = error.TraceId, diagnostics = error.Diagnostics,
+    };
 
     private static object ToProject(ProjectRecord project, string? storageId = null, WorkspaceDefinition? workspace = null, StorageScopeDescriptor? scope = null) => new {
         id = project.Id, storage_id = storageId, name = workspace?.Name ?? project.Name, path = workspace?.PrimaryPath ?? project.RootPath,

@@ -61,6 +61,10 @@ public static class ErrorClassification
                 [ActionKind.UnregisterWorkspace, ActionKind.Retry, ActionKind.OpenStorageSettings]),
 
             "storage_scope_not_found" => new(UserActionRequired, false, [ActionKind.Reload, ActionKind.OpenStorageSettings]),
+            "storage_access_denied" => new(EnvironmentUnavailable, false, [ActionKind.OpenStorageSettings]),
+            "storage_io_error" or "storage_timeout" => new(EnvironmentUnavailable, true, [ActionKind.Retry, ActionKind.OpenStorageSettings]),
+            "storage_database_error" => new(Internal, true, [ActionKind.Retry, ActionKind.OpenStorageSettings]),
+            "storage_database_conflict" => new(Retryable, true, [ActionKind.Reload]),
             "workspace_authorization_required" => new(UserActionRequired, false, [ActionKind.OpenStorageSettings]),
             "workspace_root_not_registered" or "workspace_root_required" or "workspace_root_unavailable"
                 => new(UserActionRequired, false, [ActionKind.ChooseFolder]),

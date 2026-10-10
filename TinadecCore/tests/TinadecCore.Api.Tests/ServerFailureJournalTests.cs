@@ -1,6 +1,10 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
+using TinadecCore.Abstractions.Ports;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
@@ -80,6 +84,35 @@ public sealed class ServerFailureJournalTests
     }
 
     [Fact]
+    public async Task AnExplicitProblemCodeReceivesClassificationAndKeepsDomainDiagnostics()
+    {
+        await using var host = await ThrowingHost.StartAsync();
+        var response = await host.Client.GetAsync("/problem-coded");
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("configuration_conflict", problem.GetProperty("code").GetString());
+        Assert.Equal("retryable", problem.GetProperty("category").GetString());
+        Assert.True(problem.GetProperty("retryable").GetBoolean());
+        Assert.Contains("reload", problem.GetProperty("actions").EnumerateArray().Select(row => row.GetString()));
+        Assert.Equal("domain_conflict", problem.GetProperty("diagnostics")[0].GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("trace_id").GetString()));
+    }
+
+    [Fact]
+    public async Task AnExplicitProblemClassificationAndTraceAreNotOverwritten()
+    {
+        await using var host = await ThrowingHost.StartAsync();
+        var response = await host.Client.GetAsync("/problem-custom");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("configuration_invalid", problem.GetProperty("code").GetString());
+        Assert.Equal("environment_unavailable", problem.GetProperty("category").GetString());
+        Assert.False(problem.GetProperty("retryable").GetBoolean());
+        Assert.Equal(new[] { "choose_folder" }, problem.GetProperty("actions").EnumerateArray().Select(row => row.GetString()).ToArray());
+        Assert.Equal("origin-trace", problem.GetProperty("trace_id").GetString());
+    }
+
+    [Fact]
     public void TheRingKeepsTheRecentFailuresAndDropsTheOldest()
     {
         var journal = new ServerFailureJournal();
@@ -151,6 +184,13 @@ public sealed class ServerFailureJournalTests
             Action missing = () => throw new KeyNotFoundException("no such run");
             app.MapGet("/boom", boom);
             app.MapGet("/missing", missing);
+            app.MapGet("/problem-coded", () => Results.Problem(statusCode: 412, title: "configuration_conflict",
+                extensions: new Dictionary<string, object?> { ["code"] = "configuration_conflict",
+                    ["diagnostics"] = new[] { new ConfigurationDiagnostic("domain_conflict", "The source changed.") } }));
+            app.MapGet("/problem-custom", () => Results.Problem(statusCode: 400, title: "configuration_invalid",
+                extensions: new Dictionary<string, object?> { ["code"] = "configuration_invalid",
+                    ["category"] = "environment_unavailable", ["retryable"] = false,
+                    ["actions"] = new[] { "choose_folder" }, ["trace_id"] = "origin-trace" }));
             await app.StartAsync();
             return new ThrowingHost(app, ClientFor(app), app.Services.GetRequiredService<ServerFailureJournal>());
         }

@@ -415,8 +415,10 @@ public sealed partial class StorageScopeRegistry : IStorageScopeRegistry, IWorks
             await provider.GetRequiredService<IStorageMigrationRunner>().RunAsync().ConfigureAwait(false);
             await provider.GetRequiredService<IConfigurationProjectionCoordinator>().ReconcileAsync().ConfigureAwait(false);
             var store = provider.GetRequiredService<ProjectSessionStore>();
-            var projects = await store.ListProjectsAsync().ConfigureAwait(false);
-            if (!projects.Any(x => x.Id == scope.ProjectId))
+            // Lifecycle status does not decide whether the scope already owns its project.
+            // Archived and trashed projects retain their identity and must remain mountable.
+            var project = await store.GetProjectAnyStatusAsync(scope.ProjectId!.Value).ConfigureAwait(false);
+            if (project is null)
                 await store.CreateProjectAsync(workspace.Name, workspace.PrimaryPath, stableProjectId: scope.ProjectId).ConfigureAwait(false);
             else await store.RebindProjectRootAsync(scope.ProjectId!.Value, workspace.PrimaryPath).ConfigureAwait(false);
             // Opening imported data does not authorize a recovered mutation. Recovery retains the existing approval gates.

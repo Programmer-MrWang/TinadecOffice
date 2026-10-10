@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using TinadecCore.Abstractions.Ports;
 using TinadecCore.Runtime;
 
@@ -7,10 +8,16 @@ public static class StorageScopeEndpoints
 {
     public static IEndpointRouteBuilder MapStorageScopeEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/v1/storage/scopes", async (IStorageScopeRegistry registry, CancellationToken ct) =>
+        app.MapGet("/api/v1/storage/scopes", async (IStorageScopeRegistry registry, HttpContext http, CancellationToken ct) =>
         {
             var list = new List<object>();
-            foreach (var scope in registry.List()) list.Add(await ToDtoAsync(scope, registry, ct).ConfigureAwait(false));
+            foreach (var scope in registry.List())
+            {
+                ct.ThrowIfCancellationRequested();
+                try { list.Add(await ToDtoAsync(scope, registry, ct, requireAvailable: true).ConfigureAwait(false)); }
+                catch (Exception error) when (!ct.IsCancellationRequested && StorageScopeRowError.CanRepresent(error))
+                { list.Add(ToDto(scope, registry, null, StorageScopeRowError.From(http, error))); }
+            }
             return Results.Ok(list);
         });
         app.MapPost("/api/v1/storage/scopes/open", async (OpenScopeRequest request, IStorageScopeRegistry registry, CancellationToken ct) =>
@@ -57,10 +64,11 @@ public static class StorageScopeEndpoints
             await HandleAsync(async () => { await registry.CloseAsync(storageId, ct).ConfigureAwait(false); return Results.NoContent(); }));
         app.MapDelete("/api/v1/storage/scopes/{storageId}", async (string storageId, IStorageScopeRegistry registry, CancellationToken ct) =>
             await HandleAsync(async () => { await registry.UnregisterAsync(storageId, ct).ConfigureAwait(false); return Results.NoContent(); }));
-        app.MapPost("/api/v1/storage/scopes/{storageId}/configure", async (string storageId, ConfigureScopeRequest request, IStorageScopeRegistry registry, CancellationToken ct) =>
+        app.MapPost("/api/v1/storage/scopes/{storageId}/configure", async (string storageId, ConfigureScopeRequest request, IStorageScopeRegistry registry, HttpContext http, CancellationToken ct) =>
             await HandleAsync(async () => {
                 var scope = await registry.ConfigureAsync(storageId, request.Backend, request.StorageRoot, request.PostgresConnectionReference, ct).ConfigureAwait(false);
-                var dto = System.Text.Json.JsonSerializer.SerializeToNode(await ToDtoAsync(scope, registry, ct).ConfigureAwait(false))!;
+                var dto = System.Text.Json.JsonSerializer.SerializeToNode(await ToDtoAsync(scope, registry, ct).ConfigureAwait(false),
+                    http.RequestServices.GetRequiredService<Microsoft.Extensions.Options.IOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>>().Value.SerializerOptions)!;
                 if (storageId == "user") { dto["restart_required"] = true; dto["requested_storage_root"] = request.StorageRoot ?? scope.Root; }
                 return Results.Ok(dto);
             }));
@@ -97,16 +105,34 @@ public static class StorageScopeEndpoints
         return app;
     }
 
-    internal static Task<object> ToDtoAsync(StorageScopeDescriptor scope, IStorageScopeRegistry registry, CancellationToken ct)
+    internal static Task<object> ToDtoAsync(StorageScopeDescriptor scope, IStorageScopeRegistry registry, CancellationToken ct,
+        bool requireAvailable = false)
     {
-        var workspace = scope.ScopeKind == "project" && registry is IWorkspaceRegistry workspaces ? workspaces.ReadWorkspace(scope.StorageId) : null;
-        return Task.FromResult<object>(new { storage_id = scope.StorageId, scope_kind = scope.ScopeKind, project_id = scope.ProjectId, project_root = scope.ProjectRoot,
-            workspace,
-            storage_root = scope.Root, backend = scope.Backend, external = scope.External, postgres_connection_reference = scope.PostgresConnectionReference,
-            allow_storage_write = registry.GetWritePolicy(scope.StorageId),
-            paths = new { config = scope.Config, skills = scope.Skills, packages = scope.Packages, data = scope.Data, state = scope.State,
-                logs = scope.Logs, cache = scope.Cache, temp = scope.Temp, worktrees = scope.Worktrees } });
+        ct.ThrowIfCancellationRequested();
+        if (requireAvailable && scope.ScopeKind == "project" && !Directory.Exists(scope.ProjectRoot))
+            throw new DirectoryNotFoundException("The registered project directory is unavailable.");
+        var workspace = scope.ScopeKind == "project" && registry is IWorkspaceRegistry workspaces
+            ? workspaces.ReadWorkspace(scope.StorageId, requireAvailable) : null;
+        return Task.FromResult<object>(ToDto(scope, registry, workspace));
     }
+
+    private static ScopeDto ToDto(StorageScopeDescriptor scope, IStorageScopeRegistry registry,
+        WorkspaceDefinition? workspace, StorageScopeRowError? error = null) => new(
+        scope.StorageId, scope.ScopeKind, scope.ProjectId, scope.ProjectRoot, workspace,
+        scope.Root, scope.Backend, scope.External, scope.PostgresConnectionReference,
+        error is null && registry.GetWritePolicy(scope.StorageId),
+        new { config = scope.Config, skills = scope.Skills, packages = scope.Packages, data = scope.Data, state = scope.State,
+            logs = scope.Logs, cache = scope.Cache, temp = scope.Temp, worktrees = scope.Worktrees },
+        error is null ? "ready" : "error", error?.Message, error?.Code, error?.Classification.Category,
+        error?.Classification.Retryable, error?.Classification.Actions, error?.TraceId, error?.Diagnostics);
+
+    private sealed record ScopeDto(
+        string StorageId, string ScopeKind, Guid? ProjectId, string? ProjectRoot,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.Never)] WorkspaceDefinition? Workspace,
+        string StorageRoot, string Backend, bool External, string? PostgresConnectionReference,
+        bool AllowStorageWrite, object Paths, string Availability,
+        string? AvailabilityError, string? AvailabilityCode, string? Category, bool? Retryable,
+        IReadOnlyList<string>? Actions, string? TraceId, IReadOnlyList<ConfigurationDiagnostic>? Diagnostics);
 
     private static object DocumentDto(ScopeConfigurationDocument d) => new { document_id = d.Id, path = d.Path, text = d.Text,
         content_hash = d.ContentHash, diagnostics = d.Diagnostics, version = d.Version };
@@ -115,11 +141,20 @@ public static class StorageScopeEndpoints
         try { return await action().ConfigureAwait(false); }
         catch (ConfigurationDocumentException ex) { return Results.Problem(statusCode: ex.Code == "workspace_authorization_required" ? 403 : ex.Code.Contains("conflict", StringComparison.Ordinal) ? 412 : 400,
             title: ex.Code, detail: ex.Message, extensions: new Dictionary<string, object?> { ["code"] = ex.Code, ["diagnostics"] = ex.Diagnostics }); }
-        catch (KeyNotFoundException ex) { return Results.Problem(statusCode: 404, title: "storage_scope_not_found", detail: ex.Message); }
-        catch (ArgumentException ex) { return Results.Problem(statusCode: 400, title: "invalid_storage_request", detail: ex.Message); }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or FormatException or Tomlyn.TomlException)
-        { return Results.Problem(statusCode: 409, title: "storage_conflict", detail: ex.Message); }
+        catch (KeyNotFoundException ex) { return Problem(404, "storage_scope_not_found", ex.Message); }
+        catch (ArgumentException ex) { return Problem(400, "invalid_storage_request", ex.Message); }
+        catch (DirectoryNotFoundException ex) { return Problem(409, "storage_scope_unavailable", ex.Message); }
+        catch (FileNotFoundException ex) { return Problem(409, "configuration_missing", ex.Message); }
+        catch (UnauthorizedAccessException ex) { return Problem(403, "storage_access_denied", ex.Message); }
+        catch (Exception ex) when (ex is InvalidDataException or FormatException or Tomlyn.TomlException)
+        { return Problem(409, "configuration_invalid", ex.Message); }
+        catch (IOException ex) { return Problem(409, "storage_io_error", ex.Message); }
+        catch (InvalidOperationException ex) { return Problem(409, "storage_conflict", ex.Message); }
     }
+
+    private static IResult Problem(int status, string code, string message) => Results.Problem(
+        statusCode: status, title: code, detail: message,
+        extensions: new Dictionary<string, object?> { ["code"] = code });
 
     public sealed record OpenScopeRequest(string ProjectPath, string? Name = null, string? Backend = null, string? StorageRoot = null, string? PostgresConnectionReference = null,
         IReadOnlyList<WorkspaceSourceRoot>? Roots = null, string? PrimaryRootId = null, string Icon = "folder", string Color = "default");

@@ -135,7 +135,17 @@ public sealed class StorageScopeApiTests : IAsyncLifetime
         await File.WriteAllTextAsync(Path.Combine(storage, "project.toml"), "schema_version = [broken");
         var corrupt = await client.PostAsJsonAsync("/api/v1/storage/scopes/open", new { project_path = path });
         Assert.Equal(HttpStatusCode.Conflict, corrupt.StatusCode);
+        var corruptProblem = await corrupt.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("configuration_invalid", corruptProblem.GetProperty("code").GetString());
+        Assert.Equal("user_action_required", corruptProblem.GetProperty("category").GetString());
+        Assert.Contains("open_settings", corruptProblem.GetProperty("actions").EnumerateArray().Select(action => action.GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(corruptProblem.GetProperty("trace_id").GetString()));
         Assert.Equal("schema_version = [broken", await File.ReadAllTextAsync(Path.Combine(storage, "project.toml")));
+        var missing = await client.PostAsJsonAsync("/api/v1/storage/scopes/preview", new { project_path = Path.Combine(_root, "missing") });
+        Assert.Equal(HttpStatusCode.Conflict, missing.StatusCode);
+        var missingProblem = await missing.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("storage_scope_unavailable", missingProblem.GetProperty("code").GetString());
+        Assert.Equal("environment_unavailable", missingProblem.GetProperty("category").GetString());
     }
 
     [Fact]
@@ -280,6 +290,94 @@ public sealed class StorageScopeApiTests : IAsyncLifetime
         Assert.Contains("open_storage_settings", actions);
         // Correlation must survive so a person can quote it in a bug report.
         Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("trace_id").GetString()));
+    }
+
+    [Fact]
+    public async Task ScopeListingIsolatesMissingCorruptAndUnauthorizedWorkspacesAndKeepsDatabaseFailuresDistinct()
+    {
+        using var client = _factory!.CreateClient();
+        var healthy = await OpenAsync(client, "healthy-listing");
+        var damaged = await OpenAsync(client, "damaged-listing");
+        var missing = await OpenAsync(client, "missing-listing");
+        var healthyId = healthy.GetProperty("storage_id").GetString()!;
+        var damagedId = damaged.GetProperty("storage_id").GetString()!;
+        var missingId = missing.GetProperty("storage_id").GetString()!;
+        var manifest = Path.Combine(damaged.GetProperty("storage_root").GetString()!, "project.toml");
+        var original = await File.ReadAllTextAsync(manifest);
+        (await client.PostAsync($"/api/v1/storage/scopes/{damagedId}/close", null)).EnsureSuccessStatusCode();
+        (await client.PostAsync($"/api/v1/storage/scopes/{missingId}/close", null)).EnsureSuccessStatusCode();
+        Directory.Delete(missing.GetProperty("project_root").GetString()!, recursive: true);
+        await File.WriteAllTextAsync(manifest, "schema_version = [broken");
+
+        var scopes = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/storage/scopes");
+        Assert.Equal("ready", Assert.Single(scopes!, row => row.GetProperty("storage_id").GetString() == healthyId).GetProperty("availability").GetString());
+        Assert.Equal(JsonValueKind.Null, Assert.Single(scopes!, row => row.GetProperty("storage_id").GetString() == "user").GetProperty("workspace").ValueKind);
+        var invalid = Assert.Single(scopes!, row => row.GetProperty("storage_id").GetString() == damagedId);
+        Assert.Equal("configuration_invalid", invalid.GetProperty("availability_code").GetString());
+        Assert.Equal(JsonValueKind.Null, invalid.GetProperty("workspace").ValueKind);
+        Assert.Equal("user_action_required", invalid.GetProperty("category").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(invalid.GetProperty("trace_id").GetString()));
+        Assert.Equal(JsonValueKind.Array, invalid.GetProperty("diagnostics").ValueKind);
+        var unavailable = Assert.Single(scopes!, row => row.GetProperty("storage_id").GetString() == missingId);
+        Assert.Equal("storage_scope_unavailable", unavailable.GetProperty("availability_code").GetString());
+        Assert.Contains("unregister_workspace", unavailable.GetProperty("actions").EnumerateArray().Select(row => row.GetString()));
+        Assert.False(unavailable.TryGetProperty("lifecycle_status", out _));
+
+        var projects = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/projects");
+        Assert.Equal("ready", Assert.Single(projects!, row => row.GetProperty("storage_id").GetString() == healthyId).GetProperty("availability").GetString());
+        Assert.False(Assert.Single(projects!, row => row.GetProperty("storage_id").GetString() == damagedId).TryGetProperty("lifecycle_status", out _));
+        Assert.Equal("schema_version = [broken", await File.ReadAllTextAsync(manifest));
+
+        var outside = Path.Combine(_root, "outside-listing"); Directory.CreateDirectory(outside);
+        Assert.Contains("path = \".\"", original);
+        await File.WriteAllTextAsync(manifest, original.Replace("path = \".\"", "path = \"../outside-listing\"", StringComparison.Ordinal));
+        scopes = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/storage/scopes");
+        var unauthorized = Assert.Single(scopes!, row => row.GetProperty("storage_id").GetString() == damagedId);
+        Assert.Equal("workspace_authorization_required", unauthorized.GetProperty("availability_code").GetString());
+        Assert.NotEmpty(unauthorized.GetProperty("diagnostics").EnumerateArray());
+
+        await File.WriteAllTextAsync(manifest, original);
+        await File.WriteAllTextAsync(Path.Combine(damaged.GetProperty("storage_root").GetString()!, "data", "tinadec.db"), "not a SQLite database");
+        projects = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/projects");
+        var databaseFailure = Assert.Single(projects!, row => row.GetProperty("storage_id").GetString() == damagedId);
+        Assert.Equal("storage_database_error", databaseFailure.GetProperty("availability_code").GetString());
+        Assert.Equal("internal", databaseFailure.GetProperty("category").GetString());
+        Assert.DoesNotContain("SqliteException", databaseFailure.GetProperty("availability_error").GetString());
+        Assert.Contains(_factory.Services.GetRequiredService<TinadecCore.AspNetCore.ServerFailureJournal>().Recent(), row => row.Code == "storage_database_error");
+    }
+
+    [Theory]
+    [InlineData("archive", "archived")]
+    [InlineData("trash", "trashed")]
+    public async Task HistoricalWorkspaceMountPreservesLifecycleAndSessionsAcrossCloseAndRestart(string action, string lifecycle)
+    {
+        using var client = _factory!.CreateClient();
+        var scope = await OpenAsync(client, "historical-" + action);
+        var storageId = scope.GetProperty("storage_id").GetString()!;
+        var projectId = scope.GetProperty("project_id").GetString()!;
+        client.DefaultRequestHeaders.Add("X-Tinadec-Storage-Id", storageId);
+        var created = await client.PostAsJsonAsync("/api/v1/sessions", new { project_id = projectId, title = "Retained history" });
+        created.EnsureSuccessStatusCode();
+        var sessionId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetString();
+        (await client.PostAsync($"/api/v1/projects/{projectId}/{action}", null)).EnsureSuccessStatusCode();
+        (await client.PostAsync($"/api/v1/storage/scopes/{storageId}/close", null)).EnsureSuccessStatusCode();
+        var afterClose = await client.GetFromJsonAsync<JsonElement[]>($"/api/v1/projects?lifecycle_status={lifecycle}");
+        Assert.Equal(projectId, Assert.Single(afterClose!).GetProperty("id").GetString());
+        Assert.Equal(lifecycle, Assert.Single(afterClose!).GetProperty("lifecycle_status").GetString());
+
+        await _factory.DisposeAsync(); _factory = new(_root, _token);
+        using var restarted = _factory.CreateClient();
+        restarted.DefaultRequestHeaders.Add("X-Tinadec-Storage-Id", storageId);
+        var history = await restarted.GetFromJsonAsync<JsonElement[]>($"/api/v1/projects?lifecycle_status={lifecycle}");
+        Assert.Equal(projectId, Assert.Single(history!).GetProperty("id").GetString());
+        Assert.Equal(lifecycle, Assert.Single(history!).GetProperty("lifecycle_status").GetString());
+        var sessions = await restarted.GetFromJsonAsync<JsonElement[]>($"/api/v1/sessions?project_id={projectId}");
+        Assert.Equal(sessionId, Assert.Single(sessions!).GetProperty("id").GetString());
+        (await restarted.PostAsync($"/api/v1/projects/{projectId}/restore", null)).EnsureSuccessStatusCode();
+        var active = await restarted.GetFromJsonAsync<JsonElement[]>("/api/v1/projects");
+        Assert.Equal(projectId, Assert.Single(active!).GetProperty("id").GetString());
+        Assert.Equal("active", Assert.Single(active!).GetProperty("lifecycle_status").GetString());
+        Assert.Single(await restarted.GetFromJsonAsync<JsonElement[]>($"/api/v1/sessions?project_id={projectId}") ?? []);
     }
 
     private async Task<JsonElement> OpenAsync(HttpClient client, string name)
