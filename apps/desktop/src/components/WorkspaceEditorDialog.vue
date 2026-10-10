@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { recoveryActions, useErrorState } from '@/composables/useErrorState'
+import { computed, nextTick, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription, DialogClose } from 'reka-ui'
 import { FolderPlus, FolderOpen, Star, Trash2, X, LoaderCircle } from '@lucide/vue'
 import { UiButton, UiInput } from '@/components/ui'
@@ -12,16 +13,20 @@ import { usePanelStyles } from '@/composables/usePanelStyles'
 
 const { getPanelStyle, getPanelDataAttributes } = usePanelStyles()
 const form = ref<WorkspaceInput>({ name: '', roots: [], primary_root_id: '', icon: 'folder', color: 'default' })
-const nameEdited = ref(false), saving = ref(false), picking = ref(false), loading = ref(false), error = ref(''), hash = ref('')
+const nameEdited = ref(false), saving = ref(false), picking = ref(false), loading = ref(false), failure = useErrorState(), error = computed(() => failure.error.value?.message ?? ''), hash = ref('')
 const existing = ref<WorkspacePreview | null>(null)
 const editor = c.workspaceEditor
 let read = 0
 const primary = computed(() => form.value.roots.find(root => root.id === form.value.primary_root_id))
-watch(() => [editor.value.open, editor.value.projectKey] as const, async ([open, key]) => {
+/**
+ * The dialog's single read path. It is a named function so the retry/reload recovery actions
+ * can honestly re-run it, instead of closing and reopening the dialog and hoping.
+ */
+async function loadEditor(): Promise<void> {
   const version = ++read
-  if (!open) return
+  const key = editor.value.projectKey
   form.value = { name: '', roots: [], primary_root_id: '', icon: 'folder', color: 'default' }
-  error.value = ''; existing.value = null; hash.value = ''; nameEdited.value = false; loading.value = false
+  failure.clear(); existing.value = null; hash.value = ''; nameEdited.value = false; loading.value = false
   if (!key) return
   loading.value = true
   try {
@@ -29,9 +34,18 @@ watch(() => [editor.value.open, editor.value.projectKey] as const, async ([open,
     const workspace = await api.readWorkspace(identity.storageId ?? projectStorageId(identity.id))
     if (version !== read) return
     form.value = { ...workspace, roots: workspace.roots.map(root => ({ ...root })) }; hash.value = workspace.content_hash; nameEdited.value = true
-  } catch (reason) { if (version === read) error.value = reason instanceof Error ? reason.message : String(reason) }
+  } catch (reason) { if (version === read) failure.set(reason) }
   finally { if (version === read) loading.value = false }
+}
+
+watch(() => [editor.value.open, editor.value.projectKey] as const, async ([open]) => {
+  if (!open) return
+  await loadEditor()
 }, { immediate: true })
+
+/** Re-runs the dialog's read path: the retry action for a failed workspace read. */
+async function reload(): Promise<void> { await loadEditor() }
+/** Re-reads whatever this dialog is currently showing; used by the retry/reload recovery actions. */
 function setPrimary(root: WorkspaceRoot) {
   form.value.primary_root_id = root.id
   if (!nameEdited.value) form.value.name = basenameFromPath(root.path)
@@ -43,7 +57,7 @@ function removeRoot(root: WorkspaceRoot) {
 async function addFolders() {
   if (picking.value || saving.value) return
   const version = read
-  picking.value = true; error.value = ''
+  picking.value = true; failure.clear()
   try {
     const paths = await window.tinadec.selectWorkspaceFolders()
     if (version !== read) return
@@ -61,7 +75,7 @@ async function addFolders() {
     const roots = paths.map(path => ({ id: crypto.randomUUID(), path }))
     form.value.roots.push(...roots)
     if (!form.value.primary_root_id) setPrimary(roots[0]!)
-  } catch (reason) { if (version === read) error.value = reason instanceof Error ? reason.message : String(reason) }
+  } catch (reason) { if (version === read) failure.set(reason) }
   finally { picking.value = false }
 }
 function close(open: boolean) { if (!saving.value) editor.value = { ...editor.value, open } }
@@ -70,11 +84,22 @@ async function submit() {
   const saved = existing.value?.workspace
   const input = saved ?? form.value
   if (!input.name.trim() || !input.roots.length || (!saved && editor.value.projectKey && !hash.value)) return
-  saving.value = true; error.value = ''
+  saving.value = true; failure.clear()
   try { await c.completeWorkspace(input, editor.value.projectKey, hash.value, existing.value?.project_path) }
-  catch (reason) { error.value = reason instanceof Error ? reason.message : String(reason) }
+  catch (reason) { failure.set(reason) }
   finally { saving.value = false }
 }
+
+// The dialog shows the whole failure contract: an unreadable preview, a refused save and a
+// stale ETag are three different problems with three different next steps.
+const failureState = computed(() => failure.error.value)
+const failureRecovery = computed(() => recoveryActions(failure.error.value, {
+  // Re-running the dialog's own reads is the honest retry: it re-reads the workspace and
+  // re-runs the folder picker, which are the two things that can fail in this dialog.
+  retry: () => reload(),
+  reload: () => reload(),
+  choose_folder: () => addFolders(),
+}))
 </script>
 
 <template>
@@ -110,7 +135,13 @@ async function submit() {
             <fieldset class="workspace-appearance" :disabled="saving"><legend>颜色</legend><button v-for="color in workspaceColors" :key="color" type="button" :aria-label="`颜色 ${color}`" :aria-pressed="form.color === color" @click="form.color = color"><span class="workspace-color-swatch" :class="`workspace-color-${color}`" /></button></fieldset>
             <p class="workspace-storage-note">{{ editor.projectKey ? '更换主文件夹保留当前数据保存位置；已有运行与终端保持原绑定。' : `确认创建后，在${primary ? ' ' + primary.path + '/.tinadec' : '主文件夹的 .tinadec'} 保存工作区数据。` }}</p>
           </template>
-          <p v-if="error" role="alert" class="workspace-error">{{ error }}</p>
+          <div v-if="failureState" role="alert" class="workspace-error">
+            <p>{{ failureState.message }}</p>
+            <p v-if="failureState.traceId" class="workspace-error-trace">trace_id: {{ failureState.traceId }}</p>
+            <div v-if="failureRecovery.length" class="workspace-error-actions">
+              <UiButton v-for="action in failureRecovery" :key="action.kind" variant="outline" size="sm" @click="action.run()">{{ action.label }}</UiButton>
+            </div>
+          </div>
           <footer><UiButton type="button" variant="ghost" :disabled="saving" @click="close(false)">取消</UiButton><UiButton type="submit" :disabled="saving || loading || picking || (!existing?.workspace && (!form.name.trim() || !form.roots.length || (!!editor.projectKey && !hash)))"><LoaderCircle v-if="saving" :size="16" class="animate-spin" />{{ existing ? '打开已有工作区' : editor.projectKey ? '保存' : '创建工作区' }}</UiButton></footer>
         </form>
       </DialogContent>

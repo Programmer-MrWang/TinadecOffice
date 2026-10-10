@@ -7,6 +7,8 @@ import { useNotifications } from '@/composables/useNotifications'
 import { suspendFollowingStorage } from '@/lib/sessionEventBus'
 import { suspendStorageRunStreams } from '@/lib/runStream'
 import type { ConfigurationDocumentDto, StorageCleanupPreviewDto, StorageContentPreviewDto, StorageDeletePreviewDto, StorageScopeDto, StorageStatsDto } from '@/settings/storage'
+import { recoveryActions, useErrorState, type ErrorState } from '@/composables/useErrorState'
+import type { ApiErrorActionKind } from '@/lib/apiError'
 
 const { locale } = useI18n()
 const { confirm } = useNotifications()
@@ -29,7 +31,10 @@ const backend = ref('sqlite')
 const root = ref('')
 const postgresReference = ref('')
 const busy = ref(false)
-const error = ref('')
+// The full failure (code, category, actions, trace id), not just a sentence. The plain
+// `error` string below stays for compact inline slots that only need the message.
+const failure = useErrorState()
+const error = computed(() => failure.message.value)
 const notice = ref('')
 const diagnostics = ref<Array<Record<string, unknown>>>([])
 const scopeDiagnostics = ref<Array<Record<string, unknown>>>([])
@@ -57,7 +62,7 @@ async function loadDocument(current = generation) {
   document.value = result; text.value = baseline.value = result.text; diagnostics.value = result.diagnostics
 }
 async function loadContext() {
-  const current = ++generation; busy.value = true; error.value = ''; preview.value = null; contentPreview.value = null; deletePreview.value = null; notice.value = ''
+  const current = ++generation; busy.value = true; failure.clear(); preview.value = null; contentPreview.value = null; deletePreview.value = null; notice.value = ''
   const captured = scopeId.value
   try {
     const [result, diagnosis] = await Promise.all([api.getStorageStats(captured), api.getStorageDiagnostics(captured)])
@@ -66,14 +71,14 @@ async function loadContext() {
     scopeDiagnostics.value = [...(diagnosis.diagnostics ?? []), ...result.diagnostics]
     backend.value = scope.value?.backend.toLowerCase() === 'postgresql' ? 'postgresql' : 'sqlite'; root.value = scope.value?.storage_root ?? ''; postgresReference.value = scope.value?.postgres_connection_reference ?? ''
     await loadDocument(current)
-  } catch (value) { if (current === generation) error.value = message(value) }
+  } catch (value) { if (current === generation) failure.set(value) }
   finally { if (current === generation) busy.value = false }
 }
 async function refresh() {
   if (!await canLeave()) return
-  busy.value = true; error.value = ''
+  busy.value = true; failure.clear()
   try { scopes.value = await api.listStorageScopes(); if (!scope.value) scopeId.value = 'user' }
-  catch (value) { error.value = message(value) }
+  catch (value) { failure.set(value) }
   finally { busy.value = false }
   if (!error.value) await loadContext()
 }
@@ -85,19 +90,19 @@ async function selectScope(event: Event) {
 async function selectDocument(event: Event) {
   const element = event.target as HTMLSelectElement; const next = element.value; element.value = documentId.value
   if (!await canLeave()) return
-  documentId.value = next; ++generation; busy.value = true; error.value = ''
-  try { await loadDocument() } catch (value) { error.value = message(value) } finally { busy.value = false }
+  documentId.value = next; ++generation; busy.value = true; failure.clear()
+  try { await loadDocument() } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function validate() {
-  busy.value = true; error.value = ''; notice.value = ''
+  busy.value = true; failure.clear(); notice.value = ''
   const capturedScope = scopeId.value; const capturedDocument = documentId.value; const draft = text.value
   try { const result = await api.validateConfigurationDocument(capturedScope, capturedDocument, draft); diagnostics.value = result.diagnostics; notice.value = label('校验完成，请检查诊断。', 'Validation complete. Review the diagnostics.') }
-  catch (value) { error.value = message(value) } finally { busy.value = false }
+  catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function save() {
   if (!document.value || !dirty.value) return
   const capturedScope = scopeId.value; const capturedDocument = documentId.value; const hash = document.value.content_hash; const draft = text.value
-  busy.value = true; error.value = ''; notice.value = ''
+  busy.value = true; failure.clear(); notice.value = ''
   try {
     const result = await api.saveConfigurationDocument(capturedScope, capturedDocument, draft, hash)
     document.value = result; text.value = baseline.value = result.text; diagnostics.value = result.diagnostics
@@ -106,17 +111,17 @@ async function save() {
       : capturedDocument === 'logging'
       ? label('配置已保存。请重启宿主以应用日志配置。', 'Configuration saved. Restart the host to apply logging configuration.')
       : label('配置已保存。下一次运行将捕获新的配置版本。', 'Configuration saved. The next run captures the new configuration version.')
-  } catch (value) { error.value = [409, 412, 428].includes((value as { status?: number }).status ?? 0) ? label('配置已被其他操作修改。草稿保留，请重新加载后比较。', 'Another operation changed the configuration. Your draft is preserved; reload and compare.') : message(value) }
+  } catch (value) { failure.set([409, 412, 428].includes((value as { status?: number }).status ?? 0) ? label('配置已被其他操作修改。草稿保留，请重新加载后比较。', 'Another operation changed the configuration. Your draft is preserved; reload and compare.') : value) }
   finally { busy.value = false }
 }
 async function configure() {
   const captured = scopeId.value
   if (captured === 'user' && root.value !== scope.value?.storage_root && hostStorage.value && (hostStorage.value.managed || !hostStorage.value.local_services)) {
-    error.value = label('用户存储由外部环境或服务管理，请在启动环境中修改并重启相应宿主。', 'User storage is managed by the environment or an external service. Change the startup configuration and restart that host.')
+    failure.set(label('用户存储由外部环境或服务管理，请在启动环境中修改并重启相应宿主。', 'User storage is managed by the environment or an external service. Change the startup configuration and restart that host.'))
     return
   }
   if (!await confirm({ title: label('切换存储配置', 'Switch storage configuration'), message: label('只切换后续读写位置，不复制或删除原有数据。作用域必须空闲。', 'This switches future reads and writes. Existing data is retained. The scope must be idle.'), confirmLabel: label('应用配置', 'Apply configuration') })) return
-  busy.value = true; error.value = ''
+  busy.value = true; failure.clear()
   try {
     const result = await hostAction(captured, 'configure', { backend: backend.value, storage_root: root.value, ...(postgresReference.value ? { postgres_connection_reference: postgresReference.value } : {}) }) as StorageScopeDto
     scopes.value = scopes.value.map(item => item.storage_id === captured ? result : item)
@@ -131,92 +136,111 @@ async function configure() {
       return
     }
     await loadContext()
-  } catch (value) { error.value = message(value) } finally { busy.value = false }
+  } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function writePolicy(event: Event) {
   const input = event.target as HTMLInputElement; const allow = input.checked; input.checked = Boolean(scope.value?.allow_storage_write)
   if (allow && !await confirm({ title: label('授予 Agent 存储写入范围', 'Grant Agent storage write access'), message: label('允许 Agent 的文件工具写入整个项目存储目录，包括配置和数据。此范围仅由可信宿主授予。', 'Allow Agent file tools to write the entire project storage directory, including configuration and data. Only the trusted host grants this access.'), confirmLabel: label('授予范围', 'Grant access') })) return
-  busy.value = true; error.value = ''; const captured = scopeId.value
+  busy.value = true; failure.clear(); const captured = scopeId.value
     try {
       if (!window.tinadec?.setStorageWritePolicy) throw new Error(label('此操作需要可信桌面宿主。', 'This operation requires the trusted desktop host.'))
       const result = await window.tinadec.setStorageWritePolicy(captured, allow)
       scopes.value = scopes.value.map(item => item.storage_id === captured ? { ...item, ...result } : item)
     }
-  catch (value) { error.value = message(value) } finally { busy.value = false }
+  catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function previewCleanup(category: string) {
-  busy.value = true; error.value = ''; const captured = scopeId.value
-  try { preview.value = await api.previewStorageCleanup(captured, category) } catch (value) { error.value = message(value) } finally { busy.value = false }
+  busy.value = true; failure.clear(); const captured = scopeId.value
+  try { preview.value = await api.previewStorageCleanup(captured, category) } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function cleanup() {
   if (!preview.value) return
   const captured = { ...preview.value }
-  busy.value = true; error.value = ''
+  busy.value = true; failure.clear()
   try { await hostAction(captured.storage_id, 'cleanup', { preview_id: captured.preview_id }); preview.value = null; stats.value = await api.getStorageStats(captured.storage_id); notice.value = label('清理完成。', 'Cleanup complete.') }
-  catch (value) { error.value = message(value) } finally { busy.value = false }
+  catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function previewContent() {
-  busy.value = true; error.value = ''; const captured = scopeId.value
-  try { contentPreview.value = await api.previewContentCollection(captured) } catch (value) { error.value = message(value) } finally { busy.value = false }
+  busy.value = true; failure.clear(); const captured = scopeId.value
+  try { contentPreview.value = await api.previewContentCollection(captured) } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function collectContent() {
   if (!contentPreview.value) return
-  const captured = { ...contentPreview.value }; busy.value = true; error.value = ''
+  const captured = { ...contentPreview.value }; busy.value = true; failure.clear()
   try {
     await hostAction(captured.storage_id, 'content-collect', { preview_id: captured.preview_id })
     contentPreview.value = null; stats.value = await api.getStorageStats(captured.storage_id)
     notice.value = label('未被引用的内容已回收。', 'Unreferenced content collected.')
-  } catch (value) { error.value = message(value) } finally { busy.value = false }
+  } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function previewDelete() {
   if (scopeId.value === 'user' || !await canLeave()) return
-  busy.value = true; error.value = ''; const captured = scopeId.value
-  try { deletePreview.value = await api.previewStorageDeletion(captured) } catch (value) { error.value = message(value) } finally { busy.value = false }
+  busy.value = true; failure.clear(); const captured = scopeId.value
+  try { deletePreview.value = await api.previewStorageDeletion(captured) } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function deleteProjectStorage() {
   if (!deletePreview.value) return
   const captured = { ...deletePreview.value }
   if (!await confirm({ title: label('删除整个项目存储', 'Delete the entire project storage'), message: label(`永久删除此预览的配置和数据：${captured.path}。项目源码目录保留。`, `Permanently delete the configuration and data in this preview: ${captured.path}. The project source directory is retained.`), confirmLabel: label('永久删除项目存储', 'Permanently delete project storage'), destructive: true })) return
-  busy.value = true; error.value = ''
+  busy.value = true; failure.clear()
   try { await hostAction(captured.storage_id, 'storage-delete', { preview_id: captured.preview_id }); scopeId.value = 'user'; scopes.value = await api.listStorageScopes(); await loadContext() }
-  catch (value) { error.value = message(value) } finally { busy.value = false }
+  catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function unregisterScope() {
   const captured = scopeId.value
   if (captured === 'user' || !await canLeave()) return
   if (!await confirm({ title: label('取消项目登记', 'Unregister project'), message: label('从宿主登记中移除此项目。磁盘上的项目存储和源码均保留。', 'Remove this project from the host registry. Its storage and source files remain on disk.'), confirmLabel: label('取消登记', 'Unregister') })) return
-  busy.value = true; error.value = ''
+  busy.value = true; failure.clear()
   try { await hostAction(captured, 'unregister'); scopeId.value = 'user'; scopes.value = await api.listStorageScopes(); await loadContext() }
-  catch (value) { error.value = message(value) } finally { busy.value = false }
+  catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function exportScope() {
-  const captured = scopeId.value; busy.value = true; error.value = ''
+  const captured = scopeId.value; busy.value = true; failure.clear()
   try {
     const result = await api.exportStorageScope(captured)
     const url = URL.createObjectURL(result.blob); const link = window.document.createElement('a')
     link.href = url; link.download = result.filename; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-  } catch (value) { error.value = message(value) } finally { busy.value = false }
+  } catch (value) { failure.set(value) } finally { busy.value = false }
 }
 async function closeScope() {
   const captured = scopeId.value
   if (captured === 'user' || !await canLeave()) return
   if (!await confirm({ title: label('关闭项目存储', 'Close project storage'), message: label('关闭作用域连接，保留所有配置和数据。关闭会等待当前运行和请求结束；请关闭此项目的其他浮窗，以释放实时连接。', 'Close the scope connection and retain all configuration and data. Closing waits for current runs and requests; close other windows showing this project to release live connections.'), confirmLabel: label('关闭作用域', 'Close scope') })) return
-  busy.value = true; error.value = ''; notice.value = label('正在等待项目运行和连接结束。', 'Waiting for project runs and connections to finish.')
+  busy.value = true; failure.clear(); notice.value = label('正在等待项目运行和连接结束。', 'Waiting for project runs and connections to finish.')
   const resumeEvents = suspendFollowingStorage(captured); const resumeRuns = suspendStorageRunStreams(captured)
   const controller = new AbortController(); closeController.value = controller
   try { await api.closeStorageScope(captured, controller.signal); scopeId.value = 'user'; scopes.value = await api.listStorageScopes(); await loadContext() }
-  catch (value) { resumeEvents(); resumeRuns(); notice.value = ''; error.value = controller.signal.aborted ? label('关闭已取消，项目连接恢复。', 'Closing cancelled. Project connections resumed.') : message(value) }
+  catch (value) { resumeEvents(); resumeRuns(); notice.value = ''; failure.set(controller.signal.aborted ? label('关闭已取消，项目连接恢复。', 'Closing cancelled. Project connections resumed.') : value) }
   finally { closeController.value = null; busy.value = false }
 }
 onMounted(() => { window.addEventListener('beforeunload', beforeUnload); void window.tinadec?.getAppConfig?.().then(result => { hostStorage.value = result.storage }).catch(() => {}); void refresh() })
 onBeforeUnmount(() => { ++generation; closeController.value?.abort(); window.removeEventListener('beforeunload', beforeUnload) })
+
+// Rendered straight from the shared error state so every field the server sent is visible.
+const failureState = computed<ErrorState | null>(() => failure.error.value)
+/** Only actions this screen can actually perform, labelled from the shared wording. */
+const failureRecovery = computed(() => recoveryActions(failure.error.value, {
+  retry: () => loadContext(),
+  reload: () => loadContext(),
+  unregister_workspace: () => unregisterScope(),
+}))
 </script>
 
 <template>
   <section class="storage-settings" :aria-busy="busy">
     <div class="model-center-heading"><div><h2>{{ label('存储与配置', 'Storage and configuration') }}</h2><p>{{ label('以实际作用域路径为准。配置、持久数据与可清理缓存分别管理。', 'Inspect actual scope paths. Configuration, durable data, and disposable cache have separate ownership.') }}</p></div><UiButton variant="outline" :disabled="busy" @click="refresh">{{ label('刷新', 'Refresh') }}</UiButton></div>
     <label class="storage-field">{{ label('存储作用域', 'Storage scope') }}<select :value="scopeId" class="settings-select" :disabled="busy" @change="selectScope"><option v-for="item in scopes" :key="item.storage_id" :value="item.storage_id">{{ item.scope_kind }} · {{ item.project_root || item.storage_root }}</option></select></label>
-    <p v-if="error" class="tools-field-error" role="alert">{{ error }}</p><p v-if="notice" role="status">{{ notice }}</p>
+    <div v-if="failureState" class="tools-field-error" role="alert">
+      <p>{{ failureState.message }}</p>
+      <!-- The reason, the actions and the correlation id all belong together: a sentence
+           alone is what made "the folder is gone" a dead end. -->
+      <p v-if="failureState.details" class="tools-field-error-details">{{ failureState.details }}</p>
+      <p v-if="failureState.traceId" class="tools-field-error-trace">trace_id: {{ failureState.traceId }}</p>
+      <div v-if="failureRecovery.length" class="tools-field-error-actions">
+        <UiButton v-for="action in failureRecovery" :key="action.kind" variant="outline" size="sm" @click="action.run()">{{ action.label }}</UiButton>
+      </div>
+    </div>
+    <p v-if="notice" role="status">{{ notice }}</p>
     <UiButton v-if="closeController" variant="outline" @click="closeController.abort()">{{ label('取消关闭', 'Cancel closing') }}</UiButton>
     <template v-if="scope">
       <p class="quiet"><code>{{ scope.storage_id }}</code> · {{ scope.backend }} · {{ label(scope.external ? '外部存储' : '默认存储', scope.external ? 'External storage' : 'Default storage') }}</p>

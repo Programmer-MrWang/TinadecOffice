@@ -82,6 +82,22 @@
 | Desktop 通知 | 按动作标识查一次注册的处理器，自动给错误通知挂上恢复按钮 |
 | 视图 | 决定按钮文案与落点（设置页、侧栏行），不下沉业务逻辑 |
 
+## 界面侧：把契约渲染出来
+
+共享状态 `useErrorState` 把一个 catch 到的任何东西归一成 `ErrorState`（message / code / category /
+retryable / actions / traceId / details / status）。页面用 `failure.set(value)` 记录、`failure.clear()`
+在重试或保存成功时清除，模板按字段渲染，不再把错误压成一句字符串。
+
+`recoveryActions(state, handlers)` 只保留**这一页真的能执行**的动作：没有对应处理器的动作不渲染，
+不会出现点了没反应的按钮。文案来自共享词表，避免每个页面各写一份“重试”。
+
+已完成迁移的界面：
+
+| 界面 | 之前 | 现在 |
+| --- | --- | --- |
+| 存储与配置页（`StorageSection.vue`） | 17 个 catch 全部 `error.value = message(value)` | 全部走 `failure.set`，渲染原因 + diagnostics + trace_id + 可用动作（重试/重新加载/取消登记） |
+| 工作区窗口（`WorkspaceEditorDialog.vue`） | 3 个 catch 压成字符串 | 走 `failure.set`；重试 = 重跑对话框自身的读取路径（`loadEditor()`），浏览文件夹 = 重新选目录 |
+
 ## 恢复入口的注册
 
 `setErrorRecoveryHandlers` 与 `setErrorActionLabels` 在应用入口各调用一次；`HomeController.installErrorRecovery()` 提供 retry / reload / unregister_workspace 的实现。同一失败只显示第一个可用动作——同时给“重试”和“重新加载”会让人无从区分。
