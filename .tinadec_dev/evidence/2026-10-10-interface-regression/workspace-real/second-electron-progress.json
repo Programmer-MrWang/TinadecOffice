@@ -1,0 +1,332 @@
+[
+  {
+    "type": "evidence_projection",
+    "value": {
+      "reason": "Keep business API events and all failures/lifecycle/console records; omit successful static-resource traffic.",
+      "original_event_count": 346,
+      "retained_event_count": 47,
+      "original_sha256": "41b505b8e26247642815c11b9ea4beecb2eaa90753f39ea133f84321b3cbd8d4",
+      "ignored_local_raw_output": "workspace-real/second-electron-progress.raw.log"
+    }
+  },
+  {
+    "type": "loading",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "[vite] connecting..."
+  },
+  {
+    "type": "console",
+    "value": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+  },
+  {
+    "type": "network_error",
+    "value": {
+      "path": "/geist-latin-wght-normal-BgDaEnEv.woff2",
+      "error": "net::ERR_CACHE_MISS"
+    }
+  },
+  {
+    "type": "console",
+    "value": "[vite] connected."
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "console",
+    "value": "Failed to decode downloaded font: http://127.0.0.1:50967/geist-latin-wght-normal-BgDaEnEv.woff2"
+  },
+  {
+    "type": "console",
+    "value": "OTS parsing error: invalid sfntVersion: 1008821359"
+  },
+  {
+    "type": "fixture_loaded",
+    "value": true
+  },
+  {
+    "type": "loaded",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/health",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 204
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  }
+]

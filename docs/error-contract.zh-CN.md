@@ -1,6 +1,6 @@
 # 错误处理与恢复契约
 
-适用：2026-10-10 工作树。功能与验收进度唯一归属 [APP-HOME-107](development-program/02-modules/app/home/TODO.md#app-home-107)。本文件定义产品错误契约；实现证据见 [本轮报告](../.tinadec_dev/reports/2026-10-10-error-recovery.zh-CN.md)。
+适用：2026-10-10 工作树。功能与验收进度唯一归属 [APP-HOME-107](development-program/02-modules/app/home/TODO.md#app-home-107)。本文件定义产品错误契约；初始框架见 [错误恢复报告](../.tinadec_dev/reports/2026-10-10-error-recovery.zh-CN.md)，本轮接口接线与验收见 [接口回归报告](../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。
 
 ## 为什么要统一
 
@@ -108,3 +108,21 @@ retryable / actions / traceId / details / status）。页面用 `failure.set(val
 - 未知分类与未知动作被丢弃，回退到按状态码推断，不信任上游任意字符串。
 - `retryable` 表示“同一请求可能成功”，不承诺幂等；写操作仍按各自语义返回 409/412。
 - 契约不改变任何已有错误码、幂等、ETag 或审批流程。
+
+## 宿主就绪与界面预览
+
+公开 health 仅表示进程可响应。Desktop 业务准入还要求 main 对 Core、Gateway 完成 nonce/HMAC 身份验证；状态为 checking / ready / unavailable / rejected，浏览器为 preview。首次暂不可用和运行中瞬断撤销请求签发，并通过单次在途、有上限退避重新验证。身份拒绝阻断自动重验，允许用户明确重试，不停止未知服务。退出取消检查，迟到结果不能恢复授权。
+
+getHostStatus、状态订阅与 retryHostConnection 不包含凭据，按可信窗口文档身份准入，不依赖后端已认证。连接恢复只刷新读取；不重放创建、保存、安装。5173 显示界面预览说明，需要可信宿主的目录选择、存储和安装操作明确禁用，不以空数组或静默 no-op 伪装成功。宿主自动恢复验证不等于重新启动已退出的本地服务。
+
+## 请求归属与局部读取失败
+
+请求发送前固定作用域，优先级为显式 storageId → 调用绑定 → 请求项目/会话/运行身份 → 未绑定列表默认 user → 当前选择。ApiError 保存客户端已捕获的 storageId，取消登记不能由服务端路径文本推导授权目标。
+
+项目内列表只读绑定作用域；历史、归档、回收站、搜索通过共享读取器逐项结算用户及项目作用域，以 storage_id + id 去重。某项失败保留该项原记录、显示刷新失败；其他项照常更新。取消继续传播，整个发现步骤失败不能退化成“只有用户库且成功”。首页项目、诊断及运行就绪状态独立更新。
+
+## 工作区可用性和生命周期
+
+/scopes 逐项读取描述和配置，ready 表示描述可读，不表示已提前挂载全部数据库。/projects 挂载时再检查数据库。缺失目录、配置损坏、授权不一致、数据库与内部缺陷分别返回分类、trace_id 和定位；坏项保留登记与实际存储根。无法读取生命周期时使用 null，不伪造 active、archived 或 trashed。挂载查询任意生命周期，保留归档/回收站记录，只有记录确实不存在才初始化。取消登记由可信宿主执行，不要求先挂载，也不删除数据。
+
+Core 已提供 code 的 ProblemDetails 同样补齐分类，保留业务已给出的分类、诊断及 trace_id。Gateway 使用公开字段白名单转发，过滤未知私有扩展；AgentPack 失败在上游提供 ETag 时同样转发，不补造缺失值。读重试保留工作区表单草稿，条件保存冲突需要明确载入最新配置。AgentPack 普通重连保留失败，手动重试重新预览、确认一次安装。

@@ -7,6 +7,7 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | GW-HTTP-F001 | HTTP JSON/raw 代理及 local/cloud 认证 | 源码可见 | 本轮静态核对；未做功能验收 | 本地跳过认证，云端 API Key/JWT HS256 与租户上下文；Gateway 不持有业务权威状态。本轮仅静态核对源码，未运行业务测试或产品验收。 | [TinadecGateway/src/auth.ts](../../../../../TinadecGateway/src/auth.ts)<br>[TinadecGateway/src/config.ts](../../../../../TinadecGateway/src/config.ts)<br>[TinadecGateway/src/coreClient.ts](../../../../../TinadecGateway/src/coreClient.ts) |
+| GW-HTTP-F002 | 规范错误码、诊断与恢复建议的公开投影 | 已验收 | Windows 2026-10-10，真实app.handle路由和窄投影测试；Gateway全量103/103、OpenAPI快照/schema一致 | 合法snake_case码无需白名单；未知字段/枚举不透传，缺码按4xx/5xx兜底。作用域和目录授权仍由Core/可信宿主负责。关联APP-HOME-107，云端认证/整体GW-HTTP-001未验收。 | [总报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)<br>[Gateway证据](../../../../../.tinadec_dev/evidence/2026-10-10-interface-regression/gateway-validation.json) |
 
 ## 状态词汇
 

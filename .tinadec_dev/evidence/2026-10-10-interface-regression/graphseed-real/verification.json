@@ -1,0 +1,30 @@
+{
+  "verified": true,
+  "exact_user_config_copy_readable": true,
+  "version": "3.0.1",
+  "digest": "25d64d688a663243701f168137d74d2f87d20059730b4d9969dd4beca14932ce",
+  "installation_requests": 2,
+  "install_outcomes": [
+    400,
+    201
+  ],
+  "failure_diagnostics": true,
+  "recovery_fields": true,
+  "no_partial_installation": true,
+  "validation_failure_toml_bytes_unchanged": true,
+  "ordinary_reconnect_no_auto_install": true,
+  "successful_etag": "\"1\"",
+  "preview_etags": [
+    "\"0\"",
+    "\"0\"",
+    "\"0\"",
+    "\"1\""
+  ],
+  "configuration_failure_etag": null,
+  "cas_failure_etag": null,
+  "explicit_retry_single_request": true,
+  "core_restart_readable": true,
+  "defaults_unchanged_on_restart": true,
+  "user_toml_unchanged": true,
+  "boundary": "Real Core/Gateway and repository Desktop components inside an isolated Electron window. HTTP host token injected only in owned server proxy; production main/preload and full App/installer are separate acceptance."
+}

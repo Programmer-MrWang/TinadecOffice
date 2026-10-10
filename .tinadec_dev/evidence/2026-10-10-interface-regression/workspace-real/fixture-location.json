@@ -1,0 +1,8 @@
+{
+  "owned_root": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82",
+  "core_url": "http://127.0.0.1:61568",
+  "gateway_url": "http://127.0.0.1:61569",
+  "ui_url": "http://127.0.0.1:61570",
+  "core_artifact": "workspace-api-trace",
+  "no_user_ports": true
+}

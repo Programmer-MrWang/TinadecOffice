@@ -79,3 +79,7 @@ flowchart LR
 ```
 
 来源：[MessageList.vue](../../../../../apps/desktop/src/components/MessageList.vue)、[MessageItem.vue](../../../../../apps/desktop/src/components/MessageItem.vue)、[MarkdownRender.vue](../../../../../apps/desktop/src/components/MarkdownRender.vue)、[UiIslandCard](../../../../../apps/desktop/src/components/ui/island-card.vue)、[全局样式](../../../../../apps/desktop/src/styles.css)。用户消息仍为文本插值；Core继续拥有持久消息与模型流，Desktop仅负责正文展示。已完成块的HTML不变时，Vue保留其DOM与表格焦点；未完成块继续更新。
+
+## 2026-10-10 宿主恢复与跨作用域历史读取
+
+HomeController 启动与连接恢复受 useHostAccess 准入控制，只刷新读取。工作区、doctor、readiness 分别更新，诊断失败不阻断列表。readSessionRoster 逐项结算，保留失败作用域的原记录和错误；会话迁移完成只刷新会话目录，用户未主动改变选择才进入目标作用域。API 与生成客户端在等待宿主之前捕获 scope；显式 scope、调用绑定和实体身份优先于默认列表 user。归档、回收站和搜索用 loadSessionCatalog 发现登记作用域后读取，取消和 generation 防迟到不把失败变为空态。详见 [错误契约](../../../../error-contract.zh-CN.md) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。

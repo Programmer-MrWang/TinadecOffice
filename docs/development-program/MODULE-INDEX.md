@@ -26,7 +26,7 @@
 | 模块ID | 模块档案 | 初始/当前审计阶段 | 功能条目 | 已验收 | TODO |
 | --- | --- | --- | --- | --- | --- |
 | CORE-API | [Api · 可执行宿主](02-modules/core/Api/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/Api/TODO.md) |
-| CORE-HTTP | [AspNetCore · 可嵌入 HTTP 层](02-modules/core/AspNetCore/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 0 | [2项](02-modules/core/AspNetCore/TODO.md) |
+| CORE-HTTP | [AspNetCore · 可嵌入 HTTP 层](02-modules/core/AspNetCore/README.md) | 初始源码清点；逐功能审计未完成 | 4 | 0 | [2项](02-modules/core/AspNetCore/TODO.md) |
 | CORE-RUNTIME | [Runtime · 唯一组合根](02-modules/core/Runtime/README.md) | 初始源码清点；逐功能审计未完成 | 5 | 0 | [2项](02-modules/core/Runtime/TODO.md) |
 | CORE-DMAEA | [DmaEA / 双层调用与持久运行引擎](02-modules/core/DmaEA/README.md) | 初始源码清点；逐功能审计未完成 | 4 | 0 | [2项](02-modules/core/DmaEA/TODO.md) |
 | CORE-AGENT-CONFIG | [AgentConfiguration](02-modules/core/AgentConfiguration/README.md) | 配置存储链路已拆分并完成 Windows/SQLite、Linux/真实 PostgreSQL 定向验证；包服务全量审计、macOS 和完整发布产物验收仍未完成 | 5 | 4 | [3项](02-modules/core/AgentConfiguration/TODO.md) |
@@ -54,9 +54,9 @@
 
 | 模块ID | 模块档案 | 初始/当前审计阶段 | 功能条目 | 已验收 | TODO |
 | --- | --- | --- | --- | --- | --- |
-| GW-HTTP | [Gateway / HTTP、认证与上下文](02-modules/gateway/http-auth/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/http-auth/TODO.md) |
+| GW-HTTP | [Gateway / HTTP、认证与上下文](02-modules/gateway/http-auth/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [2项](02-modules/gateway/http-auth/TODO.md) |
 | GW-SESSIONS | [Gateway / 项目、会话与运行控制](02-modules/gateway/session-control/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [2项](02-modules/gateway/session-control/TODO.md) |
-| GW-CONFIG | [Gateway / 配置、市场、治理与组织代理](02-modules/gateway/configuration-organization/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [3项](02-modules/gateway/configuration-organization/TODO.md) |
+| GW-CONFIG | [Gateway / 配置、市场、治理与组织代理](02-modules/gateway/configuration-organization/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [3项](02-modules/gateway/configuration-organization/TODO.md) |
 | GW-TOOLS | [Gateway / 用户工具传输与可选读面](02-modules/gateway/user-tool-transport/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/gateway/user-tool-transport/TODO.md) |
 | GW-STREAMING | [Gateway / SSE、附件、日志与取消](02-modules/gateway/streaming/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/streaming/TODO.md) |
 | GW-WS | [Gateway / WebSocket 范围与实现](02-modules/gateway/websocket/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/gateway/websocket/TODO.md) |

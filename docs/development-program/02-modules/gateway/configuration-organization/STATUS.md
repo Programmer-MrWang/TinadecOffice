@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | GW-CONFIG-F001 | 模型、配置、AgentPack 与市场薄代理 | 源码可见 | 本轮静态核对；未做功能验收 | model_parameters、If-Match 与 Core 错误透传；市场 query 使用 q/source_id/limit/offset，没有独立配置权威。 | [TinadecGateway/src/index.ts](../../../../../TinadecGateway/src/index.ts)<br>[TinadecGateway/src/marketProxy.test.ts](../../../../../TinadecGateway/src/marketProxy.test.ts) |
 | GW-CONFIG-F002 | 组织、拓扑、证据、审批 gate 与 TinaChat 生成契约代理 | 源码可见 | 本轮静态核对；未做功能验收 | query/body/header/status 透传；Core 决定成员可见性与决策权限；全局聊天室 UI 删除不等于 HTTP observer 契约删除。 | [TinadecGateway/src/organizationRoutes.ts](../../../../../TinadecGateway/src/organizationRoutes.ts)<br>[TinadecGateway/src/tinaChatRoutes.ts](../../../../../TinadecGateway/src/tinaChatRoutes.ts) |
+| GW-CONFIG-F003 | 工作区可用性与 AgentPack 公开错误/ETag 投影 | 已验收 | Windows 2026-10-10，Gateway 定向32/32、全量103/103、快照/schema更新；真实Core/组件证据独立记录 | 保留公开配置诊断/恢复字段和上游实际失败ETag；不可读工作区lifecycle可空。关联APP-HOME-107，GW-CONFIG-001整体审计不因此完成。mock上游不证明Core存储或完整产品。 | [总报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)<br>[Gateway证据](../../../../../.tinadec_dev/evidence/2026-10-10-interface-regression/gateway-validation.json) |
 
 ## 状态词汇
 

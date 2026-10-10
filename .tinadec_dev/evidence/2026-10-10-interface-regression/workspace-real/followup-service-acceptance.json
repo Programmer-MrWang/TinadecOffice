@@ -1,0 +1,268 @@
+{
+  "accepted": true,
+  "only_owned_children": true,
+  "explicit_existing_open_count": 1,
+  "workspace_save_count": 1,
+  "primary_storage_preserved": true,
+  "source_reference_change_only": true,
+  "requests": [
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/health",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 204
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 204
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions",
+      "status": 201
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/approvals?session_id=873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/approval-rules?sessionId=873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions?limit=12",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/approval-rules?sessionId=873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions?limit=12",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/approvals?session_id=873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration",
+      "status": 200
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    }
+  ],
+  "persisted_primary_directory": "second",
+  "persisted_storage_directory": "first/.tinadec",
+  "primary_change_did_not_relocate_storage": true
+}

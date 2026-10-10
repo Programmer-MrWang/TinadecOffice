@@ -1,5 +1,11 @@
 # GATEWAY KNOWLEDGE
 
+## 2026-10-10 Interface regression and public error contract
+
+Gateway now preserves normalized lower snake case Core refusal codes without a per-code whitelist; legacy uppercase constants keep their documented mapping. Invalid/missing codes fall back by HTTP status (5xx `internal_error`, otherwise `invalid_request`). Only public category/retryable/actions/trace_id and narrow diagnostics are projected; arbitrary upstream extensions are not spread. Project availability errors retain recovery fields, and an unreadable project has `lifecycle_status: null` rather than an invented active state. Raw scope roster carries nullable workspace and per-row availability, so one bad registration does not erase ready rows.
+
+All eight AgentPack route families forward ETag before projecting error responses, including failure ETags when Core actually supplies them. Scope/workspace nullable contracts use an explicit `anyOf` union; OpenAPI snapshots and Desktop generated types move together. Gateway owns neither storage selection nor host directory authority. APP-HOME-107 owns this cross-module regression; see `.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md` and `.tinadec_dev/evidence/2026-10-10-interface-regression/`. Gateway final full suite103/103 (including caller cancellation) and targeted32/32 pass; TypeScript still reports20 pre-existing test mock assertions about Bun fetch.preconnect, with no product-source diagnostics. Real Core/GraphSeed/Electron evidence is recorded separately and is not inferred from mocked upstream app.handle tests. The isolated component run now passes400→explicit Retry201 with exactly two PUTs, diagnostics/recovery fields/trace, unchanged failing TOML bytes, no partial installation, renderer reload, Core restart inventory and unchanged nine real-user TOML hashes. Current Core returns no ETag on the observed400/412 refusals; never invent one. See `graphseed-real/VALIDATION.md`; production main/preload and full App styling/installer remain separate acceptance.
+
 ## 2026-10-10 Multi-folder workspace proxies
 
 Workspace preview/read/conditional edit remain raw storage proxies. Project DTOs carry roots/primary/icon/color/content hash; If-Match, ETag, fixed scope and diagnostics are preserved. Core and external OpenAPI snapshots plus Desktop generated schema are updated together. Gateway owns neither root authorization nor a second configuration source. APP-HOME-107 and `.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md` hold the shared evidence and boundaries.
@@ -17,8 +23,8 @@ The root-owned isolated acceptance additionally used real Core/Gateway and Elect
 scope-enabled Core所有业务API需要privatehost凭据，health/challenge为公开例外；Gateway不得从本身env为匿名loopback签发。JSON/raw/cursor SSE都必须保留请求已有hostheader，403 host_authorization_required需保留诊断code。Gateway自身host-challenge仅返回nonce/角色绑定HMAC，不发送key或业务facts；无key503，nonce限定单43字符base64url。OpenAPI全局私有security scheme与两个公开例外同步描述。
 
 **Last Updated:** 2026-10-10
-**Last Updated By:** GraphSeedPack 严格诊断投影、路由与契约回归，补隔离真实Core/Gateway+Electron组件HTTP验收；保留存储与宿主认证边界。
-**Last Verified Commit:** d5e6c8d8 + 工作树；本轮 Gateway97/97与快照/schema通过；隔离真实Core/Gateway+Electron43.3.0诊断400→显式Retry201→reload专项通过，证据 `.tinadec_dev/evidence/2026-10-09-graphseed-fix/VALIDATION.md`。存储专项历史 Gateway95/95 与宿主认证证据见 `.tinadec_dev/evidence/storage-gateway-host-final.log`；本轮不宣称完整App/安装器或三平台验收。
+**Last Updated By:** APP-HOME-107 接口回归：规范公开错误投影、AgentPack失败ETag、工作区可用性与nullable契约；隔离真实证据单列。
+**Last Verified Commit:** 607b7406（本轮五组代码提交）+ 文档工作树；Windows证据与未验收边界见 .tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md。
 **Branch:** main
 
 ## 2026-10-08 Tools settings proxy
@@ -30,7 +36,7 @@ GET capabilities and effective resource diagnostics are Core receipts, including
 
 外部 issue #30 称 catch-all onError 不赋值 set.status 会让"暂存 201 后出错"的请求以 HTTP 201 + 错误体返回假成功。**在本仓依赖（elysia 1.4.29）上不成立**：`dist/compose.js:917` 的 `if(!set.status||set.status<300)set.status=error?.status||500` 已经把暂存的 2xx/3xx 钳成 500，4xx/5xx 才保留；实测三条路径（普通 Error、`s[429]`、附件路由暂存 201 后 `response.json()` 解析失败）全部 500。原先那行 `typeof set.status === 'number' ? set.status : 500` 只是**侥幸**等价于"只继承 4xx/5xx"，现已写成明示契约并注明 Elysia 版本行为。
 
-真正修掉的是**裸 fetch 缺兜底**：`coreClient.proxySse` / `proxySseWithCursor` / `proxyStream`、`streaming.proxyStream`、`toolRuntimeClient.proxyToolRuntimeSse` / `proxyToolRuntimeStream` 此前直接返回 fetch 的 promise，上游不可达时异常逃逸进 catch-all，客户端收到 **500** 而非 **502**，`serviceDiscovery` 那类探针分不出"网关坏了"与"上游没起来"。新增 `src/upstreamFailure.ts` 统一构造 502；它**刻意不走 `toProblemDetails`**，因为 `normalizeCode` 会把未知 code 重写成 `conflict`，抹掉 `CORE_UNREACHABLE` / `TOOL_RUNTIME_UNREACHABLE` 这个指纹。`config.requestTimeoutMs`（`TINADEC_GATEWAY_TIMEOUT_MS`）**仍是死配置**并在代码里标注：给所有上游 fetch 加 AbortSignal 必须放行 SSE/流式，那是行为变更不是缺陷修复，留作独立项。
+真正修掉的是**裸 fetch 缺兜底**：`coreClient.proxySse` / `proxySseWithCursor` / `proxyStream`、`streaming.proxyStream`、`toolRuntimeClient.proxyToolRuntimeSse` / `proxyToolRuntimeStream` 此前直接返回 fetch 的 promise，上游不可达时异常逃逸进 catch-all，客户端收到 **500** 而非 **502**，`serviceDiscovery` 那类探针分不出"网关坏了"与"上游没起来"。新增 `src/upstreamFailure.ts` 统一构造 502；历史上它不走 `toProblemDetails`，因为当时 `normalizeCode` 会把未知 code 重写成 `conflict`。2026-10-10 规范错误码投影已经修正，此处仍保留独立上游失败构造与502语义。`config.requestTimeoutMs`（`TINADEC_GATEWAY_TIMEOUT_MS`）**仍是死配置**并在代码里标注：给所有上游 fetch 加 AbortSignal 必须放行 SSE/流式，那是行为变更不是缺陷修复，留作独立项。
 
 CORS：`ALLOWED_ORIGINS` 里的 `'file://'` 是**死条目**（file:// 文档发出的 `Origin` 字面量是 `null`，与字符串全等和正则都不匹配），已删除；打包态桌面改用 `app://bundle` 标准 scheme 承载 dist，故放行 `app://bundle`。渲染层若再引入其它 origin，必须同步更新这里。证据：[修复报告](../.tinadec_dev/reports/2026-10-08-issue30-33-34-fixes.zh-CN.md)。
 

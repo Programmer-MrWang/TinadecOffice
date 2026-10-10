@@ -1,9 +1,15 @@
 # DEVELOPMENT PROGRAM MEMORY
 
+## 2026-10-10 接口回归维护
+
+审计基线：a8374926；当前验证提交以以下元数据为准。
+
+沿用APP-HOME-107唯一任务，宿主启动、Core逐项挂载、Gateway错误投影与Desktop跨作用域读取分别交叉引用。证据与实际/模拟边界见 .tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md。目录、用户配置和测试包均保留；未宣称全平台完成。
+
 **Generated:** 2026-10-05
 **Last Updated:** 2026-10-10
 **Last Updated By:** APP-HOME-107/F007 侧边栏与多文件夹工作区、作用域目录授权、真实平台证据及唯一文档入口；此前专项独立保留。
-**Last Verified Commit:** d5e6c8d838f93f6bc26d4b7b77ecb0d9bdb9c2f3 + 工作树；本轮 .tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md，平台与测试层级分别登记；此前专项以各自报告为准。
+**Last Verified Commit:** 607b7406（本轮五组代码提交）+ 文档工作树；Windows证据与未验收边界见 .tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md。
 **Branch:** main
 
 ### 2026-10-10 工作区交互与多目录

@@ -6,6 +6,8 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+2026-10-10 工作区接口故障专项沿用 [APP-HOME-107](../../app/home/TODO.md#app-home-107)，不建立重复主任务。`CORE-HTTP-F004` 的 Windows 定向证据、自宿主HTTP诊断8/8与 Linux/macOS/PostgreSQL/全产品待验收边界写入 [统一报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。模块整体审计任务仍保持原状态。
+
 <a id="core-http-001"></a>
 
 ### CORE-HTTP-001 完成 AspNetCore · 可嵌入 HTTP 层 的逐功能审计与模块图精化

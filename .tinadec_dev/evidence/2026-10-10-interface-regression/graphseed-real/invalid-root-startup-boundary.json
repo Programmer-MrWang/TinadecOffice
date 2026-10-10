@@ -1,0 +1,10 @@
+{
+  "scenario": "An intentionally malformed owned installation fixture generated top-level mode_edges as [] instead of omitting the empty table array.",
+  "root": "owned temporary user root",
+  "real_user_modified": false,
+  "observed": "Core exits during startup Reconcile with ConfigurationDocumentException before becoming healthy.",
+  "exception_type": "TinadecCore.Abstractions.Ports.ConfigurationDocumentException",
+  "location": "TinadecCore/Api/Program.cs:73",
+  "subsequent_fixture": "Fixed by omitting empty table arrays, validated through real configuration endpoint, then Core became ready.",
+  "boundary": "This is evidence of a remaining invalid-user-config startup recovery boundary, not a failure of current real user configuration."
+}

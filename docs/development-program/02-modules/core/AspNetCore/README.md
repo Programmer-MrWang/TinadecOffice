@@ -19,6 +19,12 @@
 - AddTinadecCoreHttp / MapTinadecCore
 - 端点、DTO、SSE、OpenAPI、控制面
 
+### 工作区可用性与错误响应（2026-10-10）
+
+作用域列表对每条宿主登记只读检查 manifest 和目录授权，不初始化或挂载运行时。健康条返回 `availability=ready`；坏条保留身份与路径，返回 `availability=error`、空 `workspace`、稳定错误码、分类、恢复动作、trace 和配置诊断。项目聚合挂载时再检测数据库；数据库异常保留服务端 journal，不伪装成目录缺失，也不伪造生命周期。取消请求与致命异常不转成占位条。
+
+`AddTinadecCoreHttp` 为已有 code 的 ProblemDetails 补齐缺失分类，保留域诊断及已给定分类。已带 trace 的 JSON problem 由专用 writer 保留关联身份；未带 trace 的 problem 继续使用框架 writer。接口故障专项沿用 [APP-HOME-107](../../app/home/TODO.md#app-home-107)，Windows 定向证据及未验收边界见 [本轮报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。
+
 ## 源码入口
 
 - [TinadecCore/AspNetCore/TinadecCore.AspNetCore.csproj](../../../../../TinadecCore/AspNetCore/TinadecCore.AspNetCore.csproj)

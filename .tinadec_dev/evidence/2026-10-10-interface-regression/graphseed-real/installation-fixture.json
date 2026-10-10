@@ -1,0 +1,22 @@
+{
+  "fixture": "current_copy_graphseed_owned_records_removed_in_scratch_only",
+  "removed_in_scratch_only": {
+    "agent_pack_installations": 1,
+    "agent_pack_versions": 1,
+    "agent_pack_managed_resources": 21,
+    "agent_pack_resource_bindings": 21,
+    "agent_pack_default_adoptions": 1,
+    "agent_definitions": 6,
+    "agent_versions": 6,
+    "prompt_pipelines": 8,
+    "prompt_versions": 8,
+    "agent_modes": 7,
+    "mode_versions": 7,
+    "mode_nodes": 12,
+    "mode_edges": 4,
+    "canvas_layouts": 7
+  },
+  "existing_pack_preserved": true,
+  "existing_published_meeting": true,
+  "exact_current_copy_separately_verified": true
+}

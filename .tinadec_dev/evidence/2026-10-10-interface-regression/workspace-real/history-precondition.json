@@ -1,0 +1,21 @@
+{
+  "accepted": true,
+  "workspace_restored": true,
+  "scope": "9425c31688174f6898695ce521c12fbe",
+  "project_id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+  "response": {
+    "status": 409,
+    "body": {
+      "type": "https://tinadec.dev/errors/agent_mode_not_configured",
+      "title": "agent_mode_not_configured",
+      "status": 409,
+      "detail": "A published default Agent Mode must be configured before creating a session.",
+      "code": "agent_mode_not_configured",
+      "instance": "/api/v1/sessions",
+      "category": "user_action_required",
+      "retryable": false,
+      "actions": []
+    },
+    "etag": null
+  }
+}

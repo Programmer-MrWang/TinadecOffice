@@ -1,0 +1,887 @@
+[
+  {
+    "type": "evidence_projection",
+    "value": {
+      "reason": "Keep business API events and all failures/lifecycle/console records; omit successful static-resource traffic.",
+      "original_event_count": 405,
+      "retained_event_count": 125,
+      "original_sha256": "a609d03c8c4aa36d24025c05f4abed65873cbd2b20ab61557549349d22a4ab78",
+      "ignored_local_raw_output": "workspace-real/followup-electron-progress.raw.log"
+    }
+  },
+  {
+    "type": "loading",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "[vite] connecting..."
+  },
+  {
+    "type": "console",
+    "value": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+  },
+  {
+    "type": "network_error",
+    "value": {
+      "path": "/geist-latin-wght-normal-BgDaEnEv.woff2",
+      "error": "net::ERR_CACHE_MISS"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "console",
+    "value": "[vite] connected."
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/health",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "console",
+    "value": "Failed to decode downloaded font: http://127.0.0.1:58744/geist-latin-wght-normal-BgDaEnEv.woff2"
+  },
+  {
+    "type": "console",
+    "value": "OTS parsing error: invalid sfntVersion: 1008821359"
+  },
+  {
+    "type": "fixture_loaded",
+    "value": true
+  },
+  {
+    "type": "loaded",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "PUT",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 204
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "PUT",
+      "path": "/api/v1/storage/scopes/9425c31688174f6898695ce521c12fbe/workspace",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "network_error",
+    "value": {
+      "path": "/api/v1/sessions",
+      "error": "net::ERR_ABORTED"
+    }
+  },
+  {
+    "type": "network_error",
+    "value": {
+      "path": "/api/v1/sessions",
+      "error": "net::ERR_ABORTED"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "POST",
+      "path": "/api/v1/sessions",
+      "status": 201
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/approvals"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/approval-rules"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/approvals"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/approval-rules"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "PATCH",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/approvals",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/approval-rules",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/approval-rules",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/runs",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/messages",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/tool-executions",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/approvals",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351/orchestration",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "PATCH",
+      "path": "/api/v1/sessions/873633c1-5c5d-40ba-825f-c7632e447351",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "loading",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "[vite] connecting..."
+  },
+  {
+    "type": "console",
+    "value": "[Vue warn] onScopeDispose() is called when there is no active effect scope to be associated with."
+  },
+  {
+    "type": "network_error",
+    "value": {
+      "path": "/geist-latin-wght-normal-BgDaEnEv.woff2",
+      "error": "net::ERR_CACHE_MISS"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health"
+    }
+  },
+  {
+    "type": "console",
+    "value": "[vite] connected."
+  },
+  {
+    "type": "console",
+    "value": "Failed to decode downloaded font: http://127.0.0.1:58744/geist-latin-wght-normal-BgDaEnEv.woff2"
+  },
+  {
+    "type": "console",
+    "value": "OTS parsing error: invalid sfntVersion: 1008821359"
+  },
+  {
+    "type": "loaded",
+    "value": true
+  },
+  {
+    "type": "console",
+    "value": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "request",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions"
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    }
+  },
+  {
+    "type": "response",
+    "value": {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    }
+  }
+]

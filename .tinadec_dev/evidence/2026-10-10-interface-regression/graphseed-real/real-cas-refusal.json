@@ -1,0 +1,11 @@
+{
+  "expected_status": 412,
+  "observed_status": 412,
+  "code": "agent_pack_revision_conflict",
+  "error_etag": null,
+  "trace_id_present": true,
+  "category": "user_action_required",
+  "retryable": false,
+  "actions": [],
+  "inventory_preserved_after_refusal": true
+}

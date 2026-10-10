@@ -30,6 +30,8 @@ flowchart TD
 
 项目文件只提供内容和配置，`allow_storage_write` 的可信上限属于用户根 state 登记与宿主 IPC；`HostProtectedRoots` 在新运行准入冻结其他作用域及安全库路径。完整模型运行和各平台内核证据另见 [X-DATA-104](../../cross-cutting/data-security/TODO.md#x-data-104)。
 
+2026-10-10 挂载回归：运行图初始化查询 `GetProjectAnyStatusAsync`，归档或回收站中的项目记录已存在时保持身份、会话和生命周期；不能以只列 active 的结果断定需要再次创建。Windows/SQLite 的 close、重新挂载、宿主重启、历史读取和 restore 在独立临时根定向通过。该修复沿用 [APP-HOME-107](../../app/home/TODO.md#app-home-107)，本轮证据和平台边界见 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。
+
 `StorageScopeShutdownHostedService` 在主图 worker 前登记，停止顺序使它最后等待所有子图关闭；Registry 和 runtime 的并发 AsyncDispose/Stop 等待同一实际完成任务。关闭先阻止新挂载/维护/租约，现有 SSE、运行和内容流完成后才释放数据库及 `host.lock`。Windows以实际独占重新打开证明句柄释放。项目销毁预览包含SQLite一致备份或PostgreSQL owned schema 的RepeatableRead行摘要，执行前再次核对，不能只凭目录统计删除新事实。
 
 ```mermaid

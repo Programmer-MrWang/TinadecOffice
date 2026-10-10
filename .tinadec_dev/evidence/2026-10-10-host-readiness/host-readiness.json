@@ -1,0 +1,53 @@
+{
+  "passed": true,
+  "electron": "43.3.0",
+  "isolated_user_root": true,
+  "actual_main": true,
+  "actual_preload": true,
+  "actual_host_state_machine": true,
+  "actual_identity_hmac": true,
+  "mocked_identity_transport": true,
+  "mocked_service_lifecycle": true,
+  "mocked_native_folder_dialog": true,
+  "no_user_ports_bound": true,
+  "initial_outage_recovered": true,
+  "periodic_outage_revoked_and_recovered": true,
+  "mismatched_identity_rejected": true,
+  "manual_retry_restored": true,
+  "folder_selection_after_ready": true,
+  "private_header_authorization_checked_with_real_frame": true,
+  "iframe_status_retry_denied": true,
+  "preload_status_subscription": true,
+  "proof_calls": 16,
+  "events": [
+    {
+      "state": "checking"
+    },
+    {
+      "state": "ready"
+    },
+    {
+      "state": "unavailable",
+      "code": "host_identity_unavailable"
+    },
+    {
+      "state": "checking"
+    },
+    {
+      "state": "ready"
+    },
+    {
+      "state": "rejected",
+      "code": "host_identity_rejected"
+    },
+    {
+      "state": "checking"
+    },
+    {
+      "state": "ready"
+    },
+    {
+      "state": "ready"
+    }
+  ]
+}

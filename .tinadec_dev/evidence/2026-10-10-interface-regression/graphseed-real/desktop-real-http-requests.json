@@ -1,0 +1,84 @@
+{
+  "isolated": true,
+  "real_core": true,
+  "real_gateway": true,
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/workspace-defaults",
+      "status": 200,
+      "etag": "\"1\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent-packs",
+      "status": 200,
+      "etag": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent-packs/install-preview",
+      "status": 200,
+      "etag": "\"0\""
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent-packs/install-preview",
+      "status": 200,
+      "etag": "\"0\""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent-packs/tinadec.graph.seed-pack",
+      "status": 400,
+      "etag": null,
+      "code": "configuration_invalid",
+      "category": "user_action_required",
+      "retryable": false,
+      "actions": [
+        "open_settings",
+        "reload"
+      ],
+      "diagnostics": [
+        {
+          "code": "configuration_unique",
+          "message": "agent_definitions: duplicate unique identity (TenantId, WorkspaceId, Slug).",
+          "severity": "error"
+        }
+      ],
+      "trace_id_present": true,
+      "configuration_bytes_unchanged_on_failure": true,
+      "no_partial_installation_after_failure": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent-packs/install-preview",
+      "status": 200,
+      "etag": "\"0\""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent-packs/tinadec.graph.seed-pack",
+      "status": 201,
+      "etag": "\"1\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workspace-defaults",
+      "status": 200,
+      "etag": "\"1\""
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent-packs",
+      "status": 200,
+      "etag": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent-packs/install-preview",
+      "status": 200,
+      "etag": "\"1\""
+    }
+  ]
+}

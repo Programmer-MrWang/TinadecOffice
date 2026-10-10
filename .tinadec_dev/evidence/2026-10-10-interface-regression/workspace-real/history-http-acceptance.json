@@ -1,0 +1,531 @@
+{
+  "accepted": true,
+  "real_core_gateway": true,
+  "existing_owned_root_only": true,
+  "random_ports": true,
+  "missing_default_mode_precondition": {
+    "type": "https://tinadec.dev/errors/agent_mode_not_configured",
+    "title": "agent_mode_not_configured",
+    "status": 409,
+    "detail": "A published default Agent Mode must be configured before creating a session.",
+    "code": "agent_mode_not_configured",
+    "instance": "/api/v1/sessions",
+    "category": "user_action_required",
+    "retryable": false,
+    "actions": []
+  },
+  "explicit_graphseed_installation": true,
+  "session_creation_status": 201,
+  "history_after_restart": true,
+  "requests": [
+    {
+      "path": "/api/v1/projects",
+      "scope": "user",
+      "method": "GET",
+      "status": 200,
+      "body": [
+        {
+          "storage_id": "9425c31688174f6898695ce521c12fbe",
+          "roots": [
+            {
+              "id": "2ad7c759-d7a8-465f-a99e-0085ec571064",
+              "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first"
+            },
+            {
+              "id": "f166de7c-d1ea-49d2-8429-22221b755baa",
+              "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\second"
+            }
+          ],
+          "primary_root_id": "2ad7c759-d7a8-465f-a99e-0085ec571064",
+          "icon": "folder",
+          "color": "default",
+          "configuration_hash": "925e41fbe4b58b1a3ae08592564c91fab29a992ddfccdd5fa02ea9f4979b4ef1",
+          "storage_root": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first\\.tinadec",
+          "availability": "ready",
+          "external": false,
+          "id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+          "name": "first",
+          "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first",
+          "kind": "workspace",
+          "created_at": "2026-10-10T08:44:49.203534+00:00",
+          "updated_at": "2026-10-10T08:44:49.203534+00:00",
+          "lifecycle_status": "active",
+          "trashed_at": null
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/sessions",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "POST",
+      "status": 409,
+      "body": {
+        "type": "https://tinadec.dev/errors/agent_mode_not_configured",
+        "title": "agent_mode_not_configured",
+        "status": 409,
+        "detail": "A published default Agent Mode must be configured before creating a session.",
+        "code": "agent_mode_not_configured",
+        "instance": "/api/v1/sessions",
+        "category": "user_action_required",
+        "retryable": false,
+        "actions": []
+      }
+    },
+    {
+      "path": "/api/v1/agent-packs/install-preview",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "POST",
+      "status": 200,
+      "body": {
+        "action": "install",
+        "preview_id": "d4ece3e3-b31d-480c-b155-cf6bae92704e",
+        "pack_id": "tinadec.graph.seed-pack",
+        "owner": "tinadec",
+        "bundled_version": "3.0.1",
+        "integrity_digest": "25d64d688a663243701f168137d74d2f87d20059730b4d9969dd4beca14932ce",
+        "revision": 0,
+        "expires_at": "2026-10-10T09:07:08.7859241+00:00",
+        "counts": {
+          "agents": 6,
+          "prompt_pipelines": 8,
+          "modes": 7,
+          "created": 21,
+          "adopted": 0,
+          "reused": 0,
+          "updated": 0
+        },
+        "resources": [
+          {
+            "kind": "agent",
+            "resource_key": "meeting",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "solo_master",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "search",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "global_engineering",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "reviewer",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "governance_reviewer",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "seed-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "solo-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "vibe-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "fixed-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "free-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "plan-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "review-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "spec-base",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "free_director",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "vibe_graph",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "fixed_pipeline",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "solo",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "plan",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "review",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "spec",
+            "disposition": "created"
+          }
+        ],
+        "defaults_will_adopt": true,
+        "required_core_version": "0.1.0",
+        "current_core_version": "0.1.0",
+        "differences": [],
+        "warnings": []
+      }
+    },
+    {
+      "path": "/api/v1/agent-packs/tinadec.graph.seed-pack",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "PUT",
+      "status": 201,
+      "body": {
+        "status": "installed",
+        "pack_id": "tinadec.graph.seed-pack",
+        "owner": "tinadec",
+        "active_version": "3.0.1",
+        "integrity_digest": "25d64d688a663243701f168137d74d2f87d20059730b4d9969dd4beca14932ce",
+        "revision": 1,
+        "counts": {
+          "agents": 6,
+          "prompt_pipelines": 8,
+          "modes": 7,
+          "created": 21,
+          "adopted": 0,
+          "reused": 0,
+          "updated": 0
+        },
+        "resources": [
+          {
+            "kind": "agent",
+            "resource_key": "global_engineering",
+            "logical_entity_id": "793dfb80-f601-40f1-9b79-74d584e7d4de",
+            "version_id": "5934e988-51bc-4d19-95f1-45461e1a5768",
+            "content_hash": "b87fa8e566fc61797ed40093c8802764431123a97d194058ca1b917774317514",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "governance_reviewer",
+            "logical_entity_id": "97b4dc17-563e-4810-9d07-1797354c9270",
+            "version_id": "039eaebf-5ad1-45ee-8ca0-5cf0e068c86e",
+            "content_hash": "dff20071d7aa370b47b9fc5eddebe60832ab781c7330fe4c66e8ca8646700c5a",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "meeting",
+            "logical_entity_id": "e61901fe-c24a-45ee-be1e-89a2c6cb4eb1",
+            "version_id": "386dab05-ebb0-47ce-ad1c-40e7eaac8325",
+            "content_hash": "9fb506d07cf614be01a7368afda2dce8daf57a16e3ab8053abd4830820307dbd",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "reviewer",
+            "logical_entity_id": "95e5ed8d-a220-47de-af60-933f32f82559",
+            "version_id": "0c6645a4-0afc-4395-a315-d9351de814a3",
+            "content_hash": "7fd5954d84a468faf0de6dd5569b88277a25444c658a03daca8d9a0f4a12df87",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "search",
+            "logical_entity_id": "4035064e-698e-4635-b1b5-83b3fbcd68bf",
+            "version_id": "8c273fd6-4247-4901-b01b-e7d70804cee4",
+            "content_hash": "57af9106acce851d72129d634128751b73627c03a71fa6a83e18ae5a44f520cb",
+            "disposition": "created"
+          },
+          {
+            "kind": "agent",
+            "resource_key": "solo_master",
+            "logical_entity_id": "b32f9be6-4d97-446f-8ee2-309dfbcd9d53",
+            "version_id": "253676e3-9906-482d-89cb-466dcd2a916c",
+            "content_hash": "203766c4bcb2dc38d0a8fadd354be1f77ee27e27b271867105cd842397c5d5ad",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "fixed_pipeline",
+            "logical_entity_id": "a0673878-070b-4461-81d9-87aa6be9762b",
+            "version_id": "c4d14d1b-5334-4b95-8405-2a35894c0644",
+            "content_hash": "9316a5281500f185275b65d99eb5d73820132bdceea49e4fcdf4cae8c948891a",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "free_director",
+            "logical_entity_id": "c65592a0-e806-451d-963b-84b4a320d283",
+            "version_id": "a7405617-fe35-43f6-a35e-f69c8c081ab7",
+            "content_hash": "cdec6b81b5b30de0f0c43b7dd745f4c2a7f46e4763a1b03653c5e11fa58d7e1f",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "plan",
+            "logical_entity_id": "eeb25ab5-28e9-46a9-bda5-8323f21880b2",
+            "version_id": "50b473b2-b2f1-4186-b0a8-4cc3da684ad6",
+            "content_hash": "4fc47fd9a3101aa8858506501c4e0791694ad888f1fc472bafbe3af01c2bcd18",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "review",
+            "logical_entity_id": "8031a59a-441b-4d90-a7c3-5cb6dd63be71",
+            "version_id": "2b079368-ceb3-4228-84ac-64718f9ceae1",
+            "content_hash": "6ebf49b62d5b78aa6fa890fa3fe29f550527b50b7aa94cae4c9f79669fd155ec",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "solo",
+            "logical_entity_id": "98373bec-a66d-429a-9097-7a9a358828db",
+            "version_id": "f069e663-40a0-49d8-a6be-cc2f6f42b5d2",
+            "content_hash": "7c6d84e373d838a87b7786f43623be1c32a9bcde5747ec083cd72f245e682419",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "spec",
+            "logical_entity_id": "c2901b0f-538c-4e02-8f6c-6a3d72d2a2e9",
+            "version_id": "cc58ee99-821c-4790-844a-d612d45d655b",
+            "content_hash": "f7f8f9708b18972fd6ef90e11428be8cad63c61add2cad112711211572fb0364",
+            "disposition": "created"
+          },
+          {
+            "kind": "mode",
+            "resource_key": "vibe_graph",
+            "logical_entity_id": "d503df52-260e-44fe-952e-4cd3641df60a",
+            "version_id": "cbeaf3f3-3838-4e2f-ad52-9361c6739958",
+            "content_hash": "a2ba2a4c00f4a0fa0a057ff64e9cfd9111b0f642464872795ff097e133b08a40",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "fixed-base",
+            "logical_entity_id": "8f4ee76a-69bc-4861-bffe-e5a0ba24442f",
+            "version_id": "70ff1264-31b5-4a24-814f-b76832794375",
+            "content_hash": "43a26377e0489fa906e0b13df25b5eeac0876c8af03130c657ab30950631b273",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "free-base",
+            "logical_entity_id": "19228a5a-ae4b-40e7-8e3f-2ea20e98c8eb",
+            "version_id": "414ca3f9-e59c-48ac-afe9-d3c919664efe",
+            "content_hash": "5f2b628db9fbd251f291b021368f62f330bc152febeb54eb1b4866958fea712b",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "plan-base",
+            "logical_entity_id": "cc14b24e-7a19-43c8-a501-60b6755a8fca",
+            "version_id": "d37d12ec-9a30-41be-8138-d60f1f5f338d",
+            "content_hash": "a7dc2bc2884b2f721639caa872f0eedcb5e59b695814fe0e4ffda3c09442fc55",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "review-base",
+            "logical_entity_id": "447a3f26-9698-4a54-984f-8778804d9eb3",
+            "version_id": "a395d2df-b3b0-4f50-8b41-fff276562292",
+            "content_hash": "7c339d120fdc45eeb18d22c033e8236ad4ad00695415fd32f5b3c3f036d05e6a",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "seed-base",
+            "logical_entity_id": "f83d0077-73c4-4d83-84b0-aabeba211f33",
+            "version_id": "7a97d70c-0ca1-4164-be61-2358f8be579d",
+            "content_hash": "bb5acdbe26635f9c984c8eb1783cac410d1baed54765f60fab5abe9577f4ee3d",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "solo-base",
+            "logical_entity_id": "702f7945-6c29-499d-98b5-ff29668af45e",
+            "version_id": "b8aa0d37-5130-4493-9ce6-e234c2ccd7ae",
+            "content_hash": "82facfd74bcc13d07add784d7f54ae626b867d1df2b701d5cb0848230d8fec80",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "spec-base",
+            "logical_entity_id": "6ee0bc29-0f9a-4dbb-ac13-0cceb97c5023",
+            "version_id": "aae3cb1e-f9df-43c3-ba65-83d34fd6e796",
+            "content_hash": "8b31937b150e9d0a7ce0f2e58f7d6b17c4aeb02e5b848ca836fd3717079bc9c0",
+            "disposition": "created"
+          },
+          {
+            "kind": "prompt_pipeline",
+            "resource_key": "vibe-base",
+            "logical_entity_id": "ee299038-94ae-4745-80ee-de14f160e6b9",
+            "version_id": "2fb8b2ba-5005-4f5c-9e62-fb24a8159e44",
+            "content_hash": "a85055626d5cb904c5343c19d4140042453554b976a38a606c2d8af2e65355db",
+            "disposition": "created"
+          }
+        ],
+        "defaults_adopted": true,
+        "installed_at": "2026-10-10T08:52:10.143311+00:00",
+        "updated_at": "2026-10-10T08:52:10.143311+00:00"
+      }
+    },
+    {
+      "path": "/api/v1/sessions",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "POST",
+      "status": 201,
+      "body": {
+        "id": "85698813-f2e8-42d8-b712-d592990b2922",
+        "project_id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+        "title": "接口回归历史会话",
+        "status": "active",
+        "mode": null,
+        "mode_version_id": "a7405617-fe35-43f6-a35e-f69c8c081ab7",
+        "view_mode": "flat",
+        "permission_mode": "default",
+        "space_options": null,
+        "settings_revision": 0,
+        "conversation_node_key": "meeting",
+        "conversation_template_slug": "meeting",
+        "meeting_model_override": null,
+        "summary": null,
+        "history_revision": 0,
+        "created_at": "2026-10-10T08:52:17.4288346+00:00",
+        "updated_at": "2026-10-10T08:52:17.4288346+00:00",
+        "lifecycle_status": "active",
+        "trashed_at": null
+      }
+    },
+    {
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "GET",
+      "status": 200,
+      "body": [
+        {
+          "storage_id": "9425c31688174f6898695ce521c12fbe",
+          "id": "85698813-f2e8-42d8-b712-d592990b2922",
+          "project_id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+          "title": "接口回归历史会话",
+          "status": "active",
+          "mode": null,
+          "mode_version_id": "a7405617-fe35-43f6-a35e-f69c8c081ab7",
+          "view_mode": "flat",
+          "permission_mode": "default",
+          "space_options": null,
+          "settings_revision": 0,
+          "conversation_node_key": "meeting",
+          "conversation_template_slug": "meeting",
+          "meeting_model_override": null,
+          "summary": null,
+          "history_revision": 0,
+          "created_at": "2026-10-10T08:52:17.4288346+00:00",
+          "updated_at": "2026-10-10T08:52:17.4288346+00:00",
+          "lifecycle_status": "active",
+          "trashed_at": null
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/projects",
+      "scope": "user",
+      "method": "GET",
+      "status": 200,
+      "body": [
+        {
+          "storage_id": "9425c31688174f6898695ce521c12fbe",
+          "roots": [
+            {
+              "id": "2ad7c759-d7a8-465f-a99e-0085ec571064",
+              "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first"
+            },
+            {
+              "id": "f166de7c-d1ea-49d2-8429-22221b755baa",
+              "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\second"
+            }
+          ],
+          "primary_root_id": "2ad7c759-d7a8-465f-a99e-0085ec571064",
+          "icon": "folder",
+          "color": "default",
+          "configuration_hash": "925e41fbe4b58b1a3ae08592564c91fab29a992ddfccdd5fa02ea9f4979b4ef1",
+          "storage_root": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first\\.tinadec",
+          "availability": "ready",
+          "external": false,
+          "id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+          "name": "first",
+          "path": "C:\\git\\agent\\TinadecOffice\\.tinadec_dev\\tmp\\workspace-interface-ui\\runtime-09c819666a82\\first",
+          "kind": "workspace",
+          "created_at": "2026-10-10T08:44:49.203534+00:00",
+          "updated_at": "2026-10-10T08:44:49.203534+00:00",
+          "lifecycle_status": "active",
+          "trashed_at": null
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "scope": "9425c31688174f6898695ce521c12fbe",
+      "method": "GET",
+      "status": 200,
+      "body": [
+        {
+          "storage_id": "9425c31688174f6898695ce521c12fbe",
+          "id": "85698813-f2e8-42d8-b712-d592990b2922",
+          "project_id": "9a6f73e2-ab58-480e-956a-508477f547b0",
+          "title": "接口回归历史会话",
+          "status": "active",
+          "mode": null,
+          "mode_version_id": "a7405617-fe35-43f6-a35e-f69c8c081ab7",
+          "view_mode": "flat",
+          "permission_mode": "default",
+          "space_options": null,
+          "settings_revision": 0,
+          "conversation_node_key": "meeting",
+          "conversation_template_slug": "meeting",
+          "meeting_model_override": null,
+          "summary": null,
+          "history_revision": 0,
+          "created_at": "2026-10-10T08:52:17.4288346+00:00",
+          "updated_at": "2026-10-10T08:52:17.4288346+00:00",
+          "lifecycle_status": "active",
+          "trashed_at": null
+        }
+      ]
+    }
+  ]
+}

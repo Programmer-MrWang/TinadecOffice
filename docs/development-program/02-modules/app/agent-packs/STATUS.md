@@ -24,3 +24,9 @@
 将聚合行拆成可验收功能，保留旧Feature ID或明确替代关系；为每项记录入口、预期行为、实际行为、成功/失败/权限/取消/恢复场景、对应Task ID。历史报告只写“历史验证，本轮未重跑”。
 
 [本模块TODO](TODO.md) · [功能分析模板](../../../05-templates/FEATURE.md)
+
+## 2026-10-10 接口回归专项
+
+App 仅首次可信业务连接触发 GraphSeedPack 检查；普通重连不重放安装。inventory 逐项结算保留旧状态与完整诊断；安装失败 diagnostics/trace_id 经 Gateway 保留；上游提供 ETag 时透传，本次真实配置400和CAS412未提供ETag。3.0.1版本、摘要、确认与幂等规则不变。
+
+统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。

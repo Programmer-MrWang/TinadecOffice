@@ -1,0 +1,351 @@
+{
+  "message": "UI timeout: window.__workspaceFixture.c.sessions.value.length===1",
+  "events": [
+    {
+      "step": "real_identity_and_preload",
+      "ready": true
+    },
+    {
+      "step": "created",
+      "only_primary_initialized": true,
+      "single_submit": true
+    }
+  ],
+  "requests": [
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/health",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/projects",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/doctor",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/readiness",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 204
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/preview",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/storage/scopes/open",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/sessions",
+      "status": 409
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/projects",
+      "status": 200
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions",
+      "status": 204
+    },
+    {
+      "method": "OPTIONS",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 204
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/sessions?project_id=9a6f73e2-ab58-480e-956a-508477f547b0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/readiness",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/doctor",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200
+    }
+  ]
+}

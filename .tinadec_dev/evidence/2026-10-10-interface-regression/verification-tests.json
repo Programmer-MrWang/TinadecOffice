@@ -1,0 +1,191 @@
+{
+  "date": "2026-10-10",
+  "code_commits": [
+    "a3e27c7d",
+    "8273c59f",
+    "b5617177",
+    "0f0f1afa"
+  ],
+  "provenance": "Observed tool executions; this file extracts only test/build summaries. Raw console outputs remain ignored local files. The Core followup is recorded separately.",
+  "checks": [
+    {
+      "id": "gateway-suite",
+      "source": "gateway-full-final-summary.log",
+      "command": "bun test",
+      "cwd": "TinadecGateway",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 103,
+        "failed": 0,
+        "files": 16
+      },
+      "raw_output_sha256": "eedd575ed9bcafd19022c395120dd64849beb40f0093dec620d92bd1802226a3",
+      "summary_lines": [
+        "103 pass",
+        "0 fail",
+        "Ran103 tests across16 files. [2.79s]",
+        "Exit code:0"
+      ]
+    },
+    {
+      "id": "gateway-types",
+      "source": "gateway-typecheck.log",
+      "command": "TypeScript noEmit check",
+      "cwd": "TinadecGateway",
+      "outcome": "failed-existing-test-mocks",
+      "result": {
+        "diagnostics": 20,
+        "code": "TS2352",
+        "reason": "Bun fetch.preconnect test mock assertions",
+        "product_src_diagnostics": 0
+      },
+      "raw_output_sha256": "440a8577ffc0264b341d35119c24b1a62aacf443dac74ab148acea05ba2b83b0",
+      "summary_lines": [
+        "TinadecGateway/src/errorStatus.test.ts(26,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/errorStatus.test.ts(48,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/errorStatus.test.ts(68,22): error TS2352: Conversion of type '() => Promise<never>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/errorStatus.test.ts(84,22): error TS2352: Conversion of type '() => Promise<never>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/healthProxy.test.ts(12,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/healthProxy.test.ts(29,22): error TS2352: Conversion of type '() => Promise<never>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/healthProxy.test.ts(44,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/marketProxy.test.ts(116,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/marketProxy.test.ts(134,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/marketProxy.test.ts(150,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/marketProxy.test.ts(165,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/mcpProxy.test.ts(67,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/mcpProxy.test.ts(84,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/runtimeProxy.test.ts(40,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/runtimeProxy.test.ts(49,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/runtimeProxy.test.ts(321,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/runtimeProxy.test.ts(606,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/runtimeProxy.test.ts(679,24): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/toolsSettingsProxy.test.ts(31,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+        "TinadecGateway/src/toolsSettingsProxy.test.ts(38,22): error TS2352: Conversion of type '() => Promise<Response>' to type 'typeof fetch' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+      ]
+    },
+    {
+      "id": "desktop-suite",
+      "source": "desktop-final-full.log",
+      "command": "npx vitest run --maxWorkers=2",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 1215,
+        "skipped": 14,
+        "files_passed": 134,
+        "files_skipped": 1
+      },
+      "raw_output_sha256": "0fcfff52eb1b98dfc9c575ef932456eb24256a82ccc19880a6248b9e0d2b6cc5",
+      "summary_lines": [
+        " Test Files  134 passed | 1 skipped (135)",
+        "      Tests  1215 passed | 14 skipped (1229)",
+        "   Duration  178.37s (transform 44.69s, setup 2.13s, import 115.47s, tests 40.45s, environment 111.77s)"
+      ]
+    },
+    {
+      "id": "desktop-node",
+      "source": "desktop-final-node.log",
+      "command": "Standard Node test chain from package.json scripts.test",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 180,
+        "skipped": 1,
+        "failed": 0
+      },
+      "raw_output_sha256": "4211b0616c64c7de2809244d30cc574ca3acd63d710062acc92e75e689a2d12a",
+      "summary_lines": [
+        "ℹ tests 181",
+        "ℹ suites 0",
+        "ℹ pass 180",
+        "ℹ fail 0",
+        "ℹ cancelled 0",
+        "ℹ skipped 1",
+        "ℹ todo 0",
+        "ℹ duration_ms 11860.8612"
+      ]
+    },
+    {
+      "id": "desktop-targeted",
+      "source": "desktop-final-targeted.log",
+      "command": "Targeted 9 Vitest files",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 97,
+        "files": 9
+      },
+      "raw_output_sha256": "75bca2bf89a6a083ad71755fdd9f5bf3a1184fa8510ad45a6c387f2354f83bb7",
+      "summary_lines": [
+        " Test Files  9 passed (9)",
+        "      Tests  97 passed (97)",
+        "   Duration  34.99s (transform 21.49s, setup 467ms, import 26.49s, tests 8.46s, environment 19.92s)"
+      ]
+    },
+    {
+      "id": "desktop-home",
+      "source": "desktop-home-final.log",
+      "command": "HomeController targeted final checks",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 43,
+        "files": 1
+      },
+      "raw_output_sha256": "97f34abf78e1f8c2c62776d5538b5e0571a42ffb30c3b655a510d46fdf8492ee",
+      "summary_lines": [
+        " Test Files  1 passed (1)",
+        "      Tests  43 passed (43)",
+        "   Duration  10.96s (transform 3.86s, setup 155ms, import 4.44s, tests 590ms, environment 3.54s)"
+      ]
+    },
+    {
+      "id": "dev-recovery",
+      "source": "desktop-dev-recovery-final.log",
+      "command": "backendReadiness node tests",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "passed": 5,
+        "failed": 0
+      },
+      "raw_output_sha256": "388b02bf345415de52a7f2002099bf10205196a7570d82d5888d82f4319e6ba8",
+      "summary_lines": [
+        "ℹ tests 5",
+        "ℹ pass 5",
+        "ℹ fail 0",
+        "ℹ skipped 0",
+        "ℹ duration_ms 1050.7376"
+      ]
+    },
+    {
+      "id": "desktop-build",
+      "source": "desktop-final-build.log",
+      "command": "npm run build",
+      "cwd": "apps/desktop",
+      "outcome": "passed",
+      "exit_code": 0,
+      "result": {
+        "vue_tsc": "passed",
+        "vite_build": "passed"
+      },
+      "raw_output_sha256": "6a1bc56e374c685b64efe30d7ac0f67b77a65b3e0c7ab873f39944b141e9a945",
+      "summary_lines": [
+        "✓ built in 7m 6s"
+      ]
+    }
+  ],
+  "core_followup": {
+    "commit": "607b7406",
+    "evidence": "core-agent-mode-errors.md",
+    "passed": 1,
+    "failed": 0,
+    "exit_code": 0
+  }
+}

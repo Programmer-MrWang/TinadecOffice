@@ -27,3 +27,9 @@
 本模块对多文件夹工作区的改动及源码入口见 [README](README.md)。统一功能与任务由 [APP-HOME-F007](../../app/home/STATUS.md) / [APP-HOME-107](../../app/home/TODO.md#app-home-107) 持有；当前专项验证与未验收平台分别见 [本轮报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。本模块整体初始审计不因专项测试通过改为已完成。
 
 [本模块TODO](TODO.md) · [功能分析模板](../../../05-templates/FEATURE.md)
+
+## 2026-10-10 接口回归专项
+
+浏览器 preview 只使用隔离本机 UI 状态，明确禁用目录、存储和资源安装；本轮未改变用户 TOML、数据库与登记。宿主恢复状态不作为第二份业务数据权威。
+
+统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。

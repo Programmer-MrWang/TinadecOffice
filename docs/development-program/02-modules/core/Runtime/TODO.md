@@ -6,6 +6,8 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+2026-10-10 历史工作区挂载专项沿用 [APP-HOME-107](../../app/home/TODO.md#app-home-107)，不另建重复主进度。Windows/SQLite 归档及回收站重启恢复的定向证据见 [统一回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)；Linux/macOS/PostgreSQL 和完整产品仍需独立验收。
+
 <a id="core-runtime-001"></a>
 
 ### CORE-RUNTIME-001 完成 Runtime · 唯一组合根 的逐功能审计与模块图精化

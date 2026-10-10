@@ -49,3 +49,9 @@
 第一阶段实现已接手：Desktop969/14 skipped、UIE156、类型/构建和三宽度Electron夹具验证；完整空间模式仍部分实现，真实模型/平台与工具归属证据后续验收。[范围与证据](../../../../../.tinadec_dev/reports/2026-10-07-space-clusters-handoff.zh-CN.md)。
 
 2026-10-07布局与路由计算专项：UIE187/187、Desktop974/14 skipped、类型检查及离线示例通过；既有Electron渲染器无响应，本轮不宣称实际拖动视觉验收。[证据](../../../../../.tinadec_dev/reports/2026-10-07-space-layout-routing.zh-CN.md)。
+
+## 2026-10-10 接口回归专项
+
+useConnection 区分公开健康和可信宿主认证；全局提示展示预览、暂不可用与身份拒绝。两 API wrapper 先捕获请求 scope 再等待认证；搜索与 Debug 历史选择复用跨作用域读取器，按 scope+id 去重。
+
+统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。

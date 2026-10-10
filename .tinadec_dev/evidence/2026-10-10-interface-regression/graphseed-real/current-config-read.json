@@ -1,0 +1,20 @@
+{
+  "exact_current_user_toml_copy": true,
+  "copied_database_or_credentials": false,
+  "inventory_status": 200,
+  "packs": [
+    {
+      "pack_id": "tinadec.graph.seed-pack",
+      "active_version": "3.0.1"
+    },
+    {
+      "pack_id": "tinadec.tests.bootstrap-pack",
+      "active_version": "0.1.0"
+    }
+  ],
+  "preview_status": 200,
+  "preview_action": "up_to_date",
+  "preview_etag": "\"1\"",
+  "version": "3.0.1",
+  "digest": "25d64d688a663243701f168137d74d2f87d20059730b4d9969dd4beca14932ce"
+}
