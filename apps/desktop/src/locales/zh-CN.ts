@@ -59,6 +59,17 @@ export default {
     },
     status: { running: '进行中', planning: '规划中', queued: '排队中', pending: '待开始', in_progress: '进行中', completed: '已完成', succeeded: '已成功', failed: '失败', cancelled: '已取消', waiting_approval: '等待审批', awaiting_user: '等待用户裁决', approved: '已批准', rejected: '已拒绝', blocked: '受阻', idle: '就绪' },
   },
+  errors: {
+    actions: {
+      retry: '重试',
+      reload: '重新加载',
+      openSettings: '打开设置',
+      openStorageSettings: '存储设置',
+      openToolSettings: '工具设置',
+      unregisterWorkspace: '取消登记',
+      chooseFolder: '选择文件夹',
+    },
+  },
   app: {
     name: 'TinadecOffice',
     connected: '已连接',
@@ -137,6 +148,10 @@ export default {
     editWorkspace: '编辑工作区',
     moveUp: '上移',
     moveDown: '下移',
+    retryLoad: '重新加载',
+    unregisterWorkspace: '取消登记',
+    unregisterWorkspaceConfirmTitle: '取消工作区登记',
+    unregisterWorkspaceConfirmMessage: '从本机登记中移除「{name}」？磁盘上的源码与项目数据都会保留，之后可重新打开。',
     market: '市场',
     commandCenter: '指挥中心',
     debugStudio: '调试工作室',

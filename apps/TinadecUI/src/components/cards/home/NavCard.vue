@@ -50,6 +50,7 @@ function toggleCollapse() {
     @open-project="c.openProject()"
     @edit-workspace="c.editWorkspace($event)"
     @retry-workspaces="c.retryWorkspaces($event)"
+  @unregister-workspace="c.unregisterWorkspace($event)"
     @go-market="router.push('/market')"
     @go-settings="router.push('/settings')"
     @change-view="router.push($event === 'space' ? '/space' : '/')"

@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
+  RefreshCw,
   Pencil,
   Plus,
   Settings,
@@ -70,6 +71,7 @@ const emit = defineEmits<{
   'migrate-session': [id: string, targetProjectKey: string]
   'edit-workspace': [id: string]
   'retry-workspaces': [key: string]
+  'unregister-workspace': [id: string]
 }>()
 
 const list = useWorkspaceList()
@@ -137,6 +139,12 @@ const migrationProject = ref('')
 const migrationProjects = computed(() => props.projects.filter(project => project.storage_id && (project.lifecycle_status ?? 'active') === 'active'))
 const migrationAllowed = computed(() => menuTarget.value?.kind === 'session' && props.sessions.some(session => selectionKey(session) === menuTarget.value?.id && !session.project_id) && migrationProjects.value.length > 0)
 
+const menuProject = computed(() => menuTarget.value?.kind === 'project'
+  ? props.projects.find(row => selectionKey(row) === menuTarget.value!.id || row.id === menuTarget.value!.id)
+  : undefined)
+// A registered workspace whose source folder disappeared can neither load nor be archived by
+// content, so the menu offers retry plus an explicit unregister instead of dead actions.
+const menuProjectUnavailable = computed(() => menuProject.value?.availability === 'error')
 const menuItems = computed<RowMenuItem[]>(() => {
   const order: RowMenuItem[] = [
     { key: 'move-up', label: t('sidebar.moveUp'), icon: ArrowUp },
@@ -151,6 +159,11 @@ const menuItems = computed<RowMenuItem[]>(() => {
   ]
   // The free conversation owns no project record, so it only gets reordering.
   if (menuTarget.value?.kind === 'free') return order
+  if (menuProjectUnavailable.value) return [
+    { key: 'retry-workspace', label: t('sidebar.retryLoad'), icon: RefreshCw },
+    ...order,
+    { key: 'unregister-workspace', label: t('sidebar.unregisterWorkspace'), icon: Trash2, danger: true },
+  ]
   return [
     { key: 'edit-workspace', label: t('sidebar.editWorkspace'), icon: Pencil },
     ...order,
@@ -191,6 +204,17 @@ async function handleMenuSelect(key: string) {
   menuTarget.value = null
   if (!target) return
   if (key === 'edit-workspace') { emit('edit-workspace', target.id); return }
+  if (key === 'retry-workspace') { emit('retry-workspaces', target.id); return }
+  if (key === 'unregister-workspace') {
+    const confirmed = await confirm({
+      title: t('sidebar.unregisterWorkspaceConfirmTitle'),
+      message: t('sidebar.unregisterWorkspaceConfirmMessage', { name: target.name }),
+      confirmLabel: t('sidebar.unregisterWorkspace'),
+      destructive: true,
+    })
+    if (confirmed) emit('unregister-workspace', target.id)
+    return
+  }
   if (key === 'move-up' || key === 'move-down') { list.step(target.id, key === 'move-up' ? -1 : 1); return }
   if (key === 'rename') {
     startRename(target)

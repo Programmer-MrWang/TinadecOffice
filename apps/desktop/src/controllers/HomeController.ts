@@ -24,7 +24,7 @@ import { followSession, subscribeToSessionEvents, suspendFollowingSession } from
 import { isAbortError } from '@/lib/isAbortError'
 import { useAgentActivity } from '@/composables/useAgentActivity'
 import { projectRunReply } from '@/lib/runReply'
-import { useNotifications } from '@/composables/useNotifications'
+import { setErrorRecoveryHandlers, useNotifications } from '@/composables/useNotifications'
 import type { PermissionLevel } from '@/types/mode'
 // generated client is canonical; api.ts stays as compat alias (see bottom of api.ts)
 import type { ComposerSubmitOptions, DispatchMode, MeetingModelOverrideDto, SessionSettingsUpdate, SpaceOptionsDto } from '@/api'
@@ -353,6 +353,43 @@ async function loadSessions() {
   }
 }
 
+/**
+ * Removes a registered workspace from the host registry. This is the only action that
+ * works when the recorded source folder no longer exists: archive/trash need the scope's
+ * database, while unregister is a host-level operation. Stored data and sources are kept.
+ */
+async function unregisterWorkspace(projectKey: string) {
+  const project = projects.value.find(row => selectionKey(row) === projectKey)
+  if (!project) return
+  const storageId = project.storage_id ?? projectStorageId(project.id)
+  if (!storageId || storageId === 'user') return
+  await run('unregister workspace', async () => {
+    if (!window.tinadec?.storageAction) throw new Error('取消登记需要可信主窗口宿主。')
+    await window.tinadec.storageAction(storageId, 'unregister')
+    if (selectedStorageId() === storageId) setSelectedStorage('user')
+    revealWorkspace('user::free')
+    await refreshProjectsAndSessions()
+  })
+}
+
+/**
+ * One place where a server-classified error becomes something a person can click. Registered
+ * once at controller setup; the notification layer looks these up by the action kind the server
+ * named, so no call site has to re-implement recovery.
+ */
+function installErrorRecovery(): void {
+  setErrorRecoveryHandlers({
+    // Retry refreshes the roster the failing request belonged to; reload is the same
+    // read-only refresh, so both land in one implementation.
+    retry: () => refreshProjectsAndSessions(),
+    reload: () => refreshProjectsAndSessions(),
+    unregister_workspace: (storageId?: string) => {
+      const project = projects.value.find(row => (row.storage_id ?? projectStorageId(row.id)) === storageId)
+      return project ? unregisterWorkspace(selectionKey(project)) : undefined
+    },
+  })
+}
+
 async function retryWorkspace(key: string) {
   const project = projects.value.find(row => selectionKey(row) === key)
   if (!project && key !== 'user::free') return
@@ -369,6 +406,9 @@ async function retryWorkspace(key: string) {
     if (recovered) projects.value = projects.value.map(row => selectionKey(row) === key ? {
       ...row, ...recovered, path: recovered.roots.find(root => root.id === recovered.primary_root_id)!.path,
       configuration_hash: recovered.content_hash, availability: 'ready', availability_error: undefined,
+      // Clear the whole failure contract, not only the message: a stale code/actions pair would
+      // keep offering "unregister" for a workspace that has just recovered.
+      availability_code: undefined, category: undefined, retryable: undefined, actions: undefined,
     } : row)
     sessions.value = [...sessions.value.filter(row => (row.storage_id ?? 'user') !== storage || (row.project_id ?? null) !== (project?.id ?? null)), ...rows]
     workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'ready' } }
@@ -1216,6 +1256,8 @@ export const homeController = {
   completeWorkspace,
   startNewConversation,
   retryWorkspaces: retryWorkspace,
+  unregisterWorkspace,
+  installErrorRecovery,
   createSession,
   renameProject,
   renameSession,

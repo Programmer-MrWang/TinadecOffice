@@ -40,6 +40,7 @@ public static class TinadecCoreHttpExtensions
                     Instance = context.HttpContext.Request.Path
                 };
                 problem.Extensions["code"] = "invalid_request";
+                AddClassification(problem, "invalid_request", StatusCodes.Status400BadRequest);
                 problem.Extensions["trace_id"] = context.HttpContext.TraceIdentifier;
                 return new BadRequestObjectResult(problem) { ContentTypes = { "application/problem+json" } };
             };
@@ -72,6 +73,7 @@ public static class TinadecCoreHttpExtensions
                         _ => "request_failed",
                     };
                     problem.Extensions["code"] = code;
+                    AddClassification(problem, code, problem.Status ?? StatusCodes.Status500InternalServerError);
                     problem.Type = $"https://tinadec.dev/errors/{code}";
                     problem.Title = code;
                     problem.Detail ??= code switch
@@ -144,6 +146,7 @@ public static class TinadecCoreHttpExtensions
                     context.RequestServices.GetService<ServerFailureJournal>()?
                         .Record(context, exception, status, code);
                 problem.Extensions["code"] = code;
+                AddClassification(problem, code, status);
                 problem.Extensions["trace_id"] = context.TraceIdentifier;
                 if (exception is TinadecCore.Abstractions.Ports.ConfigurationDocumentException configurationError)
                     problem.Extensions["diagnostics"] = configurationError.Diagnostics;
@@ -155,5 +158,18 @@ public static class TinadecCoreHttpExtensions
             });
         });
         return app;
+    }
+
+    /// <summary>
+    /// Stamps the two contract fields every client branches on: the category (who can fix it)
+    /// and the stable recovery actions. One place, so the exception handler, the
+    /// problem-details customization and individual endpoints cannot drift apart.
+    /// </summary>
+    internal static void AddClassification(ProblemDetails problem, string? code, int status)
+    {
+        var classification = ErrorClassification.Classify(code, status);
+        problem.Extensions["category"] = classification.Category;
+        problem.Extensions["retryable"] = classification.Retryable;
+        problem.Extensions["actions"] = classification.Actions;
     }
 }

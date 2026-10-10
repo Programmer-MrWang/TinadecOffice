@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { apiErrorDetails } from '@/lib/apiError'
+import { ApiError, apiErrorDetails, type ApiErrorActionKind } from '@/lib/apiError'
 
 export type NotificationLevel = 'info' | 'success' | 'warning' | 'error'
 
@@ -213,6 +213,56 @@ function normalizeError(error: unknown, fallback?: string): string {
     }
   }
   return fallback?.trim() ? fallback : unknownErrorText
+}
+
+/**
+ * Recovery actions a caller can register once, at bootstrap, so every error notification can
+ * offer the same escape hatch without each call site re-wiring it. The server names an action
+ * kind; whoever owns navigation maps it to behaviour here.
+ */
+export interface ErrorRecoveryHandlers {
+  retry?: () => void | Promise<void>
+  reload?: () => void | Promise<void>
+  open_settings?: () => void | Promise<void>
+  open_storage_settings?: () => void | Promise<void>
+  open_tool_settings?: () => void | Promise<void>
+  unregister_workspace?: (storageId?: string) => void | Promise<void>
+  choose_folder?: () => void | Promise<void>
+}
+
+let recoveryHandlers: ErrorRecoveryHandlers = {}
+
+/** Installed once by the app shell; later calls merge, so a page can add its own. */
+export function setErrorRecoveryHandlers(handlers: ErrorRecoveryHandlers): void {
+  recoveryHandlers = { ...recoveryHandlers, ...handlers }
+}
+
+/** Localized labels for the recovery actions, injected at bootstrap like the fallback text. */
+let actionLabels: Partial<Record<ApiErrorActionKind, string>> = {}
+
+export function setErrorActionLabels(labels: Partial<Record<ApiErrorActionKind, string>>): void {
+  actionLabels = { ...actionLabels, ...labels }
+}
+
+/**
+ * Turns a server-classified error into a ready-to-run notification action. Only the first
+ * available handler wins: offering "retry" and "reload" side by side for one failure asks the
+ * person to choose between two things they cannot tell apart.
+ */
+function recoveryActionFor(error: unknown): NotificationAction | undefined {
+  if (!(error instanceof ApiError) || error.actions.length === 0) return undefined
+  for (const kind of error.actions) {
+    const run = recoveryHandlers[kind]
+    if (!run) continue
+    return {
+      label: actionLabels[kind] ?? kind.replace(/_/g, ' '),
+      run: () => {
+        if (kind === 'unregister_workspace') return (run as (id?: string) => void | Promise<void>)(error.instance)
+        return (run as () => void | Promise<void>)()
+      },
+    }
+  }
+  return undefined
 }
 
 function priority(item: NotificationItem): number {
@@ -508,7 +558,13 @@ function addError(
       message: normalizeError(input.message, input.title),
     })
   }
-  return add(kind, 'error', { ...options, details: options.details ?? apiErrorDetails(input), message: normalizeError(input, options.title) })
+  return add(kind, 'error', {
+    ...options,
+    // A classified failure carries its own recovery path; the caller can still override it.
+    action: options.action ?? recoveryActionFor(input),
+    details: options.details ?? apiErrorDetails(input),
+    message: normalizeError(input, options.title),
+  })
 }
 
 /** Patch a live notification without recreating it. */
@@ -985,5 +1041,8 @@ export function useNotifications() {
     pause,
     resume,
     confirm,
+    // Errors surfaced outside a component can still offer recovery when the
+    // caller passes the ApiError straight through.
+    recover: (error: unknown) => recoveryActionFor(error),
   }
 }

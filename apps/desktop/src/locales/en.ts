@@ -59,6 +59,17 @@ export default {
     },
     status: { running: 'Running', planning: 'Planning', queued: 'Queued', pending: 'Pending', in_progress: 'In progress', completed: 'Completed', succeeded: 'Succeeded', failed: 'Failed', cancelled: 'Cancelled', waiting_approval: 'Awaiting approval', awaiting_user: 'Awaiting your decision', approved: 'Approved', rejected: 'Rejected', blocked: 'Blocked', idle: 'Ready' },
   },
+  errors: {
+    actions: {
+      retry: 'Retry',
+      reload: 'Reload',
+      openSettings: 'Open settings',
+      openStorageSettings: 'Storage settings',
+      openToolSettings: 'Tool settings',
+      unregisterWorkspace: 'Unregister',
+      chooseFolder: 'Choose folder',
+    },
+  },
   app: {
     name: 'TinadecOffice',
     connected: 'Connected',
@@ -137,6 +148,10 @@ export default {
     editWorkspace: 'Edit workspace',
     moveUp: 'Move up',
     moveDown: 'Move down',
+    retryLoad: 'Reload',
+    unregisterWorkspace: 'Unregister',
+    unregisterWorkspaceConfirmTitle: 'Unregister workspace',
+    unregisterWorkspaceConfirmMessage: "Remove “{name}” from this machine's registry? Its source files and project data stay on disk and it can be opened again later.",
     market: 'Market',
     commandCenter: 'Command Center',
     debugStudio: 'Debug Studio',

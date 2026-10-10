@@ -31,12 +31,13 @@ public static class StorageEndpoints
                         var workspace = (registry as IWorkspaceRegistry)?.ReadWorkspace(scope.StorageId);
                         projects.AddRange((await lease.Services.GetRequiredService<ProjectSessionStore>().ListProjectsAsync(selected, ct).ConfigureAwait(false)).Select(x => ToProject(x, scope.StorageId, workspace, scope)));
                     }
-                    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException or Tomlyn.TomlException or ConfigurationDocumentException)
+                    catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException or ArgumentException or DirectoryNotFoundException or Tomlyn.TomlException or ConfigurationDocumentException)
                     {
+                        // A scope that cannot mount is still listed: a workspace the person can see and act on
+                        // beats one that silently disappears. The row carries the same classification contract as
+                        // an error response, so the client can offer the same recovery actions here and in a toast.
                         if (selected == TinadecCore.Memory.LifecycleStatuses.Active)
-                            projects.Add(new { id = scope.ProjectId, storage_id = scope.StorageId, name = Path.GetFileName(scope.ProjectRoot), path = scope.ProjectRoot,
-                                kind = "local", lifecycle_status = "active", created_at = DateTimeOffset.UnixEpoch, updated_at = DateTimeOffset.UnixEpoch,
-                                storage_root = scope.Root, external = scope.External, availability = "error", availability_error = ex.Message });
+                            projects.Add(UnavailableProject(scope, ex));
                     }
                 }
                 return Results.Ok(projects);
@@ -478,6 +479,27 @@ public static class StorageEndpoints
             catch (InvalidOperationException ex) { return Results.Conflict(new { code = "invalid_lifecycle_transition", message = ex.Message }); }
             catch (TinadecCore.Runtime.ActiveRunConflictException ex) { return Results.Conflict(new { code = "active_run_conflict", message = ex.Message, run_id = ex.RunId }); }
         });
+    }
+
+    /// <summary>
+    /// Projection for a registered workspace that could not mount. Mirrors ToProject so a client
+    /// needs one row shape, and names the reason on the error contract instead of leaking a raw
+    /// exception string that has no category and no recovery path.
+    /// </summary>
+    private static object UnavailableProject(StorageScopeDescriptor scope, Exception error)
+    {
+        var code = error is TinadecCore.Abstractions.Ports.ConfigurationDocumentException document
+            ? document.Code
+            : "storage_scope_unavailable";
+        var classification = ErrorClassification.Classify(code, 409);
+        return new
+        {
+            id = scope.ProjectId, storage_id = scope.StorageId, name = Path.GetFileName(scope.ProjectRoot), path = scope.ProjectRoot,
+            kind = "local", lifecycle_status = "active", created_at = DateTimeOffset.UnixEpoch, updated_at = DateTimeOffset.UnixEpoch,
+            storage_root = scope.Root, external = scope.External,
+            availability = "error", availability_error = error.Message, availability_code = code,
+            category = classification.Category, retryable = classification.Retryable, actions = classification.Actions,
+        };
     }
 
     private static object ToProject(ProjectRecord project, string? storageId = null, WorkspaceDefinition? workspace = null, StorageScopeDescriptor? scope = null) => new {

@@ -195,6 +195,93 @@ public sealed class StorageScopeApiTests : IAsyncLifetime
         Assert.DoesNotContain(registrations.EnumerateArray(), row => row.GetProperty("storage_id").GetString() == id);
     }
 
+    /// <summary>
+    /// A registered workspace whose source folder was deleted (a leftover test fixture, for
+    /// example) cannot mount, so archive/trash have no database to act on. Unregistering must
+    /// still work, keep the stored data, and leave other workspaces usable.
+    /// </summary>
+    [Fact]
+    public async Task UnavailableRegisteredWorkspace_CanBeUnregisteredWithoutMounting()
+    {
+        using var client = _factory!.CreateClient();
+        var path = Path.Combine(_root, "vanished-workspace"); Directory.CreateDirectory(path);
+        // External storage keeps the scope's database outside the folder we are about to delete,
+        // which is exactly the leftover shape: source folder gone, storage still registered.
+        var storage = Path.Combine(_root, "vanished-store");
+        var opened = await client.PostAsJsonAsync("/api/v1/storage/scopes/open", new { project_path = path, storage_root = storage });
+        opened.EnsureSuccessStatusCode(); var scope = await opened.Content.ReadFromJsonAsync<JsonElement>();
+        var id = scope.GetProperty("storage_id").GetString()!;
+        Assert.True(Directory.Exists(storage));
+
+        Directory.Delete(path, recursive: true);
+
+        // A live mount can keep serving the previous runtime, so the unavailable state only
+        // becomes visible after a restart — which is exactly how the user hit it.
+        await _factory.DisposeAsync(); _factory = new(_root, _token);
+        using var restarted = _factory.CreateClient();
+
+        var listing = await restarted.GetFromJsonAsync<JsonElement[]>("/api/v1/projects");
+        var unavailable = Assert.Single(listing!, row => row.GetProperty("storage_id").GetString() == id);
+        Assert.Equal("error", unavailable.GetProperty("availability").GetString());
+        // The row carries the same error contract as a problem response, so the client can offer
+        // an escape hatch (unregister) instead of a dead end.
+        Assert.Equal("storage_scope_unavailable", unavailable.GetProperty("availability_code").GetString());
+        Assert.Equal("environment_unavailable", unavailable.GetProperty("category").GetString());
+        Assert.Contains("unregister_workspace", unavailable.GetProperty("actions").EnumerateArray().Select(x => x.GetString()));
+
+        // Archive/trash need the scope's database, so they cannot rescue this state; the
+        // request fails either as "scope unavailable" (409) or "project not found" (404).
+        var archived = await restarted.PostAsJsonAsync($"/api/v1/projects/{scope.GetProperty("project_id").GetString()}/archive", new { });
+        Assert.False(archived.IsSuccessStatusCode, await archived.Content.ReadAsStringAsync());
+        Assert.Contains(archived.StatusCode, new[] { HttpStatusCode.Conflict, HttpStatusCode.NotFound });
+
+        var removed = await restarted.DeleteAsync($"/api/v1/storage/scopes/{id}");
+        Assert.True(removed.IsSuccessStatusCode, await removed.Content.ReadAsStringAsync());
+
+        var projects = await restarted.GetFromJsonAsync<JsonElement[]>("/api/v1/projects");
+        Assert.DoesNotContain(projects!, row => row.GetProperty("storage_id").GetString() == id);
+        // Unregister is not deletion: the stored data stays until an explicit storage delete.
+        Assert.True(Directory.Exists(storage));
+        Assert.True(File.Exists(Path.Combine(storage, "project.toml")));
+    }
+
+    /// <summary>
+    /// Every refusal must say who can fix it and what to do next. A bare status code plus a
+    /// sentence is what left the user with "move project to trash failed" and no way forward.
+    /// </summary>
+    [Fact]
+    public async Task UnavailableScope_AnswersWithAClassifiedRecoverableProblem()
+    {
+        using var client = _factory!.CreateClient();
+        var path = Path.Combine(_root, "classified-error"); Directory.CreateDirectory(path);
+        var storage = Path.Combine(_root, "classified-store");
+        var opened = await client.PostAsJsonAsync("/api/v1/storage/scopes/open", new { project_path = path, storage_root = storage });
+        opened.EnsureSuccessStatusCode(); var scope = await opened.Content.ReadFromJsonAsync<JsonElement>();
+        var storageId = scope.GetProperty("storage_id").GetString()!;
+        var projectId = scope.GetProperty("project_id").GetString()!;
+        Directory.Delete(path, recursive: true);
+        await _factory.DisposeAsync(); _factory = new(_root, _token);
+
+        using var restarted = _factory.CreateClient();
+        // Trash is the call the user actually made ("move project to trash failed"): it mounts the
+        // scope's database, so a deleted source folder refuses here rather than in a listing.
+        using var trashRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/projects/{projectId}/trash");
+        // The sidebar always states the scope; without it the request means the user scope.
+        trashRequest.Headers.Add("X-Tinadec-Storage-Id", storageId);
+        var trashed = await restarted.SendAsync(trashRequest);
+
+        Assert.Equal(HttpStatusCode.Conflict, trashed.StatusCode);
+        var problem = JsonDocument.Parse(await trashed.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal("storage_scope_unavailable", problem.GetProperty("code").GetString());
+        Assert.Equal("environment_unavailable", problem.GetProperty("category").GetString());
+        Assert.False(problem.GetProperty("retryable").GetBoolean());
+        var actions = problem.GetProperty("actions").EnumerateArray().Select(x => x.GetString()!).ToArray();
+        Assert.Contains("unregister_workspace", actions);
+        Assert.Contains("open_storage_settings", actions);
+        // Correlation must survive so a person can quote it in a bug report.
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("trace_id").GetString()));
+    }
+
     private async Task<JsonElement> OpenAsync(HttpClient client, string name)
     {
         var path = Path.Combine(_root, name); Directory.CreateDirectory(path);

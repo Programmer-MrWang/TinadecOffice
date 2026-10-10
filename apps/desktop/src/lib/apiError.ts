@@ -1,3 +1,68 @@
+/**
+ * Who can resolve a failure, as reported by the server's error contract. Clients branch on the
+ * category rather than on individual codes, so an unmodelled code still lands in a sane bucket.
+ */
+export type ApiErrorCategory = 'user_action_required' | 'retryable' | 'environment_unavailable' | 'internal'
+
+/**
+ * Stable recovery hints. The server names an action; the client owns the wording and behaviour.
+ * Unknown kinds are ignored rather than rendered, so a newer server cannot inject a surprise.
+ */
+export type ApiErrorActionKind =
+  | 'retry'
+  | 'reload'
+  | 'open_settings'
+  | 'open_storage_settings'
+  | 'open_tool_settings'
+  | 'unregister_workspace'
+  | 'choose_folder'
+
+const KNOWN_ACTIONS = new Set<ApiErrorActionKind>([
+  'retry', 'reload', 'open_settings', 'open_storage_settings', 'open_tool_settings',
+  'unregister_workspace', 'choose_folder',
+])
+
+const KNOWN_CATEGORIES = new Set<ApiErrorCategory>([
+  'user_action_required', 'retryable', 'environment_unavailable', 'internal',
+])
+
+/** Reads the category/retryable/actions triple, falling back to an honest status-based guess. */
+function parseContract(data: Record<string, unknown> | null, status: number): {
+  category: ApiErrorCategory
+  retryable: boolean
+  actions: ApiErrorActionKind[]
+} {
+  const rawCategory = typeof data?.category === 'string' ? data.category : ''
+  const category = KNOWN_CATEGORIES.has(rawCategory as ApiErrorCategory)
+    ? rawCategory as ApiErrorCategory
+    : status >= 500 ? 'internal' : 'user_action_required'
+  // Mirrors Core's fallback exactly: a transient or internal failure may succeed if repeated,
+  // a user-action failure will not. Diverging here would show "retry" for a form error.
+  const retryable = typeof data?.retryable === 'boolean'
+    ? data.retryable
+    : category === 'retryable' || category === 'internal'
+  const actions = Array.isArray(data?.actions)
+    ? (data.actions.filter((value): value is ApiErrorActionKind =>
+        typeof value === 'string' && KNOWN_ACTIONS.has(value as ApiErrorActionKind)))
+    : []
+  return { category, retryable, actions }
+}
+
+/**
+ * Codes that mean "the recorded folder/scope is not usable right now". Kept here so the sidebar
+ * and settings page can recognise an unavailable workspace without pattern-matching prose.
+ */
+export const UNAVAILABLE_STORAGE_CODES = new Set([
+  'storage_scope_unavailable',
+  'storage_scope_not_found',
+  'workspace_authorization_required',
+])
+
+export function isUnavailableStorageError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false
+  return (error.code != null && UNAVAILABLE_STORAGE_CODES.has(error.code)) || error.category === 'environment_unavailable'
+}
+
 export interface ApiDiagnostic {
   code: string
   message: string
@@ -44,6 +109,12 @@ export class ApiError extends Error {
   readonly trace_id?: string
   readonly instance?: string
   readonly diagnostics: ApiDiagnostic[]
+  /** Who can resolve this, per the server contract. */
+  readonly category: ApiErrorCategory
+  /** Whether repeating the identical request could succeed. */
+  readonly retryable: boolean
+  /** Stable recovery actions the UI may offer, already filtered to the known set. */
+  readonly actions: ApiErrorActionKind[]
 
   constructor(message: string, status: number, body: unknown) {
     super(message)
@@ -54,7 +125,14 @@ export class ApiError extends Error {
     this.trace_id = typeof data?.trace_id === 'string' ? data.trace_id : undefined
     this.instance = typeof data?.instance === 'string' ? data.instance : undefined
     this.diagnostics = parseApiDiagnostics(data?.diagnostics)
+    const contract = parseContract(data, status)
+    this.category = contract.category
+    this.retryable = contract.retryable
+    this.actions = contract.actions
   }
+
+  /** True when this failure is worth offering a plain retry for. */
+  get canRetry(): boolean { return this.retryable || this.actions.includes('retry') }
 }
 
 export function apiErrorDetails(error: unknown): string | undefined {

@@ -344,6 +344,23 @@ describe('AppSidebar lifecycle management', () => {
     expect(menuButtons()).toHaveLength(3)
   })
 
+  it('renames a free conversation through the inline input', async () => {
+    const free: SessionDto = {
+      permission_mode: 'default', space_options: null, settings_revision: 0,
+      id: 's-free', project_id: null, title: 'Free chat', status: 'ready',
+      created_at: '2026-09-10T00:00:00Z', updated_at: '2026-09-10T00:00:00Z',
+    }
+    const wrapper = factory({ sessions: [free], selectedProjectId: null, selectedSessionId: null })
+    await wrapper.find('.free-conversation-group .session-item').trigger('dblclick')
+    const input = wrapper.find('.free-conversation-group .inline-rename-input')
+    expect(input.exists()).toBe(true)
+    await input.setValue('Renamed free chat')
+    await input.trigger('keydown', { key: 'Enter' })
+    await input.trigger('blur')
+    expect(wrapper.emitted('rename-session')?.[0]).toEqual(['s-free', 'Renamed free chat'])
+    wrapper.unmount()
+  })
+
   it('lists a freshly created free conversation before its first message', () => {
     // A new conversation carries the default title until its first message
     // generates one; hiding that title made every fresh free conversation

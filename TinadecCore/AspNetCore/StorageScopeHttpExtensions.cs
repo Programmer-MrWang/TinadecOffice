@@ -75,7 +75,23 @@ public static class StorageScopeHttpExtensions
         catch (DirectoryNotFoundException ex) when (!context.Response.HasStarted) { await ErrorAsync(context, 409, "storage_scope_unavailable", ex.Message); }
     });
 
-    internal static Task ErrorAsync(HttpContext context, int status, string code, string detail) => Results.Problem(
-        statusCode: status, title: code, detail: detail,
-        extensions: new Dictionary<string, object?> { ["code"] = code, ["trace_id"] = context.TraceIdentifier }).ExecuteAsync(context);
+    /// <summary>
+    /// One shape for every scope-level refusal: code, trace, the classification a client branches
+    /// on, and the recovery actions it may offer. Previously a failing scope answered with a bare
+    /// code, which is why "the folder is gone" reached the user as an unexplained conflict.
+    /// </summary>
+    internal static Task ErrorAsync(HttpContext context, int status, string code, string detail)
+    {
+        var classification = ErrorClassification.Classify(code, status);
+        return Results.Problem(
+            statusCode: status, title: code, detail: detail,
+            extensions: new Dictionary<string, object?>
+            {
+                ["code"] = code,
+                ["trace_id"] = context.TraceIdentifier,
+                ["category"] = classification.Category,
+                ["retryable"] = classification.Retryable,
+                ["actions"] = classification.Actions,
+            }).ExecuteAsync(context);
+    }
 }

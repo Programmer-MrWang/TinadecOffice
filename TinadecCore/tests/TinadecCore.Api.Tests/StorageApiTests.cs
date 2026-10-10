@@ -34,6 +34,39 @@ public sealed partial class StorageApiTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// A free conversation has no project, and renaming it must not require a published Agent
+    /// Mode: the title-only PATCH is how the sidebar's rename affordance reaches Core.
+    /// </summary>
+    [Fact]
+    public async Task FreeConversation_RenamesWithoutAProjectOrMode()
+    {
+        var client = _factory!.CreateClient();
+        var created = await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Free chat" });
+        if (created.StatusCode == HttpStatusCode.Conflict)
+        {
+            // A free session still needs one published default mode to exist at all; when the
+            // isolated store has none, there is nothing to rename and the guard is honest.
+            Assert.Contains("agent_mode_not_configured", await created.Content.ReadAsStringAsync());
+            return;
+        }
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var session = await created.Content.ReadFromJsonAsync<JsonElement>();
+        // A free conversation is project-less: the property is present but null. Omitting it
+        // entirely would read as "unknown" rather than "deliberately unbound".
+        Assert.False(session.TryGetProperty("project_id", out var projectId) && projectId.ValueKind != JsonValueKind.Null);
+        var id = session.GetProperty("id").GetGuid();
+
+        var renamed = await client.PatchAsJsonAsync($"/api/v1/sessions/{id}", new { title = "Renamed free chat" });
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        var body = await renamed.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Renamed free chat", body.GetProperty("title").GetString());
+
+        // The rename must be durable across a fresh listing, not just echoed back.
+        var listed = await client.GetFromJsonAsync<JsonElement[]>("/api/v1/sessions");
+        Assert.Equal("Renamed free chat", listed!.Single(row => row.GetProperty("id").GetGuid() == id).GetProperty("title").GetString());
+    }
+
     [Fact]
     public async Task ComposerSettings_AreDurableScopedAndRevisionChecked()
     {
