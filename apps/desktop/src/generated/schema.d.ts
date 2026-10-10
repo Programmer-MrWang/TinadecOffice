@@ -1401,6 +1401,10 @@ export interface components {
       display_name?: string | null;
       status?: string | null;
     };
+    /** @enum {string} */
+    ErrorCategory: "user_action_required" | "retryable" | "environment_unavailable" | "internal";
+    /** @enum {string} */
+    ErrorRecoveryAction: "retry" | "reload" | "open_settings" | "open_storage_settings" | "open_tool_settings" | "unregister_workspace" | "choose_folder";
     EvidenceHitDto: {
       author: string | null;
       /** Format: date-time */
@@ -1792,6 +1796,8 @@ export interface components {
       [key: string]: unknown;
     };
     ProblemDetails: {
+      actions: components["schemas"]["ErrorRecoveryAction"][];
+      category: components["schemas"]["ErrorCategory"];
       /** @description Stable snake_case machine-readable error code. */
       code: string;
       detail?: string;
@@ -1803,6 +1809,7 @@ export interface components {
           severity: string;
         }[];
       instance?: string;
+      retryable: boolean;
       status: number;
       title: string;
       trace_id?: string;
@@ -1811,27 +1818,43 @@ export interface components {
       [key: string]: unknown;
     };
     Project: {
-      availability?: string;
+      actions?: components["schemas"]["ErrorRecoveryAction"][];
+      /** @enum {string} */
+      availability?: "ready" | "error";
+      availability_code?: string;
       availability_error?: string;
+      category?: components["schemas"]["ErrorCategory"];
       color?: string;
       configuration_hash?: string;
       created_at: string | null;
+      diagnostics?: {
+          code: string;
+          column?: number;
+          line?: number;
+          message: string;
+          severity: string;
+        }[];
       external?: boolean;
       icon?: string;
       /** Format: uuid */
       id: string;
       kind: string | null;
-      /** @enum {string} */
-      lifecycle_status: "active" | "archived" | "trashed";
+      /**
+       * @description Null when the workspace cannot be read and its lifecycle is unknown.
+       * @enum {string|null}
+       */
+      lifecycle_status: "active" | "archived" | "trashed" | null;
       name: string;
       path: string;
       primary_root_id?: string;
+      retryable?: boolean;
       roots?: {
           id: string;
           path: string;
         }[];
       storage_id?: string;
       storage_root?: string;
+      trace_id?: string;
       trashed_at: string | null;
       updated_at: string | null;
       [key: string]: unknown;
@@ -2059,8 +2082,14 @@ export interface components {
       preview_id: string;
     };
     StorageScope: {
+      actions?: components["schemas"]["ErrorRecoveryAction"][];
       allow_storage_write?: boolean;
+      /** @enum {string} */
+      availability: "ready" | "error";
+      availability_code?: string;
+      availability_error?: string;
       backend: string;
+      category?: components["schemas"]["ErrorCategory"];
       diagnostics?: {
           [key: string]: unknown;
         }[];
@@ -2073,10 +2102,12 @@ export interface components {
       project_root?: string | null;
       requested_storage_root?: string;
       restart_required?: boolean;
+      retryable?: boolean;
       scope_kind: string;
       storage_id: string;
       storage_root: string;
-      workspace?: components["schemas"]["WorkspaceDefinition"];
+      trace_id?: string;
+      workspace: components["schemas"]["WorkspaceDefinition"] | null;
     };
     StorageScopeList: components["schemas"]["StorageScope"][];
     StorageStatistics: {
@@ -2596,7 +2627,7 @@ export interface components {
       project_path: string;
       storage_id?: string | null;
       storage_root?: string | null;
-      workspace?: components["schemas"]["WorkspaceDefinition"];
+      workspace?: components["schemas"]["WorkspaceDefinition"] | null;
     };
     WorkspacePreviewRequest: {
       project_path: string;

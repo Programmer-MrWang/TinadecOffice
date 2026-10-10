@@ -1,4 +1,5 @@
 import { t } from 'elysia';
+import { ERROR_CATEGORIES, ERROR_ACTIONS } from './mappers/errorMapper.js';
 
 const componentRef = (name: string) => t.Unsafe({ $ref: `#/components/schemas/${name}` });
 const nullableString = () => t.Unsafe({ type: 'string', nullable: true });
@@ -197,6 +198,9 @@ const problemDetails = t.Object({
   status: t.Unsafe({ type: 'integer', minimum: 400, maximum: 599 }),
   detail: t.Optional(t.String()),
   code: t.String({ description: 'Stable snake_case machine-readable error code.' }),
+  category: componentRef('ErrorCategory'),
+  retryable: t.Boolean(),
+  actions: t.Array(componentRef('ErrorRecoveryAction')),
   trace_id: t.Optional(t.String()),
   instance: t.Optional(t.String()),
   diagnostics: t.Optional(t.Array(t.Object({
@@ -209,6 +213,8 @@ const problemDetails = t.Object({
 }, { additionalProperties: true });
 
 export const agentPackOpenApiSchemas = {
+  ErrorCategory: t.Unsafe({ type: 'string', enum: [...ERROR_CATEGORIES] }),
+  ErrorRecoveryAction: t.Unsafe({ type: 'string', enum: [...ERROR_ACTIONS] }),
   AgentPackMetadata: metadata,
   AgentPackCompatibility: compatibility,
   AgentPackAgentResource: agentResource,

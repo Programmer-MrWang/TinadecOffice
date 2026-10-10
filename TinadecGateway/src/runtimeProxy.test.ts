@@ -311,6 +311,7 @@ test('agent pack routes preserve public RFC9457 error codes', { concurrency: fal
       code,
       instance: '/api/v1/agent-packs/install-preview',
       trace_id: 'trace-pack-conflict',
+      category: 'user_action_required', retryable: false, actions: [],
     });
   }
 });

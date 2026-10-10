@@ -84,6 +84,22 @@ test('openapi external snapshot — title contains Gateway, paths non-empty, fil
   const schemas = objectAt(doc, 'components', 'schemas');
   for (const name of requiredPackSchemas) assert.ok(name in schemas, `Missing OpenAPI component schema ${name}`);
 
+  assert.deepEqual(valueAt(schemas, 'ErrorCategory', 'enum'), ['user_action_required', 'retryable', 'environment_unavailable', 'internal']);
+  assert.deepEqual(valueAt(schemas, 'ErrorRecoveryAction', 'enum'), ['retry', 'reload', 'open_settings', 'open_storage_settings', 'open_tool_settings', 'unregister_workspace', 'choose_folder']);
+  for (const schema of ['ProblemDetails', 'Project', 'StorageScope']) {
+    assert.equal(valueAt(schemas, schema, 'properties', 'category', '$ref'), '#/components/schemas/ErrorCategory');
+    assert.equal(valueAt(schemas, schema, 'properties', 'retryable', 'type'), 'boolean');
+    assert.equal(valueAt(schemas, schema, 'properties', 'actions', 'items', '$ref'), '#/components/schemas/ErrorRecoveryAction');
+    assert.ok(objectAt(schemas, schema, 'properties', 'diagnostics'));
+    assert.equal(valueAt(schemas, schema, 'properties', 'trace_id', 'type'), 'string');
+  }
+  for (const schema of ['Project', 'StorageScope']) {
+    assert.deepEqual(valueAt(schemas, schema, 'properties', 'availability', 'enum'), ['ready', 'error']);
+    assert.equal(valueAt(schemas, schema, 'properties', 'availability_code', 'type'), 'string');
+  }
+  assert.equal(valueAt(schemas, 'Project', 'properties', 'lifecycle_status', 'nullable'), true);
+  assert.deepEqual(valueAt(schemas, 'StorageScope', 'properties', 'workspace', 'anyOf'), [{ $ref: '#/components/schemas/WorkspaceDefinition' }, { type: 'null' }]);
+
   // A reopened transcript has to know which files each message carried. The nested
   // projection is deliberately narrower than the standalone one: the parent row
   // already says which session and message own an attachment, so restating either

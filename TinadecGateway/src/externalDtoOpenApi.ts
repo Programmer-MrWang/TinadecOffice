@@ -16,12 +16,23 @@ const jsonObject = () => t.Unsafe({ type: 'object', additionalProperties: true }
 const nullableJsonObject = () => t.Unsafe({ type: 'object', additionalProperties: true, nullable: true });
 const lifecycleStatus = () => t.Unsafe({ type: 'string', enum: ['active', 'archived', 'trashed'] });
 
+const recoveryProperties = {
+  category: t.Optional(componentRef('ErrorCategory')),
+  retryable: t.Optional(t.Boolean()),
+  actions: t.Optional(t.Array(componentRef('ErrorRecoveryAction'))),
+};
+
 const project = t.Object({
+  ...recoveryProperties,
   roots: t.Optional(t.Array(t.Object({ id: t.String(), path: t.String() }))),
   primary_root_id: t.Optional(t.String()),
   icon: t.Optional(t.String()), color: t.Optional(t.String()),
   configuration_hash: t.Optional(t.String()), storage_root: t.Optional(t.String()),
-  external: t.Optional(t.Boolean()), availability: t.Optional(t.String()), availability_error: t.Optional(t.String()),
+  external: t.Optional(t.Boolean()), availability: t.Optional(t.Unsafe({ type: 'string', enum: ['ready', 'error'] })), availability_error: t.Optional(t.String()),
+  availability_code: t.Optional(t.String()), trace_id: t.Optional(t.String()),
+  diagnostics: t.Optional(t.Array(t.Object({ code: t.String(), message: t.String(), severity: t.String(),
+    line: t.Optional(t.Unsafe({ type: 'integer', minimum: 1 })), column: t.Optional(t.Unsafe({ type: 'integer', minimum: 1 })),
+  }, { additionalProperties: false }))),
   storage_id: t.Optional(t.String()),
   id: t.String({ format: 'uuid' }),
   name: t.String(),
@@ -29,7 +40,7 @@ const project = t.Object({
   kind: nullableString(),
   created_at: nullableString(),
   updated_at: nullableString(),
-  lifecycle_status: lifecycleStatus(),
+  lifecycle_status: t.Unsafe({ type: 'string', enum: ['active', 'archived', 'trashed'], nullable: true, description: 'Null when the workspace cannot be read and its lifecycle is unknown.' }),
   trashed_at: nullableString(),
 }, { additionalProperties: true });
 

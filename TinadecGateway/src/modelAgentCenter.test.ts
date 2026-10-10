@@ -198,6 +198,7 @@ test('interactions thin proxy preserves TinaChat input-lock ProblemDetails', asy
     code: 'tina_chat_input_locked',
     instance: '/api/v1/sessions/session-1/interactions',
     trace_id: 'trace-tina-chat-lock',
+    category: 'user_action_required', retryable: false, actions: [],
   };
   mockFetch(() => new Response(JSON.stringify(problem), {
     status: 403,

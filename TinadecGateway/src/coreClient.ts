@@ -24,6 +24,11 @@ export interface ProxyResult {
   headers?: Headers;
 }
 
+function rethrowCancellation(error: unknown, signal?: AbortSignal | null): void {
+  if (signal?.aborted || (error !== null && typeof error === 'object' && 'name' in error
+    && error.name === 'AbortError')) throw error;
+}
+
 /** For transport surfaces, preserve the Core status, headers, and bytes. */
 export async function proxyRaw(path: string, options: ProxyOptions = {}): Promise<Response> {
   const body = typeof options.body === 'string'
@@ -45,6 +50,7 @@ export async function proxyRaw(path: string, options: ProxyOptions = {}): Promis
       redirect: 'manual',
     });
   } catch (error) {
+    rethrowCancellation(error, options.signal);
     const message = error instanceof Error ? error.message : 'Network request failed';
     return new Response(JSON.stringify({ code: 'CORE_UNREACHABLE', message: `Cannot reach Core at ${coreUrl()}: ${message}` }), {
       status: 502,
@@ -110,6 +116,7 @@ export async function proxyJson(path: string, options: ProxyOptions = {}): Promi
       redirect: 'manual',
     });
   } catch (err) {
+    rethrowCancellation(err, options.signal);
     const msg = err instanceof Error ? err.message : 'Network request failed';
     return {
       status: 502,
@@ -162,6 +169,7 @@ export async function proxySse(path: string, init?: RequestInit): Promise<Respon
       }
     });
   } catch (error) {
+    rethrowCancellation(error, init?.signal);
     return upstreamUnreachableResponse('core', url, error);
   }
 }
@@ -194,6 +202,7 @@ export async function proxySseWithCursor(
       }
     });
   } catch (error) {
+    rethrowCancellation(error, extraInit?.signal);
     return upstreamUnreachableResponse('core', endpoint, error);
   }
 }
@@ -215,6 +224,7 @@ export async function proxyStream(path: string, init?: RequestInit): Promise<Res
       }
     });
   } catch (error) {
+    rethrowCancellation(error, init?.signal);
     return upstreamUnreachableResponse('core', url, error);
   }
 }

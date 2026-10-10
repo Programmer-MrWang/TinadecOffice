@@ -96,3 +96,69 @@ test('Gateway forwards supplied host credentials for JSON, bytes and SSE but nev
     else process.env.TINADEC_HOST_CONTROL_TOKEN = previous;
   }
 });
+
+
+test('classified Core failures survive mapped workspace and Agent Pack routes with response guards', async () => {
+  const diagnostic = { code: 'configuration_parse', message: 'Malformed workspace configuration.', severity: 'error', line: 4, column: 2 };
+  const problem = { code: 'storage_scope_unavailable', detail: 'The registered project directory is unavailable.',
+    category: 'environment_unavailable', retryable: false, actions: ['unregister_workspace', 'retry', 'open_storage_settings'],
+    trace_id: 'trace-workspace-route', diagnostics: [diagnostic], private_extension: 'must-not-forward' };
+  const calls: Headers[] = [];
+  globalThis.fetch = (async (_input, init) => { calls.push(new Headers(init?.headers)); return Response.json(problem, {
+    status: 409, headers: { 'content-type': 'application/problem+json', etag: '"current-revision"' },
+  }); }) as typeof fetch;
+  for (const [method, path] of [
+    ['GET', '/api/v1/projects'], ['GET', '/api/v1/agent-packs'], ['GET', '/api/v1/agent-packs/pack-id'],
+    ['POST', '/api/v1/agent-packs/install-preview'], ['PUT', '/api/v1/agent-packs/pack-id'],
+    ['DELETE', '/api/v1/agent-packs/pack-id'], ['POST', '/api/v1/agent-packs/pack-id/enable'],
+    ['POST', '/api/v1/agent-packs/pack-id/disable'], ['POST', '/api/v1/agent-packs/pack-id/adopt-defaults'],
+  ]) {
+    const response = await app.handle(new Request('http://gateway.local' + path, { method,
+      headers: { 'content-type': 'application/json', 'x-tinadec-storage-id': 'scope-fixed', 'x-tinadec-host-control': 'trusted-host', 'if-match': '"old-revision"', 'idempotency-key': 'one-install' },
+      ...(method === 'POST' || method === 'PUT' ? { body: '{}' } : {}),
+    }));
+    assert.equal(response.status, 409, path);
+    const body = await response.json() as Record<string, unknown>;
+    for (const field of ['code', 'detail', 'category', 'retryable', 'actions', 'trace_id', 'diagnostics'])
+      assert.deepEqual(body[field], problem[field as keyof typeof problem], path + ' ' + field);
+    assert.equal(JSON.stringify(body).includes('must-not-forward'), false);
+    if (path.includes('/agent-packs')) assert.equal(response.headers.get('etag'), '"current-revision"', path);
+    assert.equal(calls.at(-1)?.get('x-tinadec-storage-id'), 'scope-fixed');
+    assert.equal(calls.at(-1)?.get('x-tinadec-host-control'), 'trusted-host');
+    assert.equal(calls.at(-1)?.get('if-match'), '"old-revision"');
+    assert.equal(calls.at(-1)?.get('idempotency-key'), 'one-install');
+  }
+});
+
+test('project roster keeps a broken workspace actionable without inventing its lifecycle', async () => {
+  const diagnostic = { code: 'configuration_parse', message: 'Malformed workspace configuration.', severity: 'error', line: 4 };
+  globalThis.fetch = (async () => Response.json([
+    { id: 'broken-project', storage_id: 'broken-scope', name: 'Broken', path: '/missing', availability: 'error',
+      availability_error: 'Folder missing', availability_code: 'storage_scope_unavailable', category: 'environment_unavailable',
+      retryable: false, actions: ['unregister_workspace', 'retry', 'unknown_action'], trace_id: 'trace-roster',
+      diagnostics: [{ ...diagnostic, private_extension: 'must-not-forward' }], private_extension: 'must-not-forward' },
+    { id: 'ready-project', storage_id: 'ready-scope', name: 'Ready', path: '/ready', availability: 'ready', lifecycle_status: 'archived' },
+  ])) as unknown as typeof fetch;
+  const response = await app.handle(new Request('http://gateway.local/api/v1/projects'));
+  assert.equal(response.status, 200);
+  const rows = await response.json() as Record<string, unknown>[];
+  assert.equal(rows[0]?.availability_code, 'storage_scope_unavailable');
+  assert.equal(rows[0]?.category, 'environment_unavailable');
+  assert.equal(rows[0]?.retryable, false);
+  assert.deepEqual(rows[0]?.actions, ['unregister_workspace', 'retry']);
+  assert.equal(rows[0]?.trace_id, 'trace-roster');
+  assert.deepEqual(rows[0]?.diagnostics, [diagnostic]);
+  assert.equal(rows[0]?.lifecycle_status, null);
+  assert.equal(rows[1]?.lifecycle_status, 'archived');
+  assert.equal(JSON.stringify(rows).includes('must-not-forward'), false);
+});
+
+test('scope roster transports each availability result without hiding healthy rows', async () => {
+  const rows = [{ storage_id: 'user', scope_kind: 'user', workspace: null, availability: 'ready' },
+    { storage_id: 'broken-scope', scope_kind: 'project', workspace: null, availability: 'error', availability_error: 'Malformed TOML',
+      availability_code: 'configuration_invalid', category: 'user_action_required', retryable: false, actions: ['reload'], trace_id: 'trace-scope-roster', diagnostics: [] }];
+  globalThis.fetch = (async () => Response.json(rows)) as unknown as typeof fetch;
+  const response = await app.handle(new Request('http://gateway.local/api/v1/storage/scopes', { headers: { 'x-tinadec-storage-id': 'user' } }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), rows);
+});

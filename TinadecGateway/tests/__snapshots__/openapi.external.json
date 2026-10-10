@@ -1341,6 +1341,27 @@
         },
         "type": "object"
       },
+      "ErrorCategory": {
+        "enum": [
+          "user_action_required",
+          "retryable",
+          "environment_unavailable",
+          "internal"
+        ],
+        "type": "string"
+      },
+      "ErrorRecoveryAction": {
+        "enum": [
+          "retry",
+          "reload",
+          "open_settings",
+          "open_storage_settings",
+          "open_tool_settings",
+          "unregister_workspace",
+          "choose_folder"
+        ],
+        "type": "string"
+      },
       "EvidenceHitDto": {
         "properties": {
           "author": {
@@ -2942,6 +2963,15 @@
       "ProblemDetails": {
         "additionalProperties": true,
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorRecoveryAction"
+            },
+            "type": "array"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ErrorCategory"
+          },
           "code": {
             "description": "Stable snake_case machine-readable error code.",
             "type": "string"
@@ -2983,6 +3013,9 @@
           "instance": {
             "type": "string"
           },
+          "retryable": {
+            "type": "boolean"
+          },
           "status": {
             "maximum": 599,
             "minimum": 400,
@@ -3003,18 +3036,37 @@
           "type",
           "title",
           "status",
-          "code"
+          "code",
+          "category",
+          "retryable",
+          "actions"
         ],
         "type": "object"
       },
       "Project": {
         "additionalProperties": true,
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorRecoveryAction"
+            },
+            "type": "array"
+          },
           "availability": {
+            "enum": [
+              "ready",
+              "error"
+            ],
+            "type": "string"
+          },
+          "availability_code": {
             "type": "string"
           },
           "availability_error": {
             "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ErrorCategory"
           },
           "color": {
             "type": "string"
@@ -3025,6 +3077,37 @@
           "created_at": {
             "nullable": true,
             "type": "string"
+          },
+          "diagnostics": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "column": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "line": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "severity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message",
+                "severity"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "external": {
             "type": "boolean"
@@ -3041,11 +3124,13 @@
             "type": "string"
           },
           "lifecycle_status": {
+            "description": "Null when the workspace cannot be read and its lifecycle is unknown.",
             "enum": [
               "active",
               "archived",
               "trashed"
             ],
+            "nullable": true,
             "type": "string"
           },
           "name": {
@@ -3056,6 +3141,9 @@
           },
           "primary_root_id": {
             "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
           },
           "roots": {
             "items": {
@@ -3079,6 +3167,9 @@
             "type": "string"
           },
           "storage_root": {
+            "type": "string"
+          },
+          "trace_id": {
             "type": "string"
           },
           "trashed_at": {
@@ -4013,11 +4104,33 @@
       },
       "StorageScope": {
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorRecoveryAction"
+            },
+            "type": "array"
+          },
           "allow_storage_write": {
             "type": "boolean"
           },
+          "availability": {
+            "enum": [
+              "ready",
+              "error"
+            ],
+            "type": "string"
+          },
+          "availability_code": {
+            "type": "string"
+          },
+          "availability_error": {
+            "type": "string"
+          },
           "backend": {
             "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/ErrorCategory"
           },
           "diagnostics": {
             "items": {
@@ -4053,6 +4166,9 @@
           "restart_required": {
             "type": "boolean"
           },
+          "retryable": {
+            "type": "boolean"
+          },
           "scope_kind": {
             "type": "string"
           },
@@ -4062,9 +4178,18 @@
           "storage_root": {
             "type": "string"
           },
+          "trace_id": {
+            "type": "string"
+          },
           "workspace": {
-            "$ref": "#/components/schemas/WorkspaceDefinition",
-            "nullable": true
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -4073,7 +4198,9 @@
           "storage_root",
           "backend",
           "external",
-          "paths"
+          "paths",
+          "workspace",
+          "availability"
         ],
         "type": "object"
       },
@@ -6185,8 +6312,14 @@
             "type": "string"
           },
           "workspace": {
-            "$ref": "#/components/schemas/WorkspaceDefinition",
-            "nullable": true
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkspaceDefinition"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [

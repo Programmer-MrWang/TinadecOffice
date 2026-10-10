@@ -167,7 +167,7 @@ const app = new Elysia()
       const status = staged >= 400 && staged <= 599 ? staged : 500;
       set.status = status;
       set.headers['content-type'] = 'application/problem+json';
-      return toProblemDetails(status, 'conflict', (error as Error)?.message ?? 'Internal error.', path, rid);
+      return toProblemDetails(status, status >= 500 ? 'internal_error' : 'invalid_request', (error as Error)?.message ?? 'Internal error.', path, rid);
     }
   })
   .onRequest(({ request, set }) => {
@@ -1624,8 +1624,8 @@ const app = new Elysia()
     const headers = forwardHeaders(request);
     const result = await proxyJson('/api/v1/agent-packs', { headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/agent-packs'); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, '/api/v1/agent-packs'); }
     return result.data;
   }, {
     detail: {
@@ -1644,8 +1644,8 @@ const app = new Elysia()
     const path = `/api/v1/agent-packs/${packId}`;
     const result = await proxyJson(path, { headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1664,8 +1664,8 @@ const app = new Elysia()
     const path = '/api/v1/agent-packs/install-preview';
     const result = await proxyJson(path, { method: 'POST', body: body as Record<string, unknown>, headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1689,8 +1689,8 @@ const app = new Elysia()
     const path = `/api/v1/agent-packs/${packId}`;
     const result = await proxyJson(path, { method: 'PUT', body: body as Record<string, unknown>, headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1719,8 +1719,8 @@ const app = new Elysia()
     // If-Match, so the header must survive the proxy hop.
     const result = await proxyJson(path, { method: 'DELETE', headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1743,8 +1743,8 @@ const app = new Elysia()
     const path = `/api/v1/agent-packs/${packId}/enable`;
     const result = await proxyJson(path, { method: 'POST', headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1765,8 +1765,8 @@ const app = new Elysia()
     const path = `/api/v1/agent-packs/${packId}/disable`;
     const result = await proxyJson(path, { method: 'POST', headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {
@@ -1787,8 +1787,8 @@ const app = new Elysia()
     const path = `/api/v1/agent-packs/${packId}/adopt-defaults`;
     const result = await proxyJson(path, { method: 'POST', headers });
     setStatus(set, result.status);
-    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     setProxyResponseHeaders(set as never, (headers as Record<string,string>)['x-request-id'], result.headers);
+    if (result.status >= 400) { set.headers['content-type'] = 'application/problem+json'; return mapCoreErrorToExternal(result.status, result.data, path); }
     return result.data;
   }, {
     detail: {

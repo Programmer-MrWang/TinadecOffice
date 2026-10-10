@@ -2,15 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { mapCoreErrorToExternal } from './errorMapper.js';
 
-/**
- * `ALLOWED_CODES` is the external contract: a code Core authored that is not listed here comes
- * back out as `conflict`, so a caller that branches on the reason cannot. Core now stamps a code
- * on the rejections it writes itself (missing required parameter, unmatched route, oversized
- * body), which widened that family, so this table has to follow it.
- */
-test('core codes outside the whitelist are rewritten as conflict', () => {
+test('new stable Core codes remain actionable without a second Gateway whitelist', () => {
   const mapped = mapCoreErrorToExternal(400, { code: 'brand_new_code', detail: 'x' }, '/api/v1/x');
-  assert.equal(mapped.code, 'conflict');
+  assert.equal(mapped.code, 'brand_new_code');
 });
 
 test('framework-authored core rejections keep their own code through the gateway', () => {
@@ -53,14 +47,13 @@ test('framework-authored core rejections keep their own code through the gateway
   }
 });
 
-/**
- * The failure shape this guard exists for: an RFC 9110 body carries only a human title, and the
- * best the gateway can report is `conflict` — a 400 the caller is told to retry.
- */
-test('a core problem with no code degrades to conflict and says so through the title', () => {
+test('a core problem with no stable code uses an honest HTTP-status fallback', () => {
   const mapped = mapCoreErrorToExternal(400, { title: 'Bad Request', status: 400 }, '/api/v1/x');
-  assert.equal(mapped.code, 'conflict');
-  assert.equal(mapped.title, 'conflict');
+  assert.equal(mapped.code, 'invalid_request');
+  assert.equal(mapped.title, 'invalid_request');
+  assert.equal(mapped.category, 'user_action_required');
+  assert.equal(mapCoreErrorToExternal(500, null).code, 'internal_error');
+  assert.equal(mapCoreErrorToExternal(500, null).retryable, true);
 });
 
 test('configuration failures keep narrow diagnostics and reject malformed positions or private extensions', () => {
@@ -82,4 +75,24 @@ test('configuration failures keep narrow diagnostics and reject malformed positi
   assert.equal(JSON.stringify(mapped).includes('must-not-forward'), false);
   for (const code of ['configuration_conflict', 'configuration_missing', 'configuration_restart_required', 'configuration_unique_filter_unsupported'])
     assert.equal(mapCoreErrorToExternal(412, { code }).code, code);
+});
+
+
+test('classification and recovery actions preserve Core policy and drop unknown values', () => {
+  const mapped = mapCoreErrorToExternal(409, {
+    code: 'storage_scope_unavailable', category: 'environment_unavailable', retryable: false,
+    actions: ['unregister_workspace', 'retry', 'open_storage_settings', 'retry', 'private_action', { key: 'retry' }],
+    trace_id: 'trace-scope', diagnostics: [], private_extension: { secret: 'must-not-forward' },
+  });
+  assert.equal(mapped.code, 'storage_scope_unavailable');
+  assert.equal(mapped.category, 'environment_unavailable');
+  assert.equal(mapped.retryable, false);
+  assert.deepEqual(mapped.actions, ['unregister_workspace', 'retry', 'open_storage_settings']);
+  assert.equal(mapped.trace_id, 'trace-scope');
+  assert.deepEqual(mapped.diagnostics, []);
+  assert.equal(JSON.stringify(mapped).includes('must-not-forward'), false);
+  const malformed = mapCoreErrorToExternal(503, { code: 'future_failure', category: 'private_category', retryable: 'false', actions: [false, 'private_action'] });
+  assert.equal(malformed.category, 'internal');
+  assert.equal(malformed.retryable, true);
+  assert.deepEqual(malformed.actions, []);
 });
