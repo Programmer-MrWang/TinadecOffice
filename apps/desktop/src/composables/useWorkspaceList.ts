@@ -32,18 +32,30 @@ export function useWorkspaceList() {
   onUnmounted(() => { stop(); window.removeEventListener('storage', storage); window.removeEventListener(revealEvent, reveal) })
   function reconcile(keys: string[]) {
     if (keys.length === 0) return
-    const previous = state.value.order
+    const previous = state.value.order.filter(key => keys.includes(key))
     const fresh = keys.filter(key => !previous.includes(key))
-    state.value.order = [...fresh, ...previous.filter(key => keys.includes(key))]
+    if (fresh.length === 0) { state.value.order = previous; return }
+    // New workspaces appear next to the free conversation anchor instead of jumping to the
+    // top, so a refresh never reshuffles what the user dragged into place.
+    const anchor = previous.indexOf(freeWorkspaceKey)
+    const order = [...previous]
+    order.splice(anchor >= 0 ? anchor + 1 : 0, 0, ...fresh)
+    state.value.order = order
   }
   function toggle(key: string, field: 'collapsedKeys' | 'allKeys') {
     const values = state.value[field]
     state.value[field] = values.includes(key) ? values.filter(value => value !== key) : [...values, key]
   }
-  function move(key: string, before: string) {
-    if (key === before || !state.value.order.includes(before)) return
+  /**
+   * Moves one workspace next to another. Dropping on the lower half of a row places the
+   * dragged workspace after it, so the first and last positions are both reachable.
+   */
+  function move(key: string, target: string, after = false) {
+    if (key === target || !state.value.order.includes(target)) return
     const order = state.value.order.filter(item => item !== key)
-    order.splice(order.indexOf(before), 0, key); state.value.order = order
+    const index = order.indexOf(target)
+    order.splice(after ? index + 1 : index, 0, key)
+    state.value.order = order
   }
   function step(key: string, direction: -1 | 1) {
     const order = [...state.value.order], index = order.indexOf(key), target = index + direction

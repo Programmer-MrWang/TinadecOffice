@@ -13,7 +13,7 @@
 | 初始化与编辑 | 只初始化创建时的主目录；预览只读、已有显式打开、条件写与文件租约、原子替换、保留未知字段/注释 | StorageScopeInitializer.cs、WorkspaceDefinition.cs |
 | 请求与 DTO | preview/read/edit、ETag/If-Match；目录、主要目录、图标/颜色/摘要；Gateway 代理与生成 schema 同步 | StorageScopeEndpoints.cs、StorageEndpoints.cs、Gateway storageRoutes/externalDtoOpenApi/projectMapper、Desktop api/schema |
 | 控制器上下文 | 初始自由对话、显式恢复、新聊天沿当前工作区、Composer 切换进入新对话、按作用域独立加载和单项重试 | HomeController.ts |
-| 侧边栏 | “工作区”标题、纯折叠行、加号/菜单/拖动隔离、自由对话首位、最近五条加当前旧会话、显示全部、手动顺序与单滚动 | AppSidebar.vue、useWorkspaceList.ts、UIE NavCard.vue |
+| 侧边栏 | “工作区”标题（箭头在文字右侧、仅保留一个创建入口）、纯折叠行、加号/菜单/拖动隔离、可排序的自由对话项、最近五条加当前旧会话、显示全部、统一手动顺序与单滚动 | AppSidebar.vue、useWorkspaceList.ts、UIE NavCard.vue |
 | 工作区窗口 | ReKa/Ui/材质、原生多选、本机已有目录、主要目录与名称联动、图标颜色、最后/主要项移除约束、单次提交及失败详情 | WorkspaceEditorDialog.vue、workspaceFolders.cjs、main/preload/env/previewShim |
 | 新运行范围 | scope、完整 roots、primary、配置摘要与写策略冻结；切换 cwd 不重写冻结根；进程池加入 scope/根集合/策略 | ToolConfigurationResolver.cs、TinadecToolsProcessManager.cs、ToolInvocationScopeResolver.cs |
 | 文件/搜索/命令/Git | 多目录读取与写入、搜索 root_id/relative_path、显式 cwd 和 repository_path；保护产品存储；私有 Windows runner 可信源集合 | ToolExecutionContext.cs、FileToolRuntime.cs、FileSearch.cs、SandboxPaths.cs、WindowsSandboxBackend/Runner/AccountManager |
@@ -67,3 +67,15 @@ pgvector 新安装放数据库公共 schema；业务连接始终仅使用本作�
 正式契约提供目录、TOML 与“用户动作→写入”表；Core 产品定义 §21.7 引用该契约。Home README/ARCHITECTURE/STATUS/TODO 持有实施状态；Renderer、本机状态、Persistence、Core Tools、文件搜索、Git、命令终端、沙箱及 Gateway 模块引用同一任务和证据。根与相关 AGENTS 同步，reindex 校验并生成唯一总入口，保留此前专项和整体模块审计。
 
 最终 reindex：55 个模块、24 个 Core 工程、82 个架构节点、138 项功能、129 项任务、240 个 Markdown、2194 条链接，0 错误；该结果仅证明文档与源码索引一致，不替代产品验收。运行中的用户开发服务保持原状态；新 Core 接口需要开发服务正常重启后加载，测试从始至终使用独立 artifacts 与临时根。
+
+
+## 2026-10-10 侧栏第二轮交互修正
+
+用户回访指出四处问题，均已按统一排序模型修正：
+
+1. 组折叠指示器原先在“工作区”文字左侧；现在紧跟在文字右侧，触发器同时保留可访问名称与真实 aria-expanded。
+2. 空列表时另有一个虚线“添加工作区”按钮，与标题行加号重复；已删除该空态按钮，标题行加号成为唯一创建工作区入口。
+3. 收起整组时列表容器用 v-show 退出布局，底部工具区因此上浮；现在列表占位保留、只隐藏内容，页脚始终贴住侧栏底部。
+4. 自由对话此前被硬编码在首位且不可拖动；现在它与项目工作区共用同一个本机顺序，可用整行拖动（落点上半区放到目标前、下半区放到目标后）、菜单上移/下移或 Alt+方向键重排，无手动顺序时仍默认在前。
+
+组件回归此时 24/24（AppSidebar + useWorkspaceList），类型检查通过；真实预览页已确认箭头位于文字右侧、仅一个创建按钮、折叠时页脚几何位置不变、自由对话行 draggable=true 且带 aria-keyshortcuts。桌面底栏与排序均为本机状态，不改变工作区 TOML、权限或存储位置。

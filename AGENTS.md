@@ -47,7 +47,7 @@ The Core is a MAF-based modular monolith; storage and read paths are in place, a
 
 ### 2026-10-10 多文件夹工作区
 
-APP-HOME-107统一工作区标题与纯折叠项目行、自由对话首位、近期五条/当前旧会话、手动排序、本机状态和多源目录窗口。WorkspaceEditorDialog复用ReKa/Ui与材质；选择/取消不初始化，明确打开已有，编辑If-Match。project.toml持有稳定目录ID/主要目录/名称/图标/颜色，创建仅主目录存储，更换主要目录不移动；宿主当前和历史目录授权独立维护，文件不能自授予。Core准入冻结全部源目录/主目录/存储策略，Tools按scope+根集合隔离进程；多目录快照用root ID/相对路径。产品契约 docs/workspaces.zh-CN.md，模块状态与平台边界见本轮报告；Windows普通进程命令测试不得当作低权限ACL验收，macOS须实际CI证据。
+APP-HOME-107统一工作区标题与纯折叠项目行、可排序的自由对话项、近期五条/当前旧会话、统一手动排序、本机状态和多源目录窗口。标题省略号在文字右侧，仅保留标题行加号作为创建入口。WorkspaceEditorDialog复用ReKa/Ui与材质；选择/取消不初始化，明确打开已有，编辑If-Match。project.toml持有稳定目录ID/主要目录/名称/图标/颜色，创建仅主目录存储，更换主要目录不移动；宿主当前和历史目录授权独立维护，文件不能自授予。Core准入冻结全部源目录/主目录/存储策略，Tools按scope+根集合隔离进程；多目录快照用root ID/相对路径。产品契约 docs/workspaces.zh-CN.md，模块状态与平台边界见本轮报告；Windows普通进程命令测试不得当作低权限ACL验收，macOS须实际CI证据。
 
 本轮最终去重：Desktop62、Windows Core62通过/1明确PG跳过、Tools40、资源34、Gateway6；Linux Core28及内核Tools28通过，PG18.6/pgvector空库和已有扩展namespace实测通过。原始向量连接固定scope search_path、显式扩展namespace/Npgsql参数；历史配置仅时间按PG微秒精度比较，真正版本修改仍拒绝。存储删除禁止级联移除数据库级扩展。Windows Electron原生多选/真实隔离服务有证据；macOS、Windows低权限Shell、完整App/安装器仍待验收，APP-HOME-107不标全平台完成。
 

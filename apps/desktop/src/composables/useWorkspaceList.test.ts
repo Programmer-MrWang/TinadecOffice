@@ -32,4 +32,19 @@ describe('workspace list persistence', () => {
     expect(list.state.value.collapsedKeys).toEqual(['a::p']); expect(list.state.value.allKeys).toEqual(['b::p'])
     expect(JSON.parse(localStorage.getItem(workspaceListStorageKey)!)).toEqual(list.state.value); wrapper.unmount()
   })
+  it('moves a workspace after the drop target when requested and keeps free conversation ordered', () => {
+    let list!: ReturnType<typeof useWorkspaceList>
+    const wrapper = mount(defineComponent({ setup() { list = useWorkspaceList(); return () => null } }))
+    list.reconcile(['user::free', 'a::p', 'b::p', 'c::p'])
+    list.move('user::free', 'b::p', true)
+    expect(list.state.value.order).toEqual(['a::p', 'b::p', 'user::free', 'c::p'])
+    list.move('c::p', 'a::p', false)
+    expect(list.state.value.order).toEqual(['c::p', 'a::p', 'b::p', 'user::free'])
+    // reconcile must preserve the user's order and only append genuinely new groups
+    list.reconcile(['user::free', 'a::p', 'b::p', 'c::p'])
+    expect(list.state.value.order).toEqual(['c::p', 'a::p', 'b::p', 'user::free'])
+    list.reconcile(['user::free', 'a::p', 'b::p', 'c::p', 'd::p'])
+    expect(list.state.value.order).toEqual(['c::p', 'a::p', 'b::p', 'user::free', 'd::p'])
+    wrapper.unmount()
+  })
 })

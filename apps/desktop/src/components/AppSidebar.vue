@@ -73,16 +73,31 @@ const emit = defineEmits<{
 }>()
 
 const list = useWorkspaceList()
-watch(() => props.projects.map(selectionKey), keys => list.reconcile(keys), { immediate: true })
-let draggedWorkspace: string | null = null
+watch(() => [freeWorkspaceKey, ...props.projects.map(selectionKey)], keys => list.reconcile(keys), { immediate: true })
+const draggedWorkspace = ref<string | null>(null)
+const dragOverKey = ref<string | null>(null)
+const dragOverAfter = ref(false)
 function startDrag(event: DragEvent, key: string) {
-  draggedWorkspace = key
+  draggedWorkspace.value = key
   if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/x-tinadec-workspace', key) }
+}
+function dragOverWorkspace(event: DragEvent, key: string) {
+  if (!draggedWorkspace.value) return
+  const row = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  dragOverKey.value = key
+  dragOverAfter.value = event.clientY > row.top + row.height / 2
 }
 function dropWorkspace(event: DragEvent, key: string) {
   event.preventDefault()
-  if (draggedWorkspace) list.move(draggedWorkspace, key)
-  draggedWorkspace = null
+  if (draggedWorkspace.value) list.move(draggedWorkspace.value, key, dragOverAfter.value)
+  draggedWorkspace.value = null
+  dragOverKey.value = null
+}
+// Drag is the primary gesture, but reordering must not require a pointer.
+function reorderWithKeyboard(event: KeyboardEvent, key: string) {
+  if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+  event.preventDefault()
+  list.step(key, event.key === 'ArrowUp' ? -1 : 1)
 }
 const viewMenu = ref<HTMLDivElement | null>(null)
 const viewMenuId = `sidebar-view-${useId()}`
@@ -107,7 +122,7 @@ function changeView(mode: 'flat' | 'space') {
 
 // ---- Lifecycle management (context menu + inline rename) ----
 interface MenuTarget {
-  kind: 'project' | 'session'
+  kind: 'project' | 'session' | 'free'
   id: string
   name: string
   x: number
@@ -122,27 +137,39 @@ const migrationProject = ref('')
 const migrationProjects = computed(() => props.projects.filter(project => project.storage_id && (project.lifecycle_status ?? 'active') === 'active'))
 const migrationAllowed = computed(() => menuTarget.value?.kind === 'session' && props.sessions.some(session => selectionKey(session) === menuTarget.value?.id && !session.project_id) && migrationProjects.value.length > 0)
 
-const menuItems = computed<RowMenuItem[]>(() => [
-  ...(menuTarget.value?.kind === 'project' ? [
-    { key: 'edit-workspace', label: '编辑工作区', icon: Pencil },
-    { key: 'move-up', label: '上移', icon: ArrowUp },
-    { key: 'move-down', label: '下移', icon: ArrowDown },
-  ] : [{ key: 'rename', label: t('sidebar.rename'), icon: Pencil }]),
-  ...(migrationAllowed.value ? [{ key: 'migrate', label: t('sidebar.migrateSession'), icon: ArrowRightLeft }] : []),
-  { key: 'archive', label: t('sidebar.archive'), icon: Archive },
-  { key: 'trash', label: t('sidebar.moveToTrash'), icon: Trash2, danger: true },
-])
+const menuItems = computed<RowMenuItem[]>(() => {
+  const order: RowMenuItem[] = [
+    { key: 'move-up', label: t('sidebar.moveUp'), icon: ArrowUp },
+    { key: 'move-down', label: t('sidebar.moveDown'), icon: ArrowDown },
+  ]
+  // Conversations are listed chronologically inside a workspace and are not reorderable.
+  if (menuTarget.value?.kind === 'session') return [
+    { key: 'rename', label: t('sidebar.rename'), icon: Pencil },
+    ...(migrationAllowed.value ? [{ key: 'migrate', label: t('sidebar.migrateSession'), icon: ArrowRightLeft }] : []),
+    { key: 'archive', label: t('sidebar.archive'), icon: Archive },
+    { key: 'trash', label: t('sidebar.moveToTrash'), icon: Trash2, danger: true },
+  ]
+  // The free conversation owns no project record, so it only gets reordering.
+  if (menuTarget.value?.kind === 'free') return order
+  return [
+    { key: 'edit-workspace', label: t('sidebar.editWorkspace'), icon: Pencil },
+    ...order,
+    { key: 'archive', label: t('sidebar.archive'), icon: Archive },
+    { key: 'trash', label: t('sidebar.moveToTrash'), icon: Trash2, danger: true },
+  ]
+})
 
-function openMenuAtCursor(event: MouseEvent, kind: 'project' | 'session', id: string, name: string) {
+function openMenuAtCursor(event: MouseEvent, kind: 'project' | 'session' | 'free', id: string, name: string) {
   menuTarget.value = { kind, id, name, x: event.clientX, y: event.clientY }
 }
 
-function openMenuAtButton(event: MouseEvent, kind: 'project' | 'session', id: string, name: string) {
+function openMenuAtButton(event: MouseEvent, kind: 'project' | 'session' | 'free', id: string, name: string) {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   menuTarget.value = { kind, id, name, x: rect.left, y: rect.bottom + 4 }
 }
 
 function startRename(target: MenuTarget) {
+  if (target.kind === 'free') return
   renaming.value = { kind: target.kind, id: target.id }
   if (target.kind === 'project' && !isExpanded(target.id)) toggleExpand(target.id)
 }
@@ -202,11 +229,22 @@ function submitMigration() {
   migrationDialog.value?.close(); migrationSession.value = null
 }
 
-const filteredProjects = computed(() => {
-  return [...props.projects].sort((a, b) => list.state.value.order.indexOf(selectionKey(a)) - list.state.value.order.indexOf(selectionKey(b)))
+// Free conversation is an ordinary, draggable list item; it is only the default first entry
+// when the user has not moved it. Order is the single source of truth for the whole group.
+const workspaces = computed(() => {
+  const candidates = [
+    { key: freeWorkspaceKey, name: t('chat.freeConversation'), project: null as ProjectDto | null },
+    ...props.projects.map(project => ({ key: selectionKey(project), name: project.name, project: project as ProjectDto | null })),
+  ]
+  const remaining = new Map(candidates.map(workspace => [workspace.key, workspace]))
+  const ordered: typeof candidates = []
+  for (const key of list.state.value.order) {
+    const workspace = remaining.get(key)
+    if (workspace) { ordered.push(workspace); remaining.delete(key) }
+  }
+  for (const workspace of candidates) if (remaining.has(workspace.key)) ordered.push(workspace)
+  return ordered
 })
-const workspaces = computed(() => [{ key: freeWorkspaceKey, name: t('chat.freeConversation'), project: null as ProjectDto | null },
-  ...filteredProjects.value.map(project => ({ key: selectionKey(project), name: project.name, project }))])
 function allSessions(key: string): SessionDto[] { return key === freeWorkspaceKey ? freeSessions.value : getProjectSessions(key) }
 function shownSessions(key: string) {
   const active = props.sessions.find(isActiveSession)
@@ -306,17 +344,23 @@ function openDebugStudio() {
 
     <div class="workspace-section-heading">
       <button class="workspace-section-toggle" :aria-expanded="!list.state.value.collapsed" aria-controls="sidebar-workspaces" @click="list.state.value.collapsed = !list.state.value.collapsed">
-        <ChevronRight :size="13" class="workspace-section-chevron" :class="{ expanded: !list.state.value.collapsed }" /><span class="sidebar-label">工作区</span>
+        <span class="sidebar-label">{{ t('sidebar.workspaces') }}</span>
+        <ChevronRight :size="13" class="workspace-section-chevron" :class="{ expanded: !list.state.value.collapsed }" />
       </button>
-      <button class="workspace-section-add" aria-label="新建工作区" title="新建工作区" @click.stop="emit('open-project')"><Plus :size="14" /></button>
+      <button class="workspace-section-add sidebar-extra" :aria-label="t('sidebar.newWorkspace')" :title="t('sidebar.newWorkspace')" @click.stop="emit('open-project')"><Plus :size="14" /></button>
     </div>
-    <div id="sidebar-workspaces" class="sidebar-list" v-show="!list.state.value.collapsed">
-      <div v-for="workspace in workspaces" :key="workspace.key" class="project-group" :class="{ 'free-conversation-group': !workspace.project }" :data-workspace-key="workspace.key">
-        <div class="project-row" :class="{ active: workspace.project ? workspace.project.id === selectedProjectId && (!workspace.project.storage_id || workspace.project.storage_id === selectedStorage) : !selectedProjectId }"
-          :draggable="!!workspace.project" @dragstart.stop="workspace.project && startDrag($event, workspace.key)" @dragend="draggedWorkspace = null"
-          @dragover.prevent="workspace.project && draggedWorkspace" @drop.stop="workspace.project && dropWorkspace($event, workspace.key)"
-          @contextmenu.prevent="workspace.project && openMenuAtCursor($event, 'project', workspace.key, workspace.name)" @click="handleProjectClick(workspace.key)">
-          <button class="project-row-main" :title="workspace.project?.path ?? workspace.name" :aria-expanded="isExpanded(workspace.key)" :aria-controls="`workspace-sessions-${workspace.key}`" @click.stop="handleProjectClick(workspace.key)">
+    <div id="sidebar-workspaces" class="sidebar-list" :class="{ 'sidebar-list--group-collapsed': list.state.value.collapsed }">
+      <template v-if="!list.state.value.collapsed"><div v-for="workspace in workspaces" :key="workspace.key" class="project-group" :class="{ 'free-conversation-group': !workspace.project }" :data-workspace-key="workspace.key">
+        <div class="project-row" :class="{
+            active: workspace.project ? workspace.project.id === selectedProjectId && (!workspace.project.storage_id || workspace.project.storage_id === selectedStorage) : !selectedProjectId,
+            'drag-source': draggedWorkspace === workspace.key,
+            'drag-over-before': dragOverKey === workspace.key && !dragOverAfter,
+            'drag-over-after': dragOverKey === workspace.key && dragOverAfter,
+          }"
+          draggable="true" @dragstart.stop="startDrag($event, workspace.key)" @dragend="draggedWorkspace = null; dragOverKey = null"
+          @dragover.prevent="dragOverWorkspace($event, workspace.key)" @drop.stop="dropWorkspace($event, workspace.key)"
+          @contextmenu.prevent="openMenuAtCursor($event, workspace.project ? 'project' : 'free', workspace.key, workspace.name)" @click="handleProjectClick(workspace.key)">
+          <button class="project-row-main" :title="workspace.project?.path ?? workspace.name" :aria-expanded="isExpanded(workspace.key)" :aria-controls="`workspace-sessions-${workspace.key}`" :aria-keyshortcuts="'Alt+ArrowUp Alt+ArrowDown'" @keydown="reorderWithKeyboard($event, workspace.key)" @click.stop="handleProjectClick(workspace.key)">
             <component :is="workspace.project ? workspaceIcons[workspace.project.icon ?? 'folder'] ?? FolderOpen : Sparkles" :size="15" class="sidebar-list-item-icon sidebar-icon" :class="`workspace-color-${workspace.project?.color ?? 'default'}`" />
             <span class="sidebar-list-item-text sidebar-label">{{ workspace.name }}</span>
           </button>
@@ -338,8 +382,7 @@ function openDebugStudio() {
           <div v-if="!allSessions(workspace.key).length && (!workspaceLoadStates?.[workspace.key] || workspaceLoadStates[workspace.key]?.status === 'ready') && workspace.project?.availability !== 'error'" class="session-empty">{{ t('sidebar.noSessions') }}</div>
           <button v-if="allSessions(workspace.key).length > shownSessions(workspace.key).length || list.state.value.allKeys.includes(workspace.key)" class="workspace-show-more" @click="list.toggle(workspace.key, 'allKeys')">{{ list.state.value.allKeys.includes(workspace.key) ? '收起显示' : '展开显示' }}</button>
         </div>
-      </div>
-      <button v-if="!filteredProjects.length" class="workspace-empty-create sidebar-extra" @click="emit('open-project')"><FolderOpen :size="14" />添加工作区</button>
+      </div></template>
     </div>
 
     <div v-if="tokenUsage.length > 0" class="token-usage-area">

@@ -31,7 +31,7 @@
 
 ### 2026-10-10 工作区交互
 
-侧边栏“工作区”标题控制整组，行只折叠对话列表；加号新对话、子项打开、菜单与拖动互不触发折叠。自由对话首位、手动工作区顺序、最近五条与当前旧对话、统一滚动和分作用域加载状态由 AppSidebar/useWorkspaceList 管理。HomeController 维护新对话上下文及固定作用域，统一 WorkspaceEditorDialog 创建、明确打开和条件编辑多文件夹工作区。
+侧边栏“工作区”标题控制整组，行只折叠对话列表；加号新对话、子项打开、菜单与拖动互不触发折叠。自由对话与项目工作区共享统一手动顺序（可拖动及键盘重排，无手动顺序时自由对话默认在前）、最近五条与当前旧对话、统一滚动和分作用域加载状态由 AppSidebar/useWorkspaceList 管理。HomeController 维护新对话上下文及固定作用域，统一 WorkspaceEditorDialog 创建、明确打开和条件编辑多文件夹工作区。
 
 源目录集合、主要目录、图标与颜色以原存储根 project.toml 为权威；宿主授权、新运行冻结和工具隔离由 Core/Tools 管理。本机列表偏好不构成授权。正式规则见[工作区契约](../../../../workspaces.zh-CN.md)，唯一任务为[APP-HOME-107](TODO.md#app-home-107)，验收边界见[报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
 

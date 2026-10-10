@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import AppSidebar from './AppSidebar.vue'
 import type { ProjectDto, SessionDto } from '../api'
 import { useDebugStudio } from '@/composables/useDebugStudio'
-import { workspaceListStorageKey } from '@/composables/useWorkspaceList'
+import { freeWorkspaceKey, workspaceListStorageKey } from '@/composables/useWorkspaceList'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string) => key }),
@@ -96,6 +96,58 @@ function dispatchViewToggle(element: Element, newState: 'open' | 'closed') {
 }
 
 describe('AppSidebar lifecycle management', () => {
+  it('keeps a single workspace creation entry and never renders the old empty-state button', async () => {
+    localStorage.clear()
+    const wrapper = factory({ projects: [] })
+    expect(wrapper.find('.workspace-empty-create').exists()).toBe(false)
+    expect(wrapper.findAll('.workspace-section-add')).toHaveLength(1)
+    await wrapper.get('.workspace-section-add').trigger('click')
+    expect(wrapper.emitted('open-project')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('places the group chevron after the heading label', async () => {
+    localStorage.clear()
+    const wrapper = factory()
+    const toggle = wrapper.get('.workspace-section-toggle')
+    const names = [...toggle.element.children].map(node => node.className)
+    const label = names.findIndex(name => String(name).includes('sidebar-label'))
+    const chevron = names.findIndex(name => String(name).includes('workspace-section-chevron'))
+    expect(label).toBeGreaterThanOrEqual(0)
+    expect(chevron).toBeGreaterThan(label)
+    wrapper.unmount()
+  })
+
+  it('reorders workspaces, including the free conversation, and persists the new order', async () => {
+    localStorage.clear()
+    const second = { ...project, id: 'p-2', name: 'Second' }
+    const wrapper = factory({ projects: [project, second] })
+    const keys = () => wrapper.findAll('.project-group').map(node => node.attributes('data-workspace-key'))
+    expect(keys()).toEqual([freeWorkspaceKey, 'p-1', 'p-2'])
+
+    // Move the free conversation below the first project: it is no longer pinned to the top.
+    await wrapper.get('[data-workspace-key="user::free"] .project-row-main').trigger('keydown', { key: 'ArrowDown', altKey: true })
+    expect(keys()).toEqual(['p-1', freeWorkspaceKey, 'p-2'])
+
+    await wrapper.get('[data-workspace-key="p-2"] .project-row-main').trigger('keydown', { key: 'ArrowUp', altKey: true })
+    expect(keys()).toEqual(['p-1', 'p-2', freeWorkspaceKey])
+
+    expect(JSON.parse(localStorage.getItem(workspaceListStorageKey)!).order).toEqual(['p-1', 'p-2', freeWorkspaceKey])
+
+    // A plain arrow press must not reorder; it stays available to the row's own behaviour.
+    await wrapper.get('[data-workspace-key="p-1"] .project-row-main').trigger('keydown', { key: 'ArrowDown' })
+    expect(keys()).toEqual(['p-1', 'p-2', freeWorkspaceKey])
+    wrapper.unmount()
+  })
+
+  it('shows only reordering actions for the free conversation', async () => {
+    localStorage.clear()
+    const wrapper = factory()
+    await wrapper.get('[data-workspace-key="user::free"] .project-row').trigger('contextmenu')
+    expect(menuButtons().map(node => node.textContent?.trim())).toEqual(['sidebar.moveUp', 'sidebar.moveDown'])
+    wrapper.unmount()
+  })
+
   it('folds without navigating, and isolates plus and section actions', async () => {
     localStorage.clear()
     const wrapper = factory()
@@ -139,7 +191,7 @@ describe('AppSidebar lifecycle management', () => {
     const refreshed = { ...project, updated_at: '2099-01-01' }
     await wrapper.setProps({ projects: [refreshed, second, { ...project, id: 'p-3' }] })
     expect(wrapper.findAll('.project-group').slice(1).map(node => node.attributes('data-workspace-key'))).toEqual(['p-3', 'p-2', 'p-1'])
-    expect(JSON.parse(localStorage.getItem(workspaceListStorageKey)!).order).toEqual(['p-3', 'p-2', 'p-1'])
+    expect(JSON.parse(localStorage.getItem(workspaceListStorageKey)!).order).toEqual([freeWorkspaceKey, 'p-3', 'p-2', 'p-1'])
     wrapper.unmount()
   })
   it('opens the native view chooser without changing the actual session view', async () => {
@@ -231,9 +283,9 @@ describe('AppSidebar lifecycle management', () => {
     const wrapper = factory()
     await wrapper.find('[data-workspace-key=\"p-1\"] .project-row').trigger('contextmenu')
     expect(menuButtons().map((b) => b.textContent?.trim())).toEqual([
-      '编辑工作区',
-      '上移',
-      '下移',
+      'sidebar.editWorkspace',
+      'sidebar.moveUp',
+      'sidebar.moveDown',
       'sidebar.archive',
       'sidebar.moveToTrash',
     ])

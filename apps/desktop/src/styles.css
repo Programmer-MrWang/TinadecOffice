@@ -1934,6 +1934,9 @@ button.agent-topology-node:hover,
   background: var(--bg-hover);
 }
 .project-row.active { background: var(--surface-selected); }
+.project-row.drag-source { opacity: 0.45; }
+.project-row.drag-over-before { box-shadow: inset 0 2px 0 0 var(--accent-primary); }
+.project-row.drag-over-after { box-shadow: inset 0 -2px 0 0 var(--accent-primary); }
 
 .project-row-main {
   display: flex;
@@ -2002,22 +2005,25 @@ button.agent-topology-node:hover,
 }
 
 /* Workspace navigation shares a single scrollport and keeps auxiliary controls quiet. */
-.workspace-section-heading { display: flex; align-items: center; gap: 4px; margin: 16px 10px 4px; flex-shrink: 0; }
-.workspace-section-toggle { display: flex; align-items: center; gap: 6px; flex: 1; padding: 4px 2px; color: var(--text-muted); background: transparent; border: 0; font-size: 12px; text-align: left; cursor: pointer; }
+.workspace-section-heading { display: flex; align-items: center; gap: 4px; margin: 16px 10px 4px; min-height: 24px; flex-shrink: 0; }
+.workspace-section-toggle { display: flex; align-items: center; justify-content: flex-start; gap: 5px; flex: 1; padding: 4px 2px; color: var(--text-muted); background: transparent; border: 0; font-size: 12px; text-align: left; cursor: pointer; }
 .workspace-section-chevron { opacity: 0; transform: rotate(0); transition: opacity 120ms ease, transform 120ms ease; }
 .workspace-section-chevron.expanded { transform: rotate(90deg); }
-.workspace-section-add { display: grid; place-items: center; width: 24px; height: 24px; background: transparent; color: var(--text-muted); border: 0; border-radius: var(--radius-sm); opacity: 0; cursor: pointer; }
+.workspace-section-add { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; background: transparent; color: var(--text-muted); border: 0; border-radius: var(--radius-sm); opacity: 0; cursor: pointer; }
 .workspace-section-heading:hover .workspace-section-chevron, .workspace-section-heading:focus-within .workspace-section-chevron, .workspace-section-heading:hover .workspace-section-add, .workspace-section-heading:focus-within .workspace-section-add { opacity: 1; }
 .workspace-section-add:hover { background: var(--surface-hover); color: var(--text-primary); }
-.workspace-section-heading button:focus-visible, .workspace-show-more:focus-visible, .workspace-empty-create:focus-visible, .workspace-load-error button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.workspace-section-heading button:focus-visible, .workspace-show-more:focus-visible, .workspace-load-error button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
 .workspace-show-more { align-self: flex-start; margin: 4px 0 8px; border: 0; background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: var(--radius-sm); }
 .workspace-show-more:hover { color: var(--text-primary); background: var(--surface-hover); }
-.workspace-empty-create { display: flex; align-items: center; gap: 8px; margin: 12px 8px; padding: 8px; background: transparent; border: 1px dashed var(--border-default); color: var(--text-secondary); border-radius: var(--radius-md); cursor: pointer; font-size: 12px; }
 .workspace-load-error { display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 12px; color: var(--text-error); }
 .workspace-load-error button { border: 0; background: transparent; color: var(--text-link); cursor: pointer; }
 .project-row.active .project-row-action { opacity: 0; }
 .project-row:hover .project-row-action, .project-row:focus-within .project-row-action { opacity: 1; }
 .sidebar-collapsed .workspace-section-heading { display: none; }
+/* The group keeps its scrollport so the footer stays pinned to the bottom of the sidebar
+   when the workspace list is collapsed. */
+.sidebar-list--group-collapsed { padding-top: 0; padding-bottom: 0; }
+.workspace-section-heading + .sidebar-list--group-collapsed { margin-top: 0; }
 .workspace-color-default { color: var(--text-secondary); }
 .workspace-color-blue { color: var(--accent-info); }
 .workspace-color-green { color: var(--accent-success); }
