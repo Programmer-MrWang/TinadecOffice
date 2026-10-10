@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Radar, RefreshCw, Save, ShieldCheck } from '@lucide/vue'
-import { UiBadge, UiButton, UiInput, UiLabel } from '@/components/ui'
+import { UiBadge, UiButton, UiInput, UiLabel, UiSelectField } from '@/components/ui'
 import { api as baseApi } from '@/api'
 import { scopedApi } from '@/lib/storageScope'
 const api = scopedApi(baseApi, () => 'user')
@@ -13,12 +13,18 @@ import { getDispatchPref, setDispatchPref, type DispatchPref } from '@/lib/dispa
  * General section extracted from SettingsPage (D7.2).
  *
  * Owns: Gateway connection config (Electron appConfig IPC), dispatch
- * behavior preferences (localStorage via dispatchPref). Workspace defaults
- * remain Core-owned and are managed from Agent Center.
+ * behavior preferences (localStorage via dispatchPref), and the interface
+ * language (localStorage `tinadec-locale`, the key i18n.ts reads on boot).
+ * Workspace defaults remain Core-owned and are managed from Agent Center.
  */
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { items: notificationItems, notify, banner, status, confirm: dismissConfirm, dismiss: dismissNotification, dismissByKey } =
   useNotifications()
+
+function setLocale(lang: string): void {
+  locale.value = lang
+  localStorage.setItem('tinadec-locale', lang)
+}
 
 interface DesktopAppConfig {
   path?: string
@@ -153,10 +159,9 @@ function selectDiscoveredService(service: DiscoveredService): void {
   notify.success({ message: t('settings.serviceDiscoverySelected'), source: 'gateway' })
 }
 
-function onEnterPrefChange(e: Event): void {
-  const v = (e.target as HTMLSelectElement).value as DispatchPref
-  enterPrefDraft.value = v
-  setDispatchPref(v)
+function onEnterPrefChange(value: string): void {
+  enterPrefDraft.value = value as DispatchPref
+  setDispatchPref(value as DispatchPref)
 }
 
 onMounted(() => {
@@ -294,14 +299,46 @@ void dismissConfirm
 
       <div class="gateway-config-field">
         <UiLabel for="enter-pref">{{ t('settings.enterKeyBehavior') }}</UiLabel>
-        <select id="enter-pref" class="settings-select" :value="enterPrefDraft" @change="onEnterPrefChange">
-          <option value="queued">{{ t('settings.enterQueued') }}</option>
-          <option value="parallel">{{ t('settings.enterParallel') }}</option>
-          <option value="ask">{{ t('settings.enterAsk') }}</option>
-        </select>
+        <UiSelectField
+          id="enter-pref"
+          :value="enterPrefDraft"
+          :options="[
+            { value: 'queued', label: t('settings.enterQueued') },
+            { value: 'parallel', label: t('settings.enterParallel') },
+            { value: 'ask', label: t('settings.enterAsk') },
+          ]"
+          @change="onEnterPrefChange"
+        />
         <div class="gateway-config-meta">
           <span>{{ t('settings.enterKeyBehaviorMeta') }}</span>
         </div>
+      </div>
+    </section>
+
+    <section class="general-settings-group" aria-labelledby="language-settings-title">
+      <div class="general-settings-group-heading">
+        <div>
+          <h3 id="language-settings-title">{{ t('settings.language') }}</h3>
+        </div>
+      </div>
+
+      <div class="lang-options gateway-config-field" data-testid="language-options">
+        <UiButton
+          variant="outline"
+          :class="['lang-option', { active: locale === 'zh-CN' }]"
+          data-testid="lang-zh"
+          @click="setLocale('zh-CN')"
+        >
+          中文
+        </UiButton>
+        <UiButton
+          variant="outline"
+          :class="['lang-option', { active: locale === 'en' }]"
+          data-testid="lang-en"
+          @click="setLocale('en')"
+        >
+          English
+        </UiButton>
       </div>
     </section>
   </div>

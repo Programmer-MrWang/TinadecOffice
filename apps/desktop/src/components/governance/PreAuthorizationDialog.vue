@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ShieldCheck } from '@lucide/vue'
 import { api, type CreatePreAuthorizationInput, type PreAuthorizationDto } from '@/api'
+import { UiSelectField } from '@/components/ui'
 
 const props = defineProps<{
   open: boolean
@@ -138,13 +139,18 @@ async function submit(): Promise<void> {
           <div class="pre-auth-grid">
             <label>
               {{ t('governance.preAuthRiskMax', 'Risk max') }}
-              <select v-model="riskMax" data-testid="pre-auth-risk">
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-                <option value="elevated">elevated</option>
-                <option value="critical">critical</option>
-              </select>
+              <UiSelectField
+                v-model="riskMax"
+                data-testid="pre-auth-risk"
+                :aria-label="t('governance.preAuthRiskMax', 'Risk max')"
+                :options="[
+                  { value: 'low', label: 'low' },
+                  { value: 'medium', label: 'medium' },
+                  { value: 'high', label: 'high' },
+                  { value: 'elevated', label: 'elevated' },
+                  { value: 'critical', label: 'critical' },
+                ]"
+              />
             </label>
             <label>
               {{ t('governance.preAuthMaxUses', 'Max uses') }}

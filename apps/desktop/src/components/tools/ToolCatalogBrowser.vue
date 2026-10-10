@@ -13,6 +13,7 @@ import {
 import { api, type ToolDescriptorDto, type ToolSearchResultDto } from '@/api'
 import { riskLevelsPresent, riskToneClass, toolIconOf } from '@/lib/toolPresentation'
 import { useNotifications } from '@/composables/useNotifications'
+import { UiSelectField } from '@/components/ui'
 
 const { t } = useI18n()
 const { status, dismissByKey } = useNotifications()
@@ -196,17 +197,28 @@ function onExecute(tool: ToolDescriptorDto) {
         />
         <span v-if="searchLoading" class="tool-catalog-search-loading">Searching…</span>
       </div>
-      <select v-model="sourceFilter" class="tool-catalog-select">
-        <option v-for="opt in sourceOptions" :key="opt.key" :value="opt.key">{{ opt.label }}</option>
-      </select>
-      <select v-model="riskFilter" class="tool-catalog-select">
-        <option v-for="opt in riskOptions" :key="opt.key" :value="opt.key">{{ opt.label }}</option>
-      </select>
-      <select v-model="approvalFilter" class="tool-catalog-select">
-        <option value="all">All approval</option>
-        <option value="required">Approval required</option>
-        <option value="optional">No approval</option>
-      </select>
+      <UiSelectField
+        v-model="sourceFilter"
+        class="tool-catalog-select"
+        aria-label="Source"
+        :options="sourceOptions.map((opt) => ({ value: opt.key, label: opt.label }))"
+      />
+      <UiSelectField
+        v-model="riskFilter"
+        class="tool-catalog-select"
+        aria-label="Risk"
+        :options="riskOptions.map((opt) => ({ value: opt.key, label: opt.label }))"
+      />
+      <UiSelectField
+        v-model="approvalFilter"
+        class="tool-catalog-select"
+        aria-label="Approval"
+        :options="[
+          { value: 'all', label: 'All approval' },
+          { value: 'required', label: 'Approval required' },
+          { value: 'optional', label: 'No approval' },
+        ]"
+      />
     </div>
 
     <div v-if="loading" class="tool-catalog-loading">
@@ -364,7 +376,8 @@ function onExecute(tool: ToolDescriptorDto) {
   flex-shrink: 0;
 }
 
-.tool-catalog-select {
+.tool-catalog-select { min-width: 0; }
+.tool-catalog-select :deep(.ui-select-trigger) {
   height: 30px;
   padding: 0 8px;
   font-size: 11px;

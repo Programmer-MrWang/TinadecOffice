@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { UiBadge, UiButton, UiInput } from '@/components/ui'
+import { UiBadge, UiButton, UiInput, UiSelectField } from '@/components/ui'
 import { api as baseApi, type ToolMcpResource, type ToolMcpInput, type ToolSkillResource } from '@/api'
 import { scopedApi, projectStorageId, selectionIdentity } from '@/lib/storageScope'
 import { useNotifications } from '@/composables/useNotifications'
@@ -100,10 +100,10 @@ async function refresh() {
 }
 defineExpose({ discard, refresh, save, isBusy: () => busy.value })
 watch(() => [props.kind, props.projectId], () => { ++contextEpoch; stopActionPoll(); busy.value = false; result.value = ''; connectionResults.value = {}; discard(); if (!props.projectId) scope.value = 'shared'; void refresh() }, { immediate: true })
-async function changeScope(event: Event) {
-  const input = event.target as HTMLSelectElement; const next = input.value as 'shared' | 'project'; input.value = scope.value
+async function changeScope(next: string) {
+  if (next === scope.value) return
   if (!await allowDiscard()) return
-  ++contextEpoch; stopActionPoll(); result.value = ''; discard(); scope.value = next
+  ++contextEpoch; stopActionPoll(); result.value = ''; discard(); scope.value = next as 'shared' | 'project'
   // A scope switch can invalidate the first inventory request before it settles.
   await refresh()
 }
@@ -225,7 +225,7 @@ onBeforeUnmount(() => { ++epoch; ++contextEpoch; stopActionPoll(); chooseDraft?.
 <template>
   <section class="tools-resources" :aria-busy="loading || busy">
     <ToolDraftDialog v-if="draftDialog" @choice="chooseDraft?.($event)" />
-    <div class="tools-command-bar"><label>{{ t('toolsSettings.resources') }}<select :value="scope" class="settings-select" :disabled="busy" @change="changeScope"><option value="shared">{{ t('toolsSettings.shared') }}</option><option value="project" :disabled="!projectId">{{ t('toolsSettings.projectResources') }}</option></select></label><UiButton size="sm" :disabled="busy || loading" @click="open()">{{ t(kind === 'mcp' ? 'toolsSettings.addMcp' : 'toolsSettings.importSkill') }}</UiButton></div>
+    <div class="tools-command-bar"><label>{{ t('toolsSettings.resources') }}<UiSelectField :value="scope" :disabled="busy" :aria-label="t('toolsSettings.resources')" :options="[{ value: 'shared', label: t('toolsSettings.shared') }, { value: 'project', label: t('toolsSettings.projectResources'), disabled: !projectId }]" @change="changeScope" /></label><UiButton size="sm" :disabled="busy || loading" @click="open()">{{ t(kind === 'mcp' ? 'toolsSettings.addMcp' : 'toolsSettings.importSkill') }}</UiButton></div>
     <p class="quiet">{{ t(kind === 'mcp' ? 'toolsSettings.mcpHint' : 'toolsSettings.skillHint') }}</p>
     <div class="tools-binding-bar"><span>{{ t('toolsSettings.binding') }}</span><UiButton v-if="agentScope" variant="ghost" size="sm" :disabled="!canBind" @click="emit('binding', null, true)">{{ t('toolsSettings.inherit') }}</UiButton><UiButton variant="ghost" size="sm" :disabled="!canBind" @click="emit('binding', null)">{{ t('toolsSettings.allResources') }}</UiButton><UiButton variant="ghost" size="sm" :disabled="!canBind" @click="emit('binding', [])">{{ t('toolsSettings.none') }}</UiButton><UiBadge variant="outline">{{ t(inherited ? 'toolsSettings.inherited' : selection === null ? 'toolsSettings.allResources' : 'toolsSettings.custom') }}</UiBadge></div>
     <div class="tools-resource-list">

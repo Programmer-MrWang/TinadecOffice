@@ -302,8 +302,9 @@ internal static class GitReadTools
     {
         var repo = GitCli.ResolveRepo(args.RepositoryPath ?? string.Empty, out var error);
         if (repo is null) return StatusFailure(error);
-        var status = await GitCli.RunAsync(repo, ["status", "--porcelain=v1", "--branch", "-z"], cancellationToken: cancellationToken).ConfigureAwait(false);
-        return status.Ok ? ParseStatus(repo, status.Stdout) : StatusFailure(status.Stderr, status.ExitCode);
+        // Home polls this read-only tool; Git must not refresh the index or compete for index.lock.
+        var status = await GitCli.RunAsync(repo, ["--no-optional-locks", "status", "--porcelain=v1", "--branch", "-z"], cancellationToken: cancellationToken).ConfigureAwait(false);
+        return status.Ok ? ParseStatus(repo, status.Stdout) : StatusFailure(status.Stderr, status.Stderr == GitCli.GitNotFoundCode ? GitCli.GitNotFoundCode : "git_status_failed");
     }
 
     [ToolFunction("git_push_readiness", Description = "Check whether the current branch can be pushed: upstream, ahead/behind, uncommitted changes, detached HEAD, with the blocking reasons. Read-only; call it before git_push. repository_path must be an absolute path inside the workspace and point at a git worktree.")]
@@ -332,7 +333,17 @@ internal static class GitReadTools
             ["log", "--date=iso-strict", "--format=%H%x09%h%x09%an%x09%ae%x09%ad%x09%s", $"--max-count={limit}", revision],
             cancellationToken: cancellationToken,
             timeoutMs: 30_000).ConfigureAwait(false);
-        if (!execution.Ok) return Fail<GitLogResult>(execution.Stderr, execution.ExitCode);
+        if (!execution.Ok)
+        {
+            // An unborn HEAD has no log yet, but it is a healthy repository.
+            if (revision == "HEAD")
+            {
+                var status = await GitCli.RunAsync(repo, ["--no-optional-locks", "status", "--porcelain=v1", "--branch", "-z"], cancellationToken: cancellationToken).ConfigureAwait(false);
+                if (status.Ok && status.Stdout.StartsWith("## No commits yet on ", StringComparison.Ordinal))
+                    return new GitLogResult { Success = true };
+            }
+            return Fail<GitLogResult>(execution.Stderr, execution.ExitCode);
+        }
 
         var commits = new List<GitLogCommit>();
         foreach (var line in execution.Stdout.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries))
@@ -650,6 +661,6 @@ internal static class GitReadTools
     private static int MatchNumber(string value, string prefix) { var start = value.IndexOf(prefix, StringComparison.Ordinal); if (start < 0) return 0; var digits = new string(value[(start + prefix.Length)..].TakeWhile(char.IsDigit).ToArray()); return int.TryParse(digits, out var number) ? number : 0; }
     private static bool PathsEqual(string left, string right) => string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
     private static string? NullIfEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
-    private static GitStatusResult StatusFailure(string error, int code = 1) => new() { Success = false, Error = error.Trim(), ErrorCode = code < 0 ? GitCli.GitNotFoundCode : GitCli.NotARepoCode };
+    private static GitStatusResult StatusFailure(string error, string code = GitCli.NotARepoCode) => new() { Success = false, Error = error.Trim(), ErrorCode = code };
     private static T Fail<T>(string error, int code = 1) where T : GitSimpleResult, new() => new() { Success = false, Error = error.Trim(), ErrorCode = code < 0 ? GitCli.GitNotFoundCode : GitCli.NotARepoCode };
 }

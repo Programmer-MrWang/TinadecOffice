@@ -31,7 +31,7 @@ import BrandLogo from '@/components/BrandLogo.vue'
 import TinadecCalligraphy from '@/components/TinadecCalligraphy.vue'
 import InlineRenameInput from '@/components/InlineRenameInput.vue'
 import RowContextMenu, { type RowMenuItem } from '@/components/RowContextMenu.vue'
-import { UiButton } from '@/components/ui'
+import { UiButton, UiSelectField } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
 import { useDebugStudio } from '@/composables/useDebugStudio'
 
@@ -480,7 +480,7 @@ function openDebugStudio() {
       <form @submit.prevent="submitMigration">
         <h2 id="migration-title">{{ t('sidebar.migrateSession') }}</h2>
         <p>{{ migrationSession?.name }}</p>
-        <label>{{ t('sidebar.migrationTarget') }}<select v-model="migrationProject" class="settings-select" autofocus><option v-for="project in migrationProjects" :key="selectionKey(project)" :value="selectionKey(project)">{{ project.name }} · {{ project.path }}</option></select></label>
+        <label>{{ t('sidebar.migrationTarget') }}<UiSelectField v-model="migrationProject" :aria-label="t('sidebar.migrationTarget')" :options="migrationProjects.map((project) => ({ value: selectionKey(project), label: `${project.name} · ${project.path}` }))" /></label>
         <p class="quiet">{{ t('sidebar.migrationExplanation') }}</p>
         <div><UiButton type="button" variant="ghost" @click="migrationDialog?.close()">{{ t('common.cancel') }}</UiButton><UiButton type="submit" :disabled="!migrationProject || busy">{{ t('sidebar.migrateSession') }}</UiButton></div>
       </form>

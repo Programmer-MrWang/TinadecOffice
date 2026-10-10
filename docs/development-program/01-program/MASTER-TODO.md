@@ -10,7 +10,7 @@
 | 进行中 | 3 |
 | 阻塞 | 0 |
 | 待验收 | 3 |
-| 已完成 | 25 |
+| 已完成 | 26 |
 | 不做 | 0 |
 | 已被替代 | 0 |
 
@@ -93,6 +93,7 @@
 | [APP-SETTINGS-001](../02-modules/app/settings/TODO.md#app-settings-001) | 完成 Settings / 配置中心 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-SETTINGS |
 | [APP-SETTINGS-104](../02-modules/app/settings/TODO.md#app-settings-104) | 在关于设置提供默认关闭的 Debug Studio 本机开关 | 实现 | 已完成 | P2 | APP-SETTINGS |
 | [APP-UIE-COMPONENTS-001](../02-modules/app/uie-components/TODO.md#app-uie-components-001) | 完成 TinadecUI / UIE Components 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-UIE-COMPONENTS |
+| [APP-UIE-COMPONENTS-102](../02-modules/app/uie-components/TODO.md#app-uie-components-102) | 首页 Git 工作状态组件 | 实现 | 已完成 | P2 | APP-UIE-COMPONENTS |
 | [APP-UIE-ENGINE-001](../02-modules/app/uie-engine/TODO.md#app-uie-engine-001) | 完成 TinadecUI / UIE Engine 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-UIE-ENGINE |
 | [APP-WEB-001](../02-modules/app/web/TODO.md#app-web-001) | 完成 Web / 浏览器平台适配 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-WEB |
 | [APP-WEB-101](../02-modules/app/web/TODO.md#app-web-101) | 明确 Web 平台能力与布局持久化范围 | 方案 | 待方案 | P2 | APP-WEB |

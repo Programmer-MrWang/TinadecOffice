@@ -15,7 +15,6 @@ import {
   FileText,
   FolderOpen,
   GitBranch,
-  Globe,
   Info,
   KeyRound,
   LayoutGrid,
@@ -52,7 +51,6 @@ import AboutSection from '@/settings/sections/AboutSection.vue'
 import ArchiveTrashSection from '@/settings/sections/ArchiveTrashSection.vue'
 import GeneralSection from '@/settings/sections/GeneralSection.vue'
 import StorageSection from '@/settings/sections/StorageSection.vue'
-import LanguageSection from '@/settings/sections/LanguageSection.vue'
 import ApiDocsSection from '@/settings/sections/ApiDocsSection.vue'
 import AppearanceSection from '@/settings/sections/AppearanceSection.vue'
 import PersonalSection from '@/settings/sections/PersonalSection.vue'
@@ -132,7 +130,7 @@ import {
 } from '../toolCatalog'
 import PetPreview from '@/components/PetPreview.vue'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
-import { UiButton, UiInput, UiCard, UiBadge, UiLabel, UiSkeleton, UiSwitch, UiDropdownMenu } from '@/components/ui'
+import { UiButton, UiInput, UiCard, UiBadge, UiLabel, UiSkeleton, UiSwitch, UiDropdownMenu, UiSelectField } from '@/components/ui'
 import AgentTopologyCanvas from '@/components/AgentTopologyCanvas.vue'
 import AgentEvolutionPanel from '@/components/AgentEvolutionPanel.vue'
 import AgentModesPanel from '@/settings/sections/AgentModesPanel.vue'
@@ -148,7 +146,7 @@ import { createSettingsLeaveGuard } from './settingsNavigation'
 import { useNotifications } from '@/composables/useNotifications'
 import { graphSeedPackManifest } from '@/agentPacks/GraphSeedPack'
 
-type SettingsSection = 'personal' | 'general' | 'storage' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'language' | 'apiDocs' | 'about'
+type SettingsSection = 'personal' | 'general' | 'storage' | 'model' | 'agentCenter' | 'tools' | 'tinachat' | 'archive' | 'appearance' | 'pets' | 'apiDocs' | 'about'
 
 type AgentCenterTab = 'agents' | 'modes' | 'prompts' | 'evolution' | 'runtime'
 
@@ -256,7 +254,7 @@ const agentCenterTab = ref<AgentCenterTab>('agents')
  * that should use the full available width.
  */
 const CENTERED_SECTIONS: ReadonlySet<SettingsSection> = new Set([
-  'personal', 'general', 'archive', 'appearance', 'language', 'about',
+  'personal', 'general', 'archive', 'appearance', 'about',
 ])
 const isCenteredSection = computed(() => CENTERED_SECTIONS.has(activeSection.value))
 
@@ -378,7 +376,6 @@ const navItems = computed(() => [
   { key: 'archive' as const, icon: Archive, label: t('settings.archiveTrash') },
   { key: 'appearance' as const, icon: Palette, label: t('settings.appearance') },
   { key: 'pets' as const, icon: PawPrint, label: t('settings.pets') },
-  { key: 'language' as const, icon: Globe, label: t('settings.language') },
   { key: 'apiDocs' as const, icon: FileText, label: t('settings.apiDocs') },
   { key: 'about' as const, icon: Info, label: t('settings.about') },
 ])
@@ -2439,16 +2436,25 @@ import '../settings/settings.css'
               </div>
 
               <div v-if="routeEditorAdding" class="route-candidate-add">
-                <select v-model="routeEditorNewProviderId" class="settings-select">
-                  <option value="" disabled>{{ t('settings.selectProvider') }}</option>
-                  <option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ provider.display_name }}</option>
-                  <option v-for="runtime in runtimeCliOptions" :key="runtime.runtime_id" :value="runtime.provider_instance_id">{{ runtime.display_name }} (CLI)</option>
-                  <option v-for="runtime in runtimeAcpOptions" :key="runtime.runtime_id" :value="runtime.provider_instance_id ?? runtime.runtime_id">{{ runtime.display_name }} (ACP)</option>
-                </select>
-                <select v-if="modelsForProvider(routeEditorNewProviderId).length > 0" v-model="routeEditorNewModelId" class="settings-select">
-                  <option value="">{{ t('settings.fixedModelNoModel') }}</option>
-                  <option v-for="model in modelsForProvider(routeEditorNewProviderId)" :key="model.id" :value="model.model_id">{{ model.model_id }}</option>
-                </select>
+                <UiSelectField
+                  v-model="routeEditorNewProviderId"
+                  :aria-label="t('settings.selectProvider')"
+                  :options="[
+                    { value: '', label: t('settings.selectProvider'), disabled: true },
+                    ...providers.map((provider) => ({ value: provider.id, label: provider.display_name })),
+                    ...runtimeCliOptions.map((runtime) => ({ value: runtime.provider_instance_id, label: `${runtime.display_name} (CLI)` })),
+                    ...runtimeAcpOptions.map((runtime) => ({ value: runtime.provider_instance_id ?? runtime.runtime_id, label: `${runtime.display_name} (ACP)` })),
+                  ]"
+                />
+                <UiSelectField
+                  v-if="modelsForProvider(routeEditorNewProviderId).length > 0"
+                  v-model="routeEditorNewModelId"
+                  :aria-label="t('settings.model')"
+                  :options="[
+                    { value: '', label: t('settings.fixedModelNoModel') },
+                    ...modelsForProvider(routeEditorNewProviderId).map((model) => ({ value: model.model_id, label: model.model_id })),
+                  ]"
+                />
                 <UiButton variant="outline" size="sm" :disabled="!routeEditorNewProviderId" @click="addRouteCandidate">
                   <Check :size="14" />
                 </UiButton>
@@ -3185,12 +3191,14 @@ import '../settings/settings.css'
                 </div>
                 <div v-else-if="agentRuntimeSelection === 'route'" class="settings-field runtime-source-picker">
                   <UiLabel>{{ t('settings.routePurpose') }}</UiLabel>
-                  <select v-model="agentRuntimeRoutePurpose" class="settings-select">
-                    <option value="" disabled>{{ t('settings.routePurpose') }}</option>
-                    <option v-for="route in routes" :key="route.id" :value="route.purpose">
-                      {{ route.purpose }} · {{ route.candidates.length }}
-                    </option>
-                  </select>
+                  <UiSelectField
+                    v-model="agentRuntimeRoutePurpose"
+                    :aria-label="t('settings.routePurpose')"
+                    :options="[
+                      { value: '', label: t('settings.routePurpose'), disabled: true },
+                      ...routes.map((route) => ({ value: route.purpose, label: `${route.purpose} · ${route.candidates.length}` })),
+                    ]"
+                  />
                   <p v-if="routes.length === 0" class="agent-config-hint">{{ t('settings.noRuntimeMatches') }}</p>
                 </div>
                 <div v-else class="settings-field runtime-source-picker">
@@ -3199,18 +3207,16 @@ import '../settings/settings.css'
                     <Search :size="14" />
                     <UiInput v-model="agentRuntimeModelQuery" :placeholder="t('settings.runtimeSearchPlaceholder', { kind: t('settings.centerModels') })" />
                   </div>
-                  <select v-model="agentRuntimeModelKey" class="settings-select">
-                    <option value="" disabled>{{ t('settings.selectModel') }}</option>
-                    <option v-for="model in filteredRuntimeModels" :key="model.id" :value="modelOptionKey(model.provider_instance_id, model.model_id)">
-                      {{ model.model_id }} · {{ model.provider_display_name ?? model.provider_instance_id }} · {{ statusLabel(model.status) }}
-                    </option>
-                    <option v-for="runtime in filteredRuntimeCliOptions" :key="runtime.runtime_id" :value="runtime.provider_instance_id">
-                      {{ runtime.display_name }} · CLI · {{ statusLabel(runtime.status) }}
-                    </option>
-                    <option v-for="runtime in filteredRuntimeAcpOptions" :key="runtime.runtime_id" :value="runtime.provider_instance_id ?? runtime.runtime_id">
-                      {{ runtime.display_name }} · ACP · {{ statusLabel(runtime.status) }}
-                    </option>
-                  </select>
+                  <UiSelectField
+                    v-model="agentRuntimeModelKey"
+                    :aria-label="t('settings.selectModel')"
+                    :options="[
+                      { value: '', label: t('settings.selectModel'), disabled: true },
+                      ...filteredRuntimeModels.map((model) => ({ value: modelOptionKey(model.provider_instance_id, model.model_id), label: `${model.model_id} · ${model.provider_display_name ?? model.provider_instance_id} · ${statusLabel(model.status)}` })),
+                      ...filteredRuntimeCliOptions.map((runtime) => ({ value: runtime.provider_instance_id, label: `${runtime.display_name} · CLI · ${statusLabel(runtime.status)}` })),
+                      ...filteredRuntimeAcpOptions.map((runtime) => ({ value: runtime.provider_instance_id ?? runtime.runtime_id, label: `${runtime.display_name} · ACP · ${statusLabel(runtime.status)}` })),
+                    ]"
+                  />
                   <p v-if="filteredRuntimeModels.length === 0 && filteredRuntimeCliOptions.length === 0 && filteredRuntimeAcpOptions.length === 0" class="agent-config-hint">{{ t('settings.noRuntimeMatches') }}</p>
                 </div>
 
@@ -3256,14 +3262,24 @@ import '../settings/settings.css'
                     <Search :size="14" />
                     <UiInput v-model="agentToolQuery" :placeholder="t('settings.toolSearchPlaceholder')" />
                   </div>
-                  <select v-model="agentToolSourceFilter" class="settings-select compact">
-                    <option value="all">{{ t('settings.allSources') }}</option>
-                    <option v-for="src in toolSourceOptions" :key="src" :value="src">{{ src }}</option>
-                  </select>
-                  <select v-model="agentToolRiskFilter" class="settings-select compact">
-                    <option value="all">{{ t('settings.allRisks') }}</option>
-                    <option v-for="risk in toolRiskOptions" :key="risk" :value="risk">{{ risk }}</option>
-                  </select>
+                  <UiSelectField
+                    v-model="agentToolSourceFilter"
+                    class="compact"
+                    :aria-label="t('settings.allSources')"
+                    :options="[
+                      { value: 'all', label: t('settings.allSources') },
+                      ...toolSourceOptions.map((src) => ({ value: src, label: src })),
+                    ]"
+                  />
+                  <UiSelectField
+                    v-model="agentToolRiskFilter"
+                    class="compact"
+                    :aria-label="t('settings.allRisks')"
+                    :options="[
+                      { value: 'all', label: t('settings.allRisks') },
+                      ...toolRiskOptions.map((risk) => ({ value: risk, label: risk })),
+                    ]"
+                  />
                 </div>
                 <div v-if="configuringAgent.is_built_in" class="agent-builtin-hint">
                   <Info :size="14" />
@@ -3442,10 +3458,6 @@ import '../settings/settings.css'
 
         <template v-if="activeSection === 'pets'">
           <PetsSection />
-        </template>
-
-        <template v-if="activeSection === 'language'">
-          <LanguageSection />
         </template>
 
         <template v-if="activeSection === 'apiDocs'">
@@ -3658,11 +3670,11 @@ import '../settings/settings.css'
               </div>
               <div v-if="formProtocolOptions.length > 0" class="settings-field">
                 <UiLabel>{{ t('settings.protocol') }}</UiLabel>
-                <select v-model="providerForm.protocol" class="settings-select">
-                  <option v-for="option in formProtocolOptions" :key="option" :value="option">
-                    {{ protocolOptionLabel(option) }}
-                  </option>
-                </select>
+                <UiSelectField
+                  v-model="providerForm.protocol"
+                  :aria-label="t('settings.protocol')"
+                  :options="formProtocolOptions.map((option) => ({ value: option, label: protocolOptionLabel(option) }))"
+                />
               </div>
             </div>
           </div>

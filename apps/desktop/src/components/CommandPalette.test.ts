@@ -204,7 +204,7 @@ describe('CommandPalette', () => {
     expect(ids.slice(0, 2)).toEqual(['palette-row-view.goSettings', 'palette-row-setting.personal'])
     expect(ids).toHaveLength(5)
     await wrapper.get('[data-testid="palette-more-setting"]').trigger('click')
-    expect(wrapper.findAll('[data-testid^="palette-row-"]')).toHaveLength(13)
+    expect(wrapper.findAll('[data-testid^="palette-row-"]')).toHaveLength(12)
 
     await input.setValue('qqzzxx')
     await settleSearch()

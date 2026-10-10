@@ -7,7 +7,16 @@ import { api } from '@/api'
 import ToolsOverviewPanel from './ToolsOverviewPanel.vue'
 import { captureStorageId, setSelectedStorage } from '@/lib/storageScope'
 
-vi.mock('@/components/ui', () => ({ UiButton: { template: '<button><slot /></button>' }, UiBadge: { template: '<span><slot /></span>' }, UiInput: { template: '<input />' } }))
+vi.mock('@/components/ui', () => ({
+  UiButton: { template: '<button><slot /></button>' },
+  UiBadge: { template: '<span><slot /></span>' },
+  UiInput: { template: '<input />' },
+  UiSelectField: {
+    props: ['value', 'modelValue', 'options', 'disabled'],
+    emits: ['update:modelValue', 'update:value', 'change'],
+    template: '<span class="ui-select" />',
+  },
+}))
 vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ notify: { error: vi.fn() } }) }))
 vi.mock('@/api', () => ({ api: { getToolLayerReadiness: vi.fn(), getHarnessManifest: vi.fn(), listTools: vi.fn(), searchTools: vi.fn(), getEffectiveToolSettings: vi.fn() } }))
 const tools = ['read_file', 'write_file'].map(id => ({ id, display_name: id, description: id, source: 'native', risk: 'low', capabilities: [], requires_approval: false }))

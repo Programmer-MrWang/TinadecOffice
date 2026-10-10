@@ -55,6 +55,11 @@ vi.mock('@/components/ui', () => ({
   UiSkeleton: { template: '<span />' },
   UiSwitch: { inheritAttrs: false, template: '<button v-bind="$attrs" />' },
   UiDropdownMenu: { template: '<div><slot /></div>' },
+  UiSelectField: {
+    props: ['value', 'modelValue', 'options', 'disabled'],
+    emits: ['update:modelValue', 'update:value', 'change'],
+    template: '<span class="ui-select" />',
+  },
 }))
 
 vi.mock('@/agentPacks/graphSeedPackBootstrap', async () => {

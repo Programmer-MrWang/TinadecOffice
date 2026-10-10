@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Braces, FileText, GitBranch, Globe, Package, Search, Server, Terminal, Wrench } from '@lucide/vue'
-import { UiBadge, UiButton } from '@/components/ui'
+import { UiBadge, UiButton, UiSelectField } from '@/components/ui'
 import { api as baseApi, type AgentDefinitionDto, type ProjectDto, type ToolDescriptorDto, type ToolSettingsDocument, type ToolSettingsSchema, type ToolSettingsEffective, type ToolCapabilities } from '@/api'
 import { scopedApi, projectStorageId, selectionKey } from '@/lib/storageScope'
 import { useNotifications } from '@/composables/useNotifications'
@@ -128,9 +128,8 @@ async function resourceChanged() {
     if (current === generation) effective.value = resolved
   } catch (err) { if (current === generation) error.value = err instanceof Error ? err.message : String(err) }
 }
-async function selectContext(kind: 'agent' | 'project', event: Event) {
-  const element = event.target as HTMLSelectElement; const next = element.value
-  element.value = kind === 'agent' ? agentId.value : projectId.value
+async function selectContext(kind: 'agent' | 'project', next: string) {
+  if (next === (kind === 'agent' ? agentId.value : projectId.value)) return
   if (!await canLeave()) return
   if (kind === 'agent') agentId.value = next
   else projectId.value = next
@@ -196,8 +195,8 @@ onBeforeUnmount(() => { ++generation; chooseLeave?.('cancel'); window.removeEven
     <ToolDraftDialog v-if="leaveDialog" @choice="chooseLeave?.($event)" />
     <div class="model-center-heading"><div><h2>{{ t('toolsSettings.title') }}</h2><p>{{ t('toolsSettings.subtitle') }}</p></div><UiButton variant="outline" size="sm" :disabled="loading || saving" @click="refresh">{{ t('common.refresh') }}</UiButton></div>
     <div class="tools-context-bar">
-      <label>{{ t('toolsSettings.agent') }}<select :value="agentId" class="settings-select" :disabled="loading || saving" @change="selectContext('agent', $event)"><option value="">{{ t('toolsSettings.sharedDefaults') }}</option><option v-for="agent in agents" :key="agent.id" :value="agent.id">{{ agent.display_name || agent.slug }}</option></select></label>
-      <label>{{ t('toolsSettings.project') }}<select :value="projectId" class="settings-select" :disabled="loading || saving" @change="selectContext('project', $event)"><option value="">{{ t('toolsSettings.sharedOnly') }}</option><option v-for="project in projects" :key="selectionKey(project)" :value="selectionKey(project)">{{ project.name }}</option></select></label>
+      <label>{{ t('toolsSettings.agent') }}<UiSelectField :value="agentId" :disabled="loading || saving" :aria-label="t('toolsSettings.agent')" :options="[{ value: '', label: t('toolsSettings.sharedDefaults') }, ...agents.map((agent) => ({ value: agent.id, label: agent.display_name || agent.slug || agent.name || agent.id }))]" @change="(value) => selectContext('agent', value)" /></label>
+      <label>{{ t('toolsSettings.project') }}<UiSelectField :value="projectId" :disabled="loading || saving" :aria-label="t('toolsSettings.project')" :options="[{ value: '', label: t('toolsSettings.sharedOnly') }, ...projects.map((project) => ({ value: selectionKey(project), label: project.name }))]" @change="(value) => selectContext('project', value)" /></label>
       <UiButton v-if="agentId" variant="ghost" size="sm" @click="openAgentCenter">{{ t('toolsSettings.editAuthorization') }}</UiButton>
     </div>
     <p class="quiet">{{ t('toolsSettings.nextRun') }}</p><p v-if="error" class="tools-field-error" role="alert">{{ error }}</p>

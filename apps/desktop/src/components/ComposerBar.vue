@@ -3,7 +3,7 @@ import { ArrowUp, ChevronDown, FileText, Folder, FolderOpen, FolderPlus, Image, 
 import { useI18n } from 'vue-i18n'
 import { ref, shallowRef, computed, watch, onMounted, onUnmounted, nextTick, useId, type Component, type Ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { UiButton } from '@/components/ui'
+import { UiButton, UiSelectField } from '@/components/ui'
 import ComposerCommandPanel from './ComposerCommandPanel.vue'
 import type { PermissionLevel } from '@/types/mode'
 import type { MeetingModelOverrideDto, ProjectDto, SpaceOptionsDto } from '@/api'
@@ -609,10 +609,15 @@ function confirmSteer(id: string, interrupt = false) {
           <div class="queued-content">{{ item.content }}</div>
           <div class="queued-actions">
             <template v-if="steeringId === item.id">
-              <select v-model="steerTarget" class="composer-select-input queued-run-select" :aria-label="t('composer.selectTargetRun')">
-                <option value="" disabled>{{ t('composer.selectTargetRun') }}</option>
-                <option v-for="r in activeRuns" :key="r.id" :value="r.id">{{ r.id.slice(0,8) }} · {{ r.status }}</option>
-              </select>
+              <UiSelectField
+                v-model="steerTarget"
+                class="queued-run-select"
+                :aria-label="t('composer.selectTargetRun')"
+                :options="[
+                  { value: '', label: t('composer.selectTargetRun'), disabled: true },
+                  ...activeRuns.map((r) => ({ value: r.id, label: `${r.id.slice(0,8)} · ${r.status}` })),
+                ]"
+              />
               <button class="queued-action" :disabled="!steerTarget" @click="confirmSteer(item.id)">{{ t('composer.confirmSteer') }}</button>
               <button class="queued-action" :disabled="!steerTarget" :title="t('composer.interruptSteerHint')" @click="confirmSteer(item.id, true)">{{ t('composer.interruptSteer') }}</button>
             </template>
@@ -1001,10 +1006,8 @@ function confirmSteer(id: string, interrupt = false) {
   opacity: 0.5;
   cursor: default;
 }
-.queued-run-select {
-  min-width: 150px;
-  height: 24px;
-}
+.queued-run-select { min-width: 150px; }
+.queued-run-select :deep(.ui-select-trigger) { height: 24px; padding: 0 6px; font-size: 12px; }
 .composer-attachments {
   display: flex;
   flex-wrap: wrap;

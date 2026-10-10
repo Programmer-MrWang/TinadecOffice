@@ -66,7 +66,8 @@ describe('TinaChat management section', () => {
   it('keeps a human identity able to read originals regardless of the checkbox', async () => {
     const wrapper = section()
     await flushPromises()
-    await wrapper.get('[data-testid="tinachat-kind"]').setValue('human')
+    await wrapper.get('[data-testid="tinachat-kind"]').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.ui-select-option[data-value="human"]')!.click()
     await wrapper.get('[data-testid="tinachat-handle"]').setValue('me')
     await wrapper.get('[data-testid="tinachat-display"]').setValue('我')
     await wrapper.get('[data-testid="tinachat-register"]').trigger('click')
@@ -79,7 +80,6 @@ describe('TinaChat management section', () => {
     const wrapper = section()
     await flushPromises()
     await wrapper.get('[data-testid="tinachat-room-title"]').setValue('交付群')
-    await wrapper.get('[data-testid="tinachat-invitee"]').setValue('p2')
     await wrapper.get('[data-testid="tinachat-create-room"]').trigger('click')
     await flushPromises()
     expect(mocks.createRoom).toHaveBeenCalledWith(expect.objectContaining({ actor_id: 'p1', title: '交付群', participant_ids: [] }))

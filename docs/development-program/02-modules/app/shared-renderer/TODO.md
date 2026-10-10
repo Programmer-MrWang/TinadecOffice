@@ -10,7 +10,7 @@
 - 主责模块：APP-RENDERER
 - 前置依赖：APP-RENDERER-103已完成；复用usePanelStyles与既有surface token
 - 关联功能：APP-RENDERER-F006
-- 完成证据：[专项报告](../../../../../.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md)、[源码核查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/command-palette-material-audit.md)、[4文件50项定向回归](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/targeted-tests.log)、[类型检查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/typecheck.log)、[浏览器记录](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/browser-checks.json)
+- 完成证据：[专项报告](../../../../../.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md)、[源码核查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/command-palette-material-audit.md)、[浏览器记录](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/browser-checks.json)
 
 **目标与边界**
 

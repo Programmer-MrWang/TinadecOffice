@@ -378,7 +378,10 @@ describe('AppSidebar lifecycle management', () => {
     await wrapper.get('.free-conversation-group .session-row').trigger('contextmenu')
     menuButtons().find(button => button.textContent?.trim() === 'sidebar.migrateSession')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
-    expect(dialog.findAll('option').map(option => option.attributes('value'))).toEqual(['scope-active::p-1'])
+    const select = dialog.get('.ui-select')
+    await select.trigger('click')
+    expect(Array.from(document.body.querySelectorAll('.ui-select-option')).map(option => option.getAttribute('data-value'))).toEqual(['scope-active::p-1'])
+    await select.trigger('keydown', { key: 'Escape' })
 
     await wrapper.setProps({ projects: [{ ...eligible, availability: 'error' }, ...invalid] })
     await dialog.get('form').trigger('submit')

@@ -62,3 +62,23 @@ BrowserTabBar与UieStack原双左箭头分别执行全部窗格合并和当前�
 - [x] 真实页面键盘focus显示Tooltip、Escape关闭、鼠标hover显示且Portal不被overflow裁剪；中文实际提示与英文资源核对。
 - [x] 真实页面Enter执行当前窗格合回、Space全部合并，卡片全部保留；收起后展开恢复两窗格布局。
 - [x] 主报告记录1169×719 Windows浏览器运行、3/3组件、24/24命令、类型与独立Vite构建；模块001整体审计保持独立。
+
+<a id="app-uie-components-102"></a>
+
+### APP-UIE-COMPONENTS-102 首页 Git 工作状态组件
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P2
+- 主责模块：APP-UIE-COMPONENTS
+- 前置依赖：既有 `git` UIE singleton、受管宿主业务准入与 Core Git facade；不引入新 Gateway/Core API
+- 关联功能：APP-UIE-COMPONENTS-F004；APP-HOME-107 工作区上下文只作复用
+- 完成证据：[实施报告](../../../../../.tinadec_dev/reports/2026-10-11-home-git-widget.zh-CN.md)、[未提交改动复审与边界更正](../../../../../.tinadec_dev/reports/2026-10-11-uncommitted-review-fixes.zh-CN.md)
+
+**验收条件**
+
+- [x] 首页原 Git 静态入口换成独立全宽信息卡，顶栏“+”菜单仍保留 Git，底部入口实际激活原 Git 页签；现有分支/审批/写操作不搬入卡片。
+- [x] 只读状态覆盖主目录身份、变更四类、最多三行路径、最近一次提交与本机上游引用；无项目、无仓库、断连/预览、失败、迟到跨项目结果有明确状态，不把未知显示为干净。
+- [x] 可见/焦点/宿主准入的单飞限时刷新，历史失败不污染状态；Git 背景读禁止可选索引锁写。定向 Desktop、UIE、Tools 测试与真实 Electron 当前开发态有证据。
+复审补充：未诞生 HEAD 返回成功空历史；仓库内 Git status 执行失败不冒充无仓库；原有无项目/断连/过期状态边界保持。`UiSelectField` 原生模态复审归设置共用组件，不扩大本任务范围。
+范围边界：亮色/透明材质、260/340px 实际右栏和平台安装包仍待专项验收（1120×720 CSS 窗已实测），不属于本任务 Windows 开发态完成口径。

@@ -13,7 +13,7 @@ import {
   Undo2,
   Workflow,
 } from '@lucide/vue'
-import { UiBadge, UiButton, UiCard, UiInput, UiLabel } from '@/components/ui'
+import { UiBadge, UiButton, UiCard, UiInput, UiLabel, UiSelectField } from '@/components/ui'
 import PromptPipelineCanvas from '@/components/canvas/PromptPipelineCanvas.vue'
 import {
   api as baseApi,
@@ -230,9 +230,11 @@ defineExpose({ refreshAll })
     <template v-if="promptCanvasMode === 'canvas'">
       <div class="ac-pipeline-picker">
         <UiLabel>{{ t('settings.pipelinePicker') }}</UiLabel>
-        <select v-model="pipelineCanvasSelectedId" class="settings-select ac-pipeline-select">
-          <option v-for="p in pipelines" :key="p.id" :value="p.id">{{ p.name ?? p.title ?? p.id.slice(0, 8) }} · {{ p.status ?? 'draft' }}</option>
-        </select>
+        <UiSelectField
+          v-model="pipelineCanvasSelectedId"
+          class="ac-pipeline-select"
+          :options="pipelines.map((p) => ({ value: p.id, label: `${p.name ?? p.title ?? p.id.slice(0, 8)} · ${p.status ?? 'draft'}` }))"
+        />
       </div>
       <PromptPipelineCanvas
         v-if="pipelineCanvasPipeline"

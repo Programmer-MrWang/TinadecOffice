@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { History, Plus, RefreshCw, Search, Trash2 } from '@lucide/vue'
-import { UiBadge, UiButton, UiInput, UiLabel, UiSheet } from '@/components/ui'
+import { UiBadge, UiButton, UiInput, UiLabel, UiSelectField, UiSheet } from '@/components/ui'
 import AgentModeCanvas from '@/components/canvas/AgentModeCanvas.vue'
 import GovernanceRolesPanel from '@/components/agentCenter/GovernanceRolesPanel.vue'
 import { api as baseApi, type AgentDefinitionDto, type AgentModeEdgeDto, type AgentModeNodeDto, type AgentModeTopologyDto, type ModeVersionDto, type ModelProviderInstanceDto, type ModelRouteDto } from '@/api'
@@ -455,9 +455,10 @@ defineExpose({ loadModes })
         <p class="quiet">{{ t('settings.nodeConfigHint') }}</p>
         <div>
           <UiLabel>{{ t('settings.boundAgent') }}</UiLabel>
-          <select v-model="nodeOverride.agent_id" class="settings-select">
-            <option v-for="a in agents" :key="a.id" :value="a.id">{{ a.display_name ?? a.name }} ({{ normalizeLayer(a.layer) }})</option>
-          </select>
+          <UiSelectField
+            v-model="nodeOverride.agent_id"
+            :options="agents.map((a) => ({ value: a.id, label: `${a.display_name ?? a.name} (${normalizeLayer(a.layer)})` }))"
+          />
         </div>
         <div>
           <UiLabel>{{ t('settings.nodeLabelField') }}</UiLabel>
@@ -465,24 +466,33 @@ defineExpose({ loadModes })
         </div>
         <div class="ac-node-strategy">
           <UiLabel>{{ t('settings.nodeStrategyOverride') }}</UiLabel>
-          <select v-model="nodeOverride.strategy_kind" class="settings-select">
-            <option value="inherit">{{ t('settings.runtimeInherit') }}</option>
-            <option value="route">{{ t('settings.runtimeRoute') }}</option>
-            <option value="fixed">{{ t('settings.runtimeFixedModel') }}</option>
-          </select>
+          <UiSelectField
+            v-model="nodeOverride.strategy_kind"
+            :options="[
+              { value: 'inherit', label: t('settings.runtimeInherit') },
+              { value: 'route', label: t('settings.runtimeRoute') },
+              { value: 'fixed', label: t('settings.runtimeFixedModel') },
+            ]"
+          />
           <div v-if="nodeOverride.strategy_kind === 'route'" class="ac-node-strategy-field">
             <UiLabel>{{ t('settings.routePurpose') }}</UiLabel>
-            <select v-model="nodeOverride.strategy_route_purpose" class="settings-select">
-              <option value="" disabled>{{ t('settings.selectRoutePurpose') }}</option>
-              <option v-for="route in routes" :key="route.id ?? route.purpose" :value="route.purpose">{{ route.purpose }}</option>
-            </select>
+            <UiSelectField
+              v-model="nodeOverride.strategy_route_purpose"
+              :options="[
+                { value: '', label: t('settings.selectRoutePurpose'), disabled: true },
+                ...routes.map((route) => ({ value: route.purpose, label: route.purpose })),
+              ]"
+            />
           </div>
           <div v-else-if="nodeOverride.strategy_kind === 'fixed'" class="ac-node-strategy-field">
             <UiLabel>{{ t('settings.selectProvider') }}</UiLabel>
-            <select v-model="nodeOverride.strategy_provider_instance_id" class="settings-select">
-              <option value="" disabled>{{ t('settings.selectProvider') }}</option>
-              <option v-for="provider in providers" :key="provider.id" :value="provider.id">{{ provider.display_name }}</option>
-            </select>
+            <UiSelectField
+              v-model="nodeOverride.strategy_provider_instance_id"
+              :options="[
+                { value: '', label: t('settings.selectProvider'), disabled: true },
+                ...providers.map((provider) => ({ value: provider.id, label: provider.display_name })),
+              ]"
+            />
             <UiInput
               v-model="nodeOverride.strategy_model"
               :placeholder="t('settings.routeModel')"

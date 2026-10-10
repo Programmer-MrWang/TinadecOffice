@@ -80,7 +80,8 @@ export interface SettingsSectionEntry {
 
 export const settingsSections: readonly SettingsSectionEntry[] = [
   { key: 'personal', labelKey: 'settings.personal', keywordKeys: ['palette.kwPersonal'] },
-  { key: 'general', labelKey: 'settings.general', keywordKeys: ['palette.kwGeneral'] },
+  // Language now lives inside General, so its search term rides the same row.
+  { key: 'general', labelKey: 'settings.general', keywordKeys: ['palette.kwGeneral', 'palette.kwLanguage'] },
   { key: 'model', labelKey: 'settings.model', keywordKeys: ['palette.kwModel'] },
   { key: 'agentCenter', labelKey: 'settings.agentCenter', keywordKeys: ['palette.kwAgentCenter'] },
   { key: 'tools', labelKey: 'settings.toolLayer', keywordKeys: ['palette.kwTools'] },
@@ -88,7 +89,6 @@ export const settingsSections: readonly SettingsSectionEntry[] = [
   { key: 'archive', labelKey: 'settings.archiveTrash', keywordKeys: ['palette.kwArchive'] },
   { key: 'appearance', labelKey: 'settings.appearance', keywordKeys: ['palette.kwAppearance'] },
   { key: 'pets', labelKey: 'settings.pets', keywordKeys: ['palette.kwPets'] },
-  { key: 'language', labelKey: 'settings.language', keywordKeys: ['palette.kwLanguage'] },
   { key: 'apiDocs', labelKey: 'settings.apiDocs', keywordKeys: ['palette.kwApiDocs'] },
   { key: 'about', labelKey: 'settings.about', keywordKeys: ['palette.kwAbout'] },
 ]

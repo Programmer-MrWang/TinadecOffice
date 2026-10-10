@@ -11,6 +11,7 @@ import {
 import { homeController } from '@/controllers/HomeController'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
 import DiffViewer from '@/components/git/DiffViewer.vue'
+import { UiSelectField } from '@/components/ui'
 import { projectStorageId, scopedApi, selectionKey } from '@/lib/storageScope'
 
 /**
@@ -195,14 +196,14 @@ async function undoFile(change: WorkspaceFileChangeDto): Promise<void> {
       <h1><Camera class="size-4" /> {{ t('governance.snapshotsTitle', 'Workspace snapshots') }}</h1>
       <div class="flex items-center gap-2">
         <CommandPaletteButton />
-        <select
+        <UiSelectField
           class="snapshot-page__select"
-          :value="selectedProjectId"
           data-testid="snapshot-project-select"
-          @change="selectProject(($event.target as HTMLSelectElement).value)"
-        >
-          <option v-for="p in projects" :key="selectionKey(p)" :value="selectionKey(p)">{{ p.name }}</option>
-        </select>
+          :value="selectedProjectId"
+          :aria-label="t('governance.snapshotsTitle', 'Workspace snapshots')"
+          :options="projects.map((p) => ({ value: selectionKey(p), label: p.name }))"
+          @change="selectProject"
+        />
         <button type="button" class="detail-dialog__btn" :disabled="loading || !selectedProjectId" @click="load">
           {{ loading ? t('common.loading', 'Loading…') : t('common.refresh', 'Refresh') }}
         </button>
@@ -382,7 +383,8 @@ async function undoFile(change: WorkspaceFileChangeDto): Promise<void> {
   font-weight: 700;
 }
 
-.snapshot-page__select {
+.snapshot-page__select { min-width: 0; }
+.snapshot-page__select :deep(.ui-select-trigger) {
   border: 1px solid var(--border-input);
   border-radius: 6px;
   background: transparent;

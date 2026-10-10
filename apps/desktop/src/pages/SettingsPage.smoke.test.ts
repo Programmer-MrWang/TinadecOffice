@@ -119,7 +119,6 @@ describe('SettingsPage smoke (D7 safety net)', () => {
     const sections = [
       'PersonalSection',
       'GeneralSection',
-      'LanguageSection',
       'ApiDocsSection',
       'AboutSection',
       'AppearanceSection',
@@ -225,7 +224,7 @@ describe('SettingsPage smoke (D7 safety net)', () => {
   })
 
   it('centers exactly the fixed-width sections and leaves workspaces fluid', () => {
-    // Policy: personal / general / archive / appearance / language / about are a
+    // Policy: personal / general / archive / appearance / about are a
     // fixed 780px column centred in the content panel; model / agentCenter /
     // pets / apiDocs stay fluid because they are workspaces (tables, canvases,
     // an embedded docs frame) that should use the full available width.
@@ -236,7 +235,7 @@ describe('SettingsPage smoke (D7 safety net)', () => {
 
     const listed = Array.from(centered!.matchAll(/'([a-zA-Z]+)'/g), (m) => m[1])
     expect(new Set(listed)).toEqual(
-      new Set(['personal', 'general', 'archive', 'appearance', 'language', 'about']),
+      new Set(['personal', 'general', 'archive', 'appearance', 'about']),
     )
 
     // The modifier must be bound to the keyed wrapper so it swaps per section.

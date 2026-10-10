@@ -29,6 +29,7 @@ import {
 } from '@lucide/vue'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { UiSelectField } from '@/components/ui'
 import type { ApprovalDto } from '../../api'
 import {
   type GitStatusFile,
@@ -1304,15 +1305,17 @@ function handleCommitKeydown(e: KeyboardEvent) {
             </button>
             <label class="git-strategy-select" :title="t('context.gitPullStrategyHint')">
               <span>{{ t('context.gitPullStrategy') }}</span>
-              <select
+              <UiSelectField
                 :value="pullStrategy"
                 :disabled="operationLoading"
-                @change="emit('update:pullStrategy', (($event.target as HTMLSelectElement).value as 'ff-only' | 'merge' | 'rebase'))"
-              >
-                <option value="ff-only">{{ t('context.gitPullStrategyFfOnly') }}</option>
-                <option value="merge" disabled>{{ t('context.gitPullStrategyMerge') }}</option>
-                <option value="rebase" disabled>{{ t('context.gitPullStrategyRebase') }}</option>
-              </select>
+                :aria-label="t('context.gitPullStrategy')"
+                :options="[
+                  { value: 'ff-only', label: t('context.gitPullStrategyFfOnly') },
+                  { value: 'merge', label: t('context.gitPullStrategyMerge'), disabled: true },
+                  { value: 'rebase', label: t('context.gitPullStrategyRebase'), disabled: true },
+                ]"
+                @change="emit('update:pullStrategy', $event as 'ff-only' | 'merge' | 'rebase')"
+              />
             </label>
           </div>
           <small v-if="pullDisabledReason" class="git-sync-hint">{{ pullDisabledReason }}</small>

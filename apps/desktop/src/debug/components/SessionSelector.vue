@@ -5,6 +5,7 @@ import type { SessionDto } from '@/api'
 import { loadSessionCatalog } from '@/lib/sessionRoster'
 import { useNotifications } from '@/composables/useNotifications'
 import { selectionKey, selectionIdentity, setSelectedStorage } from '@/lib/storageScope'
+import { UiSelectField } from '@/components/ui'
 
 const { t } = useI18n()
 const { notify } = useNotifications()
@@ -25,28 +26,24 @@ onMounted(fetchSessions)
 </script>
 
 <template>
-  <select v-model="selectedSessionId" class="session-selector" @change="setSelectedStorage(selectionIdentity(selectedSessionId).storageId ?? 'user')">
-    <option value="">{{ t('debugStudio.allSessions') }}</option>
-    <option v-for="session in sessions" :key="selectionKey(session)" :value="selectionKey(session)">
-      {{ session.title || session.id }}
-    </option>
-  </select>
+  <UiSelectField
+    v-model="selectedSessionId"
+    class="session-selector"
+    :aria-label="t('debugStudio.allSessions')"
+    :options="[
+      { value: '', label: t('debugStudio.allSessions') },
+      ...sessions.map((session) => ({ value: selectionKey(session), label: session.title || session.id })),
+    ]"
+    @change="setSelectedStorage(selectionIdentity(selectedSessionId).storageId ?? 'user')"
+  />
 </template>
 
 <style scoped>
 .session-selector {
-  background: #21262d;
-  border: 1px solid #30363d;
-  color: #e6edf3;
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.15s;
+  width: 220px;
 }
-.session-selector:hover { border-color: #484f58; }
-.session-selector:focus {
-  outline: none;
-  border-color: #58a6ff;
+.session-selector :deep(.ui-select-trigger) {
+  height: 30px;
+  font-size: 12px;
 }
 </style>

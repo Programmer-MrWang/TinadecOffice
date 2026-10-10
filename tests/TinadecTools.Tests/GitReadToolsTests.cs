@@ -29,6 +29,49 @@ public sealed class GitReadToolsTests
     }
 
     [Fact]
+    public async Task Status_DoesNotRefreshGitIndexDuringBackgroundReads()
+    {
+        using var repo = new TempGitRepo("git-read");
+        repo.SeedInitialCommit("note.txt", "initial\n");
+        File.WriteAllText(System.IO.Path.Combine(repo.Path, "note.txt"), "changed\n");
+        var index = System.IO.Path.Combine(repo.Path, ".git", "index");
+        File.SetLastWriteTimeUtc(index, DateTime.UtcNow.AddDays(-1));
+        var before = File.GetLastWriteTimeUtc(index);
+
+        var status = await GitReadTools.StatusAsync(new GitStatusArgs { RepositoryPath = repo.Path }, CancellationToken.None);
+
+        Assert.True(status.Success);
+        Assert.True(status.HasUncommittedChanges);
+        Assert.Equal(before, File.GetLastWriteTimeUtc(index));
+    }
+
+    [Fact]
+    public async Task Status_ReportsIndexFailureRatherThanNotARepo()
+    {
+        using var repo = new TempGitRepo("git-read");
+        repo.SeedInitialCommit();
+        File.WriteAllText(System.IO.Path.Combine(repo.Path, ".git", "index"), "not a git index");
+
+        var status = await GitReadTools.StatusAsync(new GitStatusArgs { RepositoryPath = repo.Path }, CancellationToken.None);
+
+        Assert.False(status.Success);
+        Assert.Equal("git_status_failed", status.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Log_EmptyRepositoryReturnsNoCommitsButUnknownRefStillFails()
+    {
+        using var repo = new TempGitRepo("git-read");
+
+        var log = await GitReadTools.LogAsync(new GitLogArgs { RepositoryPath = repo.Path, Limit = 1 }, CancellationToken.None);
+        var unknown = await GitReadTools.LogAsync(new GitLogArgs { RepositoryPath = repo.Path, Ref = "missing-ref" }, CancellationToken.None);
+
+        Assert.True(log.Success, log.Error);
+        Assert.Empty(log.Commits);
+        Assert.False(unknown.Success);
+    }
+
+    [Fact]
     public async Task Status_ReturnsNonAsciiPathsVerbatim()
     {
         using var repo = new TempGitRepo("git-read");

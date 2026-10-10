@@ -4,7 +4,7 @@ import { ApiError } from '@/lib/apiError'
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { UiButton, UiInput } from '@/components/ui'
+import { UiButton, UiInput, UiSelectField } from '@/components/ui'
 import { api } from '@/api'
 import { useNotifications } from '@/composables/useNotifications'
 import { suspendFollowingStorage } from '@/lib/sessionEventBus'
@@ -100,14 +100,12 @@ async function refresh(preserveDraft = false) {
     notice.value = label('连接已恢复，草稿保留。重新加载配置前请先保存或放弃草稿。', 'Connection restored. Your draft is preserved; save or discard it before reloading the configuration.')
   } else await loadContext()
 }
-async function selectScope(event: Event) {
-  const element = event.target as HTMLSelectElement; const next = element.value; element.value = scopeId.value
-  if (!await canLeave()) return
+async function selectScope(next: string) {
+  if (next === scopeId.value || !await canLeave()) return
   scopeId.value = next; await loadContext()
 }
-async function selectDocument(event: Event) {
-  const element = event.target as HTMLSelectElement; const next = element.value; element.value = documentId.value
-  if (!await canLeave()) return
+async function selectDocument(next: string) {
+  if (next === documentId.value || !await canLeave()) return
   documentId.value = next; const current = ++generation; busy.value = true; failure.clear()
   try { await loadDocument(current) } catch (value) { if (current === generation) failure.set(value) } finally { if (current === generation) busy.value = false }
 }
@@ -284,7 +282,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
   <section class="storage-settings" :aria-busy="busy">
     <div class="model-center-heading"><div><h2>{{ label('存储与配置', 'Storage and configuration') }}</h2><p>{{ label('以实际作用域路径为准。配置、持久数据与可清理缓存分别管理。', 'Inspect actual scope paths. Configuration, durable data, and disposable cache have separate ownership.') }}</p></div><UiButton variant="outline" :disabled="busy" @click="refresh()">{{ label('刷新', 'Refresh') }}</UiButton></div>
     <p v-if="!canAccessBackend" role="status">{{ hostReason }}</p>
-    <label class="storage-field">{{ label('存储作用域', 'Storage scope') }}<select :value="scopeId" class="settings-select" :disabled="busy" @change="selectScope"><option v-for="item in scopes" :key="item.storage_id" :value="item.storage_id">{{ item.scope_kind }} · {{ item.project_root || item.storage_root }}</option></select></label>
+    <label class="storage-field">{{ label('存储作用域', 'Storage scope') }}<UiSelectField data-testid="storage-scope" :value="scopeId" :disabled="busy" :aria-label="label('存储作用域', 'Storage scope')" :options="scopes.map((item) => ({ value: item.storage_id, label: `${item.scope_kind} · ${item.project_root || item.storage_root}` }))" @change="selectScope" /></label>
     <div v-if="failureState" class="tools-field-error" role="alert">
       <p>{{ failureState.message }}</p>
       <!-- The reason, the actions and the correlation id all belong together: a sentence
@@ -304,7 +302,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
       <dl class="storage-paths"><div v-for="(value, key) in scope.paths" :key="key"><dt>{{ key }}</dt><dd><code>{{ value }}</code></dd></div></dl>
       <div v-if="scopeDiagnostics.length" class="tools-validation" role="status"><p v-for="(item, index) in scopeDiagnostics" :key="index">{{ item.message || JSON.stringify(item) }}</p></div>
       <fieldset class="storage-capability-fields" :disabled="!canAccessBackend || scope.availability === 'error'">
-      <div class="storage-config"><label class="storage-field">{{ label('持久化后端', 'Persistence backend') }}<select v-model="backend" class="settings-select" :disabled="busy"><option value="sqlite">SQLite</option><option value="postgresql">PostgreSQL</option></select></label><label class="storage-field">{{ label('存储根目录（绝对路径）', 'Storage root (absolute path)') }}<UiInput v-model="root" :disabled="busy" /></label><label v-if="backend === 'postgresql'" class="storage-field">{{ label('PostgreSQL 连接引用', 'PostgreSQL connection reference') }}<UiInput v-model="postgresReference" :disabled="busy" placeholder="secret reference" /></label><UiButton variant="outline" :disabled="busy || dirty" @click="configure">{{ label('应用存储配置', 'Apply storage configuration') }}</UiButton></div>
+      <div class="storage-config"><label class="storage-field">{{ label('持久化后端', 'Persistence backend') }}<UiSelectField v-model="backend" :disabled="busy" :aria-label="label('持久化后端', 'Persistence backend')" :options="[{ value: 'sqlite', label: 'SQLite' }, { value: 'postgresql', label: 'PostgreSQL' }]" /></label><label class="storage-field">{{ label('存储根目录（绝对路径）', 'Storage root (absolute path)') }}<UiInput v-model="root" :disabled="busy" /></label><label v-if="backend === 'postgresql'" class="storage-field">{{ label('PostgreSQL 连接引用', 'PostgreSQL connection reference') }}<UiInput v-model="postgresReference" :disabled="busy" placeholder="secret reference" /></label><UiButton variant="outline" :disabled="busy || dirty" @click="configure">{{ label('应用存储配置', 'Apply storage configuration') }}</UiButton></div>
       <label v-if="scope.scope_kind === 'project'" class="storage-policy"><input type="checkbox" :checked="scope.allow_storage_write" :disabled="busy" @change="writePolicy" />{{ label('允许 Agent 写入整个项目存储目录', 'Allow Agent writes to the entire project storage directory') }}</label>
       <h3>{{ label('使用量与清理', 'Usage and cleanup') }}</h3>
       <table v-if="stats" class="storage-table"><thead><tr><th>{{ label('分类', 'Category') }}</th><th>{{ label('大小 / 文件数', 'Size / files') }}</th><th>{{ label('操作', 'Action') }}</th></tr></thead><tbody><tr v-for="category in stats.categories" :key="category.category"><td><strong>{{ category.category }}</strong><code>{{ category.path }}</code></td><td>{{ bytes(category.size_bytes) }} / {{ category.file_count }}</td><td><UiButton v-if="category.clearable" variant="outline" size="sm" :disabled="busy" @click="previewCleanup(category.category)">{{ label('预览清理', 'Preview cleanup') }}</UiButton></td></tr></tbody></table>
@@ -313,7 +311,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
       <div v-if="contentPreview" class="tools-validation" role="status"><strong>{{ label('未引用内容回收预览', 'Unreferenced content collection preview') }}</strong><p>{{ bytes(contentPreview.size_bytes) }} · {{ contentPreview.file_count }} {{ label('文件', 'files') }} · {{ contentPreview.expires_at }}</p><p>{{ label('引用检查', 'Reference checks') }}: <code>{{ JSON.stringify(contentPreview.references) }}</code></p><p>{{ label('执行时再次检查引用；活动运行和请求会阻止回收。', 'References are checked again on execution. Active runs and requests block collection.') }}</p><UiButton variant="destructive" :disabled="busy" @click="collectContent">{{ label('确认回收此预览', 'Collect this preview') }}</UiButton><UiButton variant="ghost" :disabled="busy" @click="contentPreview = null">{{ label('取消', 'Cancel') }}</UiButton></div>
       <div v-if="deletePreview" class="tools-validation" role="alert"><strong>{{ label('整个项目存储删除预览', 'Entire project storage deletion preview') }}</strong><p><code>{{ deletePreview.path }}</code></p><p>{{ bytes(deletePreview.size_bytes) }} · {{ deletePreview.file_count }} {{ label('文件', 'files') }} · {{ deletePreview.expires_at }}</p><UiButton variant="destructive" :disabled="busy" @click="deleteProjectStorage">{{ label('确认删除此项目存储', 'Delete this project storage') }}</UiButton><UiButton variant="ghost" :disabled="busy" @click="deletePreview = null">{{ label('取消', 'Cancel') }}</UiButton></div>
       <h3>{{ label('TOML 配置文档', 'TOML configuration document') }}</h3>
-      <label class="storage-field">{{ label('配置模块', 'Configuration module') }}<select :value="documentId" class="settings-select" :disabled="busy" @change="selectDocument"><option v-for="module in modules" :key="module" :value="module">{{ module }}.toml</option></select></label>
+      <label class="storage-field">{{ label('配置模块', 'Configuration module') }}<UiSelectField :value="documentId" :disabled="busy" :aria-label="label('配置模块', 'Configuration module')" :options="modules.map((module) => ({ value: module, label: `${module}.toml` }))" @change="selectDocument" /></label>
       <p v-if="document" class="quiet"><code>{{ document.path }}</code> · v{{ document.version }} · {{ document.content_hash }}</p>
       <textarea v-model="text" class="storage-editor" :readonly="busy" spellcheck="false" :aria-label="label('TOML 配置内容', 'TOML configuration text')" />
       <div v-if="diagnostics.length" class="tools-validation" role="status"><p v-for="(item, index) in diagnostics" :key="index">{{ item.message || JSON.stringify(item) }}</p></div>

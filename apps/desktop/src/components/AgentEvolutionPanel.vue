@@ -10,7 +10,7 @@ import {
 } from '../api'
 import { scopedApi } from '@/lib/storageScope'
 const api = scopedApi(baseApi, () => 'user')
-import { UiBadge, UiButton, UiCard, UiInput, UiLabel, UiSheet, UiSkeleton } from '@/components/ui'
+import { UiBadge, UiButton, UiCard, UiInput, UiLabel, UiSelectField, UiSheet, UiSkeleton } from '@/components/ui'
 import { useNotifications } from '@/composables/useNotifications'
 
 const { t } = useI18n()
@@ -330,11 +330,10 @@ defineExpose({ loadProposals })
           </div>
           <div class="evolution-form-field">
             <UiLabel>{{ t('agentCenter.evolution.fieldMode') }}</UiLabel>
-            <select v-model="promoteForm.mode" class="settings-select">
-              <option v-for="mode in agentModes" :key="mode.id" :value="mode.id">
-                {{ mode.display_name }} · {{ mode.summary }}
-              </option>
-            </select>
+            <UiSelectField
+              v-model="promoteForm.mode"
+              :options="agentModes.map((mode) => ({ value: mode.id, label: `${mode.display_name} · ${mode.summary}` }))"
+            />
           </div>
           <div class="evolution-form-field">
             <UiLabel>{{ t('agentCenter.evolution.fieldModelRoute') }}</UiLabel>

@@ -112,7 +112,7 @@ describe('searchSpotlight', () => {
     expect(groups.map((group) => group.kind)).toEqual(['command', 'setting'])
     expect(groups[0]!.kind).toBe('command')
     expect(groups[0]!.items[0]!.label).toBe('New conversation')
-    expect(groups.find((group) => group.kind === 'setting')?.items).toHaveLength(12)
+    expect(groups.find((group) => group.kind === 'setting')?.items).toHaveLength(11)
   })
 
   it('a settings label query groups settings and skips unrelated kinds', async () => {
@@ -431,7 +431,6 @@ describe('spotlight keys', () => {
       'palette.kwArchive',
       'palette.kwAppearance',
       'palette.kwPets',
-      'palette.kwLanguage',
       'palette.kwApiDocs',
       'palette.kwAbout',
     ]

@@ -429,8 +429,8 @@ overflow: hidden;
   gap: 8px;
 }
 
-.pets-kind-filter {
-  min-width: 0;
+.pets-kind-filter { min-width: 0; }
+.pets-kind-filter .ui-select-trigger {
   height: 36px;
   border: 1px solid var(--border-muted);
   border-radius: 6px;
@@ -3116,7 +3116,7 @@ min-height: 0;
 }
 
 /* Fixed-width, horizontally centered sections: general / tools / archive /
-   appearance / language / about. Their content is a readable single column, so
+   appearance / about. Their content is a readable single column, so
    it stays at a constant measure and centres in the content panel instead of
    stretching with the window. Constraining the wrapper (not its children) also
    covers sections that render a multi-root fragment, such as ToolCenterSection.
@@ -3249,10 +3249,6 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-}
-
-.bg-param .settings-select {
-  width: 100%;
 }
 
 .bg-format-hint {
@@ -4681,7 +4677,7 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
 .agent-tool-search input {
   padding-left: 30px;
 }
-.settings-select.compact {
+.ui-select.compact .ui-select-trigger {
   height: 34px;
   font-size: 12px;
 }
@@ -5155,7 +5151,7 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
   flex-wrap: wrap;
 }
 
-.route-candidate-add .settings-select {
+.route-candidate-add .ui-select {
   min-width: 180px;
 }
 
@@ -5586,7 +5582,7 @@ box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 72%, transparent)
 .tools-context-bar { margin-block: 18px 10px; }
 .tools-context-bar label, .tools-command-bar label, .tools-resource-editor > label { display: grid; gap: 6px; min-width: 0; }
 .tools-context-bar label { flex: 1 1 220px; }
-.tools-context-bar .settings-select { width: 100%; }
+.tools-context-bar .ui-select-trigger { width: 100%; }
 .tools-tabs { display: flex; gap: 4px; overflow-x: auto; margin-block: 20px 16px; padding: 4px; background: var(--surface-chrome); border-radius: var(--radius-md); }
 .tools-tabs > button { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1 0 auto; min-height: 36px; padding: 6px 12px; color: var(--text-secondary); border-radius: var(--radius-sm); border: 0; background: transparent; cursor: pointer; white-space: nowrap; }
 .tools-tabs > button:hover { background: var(--surface-raised); }

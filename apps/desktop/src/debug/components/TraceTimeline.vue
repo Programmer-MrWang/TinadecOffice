@@ -4,6 +4,7 @@ import { getSpanColor } from '../types/trace'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Loader2, Search, ArrowLeft } from '@lucide/vue'
+import { UiSelectField } from '@/components/ui'
 
 const { t } = useI18n()
 
@@ -62,11 +63,16 @@ const flatSpans = computed(() => {
     <!-- Filter bar -->
     <div class="timeline-filter">
       <input v-model="filterName" :placeholder="t('debugStudio.filterName')" class="filter-input" />
-      <select v-model="filterStatus" class="filter-select">
-        <option value="">{{ t('debugStudio.filterAllStatus') }}</option>
-        <option value="ok">{{ t('debugStudio.filterOk') }}</option>
-        <option value="error">{{ t('debugStudio.filterError') }}</option>
-      </select>
+      <UiSelectField
+        v-model="filterStatus"
+        class="filter-select"
+        :aria-label="t('debugStudio.filterAllStatus')"
+        :options="[
+          { value: '', label: t('debugStudio.filterAllStatus') },
+          { value: 'ok', label: t('debugStudio.filterOk') },
+          { value: 'error', label: t('debugStudio.filterError') },
+        ]"
+      />
     </div>
 
     <!-- Trace list (when no trace selected) -->
@@ -144,7 +150,7 @@ const flatSpans = computed(() => {
   border-bottom: 1px solid var(--border-default, #1a1f29);
   background: transparent;
 }
-.filter-input, .filter-select {
+.filter-input, .filter-select :deep(.ui-select-trigger) {
   background: var(--surface-input, var(--bg-input, #0a0e14));
   border: 1px solid var(--border-input, #1a1f29);
   color: var(--text-primary, #c9d1d9);
@@ -153,7 +159,7 @@ const flatSpans = computed(() => {
   font-size: 12px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.filter-input:focus, .filter-select:focus {
+.filter-input:focus, .filter-select :deep(.ui-select-trigger:focus-visible) {
   outline: none;
   border-color: var(--border-input-focus, #2ec4b6);
   box-shadow: var(--shadow-focus, 0 0 0 2px rgba(46,196,182,.18));

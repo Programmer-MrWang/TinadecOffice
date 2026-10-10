@@ -91,6 +91,13 @@ function expectSelectorDeclarations(css: string, selector: string, expected: Reg
   expect(declarations.join('\n'), `Expected ${selector} to match ${expected}`).toMatch(expected)
 }
 
+describe('migrated select styles', () => {
+  it('sizes and borders the button rather than its wrapper', () => {
+    expect(settingsCss).toMatch(/\.pets-kind-filter \.ui-select-trigger\s*\{/)
+    expect(composerBarSource).toMatch(/\.queued-run-select :deep\(\.ui-select-trigger\)\s*\{ height: 24px/)
+  })
+})
+
 describe('settings.css contract', () => {
   const css = normalizeLineEndings(settingsCss)
 
@@ -140,7 +147,8 @@ describe('settings.css contract', () => {
   })
 
   it('clamps and centres the fixed-width section wrapper', () => {
-    // Seven sections (personal/general/tools/archive/appearance/language/about) render a
+    // The centered set is personal/general/archive/appearance/about (tools reuses the
+    // same wrapper via its multi-root fragment) and each renders a
     // fixed-measure column centred in the content panel; the width lives on the
     // wrapper so multi-root sections like ToolCenterSection are covered too.
     expectSelectorDeclarations(

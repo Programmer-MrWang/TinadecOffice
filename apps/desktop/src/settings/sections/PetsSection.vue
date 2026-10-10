@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Download, FolderOpen, MoreHorizontal, RefreshCw, Trash2 } from '@lucide/vue'
-import { UiBadge, UiButton, UiDropdownMenu, UiInput } from '@/components/ui'
+import { UiBadge, UiButton, UiDropdownMenu, UiInput, UiSelectField } from '@/components/ui'
 import PetPreview from '@/components/PetPreview.vue'
 import { useNotifications } from '@/composables/useNotifications'
 
@@ -224,10 +224,15 @@ onBeforeUnmount(() => {
               </div>
               <div class="pets-market-filters">
                 <UiInput v-model="petCatalogQuery" :placeholder="t('settings.searchPets')" class="pets-search" />
-                <select v-model="petCatalogKind" class="pets-kind-filter" :aria-label="t('settings.petKindFilter')">
-                  <option value="all">{{ t('settings.allPetKinds') }}</option>
-                  <option v-for="kind in petCatalogKinds" :key="kind" :value="kind">{{ kind }}</option>
-                </select>
+                <UiSelectField
+                  v-model="petCatalogKind"
+                  class="pets-kind-filter"
+                  :aria-label="t('settings.petKindFilter')"
+                  :options="[
+                    { value: 'all', label: t('settings.allPetKinds') },
+                    ...petCatalogKinds.map((kind) => ({ value: kind, label: kind })),
+                  ]"
+                />
               </div>
             </div>
             <div v-if="petCatalogLoading && petCatalog.length === 0" class="pets-empty">{{ t('settings.loadingPets') }}</div>

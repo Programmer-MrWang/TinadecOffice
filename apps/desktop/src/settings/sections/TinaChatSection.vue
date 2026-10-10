@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Bot, LockKeyhole, MessageCircle, Plus, RefreshCw, User, Users } from '@lucide/vue'
-import { UiButton, UiCheckbox, UiInput, UiIslandCard, UiSwitch, UiTextarea } from '@/components/ui'
+import { UiButton, UiCheckbox, UiInput, UiIslandCard, UiSelectField, UiSwitch, UiTextarea } from '@/components/ui'
 import { api as baseApi, type TinaChatConversation, type TinaChatMember, type TinaChatParticipant, type TinaChatWorkspacePolicy } from '@/api'
 import { scopedApi } from '@/lib/storageScope'
 const api = scopedApi(baseApi, () => 'user')
@@ -158,10 +158,16 @@ defineExpose({ load, participants, conversations, policy, actor, register, creat
       </template>
       <div class="identity-toolbar">
         <label class="field"><span>{{ t('tinaChat.actingAs') }}</span>
-          <select v-model="actingId" data-testid="tinachat-actor" :disabled="!mine.length">
-            <option value="">{{ mine.length ? t('tinaChat.pickIdentity') : t('tinaChat.noIdentityYet') }}</option>
-            <option v-for="person in mine" :key="person.id" :value="person.id">{{ person.display_name }}</option>
-          </select>
+          <UiSelectField
+            v-model="actingId"
+            data-testid="tinachat-actor"
+            :disabled="!mine.length"
+            :aria-label="t('tinaChat.actingAs')"
+            :options="[
+              { value: '', label: mine.length ? t('tinaChat.pickIdentity') : t('tinaChat.noIdentityYet') },
+              ...mine.map((person) => ({ value: person.id, label: person.display_name })),
+            ]"
+          />
         </label>
         <p class="card-hint">{{ t('tinaChat.actingAsHint') }}</p>
       </div>
@@ -181,7 +187,15 @@ defineExpose({ load, participants, conversations, policy, actor, register, creat
       <div class="register-grid">
         <UiInput v-model="draft.handle" :placeholder="t('tinaChat.handle')" :aria-label="t('tinaChat.handle')" data-testid="tinachat-handle" />
         <UiInput v-model="draft.display_name" :placeholder="t('tinaChat.displayName')" :aria-label="t('tinaChat.displayName')" data-testid="tinachat-display" />
-        <select v-model="draft.kind" :aria-label="t('tinaChat.kindLabel')" data-testid="tinachat-kind"><option value="agent">{{ t('tinaChat.kindAgent') }}</option><option value="human">{{ t('tinaChat.kindHuman') }}</option></select>
+        <UiSelectField
+          v-model="draft.kind"
+          data-testid="tinachat-kind"
+          :aria-label="t('tinaChat.kindLabel')"
+          :options="[
+            { value: 'agent', label: t('tinaChat.kindAgent') },
+            { value: 'human', label: t('tinaChat.kindHuman') },
+          ]"
+        />
         <UiInput v-model="draft.job_title" :placeholder="t('tinaChat.jobTitle')" :aria-label="t('tinaChat.jobTitle')" />
         <UiTextarea v-model="draft.description" :placeholder="t('tinaChat.description')" :aria-label="t('tinaChat.description')" :rows="2" />
         <label class="check"><UiCheckbox v-model="draft.receive_human_messages" :disabled="draft.kind === 'human'" />{{ t('tinaChat.receiveHuman') }}</label>
@@ -199,11 +213,28 @@ defineExpose({ load, participants, conversations, policy, actor, register, creat
       </template>
       <div class="room-create">
         <UiInput v-model="roomDraft.title" :placeholder="t('tinaChat.roomTitle')" :aria-label="t('tinaChat.roomTitle')" data-testid="tinachat-room-title" :disabled="!actor" />
-        <select v-model="roomDraft.kind" :aria-label="t('tinaChat.kindLabel')" :disabled="!actor"><option value="group">{{ t('tinaChat.group') }}</option><option value="direct">{{ t('tinaChat.direct') }}</option></select>
+        <UiSelectField
+          v-model="roomDraft.kind"
+          :aria-label="t('tinaChat.kindLabel')"
+          :disabled="!actor"
+          :options="[
+            { value: 'group', label: t('tinaChat.group') },
+            { value: 'direct', label: t('tinaChat.direct') },
+          ]"
+        />
         <UiButton variant="outline" size="sm" :disabled="busy || !actor || !roomDraft.title.trim()" data-testid="tinachat-create-room" @click="createRoom">{{ t('tinaChat.createRoom') }}</UiButton>
       </div>
       <div class="invite-picker">
-        <select v-model="inviteDraft" :aria-label="t('tinaChat.pickParticipants')" data-testid="tinachat-invitee" :disabled="!actor || !selectedRoom"><option value="">{{ t('tinaChat.pickParticipants') }}</option><option v-for="person in selectable" :key="person.id" :value="person.id">{{ person.display_name }}</option></select>
+        <UiSelectField
+          v-model="inviteDraft"
+          data-testid="tinachat-invitee"
+          :aria-label="t('tinaChat.pickParticipants')"
+          :disabled="!actor || !selectedRoom"
+          :options="[
+            { value: '', label: t('tinaChat.pickParticipants') },
+            ...selectable.map((person) => ({ value: person.id, label: person.display_name })),
+          ]"
+        />
         <UiButton variant="ghost" size="sm" :disabled="busy || !selectedRoom || !inviteDraft" data-testid="tinachat-invite" @click="invite">{{ t('tinaChat.invite') }}</UiButton>
       </div>
       <ul class="room-list" data-testid="tinachat-rooms">

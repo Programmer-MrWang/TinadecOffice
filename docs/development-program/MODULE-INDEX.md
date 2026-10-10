@@ -16,7 +16,7 @@
 | APP-MARKET | [Market / 市场](02-modules/app/market/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/market/TODO.md) |
 | APP-DEBUG | [Debug Studio / 调试界面](02-modules/app/debug-studio/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [3项](02-modules/app/debug-studio/TODO.md) |
 | APP-UIE-ENGINE | [TinadecUI / UIE Engine](02-modules/app/uie-engine/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [1项](02-modules/app/uie-engine/TODO.md) |
-| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [2项](02-modules/app/uie-components/TODO.md) |
+| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 4 | 2 | [3项](02-modules/app/uie-components/TODO.md) |
 | APP-LOCAL-STATE | [Desktop / 偏好与布局持久化](02-modules/app/local-state/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/local-state/TODO.md) |
 | APP-SERVICES | [Desktop / 本地服务管理](02-modules/app/local-services/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [3项](02-modules/app/local-services/TODO.md) |
 | APP-PACKS | [App / AgentPack 内容与安装体验](02-modules/app/agent-packs/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [3项](02-modules/app/agent-packs/TODO.md) |

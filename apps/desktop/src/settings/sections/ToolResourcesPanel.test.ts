@@ -9,7 +9,23 @@ import ToolResourcesPanel from './ToolResourcesPanel.vue'
 const confirm = vi.hoisted(() => vi.fn())
 vi.mock('@/api', () => ({ api: { listToolMcpResources: vi.fn(), saveToolMcpResource: vi.fn(), createToolMcpResource: vi.fn(), listToolSkills: vi.fn(), getToolSkill: vi.fn(), getToolSkillFile: vi.fn(), getUserToolAction: vi.fn(), saveToolSkill: vi.fn(), importToolSkill: vi.fn(), deleteToolSkill: vi.fn() } }))
 vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ notify: { success: vi.fn() }, confirm }) }))
-vi.mock('@/components/ui', () => ({ UiButton: { template: '<button v-bind="$attrs"><slot /></button>' }, UiBadge: { template: '<span><slot /></span>' }, UiInput: { props: ['modelValue'], emits: ['update:modelValue'], template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' } }))
+vi.mock('@/components/ui', () => ({
+  UiButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+  UiBadge: { template: '<span><slot /></span>' },
+  UiInput: { props: ['modelValue'], emits: ['update:modelValue'], template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' },
+  UiSelectField: {
+    props: ['value', 'modelValue', 'options', 'disabled'],
+    emits: ['update:modelValue', 'update:value', 'change'],
+    setup(props: { value?: string; modelValue?: string; options?: Array<{ value: string; label: string }> }, { emit }: { emit: (event: string, value: string) => void }) {
+      const pick = (event: Event) => {
+        const next = (event.target as HTMLSelectElement).value
+        emit('update:modelValue', next); emit('update:value', next); emit('change', next)
+      }
+      return { pick }
+    },
+    template: '<span class="ui-select"><select :value="value ?? modelValue" :disabled="disabled" @change="pick"><option v-for="option in options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option></select></span>',
+  },
+}))
 const Editor = defineComponent({ props: ['modelValue'], emits: ['update:modelValue'], template: '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />' })
 const id = '11111111-1111-1111-1111-111111111111'
 const mcp = { resource_id: id, id: 'qa', name: 'QA MCP', enabled: true, command: 'node', args: ['server.js'], env: { TOKEN: '***' }, revision: 3, configuration_hash: 'hash' }

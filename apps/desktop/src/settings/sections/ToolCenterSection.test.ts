@@ -9,7 +9,22 @@ import ToolCenterSection from './ToolCenterSection.vue'
 const notify = vi.hoisted(() => ({ success: vi.fn() }))
 vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ notify }) }))
 // UI primitives use Vapor; their separate tests cover rendering. This fixture exercises settings state.
-vi.mock('@/components/ui', () => ({ UiButton: { template: '<button v-bind="$attrs"><slot /></button>' }, UiBadge: { template: '<span><slot /></span>' } }))
+vi.mock('@/components/ui', () => ({
+  UiButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+  UiBadge: { template: '<span><slot /></span>' },
+  UiSelectField: {
+    props: ['value', 'modelValue', 'options', 'disabled'],
+    emits: ['update:modelValue', 'update:value', 'change'],
+    setup(props: { value?: string; modelValue?: string; options?: Array<{ value: string; label: string }> }, { emit }: { emit: (event: string, value: string) => void }) {
+      const pick = (event: Event) => {
+        const next = (event.target as HTMLSelectElement).value
+        emit('update:modelValue', next); emit('update:value', next); emit('change', next)
+      }
+      return { pick }
+    },
+    template: '<span class="ui-select"><select :value="value ?? modelValue" :disabled="disabled" @change="pick"><option v-for="option in options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option></select></span>',
+  },
+}))
 vi.mock('@/api', () => ({ api: {
   getToolSettingsSchema: vi.fn(), getToolSettingsDefaults: vi.fn(), getAgentToolSettings: vi.fn(), getEffectiveToolSettings: vi.fn(),
   saveToolSettingsDefaults: vi.fn(), saveAgentToolSettings: vi.fn(), listAgentDefinitions: vi.fn(), listProjects: vi.fn(), listTools: vi.fn(),

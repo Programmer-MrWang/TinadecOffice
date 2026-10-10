@@ -24,6 +24,10 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-SETTINGS-F004 | 关于页默认关闭的 Debug Studio 开关、本机 TOML 保存与跨窗刷新 | 已验收 | Windows 浏览器 preview；Renderer19/19；宿主 VM/Node 配置/IPC10/10、相关回归23/23（含前述10项，不重复合计） | 2026-10-09，d5e6c8d8 + 工作树；源为 bootstrap desktop.toml，默认~/.tinadec/config/desktop.toml；特殊有效形状保存保字段但可能丢注释。尚未真实 native 窗口/安装包验证；仅对应APP-SETTINGS-104，001/101保持原状态。 | [本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md)<br>[Renderer证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-preference-tests.md)<br>[宿主证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-studio-host.md) |
 
+## 2026-10-11 共用样式化下拉复审
+
+`UiSelectField` 对设置、工具、快照和调试页的替换经复审：空值模型/可选 Agent 名称使类型检查失败、原生模态对话框菜单在 top layer 外、旧 select 样式误施加于外层、外部滚动/缩放后位置漂移。仅在组件触发层处理样式；菜单在所属 `<dialog>` 内，滚动/缩放时关闭。Chrome 独立模态层探针与 Desktop 组件/类型回归见[复审报告](../../../../../.tinadec_dev/reports/2026-10-11-uncommitted-review-fixes.zh-CN.md)；未实测完整安装器或重新覆盖所有设置能力，APP-SETTINGS-001/101 原状态不变。
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

@@ -164,7 +164,8 @@ describe('MemoryPage', () => {
     apiMock.listMemoryCandidates.mockClear()
     apiMock.listMemoryItems.mockClear()
 
-    await wrapper.find('[data-testid="memory-scope"]').setValue('principal')
+    await wrapper.find('[data-testid="memory-scope"]').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.ui-select-option[data-value="principal"]')!.click()
     await flushPromises()
 
     expect(apiMock.listMemoryCandidates).toHaveBeenCalledWith({ status: 'proposed', scope: 'principal', limit: 100 })

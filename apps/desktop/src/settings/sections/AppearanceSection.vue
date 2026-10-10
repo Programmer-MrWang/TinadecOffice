@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Check, Moon, Monitor, Pipette, Plus, Sun } from '@lucide/vue'
-import { UiButton } from '@/components/ui'
+import { UiButton, UiSelectField } from '@/components/ui'
 import ColorField from '@/components/ui/color-field.vue'
 import BackgroundPreview from '@/components/ui/background-preview.vue'
 import PanelStyleControl from '@/components/ui/panel-style-control.vue'
@@ -481,30 +481,48 @@ function resetBackgroundToDefault(): void {
             <div class="bg-param-row bg-param-row--selects">
               <div class="bg-param">
                 <label class="appearance-label" for="bg-size">{{ t('settings.bgSize') }}</label>
-                <select id="bg-size" class="settings-select" :value="backgroundSettings.size" @change="setBackgroundSize(($event.target as HTMLSelectElement).value as 'cover' | 'contain' | 'auto')">
-                  <option value="cover">{{ t('settings.bgSizeCover') }}</option>
-                  <option value="contain">{{ t('settings.bgSizeContain') }}</option>
-                  <option value="auto">{{ t('settings.bgSizeAuto') }}</option>
-                </select>
+                <UiSelectField
+                  id="bg-size"
+                  :value="backgroundSettings.size"
+                  :aria-label="t('settings.bgSize')"
+                  :options="[
+                    { value: 'cover', label: t('settings.bgSizeCover') },
+                    { value: 'contain', label: t('settings.bgSizeContain') },
+                    { value: 'auto', label: t('settings.bgSizeAuto') },
+                  ]"
+                  @change="(value) => setBackgroundSize(value as 'cover' | 'contain' | 'auto')"
+                />
               </div>
               <div class="bg-param">
                 <label class="appearance-label" for="bg-position">{{ t('settings.bgPosition') }}</label>
-                <select id="bg-position" class="settings-select" :value="backgroundSettings.position" @change="setBackgroundPosition(($event.target as HTMLSelectElement).value as 'center' | 'top' | 'bottom' | 'left' | 'right')">
-                  <option value="center">{{ t('settings.bgPositionCenter') }}</option>
-                  <option value="top">{{ t('settings.bgPositionTop') }}</option>
-                  <option value="bottom">{{ t('settings.bgPositionBottom') }}</option>
-                  <option value="left">{{ t('settings.bgPositionLeft') }}</option>
-                  <option value="right">{{ t('settings.bgPositionRight') }}</option>
-                </select>
+                <UiSelectField
+                  id="bg-position"
+                  :value="backgroundSettings.position"
+                  :aria-label="t('settings.bgPosition')"
+                  :options="[
+                    { value: 'center', label: t('settings.bgPositionCenter') },
+                    { value: 'top', label: t('settings.bgPositionTop') },
+                    { value: 'bottom', label: t('settings.bgPositionBottom') },
+                    { value: 'left', label: t('settings.bgPositionLeft') },
+                    { value: 'right', label: t('settings.bgPositionRight') },
+                  ]"
+                  @change="(value) => setBackgroundPosition(value as 'center' | 'top' | 'bottom' | 'left' | 'right')"
+                />
               </div>
               <div class="bg-param">
                 <label class="appearance-label" for="bg-repeat">{{ t('settings.bgRepeat') }}</label>
-                <select id="bg-repeat" class="settings-select" :value="backgroundSettings.repeat" @change="setBackgroundRepeat(($event.target as HTMLSelectElement).value as 'repeat' | 'no-repeat' | 'repeat-x' | 'repeat-y')">
-                  <option value="repeat">{{ t('settings.bgRepeatRepeat') }}</option>
-                  <option value="no-repeat">{{ t('settings.bgRepeatNoRepeat') }}</option>
-                  <option value="repeat-x">{{ t('settings.bgRepeatRepeatX') }}</option>
-                  <option value="repeat-y">{{ t('settings.bgRepeatRepeatY') }}</option>
-                </select>
+                <UiSelectField
+                  id="bg-repeat"
+                  :value="backgroundSettings.repeat"
+                  :aria-label="t('settings.bgRepeat')"
+                  :options="[
+                    { value: 'repeat', label: t('settings.bgRepeatRepeat') },
+                    { value: 'no-repeat', label: t('settings.bgRepeatNoRepeat') },
+                    { value: 'repeat-x', label: t('settings.bgRepeatRepeatX') },
+                    { value: 'repeat-y', label: t('settings.bgRepeatRepeatY') },
+                  ]"
+                  @change="(value) => setBackgroundRepeat(value as 'repeat' | 'no-repeat' | 'repeat-x' | 'repeat-y')"
+                />
               </div>
             </div>
 

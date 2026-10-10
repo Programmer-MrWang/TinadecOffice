@@ -1,9 +1,13 @@
 # TinadecUI — UI Engineering Suite
 
-**Last Updated:** 2026-10-10
-**Last Updated By:** NavCard接入工作区纯折叠、逐作用域加载和统一编辑入口；保留窗格ReKa Tooltip、ChatCard及空间专项。
-**Last Verified Commit:** d5e6c8d838f93f6bc26d4b7b77ecb0d9bdb9c2f3 + 工作树；本批工作区组件/真实接口结果见 .tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md；历史导航、窗格与空间证据仍独立。
+**Last Updated:** 2026-10-11
+**Last Updated By:** 首页 Git 卡复审：空仓库历史/状态失败分类；保留 NavCard、窗格与空间原契约。
+**Last Verified Commit:** 5d8096c + 工作树；复审见 .tinadec_dev/reports/2026-10-11-uncommitted-review-fixes.zh-CN.md，原 Git 卡验收见 2026-10-11-home-git-widget.zh-CN.md；旧工作区/窗格证据保持独立。
 **Branch:** main
+
+### 2026-10-11 首页 Git 工作状态卡
+
+HomePickerCard 网格只过滤 Git 静态入口，不改变 FEATURE_CATALOG 九项和顶栏“+”菜单。GitStatusWidget 独立读当前项目主目录、短变更项列表与最近提交；无提交显示空历史，真实 Git 读取失败不谎称无仓库；底部通过既有 `openCard('git')` 激活完整页签。UIE 不持有业务 Git 状态、审批、布局新 schema 或独立材质根。APP-UIE-COMPONENTS-102/F004，局部结果与窄窗/平台边界见本轮报告。
 
 ### 2026-10-10 工作区侧边栏
 

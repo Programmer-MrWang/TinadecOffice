@@ -8,7 +8,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Plus, RefreshCw } from '@lucide/vue'
-import { UiButton, UiInput } from '@/components/ui'
+import { UiButton, UiInput, UiSelectField } from '@/components/ui'
 import { api, type EnvironmentDto, type EnvironmentKind } from '@/api'
 
 const props = defineProps<{ sessionId?: string | null }>()
@@ -89,9 +89,13 @@ watch(() => props.sessionId, load)
 
     <form v-if="registering" class="environment-form" data-testid="environment-form" @submit.prevent="register">
       <UiInput v-model="form.key" :placeholder="t('organization.environments.key')" data-testid="environment-key" />
-      <select v-model="form.kind" class="environment-select" data-testid="environment-kind">
-        <option v-for="kind in KINDS" :key="kind" :value="kind">{{ t(`organization.environments.kinds.${kind}`) }}</option>
-      </select>
+      <UiSelectField
+        v-model="form.kind"
+        class="environment-select"
+        data-testid="environment-kind"
+        :aria-label="t('organization.environments.kind')"
+        :options="KINDS.map((kind) => ({ value: kind, label: t(`organization.environments.kinds.${kind}`) }))"
+      />
       <UiInput v-model="form.display_name" :placeholder="t('organization.environments.displayName')" data-testid="environment-name" />
       <label class="org-muted environment-capacity">{{ t('organization.environments.capacity') }}
         <input v-model.number="form.capacity" type="number" min="1" max="64" data-testid="environment-capacity" />
@@ -132,7 +136,7 @@ watch(() => props.sessionId, load)
 .environment-toolbar { display:flex; align-items:flex-start; gap:6px; }
 .environment-toolbar p { flex:1; margin:0; }
 .environment-form { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:8px 0; }
-.environment-select, .environment-connection, .environment-capacity input {
+.environment-select :deep(.ui-select-trigger), .environment-connection, .environment-capacity input {
   font:inherit; color:var(--text-primary); background:var(--surface-section); border:1px solid var(--border-muted); border-radius:6px; padding:4px 6px;
 }
 .environment-capacity { display:flex; align-items:center; gap:6px; }

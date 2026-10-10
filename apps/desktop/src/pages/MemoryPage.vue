@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { BookMarked, Inbox, Lightbulb } from '@lucide/vue'
 import { api, type MemoryCandidateDto, type MemoryItemDto } from '@/api'
 import CommandPaletteButton from '@/components/CommandPaletteButton.vue'
+import { UiSelectField } from '@/components/ui'
 
 /**
  * The memory review surface: what the experience curator proposed, what the workspace
@@ -119,20 +120,23 @@ onMounted(() => {
       <div class="memory-page__filters" role="group" :aria-label="t('memory.filters', 'Filters')">
         <label class="memory-page__filter">
           <span>{{ t('memory.queueStatus', 'Queue') }}</span>
-          <select v-model="status" data-testid="memory-status" @change="void load()">
-            <option v-for="value in CANDIDATE_STATUSES" :key="value" :value="value">
-              {{ t(`memory.status.${value}`, value) }}
-            </option>
-          </select>
+          <UiSelectField
+            v-model="status"
+            data-testid="memory-status"
+            :aria-label="t('memory.queueStatus', 'Queue')"
+            :options="CANDIDATE_STATUSES.map((value) => ({ value, label: t(`memory.status.${value}`, value) }))"
+            @change="void load()"
+          />
         </label>
         <label class="memory-page__filter">
           <span>{{ t('memory.scope', 'Scope') }}</span>
-          <select v-model="scope" data-testid="memory-scope" @change="void load()">
-            <option value="">{{ t('memory.scope.all', 'Every scope') }}</option>
-            <option v-for="value in SCOPES" :key="value" :value="value">
-              {{ t(`memory.scope.${value}`, value) }}
-            </option>
-          </select>
+          <UiSelectField
+            v-model="scope"
+            data-testid="memory-scope"
+            :aria-label="t('memory.scope', 'Scope')"
+            :options="[{ value: '', label: t('memory.scope.all', 'Every scope') }, ...SCOPES.map((value) => ({ value, label: t(`memory.scope.${value}`, value) }))]"
+            @change="void load()"
+          />
         </label>
         <CommandPaletteButton />
         <button type="button" class="memory-page__button" :disabled="loading" data-testid="memory-refresh" @click="void load()">

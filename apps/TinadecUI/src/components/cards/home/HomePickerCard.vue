@@ -5,6 +5,7 @@ import { useUie } from '../../useUie'
 import { useResponsiveMode } from '@/composables/useElementSize'
 import { homeController } from '@/controllers/HomeController'
 import { FEATURE_CATALOG } from './featureCatalog'
+import GitStatusWidget from './GitStatusWidget.vue'
 
 const { t } = useI18n()
 const uie = useUie()
@@ -32,7 +33,7 @@ const { isCompact } = useResponsiveMode(rootRef)
 // The feature list is the shared catalog; the approval card additionally
 // shows the pending-count badge.
 const features = computed(() =>
-  FEATURE_CATALOG.map((entry) =>
+  FEATURE_CATALOG.filter((entry) => entry.descriptorId !== 'git').map((entry) =>
     entry.descriptorId === 'approval'
       ? { ...entry, badge: () => c.approvals.value.filter((a) => a.status === 'pending').length }
       : entry,
@@ -58,6 +59,8 @@ function openCard(descriptorId: string) {
           {{ currentContext.label }}
         </span>
       </div>
+
+      <GitStatusWidget :project="c.currentProject.value" @open="openCard('git')" />
 
       <div class="panel-home-grid">
         <button

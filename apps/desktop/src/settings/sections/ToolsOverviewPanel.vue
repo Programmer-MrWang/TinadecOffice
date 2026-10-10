@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { UiBadge, UiButton, UiInput } from '@/components/ui'
+import { UiBadge, UiButton, UiInput, UiSelectField } from '@/components/ui'
 import { api as baseApi, type HarnessManifestDto, type ToolCapabilities, type ToolDescriptorDto, type ToolLayerReadinessReceiptDto, type ToolSearchResultDto, type ToolSettingsEffective } from '@/api'
 import { scopedApi, projectStorageId } from '@/lib/storageScope'
 import { manifestTools, sortedToolSearchResults } from '@/toolCatalog'
@@ -83,8 +83,8 @@ defineExpose({ refresh })
   <div class="model-section-header"><h3>{{ t('settings.toolDiscovery') }}</h3><UiBadge variant="outline">{{ visibleResults.length }}</UiBadge></div>
   <div ref="discovery" class="tool-discovery-controls" tabindex="-1">
     <UiInput v-model="query" :placeholder="t('settings.toolDiscoveryPlaceholder')" @keydown.enter="search" />
-    <select v-model="source" class="settings-select" :aria-label="t('settings.allSources')"><option value="all">{{ t('settings.allSources') }}</option><option v-for="item in sources" :key="item" :value="item">{{ item }}</option></select>
-    <select v-model="risk" class="settings-select" :aria-label="t('settings.allRisks')"><option value="all">{{ t('settings.allRisks') }}</option><option v-for="item in risks" :key="item" :value="item">{{ item }}</option></select>
+    <UiSelectField v-model="source" :aria-label="t('settings.allSources')" :options="[{ value: 'all', label: t('settings.allSources') }, ...sources.map((item) => ({ value: item, label: item }))]" />
+    <UiSelectField v-model="risk" :aria-label="t('settings.allRisks')" :options="[{ value: 'all', label: t('settings.allRisks') }, ...risks.map((item) => ({ value: item, label: item }))]" />
     <UiButton size="sm" :disabled="loading" @click="search">{{ t('toolsSettings.searchTools') }}</UiButton>
   </div>
   <p v-if="error" class="tools-field-error" role="alert">{{ error }}</p>
