@@ -28,7 +28,12 @@ test('traversal never leaves the bundle directory', () => {
     '/../../etc/passwd',
     '/assets/../../secret.txt',
     '..\\..\\secret.txt',
+    // Drive-qualified segments are absolute on Windows and relative on POSIX, so the same
+    // request read outside the bundle on one platform and inside it on the other. Both the
+    // leading-slash and the bare form are rejected, and this file runs on all three legs.
     '/C:/Windows/win.ini',
+    'C:/Windows/win.ini',
+    'C:../secret.txt',
     '/\0index.html',
   ]) {
     assert.equal(resolveBundleAsset(DIST, attempt), null, `escaped the bundle: ${attempt}`)

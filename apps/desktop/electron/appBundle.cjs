@@ -80,6 +80,13 @@ function resolveBundleAsset(distDir, pathname) {
   if (raw.includes('\0')) return null;
   const normalised = raw.replace(/\\/g, '/');
   const relative = normalised.replace(/^\/+/, '') || 'index.html';
+  // A drive-qualified first segment (`/C:/Windows/win.ini`, `C:/Windows/win.ini`) is absolute
+  // under win32 and relative under posix, so `path.resolve` below would return a path outside
+  // the bundle on Windows and `<dist>/C:/Windows/win.ini` — *inside* it — on Linux and macOS.
+  // The pathname is attacker-controlled, so the shape is rejected outright instead of being
+  // interpreted by whichever flavour of `path` happens to be loaded. (Measured in CI: the
+  // posix legs returned a path for this input while the win-x64 leg returned null.)
+  if (/^[a-zA-Z]:/.test(relative)) return null;
   const root = path.resolve(distDir);
   const target = path.resolve(root, relative);
   if (target !== root && !target.startsWith(root + path.sep)) return null;
