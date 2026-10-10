@@ -8,6 +8,12 @@
 
 登记/安装拆分；固定版本、审批、immutable 包/manifest、pointer、本地复制与旧scope授权拒绝。源码工作目录与存储根分开；自由源码目录默认 `~/TinadecProjects`。MCP SDK server 自身为可信程序，其进程不继承文件/shell/search 的 OS 沙箱保证。详见[报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。
 
+## 2026-10-10 多文件夹工作区
+
+ToolConfigurationResolver 准入冻结完整源目录与主目录，调用在附加源内选择 cwd 不重写冻结根；TinadecToolsProcessManager 按 scope、目录集合与存储写策略复用进程。调用者不能用项目文件或模型参数扩大授权。多源快照保存目录 ID 与相对路径；旧运行沿历史冻结配置。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，CORE-TOOLS 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)

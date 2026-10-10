@@ -4,6 +4,12 @@
 
 本模块目前处于**初始源码清点**，还未完成逐功能审计；下列介绍继承总图中已核对的职责，初始状态区分源码能力、范围与缺口。
 
+## 2026-10-10 多文件夹工作区
+
+项目 DTO 增加多源目录、主要目录、图标、颜色与配置摘要。工作区 preview/read/edit 维持薄代理，透传 If-Match/ETag、结构化错误和固定 storage header；OpenAPI 快照及生成 Desktop schema 同步。Gateway 不拥有目录授权或配置的第二份编辑来源。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，GATEWAY-SESSIONS 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)

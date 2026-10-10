@@ -4,6 +4,12 @@
 
 本模块目前处于**初始源码清点**，还未完成逐功能审计；下列介绍继承总图中已核对的职责，初始状态区分源码能力、范围与缺口。
 
+## 2026-10-10 多文件夹工作区
+
+新 Git 面板默认主目录；工具显式 repository_path 可以是其他授权源目录。Git 命令仍经过冻结目录和沙箱边界，已有运行/进程使用原绑定。真实 Windows 普通进程在附加目录 git init 已验证，但不代表低权限账号完整验收。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，TOOLS-GIT 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)

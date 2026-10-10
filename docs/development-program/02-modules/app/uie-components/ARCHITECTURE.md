@@ -45,3 +45,19 @@ flowchart LR
 ## 2026-10-07 目标簇读面
 
 当前SpatialObject分离run/task/instance归属与独立SpatialRelation依赖集合；每run回复独立，未知工具归属保持run级。UIE SpatialSeed提供role/dependencyIds/dependencyUnverified，初次与显式arrangeSpace共享分层安放；compact写入既有空间几何，增量仅安放新ID。详情使用访问后隐藏保留，终端使用原UIE按需右栏宿主并以当前会话run集合过滤，未新增业务store。
+
+## 2026-10-09 窗格动作与Tooltip边界
+
+```mermaid
+flowchart LR
+  B["BrowserTabBar.vue"] -->|"restore-dock / collapse"| S["UieStack.vue"]
+  S -->|"mergeDockColumn / mergeDockPane / collapseColumn"| C["UIE commandBus"]
+  C -->|"现有布局命令"| R["Engine reducer / snapshot"]
+  B --> T["Reka Tooltip primitives 2.11.0"]
+  S --> T
+  T -->|"TooltipPortal"| P["同一renderer的body提示层"]
+```
+
+`BrowserTabBar`主面板按钮请求整列合并，`UieStack`非主窗格按钮请求单窗格合回，收起仍请求`collapseColumn`。命令总线和reducer继续拥有布局状态；Tooltip只处理hover/focus与提示层，不参与布局持久化，也不引入跨进程或Core依赖。`TooltipTrigger as-child`在原生button上附加交互与描述，不创建嵌套按钮；Portal在同一renderer中避开stack的overflow，材质与提示文案由共享渲染层提供。
+
+来源：[BrowserTabBar.vue](../../../../../apps/TinadecUI/src/components/BrowserTabBar.vue)、[UieStack.vue](../../../../../apps/TinadecUI/src/components/UieStack.vue)、[Engine合并命令](../../../../../apps/TinadecUI/src/engine/reducer.ts)、[锁定依赖](../../../../../apps/TinadecUI/package.json)。[APP-UIE-COMPONENTS-101](TODO.md#app-uie-components-101)保持待验收；[本轮固定参考与证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/pane-actions.md)不替代真实页面的键盘/布局行为取证。

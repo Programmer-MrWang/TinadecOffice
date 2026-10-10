@@ -1,5 +1,29 @@
 # Home / 会话、对话与投递：模块架构
 
+## 工作区目录与交互（2026-10-10）
+
+下图表示本轮实际调用与状态归属。新建/编辑统一窗口，项目行折叠留在本机列表，不触发业务上下文切换；运行与工具冻结归 Core。契约及唯一任务见 [APP-HOME-107](TODO.md#app-home-107)。
+
+```mermaid
+flowchart LR
+  nav["UIE NavCard / AppSidebar / Composer"] --> home["HomeController 新对话上下文"]
+  nav --> list["useWorkspaceList 本机显示与手动顺序"]
+  home --> dialog["WorkspaceEditorDialog / ReKa"]
+  dialog --> ipc["可信 Electron 目录多选 IPC"]
+  dialog --> api["Desktop API / 固定 scope / If-Match"]
+  api --> gateway["Gateway 薄代理"]
+  gateway --> registry["StorageScopeRegistry / WorkspaceRegistry"]
+  registry --> manifest["project.toml 条件原子保存"]
+  registry --> grants["用户根 宿主当前与历史目录授权"]
+  registry --> graph["每作用域独立 Core 图与项目投影"]
+  graph --> admission["新运行 冻结 scope / roots / primary / policy"]
+  admission --> tools["按冻结目录集合隔离的 Tools 进程"]
+  tools --> files["文件 / 搜索 / Shell / Git"]
+  graph --> snapshots["目录 ID + 相对路径的多目录快照"]
+```
+
+实现来源：AppSidebar.vue、useWorkspaceList.ts、HomeController.ts、WorkspaceEditorDialog.vue、workspaceFolders.cjs、StorageScopeEndpoints.cs、StorageScopeRegistry.Workspaces.cs、ToolConfigurationResolver.cs、TinadecToolsProcessManager.cs 和 WorkspaceBundleSnapshotProvider.cs。存储锚点固定为创建时的主目录；更换主要目录仅影响新上下文，已存在终端、运行与流继续保有自己的绑定。
+
 ## 输入框命令与运行设置（2026-10-08）
 
 ComposerBar的+、slash和工具栏共用ComposerCommandPanel。HomeController保存配置到Core并持有服务器回执；ChatCard/ChatPanel与SpatialPage读取同一设置。发送捕获选项后进入interaction/队列，Core在准入组合发布资源并冻结，模型和工具不读取后来修改的前端选项。标题和设置写入按会话串行、revision防冲突；异步队列操作保留来源会话。详见[实施记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md)。

@@ -19,6 +19,12 @@ App 携带包制品，Core 负责 preview/install、归属、启禁与不可变�
 - GraphSeedPack · 七种模式
 - 统一 meeting · 默认 Team
 
+### 安装失败与显式重试（2026-10-09）
+
+bootstrap 固定 `user` 存储作用域。Core 拥有配置校验与发布事实；Gateway 保留配置错误码和严格公开诊断，Desktop 通知详情显示 code/message/severity、行列与 trace_id。普通重连保留失败状态，不替用户再次安装；Retry 重新预览并经确认提交一次。当前窗口共享 pending 尝试，同 origin 窗口按 gateway/user/包版本/digest 共用锁，并同步失败终态；新窗口请求已有窗口的终态。广播仅是 UI 状态同步，不代替 Core 幂等/CAS 或宿主授权。
+
+本轮不改包版本/digest，不清理真实用户根。实现与验证范围见 [APP-PACKS-102](TODO.md#app-packs-102) 和 [证据](../../../../../.tinadec_dev/evidence/2026-10-09-graphseed-fix/VALIDATION.md)；整体逐功能审计及三平台安装验收保持独立。
+
 ## 源码入口
 
 - [apps/desktop/src/agentPacks/GraphSeedPack/manifest.json](../../../../../apps/desktop/src/agentPacks/GraphSeedPack/manifest.json)

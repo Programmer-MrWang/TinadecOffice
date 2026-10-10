@@ -2,6 +2,8 @@
 
 模块ID：`APP-SETTINGS` · 清点日期：2026-10-05 · 基线：b6115e6 + 当前工作树。
 
+最近专项：2026-10-09，d5e6c8d8 + 当前工作树；仅 Debug Studio 本机开关。
+
 **审计阶段：初始源码清点；逐功能审计未完成。** 不报告完成百分比，也不把历史全量绿或源码存在折算为功能完成。
 
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
@@ -15,6 +17,12 @@
 | APP-SETTINGS-F002 | 九标签工具设置、严格 JSON、资源与 Agent 绑定 | 已验收 | 1068 组件通过、最后总览17定向、类型与生产构建、真实三类 Agent Desktop及生产Schema Worker | Windows隔离Core/Tools/MCP/Skills实际走查；PostgreSQL仅编译，Linux/macOS未实机；对应APP-SETTINGS-102 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md) |
 
 | APP-SETTINGS-F003 | Skills 包安装与资源管理（含本地导入审批回执） | 已验收 | 设置 160/160、Desktop 全量 1091 passed/14 skipped、Gateway 88/88、类型检查与生产构建通过 | PostgreSQL/非 Windows 未实机；真实 Core/市场运行见 Core 证据 | [专项报告](../../../../../.tinadec_dev/reports/2026-10-09-skills-management.zh-CN.md) |
+
+## 2026-10-09 Debug Studio 本机开关
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| APP-SETTINGS-F004 | 关于页默认关闭的 Debug Studio 开关、本机 TOML 保存与跨窗刷新 | 已验收 | Windows 浏览器 preview；Renderer19/19；宿主 VM/Node 配置/IPC10/10、相关回归23/23（含前述10项，不重复合计） | 2026-10-09，d5e6c8d8 + 工作树；源为 bootstrap desktop.toml，默认~/.tinadec/config/desktop.toml；特殊有效形状保存保字段但可能丢注释。尚未真实 native 窗口/安装包验证；仅对应APP-SETTINGS-104，001/101保持原状态。 | [本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md)<br>[Renderer证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-preference-tests.md)<br>[宿主证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-studio-host.md) |
 
 ## 状态词汇
 

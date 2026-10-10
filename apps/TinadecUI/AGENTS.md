@@ -1,9 +1,21 @@
 # TinadecUI — UI Engineering Suite
 
-**Last Updated:** 2026-10-08
-**Last Updated By:** ChatCard透传统一会话设置与保存状态；保留空间布局专项记录。
-**Last Verified Commit:** 66d103e + 工作树；ChatCard随Desktop类型与组件门禁验证，见 .tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md；UIE引擎专项证据仍见下列记录。
+**Last Updated:** 2026-10-10
+**Last Updated By:** NavCard接入工作区纯折叠、逐作用域加载和统一编辑入口；保留窗格ReKa Tooltip、ChatCard及空间专项。
+**Last Verified Commit:** d5e6c8d838f93f6bc26d4b7b77ecb0d9bdb9c2f3 + 工作树；本批工作区组件/真实接口结果见 .tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md；历史导航、窗格与空间证据仍独立。
 **Branch:** main
+
+### 2026-10-10 工作区侧边栏
+
+NavCard继续承载业务AppSidebar，新增工作区编辑事件和逐作用域加载状态、顶部新聊天沿当前上下文；不另建布局/业务存储系统。项目行折叠不切UIE布局或当前会话，Composer工作区选择进入新对话。APP-HOME-107、docs/workspaces.zh-CN.md和本轮报告维护规则及验收；TinadecUI整体审计保持独立。
+
+### 2026-10-09 导航入口
+
+NavCard不再订阅go-workbench，Desktop侧栏/命令入口也删除，旧路由转空间。Debug入口仍由Desktop本机偏好单点控制；UIE卡片不能建立第二份显示配置或自行授予宿主权限。
+
+### 2026-10-09 窗格动作
+
+BrowserTabBar的PanelsTopLeft合并全部窗格，PanelRightClose收起整列保留dock；UieStack非main窗格Combine仅合此窗格到main。三动作原命令不变，28px原生按钮/aria/focus-visible，中英文案与tooltip材质由Desktop提供。Components正式依赖reka-ui2.11.0，Tooltip as-child与Portal提供hover/focus/Escape提示，不将第三方DOM依赖引入纯TS Engine。APP-UIE-COMPONENTS-101限定范围完成，模块整体审计及Vapor恢复仍独立。
 
 ### 2026-10-08 ChatCard会话设置
 

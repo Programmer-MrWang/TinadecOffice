@@ -20,6 +20,10 @@
 
 `IScopeConfigurationDocuments` 提供 Read、Validate 与 SaveIfMatch。Read 返回原文、绝对路径、SHA-256 `content_hash`、版本和诊断；Save 先校验语法和模块结构，再核对客户端摘要。旧摘要返回 `configuration_conflict`，错误原文返回带行列或字段诊断的 `configuration_invalid`，错误保存不会改原文件。锁位于 `state/.configuration-write.lock`，临时文件经磁盘 flush 后原子替换；原文保存保留全部注释，GUI 修改通过 Tomlyn 元数据保留未被修改表的注释。
 
+唯一性遵守EF模型中的真实索引条件：`status = 'draft'`只约束草稿Agent/Mode；`deleted_at IS NULL`只约束未删除资源。已发布同名Agent可共存，软删除记录不阻止名称复用；主键、普通唯一索引、非空值及历史版本不可变校验继续执行。未知过滤表达式返回`configuration_unique_filter_unsupported`，不能忽略或扩大为无条件索引。诊断保留具体表和属性名；没有源码位置时不虚构行列。
+
+提示词当前版本以`prompt_pipeline_id`关联文件中的pipeline，文件版本缺失即使SQL保留历史也不能用于新运行。GraphSeedPack3.0.1安装回归覆盖文件原字节不变、SQL无部分写入和独立数据库重建；[本轮证据](../../../../../.tinadec_dev/reports/2026-10-09-graphseed-install-fix.zh-CN.md)与通用存储验收分别记账。
+
 活动 `tool_settings.settings.mcp.binding` 和 `tool_settings.settings.skills.binding` 使用原生绑定状态。省略 `binding` 默认继承共享设置；共享设置省略则继承内置的全部可见、已启用资源。`enabled` 开关独立于绑定集合，绑定全部不会启用已禁用资源。
 
 | `binding.mode` | 编辑含义 | `binding.ids` |

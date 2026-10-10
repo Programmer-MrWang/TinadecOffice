@@ -1147,3 +1147,7 @@ ZIP 导出是 scope 数据/配置的一致性备份，不是自动导入或凭�
 本轮工作树已有目录/初始化、独立 scope 图、模块 TOML/CAS 与投影、迁移 journal、清理/回收/导出、可信策略 API、Gateway 薄代理和 Desktop 设置实现。可信 HTTP 边界已有 Electron43.3.0 隔离夹具验证：主/浮窗/Debug 路由与 SSE 签发，未知窗口和预览 iframe 拒绝，导航撤权与重定向剥离；这是传输边界证据，不能写成完整新功能 UI 走查或安装包验收。验证必须分层记录：路径/语义/并发单元测试，API/SQLite 集成测试，Gateway 字节/状态/header 契约，Desktop Vue/Node 测试与类型/构建，最后才是实际安装包、真实模型、PostgreSQL 实库和 Windows/Linux/macOS 验收。前四层通过不能被写成后三层已完成；最终执行证据写入本轮报告。本节中的跨平台默认布局和后端能力是产品契约，不是未取证的平台测试结论。
 
 实现入口：`Persistence/StorageScopePaths.cs`、`Runtime/StorageScopeInitializer.cs`、`Runtime/StorageScopeRegistry.cs`、`Persistence/Configuration/ScopeConfigurationDocuments.cs` 与投影协调器、`Runtime/SessionScopeTransferService.cs`、`Runtime/StorageMaintenanceService.cs`、`AspNetCore/Endpoints/StorageScopeEndpoints.cs`；Desktop/Gateway 模块说明见各自 STORAGE.md。五个本地参考项目的固定提交审计保存在工作区研究记录中，它们提供机制对照，不形成另一份正式产品契约。
+
+### 21.7 多文件夹工作区
+
+工作区可包含多个拥有稳定目录 ID 的源文件夹及一个主要目录。默认只在创建时的主目录初始化一份 .tinadec，附加目录不初始化；更换主要目录不移动存储。project.toml 是名称、目录集合、主要目录、图标与颜色的编辑来源，宿主当前/历史目录授权独立维护，文件不能自授予。新运行冻结目录集合与主目录，现有运行、终端、审批与 SSE 不因界面切换或配置编辑改变绑定。快照与搜索引用使用目录 ID 加相对路径。详细交互、TOML、接口和动作写入表以[工作区契约](workspaces.zh-CN.md)为准；唯一任务 APP-HOME-107，平台验收证据独立记录。

@@ -19,6 +19,18 @@
 
 2026-10-08命令面板细节修订：选择器图标与权限风险色、紧凑布局、150ms切页过渡、选项/Enter自动关闭和点击外部关闭已修；109项定向、类型检查与实际SFC浏览器验证通过。见[细节修复记录](../../../../../.tinadec_dev/reports/2026-10-08-command-panel-polish.zh-CN.md)。
 
+## 2026-10-09 项目选择器与展开指示
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| APP-HOME-F006 | Composer 项目长列表可访问性及模式/权限/项目展开指示 | 已验收 | 2026-10-09 Windows1169×719真实主页面及45项SFC夹具：滚轮、末项/自由对话/新建键盘访问、350px窄容器、固定页脚、隐藏滚条和 reduced-motion通过；组件专项74项、统一12文件236项无skip及类型检查通过，重复回归不相加 | 原生单滚动列表代替该处 UiScrollArea；模式/权限箭头与 aria-expanded 同读实际 panel.page，项目同读 showProjectDropdown，160ms变换。45伪项目只调用隔离夹具回调，不登记真实项目。限普通Windows浏览器UI/滚轮/键盘，不含触屏硬件、Linux/macOS、完整Home及欢迎页附件；最后生产构建结果由统一报告记录。 | [APP-HOME-106](TODO.md#app-home-106)<br>[本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md)<br>[项目选择器](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/comment-project-picker.md)<br>[指示器与74项回归](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/composer-arrows.md) |
+
+## 2026-10-10 侧边栏与多文件夹工作区
+
+| Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
+| --- | --- | --- | --- | --- | --- |
+| APP-HOME-F007 | 工作区标题、纯折叠项目行、近期会话/手动排序及多源目录创建、编辑、授权冻结 | 源码可见 | Desktop62/62与类型，Windows Core62/1明确skip、Tools40/40、资源34/34、Gateway6/6；Electron43.3.0 原生目录多选与真实隔离 Core/Gateway；Linux Core28/28、内核Tools28/28，PostgreSQL18.6空库/既有扩展实测 | Windows 低权限 Shell、macOS与本轮 CI 待验收；不是完整 App、真实模型或安装包验收，平台返回型用例不当作 OS 证据 | [APP-HOME-107](TODO.md#app-home-107)、[契约](../../../../workspaces.zh-CN.md)、[报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md) |
+
 ## 状态词汇
 
 - 待核查：尚不能判断是否实现或缺失。

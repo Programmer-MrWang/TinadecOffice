@@ -6,6 +6,40 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+<a id="app-packs-102"></a>
+
+### APP-PACKS-102 保留配置校验诊断与 GraphSeedPack 安装失败状态
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-PACKS
+- 前置依赖：Core 配置校验遵循过滤唯一索引；测试宿主用户根隔离由 Core 专项负责
+- 关联功能：APP-PACKS-F002
+- 完成证据：[专项验证](../../../../../.tinadec_dev/evidence/2026-10-09-graphseed-fix/VALIDATION.md)
+- 验证边界：实现、传输/状态回归及类型门禁通过；2026-10-09 隔离真实 Core/Gateway + Electron43.3.0 的最新组件源码专项通过，非完整打包 App/安装器验收
+
+**问题与目的**
+
+2026-10-09 用户安装失败四次，Core 日志确认四个实际 PUT 校验失败。Gateway 将 configuration_invalid 改为 conflict 并丢弃 diagnostics；Desktop 仅保留 message/code/status。普通重连还可能将失败覆盖为 deferred，其他窗口无法收到失败终态。目标是保留可操作的诊断，让用户修复原因后显式重试，同时保持 single-flight、跨窗口锁与真实版本冲突恢复。
+
+**触及范围**
+
+Gateway 窄 ProblemDetails 投影及 OpenAPI；Desktop 两个 JSON 请求包装、通知详情与 GraphSeedPack bootstrap。包版本/digest 保持；不清理、覆盖或迁移真实用户根。
+
+**验收条件**
+
+- [x] 配置错误码、类型化 diagnostics 与 trace_id 经实际 Gateway 路由及 Desktop 请求包装保留，未知扩展不进入 UI
+- [x] HTTP 400 校验失败不触发安装冲突补偿；普通重连保留 error 且不再次安装
+- [x] 显式 Retry 重新预览，并在确认后仅提交一次安装；同窗 pending 请求共享一次尝试
+- [x] 跨窗锁后与预览在途收到的失败终态保持，已有窗口向新窗口回传终态
+- [x] 原有确认、取消、403 owner、ETag 与 412 并发安装恢复回归通过
+- [x] 记录定向测试、类型检查和隔离 UI 验证层级；真实用户数据保持
+
+**最终验收范围（2026-10-09）**
+
+真实 Core/Gateway 使用 owned temp 中的九份用户配置副本。Electron43.3.0运行最新 AgentPacksPanel、NotificationDetailDialog/Island组件源码（Vite编译），沿既有build基础CSS；本任务没有生产样式变更。安装HTTP严格两次PUT：400 configuration_invalid带configuration_unique诊断和trace，修复副本后显式Retry201成功。两次普通reconnect未新增preview/PUT，renderer重载读取GraphSeedPack与原副本中的Bootstrap测试包，不清既有数据。证据为 [UI回执](../../../../../.tinadec_dev/evidence/2026-10-09-graphseed-fix/desktop-ui-acceptance.json)、[真实HTTP序列](../../../../../.tinadec_dev/evidence/2026-10-09-graphseed-fix/desktop-real-http-requests.json) 及专项截图；不据此完成APP-PACKS-001/101、完整App、安装器或三平台验收。
+
 <a id="app-packs-001"></a>
 
 ### APP-PACKS-001 完成 App / AgentPack 内容与安装体验 的逐功能审计与模块图精化

@@ -34,3 +34,31 @@
 
 - [apps/TinadecUI/src/index.ts:6](../../../../../apps/TinadecUI/src/index.ts#L6)
 
+<a id="app-uie-components-101"></a>
+
+### APP-UIE-COMPONENTS-101 明确窗格合并与面板收起动作
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-UIE-COMPONENTS
+- 前置依赖：既有mergeDockColumn/mergeDockPane/collapseColumn布局命令；reka-ui@2.11.0；共享渲染层的tooltip样式与英中文案已接入，不新增Core或Gateway依赖
+- 关联功能：APP-UIE-COMPONENTS-F003
+- 完成证据：[主报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments.zh-CN.md)、[动作与固定参考](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/pane-actions.md)；当前仅已通过部分门禁，真实页面交互仍待验收
+
+**问题与目的**
+
+BrowserTabBar与UieStack原双左箭头分别执行全部窗格合并和当前窗格合回，缺少明显区分；旁边的收起按钮又执行独立的隐藏整列动作。用户需要在操作前理解影响范围，键盘用户也需要明确按钮名称与可见提示。
+
+**目标与触及范围**
+
+只调整两SFC按钮图标、aria、原生button和官方Tooltip组合，配合已有英中文案与共享材质。全列合并使用PanelsTopLeft，单窗格合回使用Combine，收起保留PanelRightClose；合并保留卡片，收起保留分窗布局。布局引擎、Core数据、快照版本与运行事实均不新增契约。
+
+**验收条件**
+
+- [x] 三按钮有互不混同的动作图标、英中文案、aria-label和28×28实际点击区域；真实页面已核对。
+- [x] 原生type=button保留键盘激活，装饰SVG不进入辅助名称；reka-ui@2.11.0通过as-child保持单按钮DOM，Portal避免stack裁剪。
+- [x] 既有BrowserTabBar组件3/3、UIE dock/commandBus24/24、类型检查通过；保留首次缺依赖失败证据，不用新镜像测试替代行为验收。
+- [x] 真实页面键盘focus显示Tooltip、Escape关闭、鼠标hover显示且Portal不被overflow裁剪；中文实际提示与英文资源核对。
+- [x] 真实页面Enter执行当前窗格合回、Space全部合并，卡片全部保留；收起后展开恢复两窗格布局。
+- [x] 主报告记录1169×719 Windows浏览器运行、3/3组件、24/24命令、类型与独立Vite构建；模块001整体审计保持独立。

@@ -2,6 +2,8 @@
 
 模块ID：`APP-SETTINGS` · 初始基线：2026-10-05，b6115e6 + 当前工作树。
 
+最近专项：2026-10-09，d5e6c8d8 + 当前工作树；仅 Debug Studio 本机开关。
+
 本模块目前处于**初始源码清点**，还未完成逐功能审计；下列介绍继承总图中已核对的职责，初始状态区分源码能力、范围与缺口。
 
 ## 文档入口
@@ -19,11 +21,27 @@
 - 模型、智能体、模式、AgentPack
 - 提示词、集成、工作区/偏好
 
+### 2026-10-09 Debug Studio 本机开关
+
+设置的“关于 → 开发者工具”提供 Debug Studio 显示开关，默认关闭。唯一来源是稳定 bootstrap `desktop.toml` 的 `developer.debug_studio_enabled`，默认路径为 `~/.tinadec/config/desktop.toml`；`TINADEC_HOME` 指定 bootstrap 根时使用该根的 `config/desktop.toml`。这是本机偏好，不属于项目配置或 Core 草稿/发布版本。`TINADEC_GATEWAY_URL` 只管理 Gateway 地址，仍读取此偏好；非布尔、非表或无效 TOML 明确报错，界面保持关闭并显示读取失败。
+
+```toml
+[developer]
+debug_studio_enabled = false
+```
+
+保存只采信宿主返回值；读取/保存期间开关禁用，失败保留原状态并可明确重试。Electron 保存 IPC 仅接受可信主窗口的主 frame，返回完整配置，并向存活应用窗口广播无 payload 变更事件，Renderer 重新读取同一来源。保存采用同目录临时文件原子替换；常见 table/quoted/dotted/inline 形状局部编辑后重新解析核对，保留字段与注释；特殊有效 TOML 形状回退既有 serializer 保留字段，注释可能丢失。
+
+任务 [APP-SETTINGS-104](TODO.md#app-settings-104) 与功能 APP-SETTINGS-F004 仅覆盖这个开关。验收是 Windows 浏览器 preview、Renderer 定向回归与宿主 VM/Node 测试，尚未验证真实 native 窗口或安装包；见 [本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md) 和 [宿主证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-studio-host.md)。
+
 ## 源码入口
 
 - [apps/desktop/src/pages/SettingsPage.vue](../../../../../apps/desktop/src/pages/SettingsPage.vue)
 - [apps/desktop/src/settings/sections/AgentPacksPanel.vue](../../../../../apps/desktop/src/settings/sections/AgentPacksPanel.vue)
 - [apps/desktop/src/api.ts](../../../../../apps/desktop/src/api.ts)
+- [apps/desktop/src/settings/sections/AboutSection.vue](../../../../../apps/desktop/src/settings/sections/AboutSection.vue)
+- [apps/desktop/src/composables/useDebugStudio.ts](../../../../../apps/desktop/src/composables/useDebugStudio.ts)
+- [apps/desktop/electron/appConfig.cjs](../../../../../apps/desktop/electron/appConfig.cjs)
 
 ## 相关模块
 

@@ -1,12 +1,15 @@
 # 共享渲染层 / 路由与 API：功能与完成情况
 
-模块ID：`APP-RENDERER` · 更新日期：2026-10-06 · 本轮专项基线：905d003 + 当前工作树；F001 保留初始清点判断。
+模块ID：`APP-RENDERER` · 更新日期：2026-10-09 · Comment3/4/5专项基线：d5e6c8d8 + 当前工作树；F001保留初始清点，F002/F003保留各历史专项范围。
 
 **审计阶段：初始源码清点；逐功能审计未完成。** 不报告完成百分比，也不把历史全量绿或源码存在折算为功能完成。
 
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
+| APP-RENDERER-F006 | 搜索模态背景模糊与全局面板材质 | 已验收 | 2026-10-09 Windows1169×719实页：opaque/translucent46%/blur14px、活动行透明度、全屏材质及Escape关闭；4文件50项定向回归和类型检查通过 | 原生遮罩独立6px模糊，dialog直接复用全局材质style/data，活动行surface-hover；用户原opaque/80/8已恢复。未重跑全产品构建/安装器，非Linux/macOS验收；无搜索专用偏好、不改变搜索范围或整体模块状态。 | [APP-RENDERER-107](TODO.md#app-renderer-107)<br>[专项报告](../../../../../.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md)<br>[源码核查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/command-palette-material-audit.md)<br>[定向回归](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/targeted-tests.log)<br>[浏览器记录](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/browser-checks.json) |
+| APP-RENDERER-F005 | 空间入口收口与默认关闭的开发者路由 | 已验收 | 2026-10-09 Windows1169×719实页/真实router测试；12文件236项定向通过、类型检查 | 指挥中心侧栏和命令面板入口删除，旧链接转空间；调试入口和深链受同一本机偏好控制。仅导航专项，非完整空间/专用调试后端/平台安装包验收 | [APP-RENDERER-106](TODO.md#app-renderer-106)<br>[本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md) |
 | APP-RENDERER-F001 | App、路由、API、状态与通知组合层 | 源码可见 | 本轮静态核对；未做功能验收 | 展示 Core 返回事实；Home/Market 页面 ready 控制 splash；连接重试不重挂主页面。 | [apps/desktop/src/App.vue](../../../../../apps/desktop/src/App.vue)<br>[apps/desktop/src/router.ts](../../../../../apps/desktop/src/router.ts)<br>[apps/desktop/src/api.ts](../../../../../apps/desktop/src/api.ts) |
+| APP-RENDERER-F004 | 通知图标、预览链接与显示模式菜单叶层UI | 已验收 | 2026-10-09 Windows1169×719实页双列表Pin、236/225px链接无溢出、菜单退出中间帧/reduced-motion/焦点；通知46passed/14既有skip、AppSidebar12passed、类型与独立Vite构建通过 | Comment3去前Pin保留右侧；Comment4完整URL上下排列且窄宽换行；Comment5原生popover160ms开合。不宣称完整App/安装器或Linux/macOS GUI验收；Island14例既有skip由实际页面另取证。 | [APP-RENDERER-105](TODO.md#app-renderer-105)<br>[主报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments.zh-CN.md)<br>[Comment3证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/comment3-notification-pin.md)<br>[Comment5证据](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/comment-5-view-menu.md) |
 | APP-RENDERER-F002 | 分类搜索浮窗与沉浸式窗口控制 | 已验收 | 2026-10-06 Windows组件与自动测试专项：窗口/设置82/82；本轮整合911 passed/14 skipped、native/scripts107/107 | 点击搜索直接打开默认760×590自适应浮窗，可选全屏；10类＋全部、分类/结果图标、每组4项预览、展开/收起与文字省略。窗口控制与搜索入口为ghost纯图标，无背景/阴影，保留焦点与no-drag。范围是当前授权目录；会话按标题与项目名匹配，不检索历史消息全文或全磁盘文件名。最终定向48/48、类型/构建和真实Electron浮窗专项通过；模块整体审计未完成，取消错误与窄宽发送任务未关闭。 | [APP-RENDERER-103](TODO.md#app-renderer-103)<br>[CommandPalette.vue](../../../../../apps/desktop/src/components/CommandPalette.vue)<br>[spotlight.ts](../../../../../apps/desktop/src/lib/spotlight.ts)<br>[pageRequests.ts](../../../../../apps/desktop/src/lib/pageRequests.ts)<br>[CommandPalette.test.ts](../../../../../apps/desktop/src/components/CommandPalette.test.ts)<br>[spotlight.test.ts](../../../../../apps/desktop/src/lib/spotlight.test.ts)<br>[AppHeader.test.ts](../../../../../apps/desktop/src/components/AppHeader.test.ts) |
 | APP-RENDERER-F003 | 会话级空间模式与运行事实投影 | 部分实现 | 命令开关专项Desktop1024/14 skipped、Core空间脚本API14、Electron面板/审批全文夹具 | 开关组合与冻结投影已实现；完整工作产物、外部模型端到端和平台验收仍在APP-RENDERER-104 | [首批报告](../../../../../.tinadec_dev/reports/2026-10-06-spatial-mode-first-slice.zh-CN.md)、[命令面板专项](../../../../../.tinadec_dev/reports/2026-10-08-command-panel.zh-CN.md) |
 
@@ -34,6 +37,10 @@
 ## 下一轮逐功能分析
 
 将聚合行拆成可验收功能，保留旧Feature ID或明确替代关系；为每项记录入口、预期行为、实际行为、成功/失败/权限/取消/恢复场景、对应Task ID。历史报告只写“历史验证，本轮未重跑”。
+
+## 2026-10-10 工作区专项对照
+
+本模块对多文件夹工作区的改动及源码入口见 [README](README.md)。统一功能与任务由 [APP-HOME-F007](../../app/home/STATUS.md) / [APP-HOME-107](../../app/home/TODO.md#app-home-107) 持有；当前专项验证与未验收平台分别见 [本轮报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。本模块整体初始审计不因专项测试通过改为已完成。
 
 [本模块TODO](TODO.md) · [功能分析模板](../../../05-templates/FEATURE.md)
 

@@ -1,5 +1,27 @@
 # DESKTOP APP KNOWLEDGE
 
+## 2026-10-10 Sidebar and multi-folder workspaces
+
+AppSidebar headings/rows only fold lists; plus starts the specified workspace and child rows open existing sessions. Free conversation stays first, manual workspace order is persisted by stable scope/project key, recent five includes the selected older session, and all rows share one scrolling region. HomeController owns new conversation context and per-scope loading state; Composer workspace selection starts a new context without migrating an old session. WorkspaceEditorDialog uses shared ReKa/Ui/material, array picker IPC, explicit existing open and If-Match edit. Directory selection/cancel never initializes storage. Main/native runner authorization is distinct from renderer/TOML. Production preload and native directory multi-select were exercised against isolated real Core/Gateway; representative list rows are UI fixtures, not real conversation facts. Contract docs/workspaces.zh-CN.md; APP-HOME-107 and the 2026-10-10 workspace report are the only status/evidence entry.
+
+## 2026-10-09 Search material
+
+CommandPalette uses the existing usePanelStyles reactive style and data-panel-effect directly on its native dialog, including fullscreen. Active rows inherit --surface-hover. Native ::backdrop applies 6px blur independently of the panel material; closing removes the native overlay without filtering #app. Fifty targeted tests and vue-tsc passed; current Windows browser verified opaque,46% translucent,14px blur,fullscreen and Escape closure. Original opaque/80/8 settings restored. Evidence `.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md`; no full production/installer/platform acceptance implied.
+
+## 2026-10-09 Second annotated UI batch
+
+Composer project dropdown has a single native overflow-y:auto viewport with min-height:0; portal receives available height as --project-menu-max-height, uses8px radius/4px padding, and never owns a second scrolling layer. No visible scrollbar; keyboard/selection/Escape preserve reachability and focus. Mode and permission chevrons share the real command panel page with aria-expanded (160ms/reduced-motion). The freeConversation label has no workspace suffix. The sidebar and command palette omit Workbench; legacy /workbench redirects /space. Debug Studio starts hidden; About writes bootstrap desktop.toml [developer].debug_studio_enabled through trusted main IPC. The centralized renderer preference coalesces reads, queues cross-window refresh and ignores stale reads after saves; direct route and host window creation both check it. Disabled closes the window and redirects an already open renderer. Bare-Vite uses an isolated preview UI key and never writes actual TOML. UiSwitch thumb uses semantic foreground so unchecked remains visible. Evidence `.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md` separates real browser UI, offline45-project fixture, 236targeted tests and23host tests from native-window/installer acceptance and Debug's incomplete dedicated backend.
+
+## 2026-10-09 Five annotated UI fixes
+
+PreviewBrowserPanel quick links use a shrinking grid text column and wrap full URLs below their names. NotificationIslandHost removes only the leading Pin in stack/active-center titles; trailing status/task Pin stays. AppSidebar's view chooser remains a native popover: invoker attributes perform the toggle, the handler only positions it; beforetoggle supplies aria-expanded, choices immediately emit and restore focus. Its actual open/close transition is160ms with display/overlay allow-discrete and reduced-motion disables it. UIE pane actions consume ReKa2.11 Portal Tooltip; styles and bilingual labels remain renderer-owned. Evidence `.tinadec_dev/reports/2026-10-09-ui-comments.zh-CN.md` records real1169×719 browser interaction, 85pass/14existing skips, typecheck and independent production build; no backend trust policy changed.
+
+## 2026-10-09 GraphSeedPack failure diagnostics and retry
+
+Windows isolated acceptance now includes real Core/Gateway and Electron43.3.0 with the latest AgentPacksPanel/NotificationDetailDialog/Island source compiled by Vite, using existing build base CSS (no production style change). Nine user configuration files are copied into owned temp. The real sequence has exactly two install PUTs: configuration_invalid400 with configuration_unique/trace, then explicit retry201; two ordinary reconnects produce no extra preview/PUT. Renderer reload reads GraphSeedPack and the copied preexisting Bootstrap fixture pack. Receipt/screenshots are in the same evidence directory. APP-PACKS-102 is complete for this fix; full packaged App/installer/three-platform acceptance and APP-PACKS-001/101 remain separate.
+
+`lib/apiError.ts` provides a public structured API error for both `api.ts` and `generated/client.ts`; keep code/status, strictly projected diagnostics and trace_id, never the full response body. Error/task/status notification details format the diagnostic rule, message, severity and location plus correlation ID. GraphSeedPack bootstrap remains fixed to `user`, with same-window pending promise sharing and a lock keyed by gateway/user/pack/version/digest. HTTP400 does not enter concurrent-install recovery. Terminal error/conflict is broadcast and supplied to newly opened peers; queued windows and previews already in flight preserve it. Ordinary reconnect does not retry installation or replace error with deferred; explicit Retry gets a new preview and confirmation before one PUT. Only `agent_pack_management_forbidden` means owner-required; host authorization failures remain their own errors. The bundle's version/digest and real user storage are unchanged by this fix. Module task APP-PACKS-102 and evidence `.tinadec_dev/evidence/2026-10-09-graphseed-fix/` distinguish transport/state tests from the root-owned isolated real Core/UI acceptance.
+
 ## 2026-10-09 Linux command sandbox packaging
 
 Linux `stage-runtime.mjs` requires and copies reviewed bubblewrap 0.13.0 next to TinadecTools. `npm run setup:bwrap` builds a fixed commit with checked source SHA256, or verifies the explicitly supplied `TINADEC_TOOLS_BWRAP_PATH`; Windows/macOS skip setup and staging without downloads. Desktop release installs build prerequisites and runs setup before packaging. Missing/wrong-version binaries fail Linux staging with setup instructions. `scripts/bubblewrap-pin.test.mjs` verifies real staging bytes and rejection paths; Linux build/kernel execution remains a separate CI/platform check.
@@ -12,9 +34,9 @@ The deb keeps Electron's existing dependency list and explicitly requires `libca
 
 scope-enabled Core 全部业务 API 要求私有宿主头，health/challenge 两个公开探针除外。main 先验证 Core/Gateway nonce/角色绑定 HMAC，不能按公开指纹复用伪服务；验证后仅为登记主/panel/debug 主frame在精确入口访问固定local API签发，导航/iframe/未知窗口/远程均不继承，重验失败撤权。敏感IPC同样复核主frame。dev共享启动key，仅Electron保留、Vite剥除，main收到后移除env；默认不开放CDP。Electron43.3.0隔离夹具已验证HTTP/SSE、HMAC、主/辅助路由、iframe拒绝、导航/端点撤权及redirect剥离，不替代完整产品UI或安装验收。
 
-**Last Updated:** 2026-10-09
-**Last Updated By:** 独立存储作用域、统一用户根、TOML 启动和配置编辑、共享日志预算、可信宿主写策略、维护/迁移 UI 与请求作用域固定；追加Linux libcap2依赖/真实归档检查与发布前TOML/作用域测试接入。
-**Last Verified Commit:** f8b233d + 工作树；Desktop 全量125文件通过/1跳过、1108例通过/14跳过（默认来源/维护 IPC 收口前），随后设置199/199、host/default-scope/Tools定向24/24、关闭/隔离63/63；最终Node156通过/1平台跳过（总157），类型检查通过，真实Electron传输/HMAC/端点别名隔离夹具通过。生产 build 曾通过，最后重复构建由协调者停下以释放 Linux/PG 内存；保留 dist 未包含最后两处 Tools 迟到保护，发布前须重新构建。完整证据与分层限制见 `.tinadec_dev/evidence/storage-desktop-validation.md`。本子任务没有真实模型、PostgreSQL 实库或三平台安装验收；此前真实 app://bundle 和导航证据保留于 2026-10-08 专项报告。 Linux packaging追加定向13/13见`.tinadec_dev/tmp/resources-linux-package-tests.log`，含小型真实归档，非产品实包；发布前.NET门禁仅接入代码未执行CI。
+**Last Updated:** 2026-10-10
+**Last Updated By:** 搜索背景遮罩与全局材质APP-RENDERER-107；保留两批UI和GraphSeedPack/存储专项。
+**Last Verified Commit:** d5e6c8d8 + 工作树；本批50定向、类型与Windows浏览器证据见 `.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md`。此前UI与GraphSeedPack/API/隔离Core/Electron结果保持原专项，不折算本轮原生窗口/安装器/三平台验收。
 **Branch:** main
 
 ### 2026-10-08 工具设置

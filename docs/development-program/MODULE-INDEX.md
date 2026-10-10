@@ -8,18 +8,18 @@
 | --- | --- | --- | --- | --- | --- |
 | APP-DESKTOP | [Desktop / Electron 原生壳](02-modules/app/desktop-shell/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/desktop-shell/TODO.md) |
 | APP-WEB | [Web / 浏览器平台适配](02-modules/app/web/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/web/TODO.md) |
-| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [5项](02-modules/app/shared-renderer/TODO.md) |
-| APP-HOME | [Home / 会话、对话与投递](02-modules/app/home/README.md) | 初始源码清点；逐功能审计未完成 | 5 | 2 | [6项](02-modules/app/home/TODO.md) |
+| APP-RENDERER | [共享渲染层 / 路由与 API](02-modules/app/shared-renderer/README.md) | 初始源码清点；逐功能审计未完成 | 6 | 4 | [8项](02-modules/app/shared-renderer/TODO.md) |
+| APP-HOME | [Home / 会话、对话与投递](02-modules/app/home/README.md) | 初始源码清点；逐功能审计未完成 | 7 | 3 | [8项](02-modules/app/home/TODO.md) |
 | APP-CODE | [Code / 编程工作台](02-modules/app/code/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/code/TODO.md) |
 | APP-DATA | [Workbench / 治理与数据页面](02-modules/app/data-pages/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/data-pages/TODO.md) |
-| APP-SETTINGS | [Settings / 配置中心](02-modules/app/settings/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 2 | [4项](02-modules/app/settings/TODO.md) |
+| APP-SETTINGS | [Settings / 配置中心](02-modules/app/settings/README.md) | 初始源码清点；逐功能审计未完成 | 4 | 3 | [5项](02-modules/app/settings/TODO.md) |
 | APP-MARKET | [Market / 市场](02-modules/app/market/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [2项](02-modules/app/market/TODO.md) |
-| APP-DEBUG | [Debug Studio / 调试界面](02-modules/app/debug-studio/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/debug-studio/TODO.md) |
+| APP-DEBUG | [Debug Studio / 调试界面](02-modules/app/debug-studio/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [3项](02-modules/app/debug-studio/TODO.md) |
 | APP-UIE-ENGINE | [TinadecUI / UIE Engine](02-modules/app/uie-engine/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [1项](02-modules/app/uie-engine/TODO.md) |
-| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/app/uie-components/TODO.md) |
+| APP-UIE-COMPONENTS | [TinadecUI / UIE Components](02-modules/app/uie-components/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 1 | [2项](02-modules/app/uie-components/TODO.md) |
 | APP-LOCAL-STATE | [Desktop / 偏好与布局持久化](02-modules/app/local-state/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/local-state/TODO.md) |
 | APP-SERVICES | [Desktop / 本地服务管理](02-modules/app/local-services/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [3项](02-modules/app/local-services/TODO.md) |
-| APP-PACKS | [App / AgentPack 内容与安装体验](02-modules/app/agent-packs/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [2项](02-modules/app/agent-packs/TODO.md) |
+| APP-PACKS | [App / AgentPack 内容与安装体验](02-modules/app/agent-packs/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 1 | [3项](02-modules/app/agent-packs/TODO.md) |
 
 ## Core / 24 个产品工程
 
@@ -43,7 +43,7 @@
 | CORE-LOOP-GUARD | [LoopGuard · 防空转与预算](02-modules/core/LoopGuard/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/LoopGuard/TODO.md) |
 | CORE-TENANCY | [Tenancy · 身份与隔离](02-modules/core/Tenancy/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/Tenancy/TODO.md) |
 | CORE-VECTOR | [VectorStore · 检索底座](02-modules/core/VectorStore/README.md) | 初始源码清点；逐功能审计未完成 | 2 | 0 | [1项](02-modules/core/VectorStore/TODO.md) |
-| CORE-PERSISTENCE | [Persistence · 公共存储适配](02-modules/core/Persistence/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 0 | [1项](02-modules/core/Persistence/TODO.md) |
+| CORE-PERSISTENCE | [Persistence · 公共存储适配](02-modules/core/Persistence/README.md) | 初始源码清点；逐功能审计未完成 | 3 | 0 | [2项](02-modules/core/Persistence/TODO.md) |
 | CORE-SQLITE | [Storage.Migrations.Sqlite](02-modules/core/Storage.Migrations.Sqlite/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/Storage.Migrations.Sqlite/TODO.md) |
 | CORE-POSTGRES | [Storage.Migrations.PostgreSql](02-modules/core/Storage.Migrations.PostgreSql/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/Storage.Migrations.PostgreSql/TODO.md) |
 | CORE-STRATEGIES | [Strategies · F# 纯策略](02-modules/core/Strategies/README.md) | 初始源码清点；逐功能审计未完成 | 1 | 0 | [1项](02-modules/core/Strategies/TODO.md) |

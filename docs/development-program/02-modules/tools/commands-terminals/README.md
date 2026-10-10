@@ -4,6 +4,12 @@
 
 本模块目前处于**初始源码清点**，还未完成逐功能审计；下列介绍继承总图中已核对的职责，初始状态区分源码能力、范围与缺口。
 
+## 2026-10-10 多文件夹工作区
+
+新终端和缺省命令目录取当前主要源目录，已有终端与运行保留原 cwd。Shell/command_run 的显式工作目录必须在冻结源集合内，不能从参数添加目录；工作区切换不改变已启动实例的归属。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，TOOLS-COMMANDS 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)

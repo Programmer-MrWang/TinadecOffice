@@ -1,14 +1,24 @@
 # GATEWAY KNOWLEDGE
 
+## 2026-10-10 Multi-folder workspace proxies
+
+Workspace preview/read/conditional edit remain raw storage proxies. Project DTOs carry roots/primary/icon/color/content hash; If-Match, ETag, fixed scope and diagnostics are preserved. Core and external OpenAPI snapshots plus Desktop generated schema are updated together. Gateway owns neither root authorization nor a second configuration source. APP-HOME-107 and `.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md` hold the shared evidence and boundaries.
+
+## 2026-10-09 GraphSeedPack configuration diagnostics
+
+The root-owned isolated acceptance additionally used real Core/Gateway and Electron43.3.0 latest component source: configuration_invalid400 diagnostics/trace reach the dialog, ordinary reconnect adds no preview/PUT, explicit retry yields201, and reload restores pack inventory. Exactly two install PUTs are recorded. Configurations are copied to owned temp; this is a component/HTTP acceptance, not a packaged App/installer or general database/product certification.
+
+`errorMapper` preserves the explicit `configuration_*` refusal codes instead of rewriting validation failures to `conflict`. ProblemDetails keeps only the public diagnostic projection (`code/message/severity`, optional positive integer `line/column`) and string `trace_id`; arbitrary upstream extensions are not spread into responses. Both agent-pack preview and PUT are covered through real `app.handle` routes. OpenAPI documents diagnostics without Elysia numeric-string coercion, and the external snapshot/Desktop schema are regenerated together. Verification and initial intentional snapshot drift are retained in `.tinadec_dev/evidence/2026-10-09-graphseed-fix/`; mock upstream route tests do not establish Core/database correctness or real-user-root safety.
+
 ## 2026-10-09 Storage/configuration proxies
 
 当前作用域与 TOML 代理见 `STORAGE.md`、`src/storageRoutes.ts`。业务 HTTP/SSE 保留 X-Tinadec-Storage-Id，Project/Session mapper 保留聚合来源 storage_id；CAS/清理/宿主写策略均由 Core 执行，Gateway 不写业务磁盘。X-Tinadec-Host-Control 仅不透明转发，token 不在 renderer 暴露。OpenAPI 新增 storage/config schemas 后同步再生 snapshot/schema。
 
 scope-enabled Core所有业务API需要privatehost凭据，health/challenge为公开例外；Gateway不得从本身env为匿名loopback签发。JSON/raw/cursor SSE都必须保留请求已有hostheader，403 host_authorization_required需保留诊断code。Gateway自身host-challenge仅返回nonce/角色绑定HMAC，不发送key或业务facts；无key503，nonce限定单43字符base64url。OpenAPI全局私有security scheme与两个公开例外同步描述。
 
-**Last Updated:** 2026-10-09
-**Last Updated By:** storage/configuration 和维护/迁移薄代理、固定 StorageId 转发、可信宿主 header 透传、OpenAPI 与 Desktop schema 同步。
-**Last Verified Commit:** f8b233d + 工作树；Gateway95/95、OpenAPI snapshot 和 Desktop generated schema 再生通过。逐字节、状态/CAS/header/无匿名签发/HMAC/不追踪上游redirect契约见 `.tinadec_dev/evidence/storage-gateway-host-final.log`；本轮不据 mock 代理测试声称真实数据库或安装验收完成。
+**Last Updated:** 2026-10-10
+**Last Updated By:** GraphSeedPack 严格诊断投影、路由与契约回归，补隔离真实Core/Gateway+Electron组件HTTP验收；保留存储与宿主认证边界。
+**Last Verified Commit:** d5e6c8d8 + 工作树；本轮 Gateway97/97与快照/schema通过；隔离真实Core/Gateway+Electron43.3.0诊断400→显式Retry201→reload专项通过，证据 `.tinadec_dev/evidence/2026-10-09-graphseed-fix/VALIDATION.md`。存储专项历史 Gateway95/95 与宿主认证证据见 `.tinadec_dev/evidence/storage-gateway-host-final.log`；本轮不宣称完整App/安装器或三平台验收。
 **Branch:** main
 
 ## 2026-10-08 Tools settings proxy

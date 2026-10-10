@@ -1,10 +1,30 @@
 # DEVELOPMENT PROGRAM MEMORY
 
 **Generated:** 2026-10-05
-**Last Updated:** 2026-10-08
-**Last Updated By:** 工具配置APP-SETTINGS-102/CORE-TOOLS-101/CORE-SKILLS-101/TOOLS-PROTOCOL-102/TOOLS-MCP-102最终验收；同步五模块数据流图、生产Worker及窄窗口焦点证据；保留同日Markdown及命令面板记录。
-**Last Verified Commit:** cf5cbf7 + 工作树；工具设置Desktop全量1068通过及最终定向、生产构建/类型、Gateway86/86、Tools完整389与最后预算54、Core最新市场/Skills77及配置/编排定向、真实Electron三Agent/MCP/技能读取/命令冻结，见 .tinadec_dev/reports/2026-10-08-tools-settings.zh-CN.md。只验收Windows专项，PostgreSQL仅编译，Linux/macOS未实机；先前专项证据保留于下方。
+**Last Updated:** 2026-10-10
+**Last Updated By:** APP-HOME-107/F007 侧边栏与多文件夹工作区、作用域目录授权、真实平台证据及唯一文档入口；此前专项独立保留。
+**Last Verified Commit:** d5e6c8d838f93f6bc26d4b7b77ecb0d9bdb9c2f3 + 工作树；本轮 .tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md，平台与测试层级分别登记；此前专项以各自报告为准。
 **Branch:** main
+
+### 2026-10-10 工作区交互与多目录
+
+APP-HOME-107/F007统一持有侧边栏与多文件夹窗口、project.toml/宿主授权/冻结目录集合和快照的任务与状态。Home架构图及Renderer、本机状态、Persistence、Tools、沙箱、文件/搜索、Git和终端模块README交叉引用，不复制任务清单。Windows原生选择/实际组件/Core+Gateway及真实Tools文件证据已取得，Linux/PG本轮与未验收平台分别列在报告；macOS或Windows低权限链没有证据时不折算完成。正式契约docs/workspaces.zh-CN.md，源码对照与证据报告`.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md`。reindex生成总入口，保留已有专项状态。
+
+### 2026-10-09 搜索材质
+
+APP-RENDERER-107/F006仅验收搜索dialog接入全局材质、原生6px模糊遮罩、材质参数/全屏与关闭恢复。50定向和类型、Windows当前浏览器证据保存在搜索材质报告；模块001整体审计、全产品构建/安装器和Linux/macOS独立。任务与功能仍仅在Renderer模块TODO/STATUS维护。
+
+### 2026-10-09 第二批 UI 标注
+
+项目列表/展开指示归APP-HOME-106/F006，空间导航与直接路由归APP-RENDERER-106/F005；关于开关及本机配置归APP-SETTINGS-104/F004，Debug默认关闭/宿主入口归APP-DEBUG-102/F002。每项只在模块TODO/STATUS记账。236定向与23宿主、类型、实际Windows浏览器及45伪项目夹具见统一报告；专用Debug后端、整体空间/Home/Settings审计、原生窗口和安装包/三平台保持独立。
+
+### 2026-10-09 五条 UI 标注
+
+窗格动作归APP-UIE-COMPONENTS-101/F003，通知/预览链接/模式菜单归APP-RENDERER-105/F004；各模块TODO/STATUS唯一记账。85pass/14已有skip、类型与独立Vite构建、Windows实页键盘/拖拽/动画/Pin/窄URL通过。源、固定同类参考与截图归 `.tinadec_dev/reports/2026-10-09-ui-comments.zh-CN.md`；001整体审计及全平台产品验收不据此完成。
+
+### 2026-10-09 GraphSeedPack 与配置校验
+
+APP-PACKS-102记录Gateway/桌面结构化诊断、失败同步和显式重试；CORE-PERSISTENCE-101记录EF过滤唯一索引与活动提示词版本来源校验。API测试早期隔离实现和真实宿主回归证据集中于同一GraphSeed修复报告/evidence。用户测试包和真实配置保留，无法确定历史污染是哪次测试造成。X-DATA-104、APP-PACKS-001/101保持各自未完范围，不因本次缺陷验收整体勾选。
 
 ### 2026-10-08 工具配置专项
 

@@ -9,8 +9,8 @@
 | 待方案 | 10 |
 | 进行中 | 3 |
 | 阻塞 | 0 |
-| 待验收 | 2 |
-| 已完成 | 16 |
+| 待验收 | 3 |
+| 已完成 | 25 |
 | 不做 | 0 |
 | 已被替代 | 0 |
 
@@ -18,6 +18,7 @@
 
 | Task ID | 任务 | 类型 | 状态 | 优先级 | 主责 |
 | --- | --- | --- | --- | --- | --- |
+| [CORE-PERSISTENCE-101](../02-modules/core/Persistence/TODO.md#core-persistence-101) | 修复配置过滤唯一索引与活动版本来源校验 | 实现 | 已完成 | P0 | CORE-PERSISTENCE |
 | [X-DATA-104](../02-modules/cross-cutting/data-security/TODO.md#x-data-104) | 作用域存储、TOML 配置和资源生命周期重构及平台验收 | 实现 | 进行中 | P0 | X-DATA |
 | [APP-CODE-001](../02-modules/app/code/TODO.md#app-code-001) | 完成 Code / 编程工作台 的逐功能审计与模块图精化 | 核查 | 待核查 | P1 | APP-CODE |
 | [APP-CODE-101](../02-modules/app/code/TODO.md#app-code-101) | 复验并修复生产构建的 Monaco worker 加载 | 核查 | 待核查 | P1 | APP-CODE |
@@ -26,6 +27,9 @@
 | [APP-HOME-103](../02-modules/app/home/TODO.md#app-home-103) | 修复 Markdown 显示并应用岛屿卡片视觉 | 实现 | 已完成 | P1 | APP-HOME |
 | [APP-HOME-104](../02-modules/app/home/TODO.md#app-home-104) | 统一输入框命令面板与会话运行设置 | 实现 | 已完成 | P1 | APP-HOME |
 | [APP-HOME-105](../02-modules/app/home/TODO.md#app-home-105) | 对话流 Markdown 扩展语法与卡片细节 | 实现 | 已完成 | P1 | APP-HOME |
+| [APP-HOME-106](../02-modules/app/home/TODO.md#app-home-106) | 项目选择器长列表与模式、权限展开指示 | 实现 | 已完成 | P1 | APP-HOME |
+| [APP-HOME-107](../02-modules/app/home/TODO.md#app-home-107) | 侧边栏与多文件夹工作区 | 实现 | 待验收 | P1 | APP-HOME |
+| [APP-PACKS-102](../02-modules/app/agent-packs/TODO.md#app-packs-102) | 保留配置校验诊断与 GraphSeedPack 安装失败状态 | 实现 | 已完成 | P1 | APP-PACKS |
 | [APP-RENDERER-101](../02-modules/app/shared-renderer/TODO.md#app-renderer-101) | 复验 API 包装后的取消错误语义 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-102](../02-modules/app/shared-renderer/TODO.md#app-renderer-102) | 复验窄宽度布局中的发送主操作 | 核查 | 待核查 | P1 | APP-RENDERER |
 | [APP-RENDERER-103](../02-modules/app/shared-renderer/TODO.md#app-renderer-103) | 完成分类搜索浮窗与沉浸式窗口控制专项 | 实现 | 已完成 | P1 | APP-RENDERER |
@@ -34,6 +38,7 @@
 | [APP-SETTINGS-101](../02-modules/app/settings/TODO.md#app-settings-101) | 验收配置发布到真实供应商与冻结 run 的生效范围 | 验收 | 未开始 | P1 | APP-SETTINGS |
 | [APP-SETTINGS-102](../02-modules/app/settings/TODO.md#app-settings-102) | 提供工具及 Agent 工具配置设置 | 实现 | 已完成 | P1 | APP-SETTINGS |
 | [APP-SETTINGS-103](../02-modules/app/settings/TODO.md#app-settings-103) | Skills 包安装与资源管理界面 | 实现 | 已完成 | P1 | APP-SETTINGS |
+| [APP-UIE-COMPONENTS-101](../02-modules/app/uie-components/TODO.md#app-uie-components-101) | 明确窗格合并与面板收起动作 | 实现 | 已完成 | P1 | APP-UIE-COMPONENTS |
 | [CORE-AGENT-CONFIG-002](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-002) | 将 scope TOML 建立为配置编辑唯一权威 | 实现 | 已完成 | P1 | CORE-AGENT-CONFIG |
 | [CORE-AGENT-CONFIG-003](../02-modules/core/AgentConfiguration/TODO.md#core-agent-config-003) | 完成 Linux 与真实 PostgreSQL 配置 scope 验收 | 验收 | 待验收 | P1 | CORE-AGENT-CONFIG |
 | [CORE-AGENT-GRAPH-101](../02-modules/core/AgentGraph/TODO.md#core-agent-graph-101) | 将证据全文与检索摘要分离保存 | 实现 | 未开始 | P1 | CORE-AGENT-GRAPH |
@@ -69,6 +74,7 @@
 | [APP-DATA-101](../02-modules/app/data-pages/TODO.md#app-data-101) | 联合 Lifecycle 定义完整恢复计划用户流程 | 方案 | 待方案 | P2 | APP-DATA |
 | [APP-DEBUG-001](../02-modules/app/debug-studio/TODO.md#app-debug-001) | 完成 Debug Studio / 调试界面 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-DEBUG |
 | [APP-DEBUG-101](../02-modules/app/debug-studio/TODO.md#app-debug-101) | 完成真实 trace、metrics、diagnostics 数据到界面的闭环 | 实现 | 未开始 | P2 | APP-DEBUG |
+| [APP-DEBUG-102](../02-modules/app/debug-studio/TODO.md#app-debug-102) | 默认关闭 Debug Studio 并限制可信主窗口显式打开 | 实现 | 已完成 | P2 | APP-DEBUG |
 | [APP-DESKTOP-001](../02-modules/app/desktop-shell/TODO.md#app-desktop-001) | 完成 Desktop / Electron 原生壳 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-DESKTOP |
 | [APP-DESKTOP-101](../02-modules/app/desktop-shell/TODO.md#app-desktop-101) | 验收三平台安装版原生交互 | 验收 | 未开始 | P2 | APP-DESKTOP |
 | [APP-HOME-001](../02-modules/app/home/TODO.md#app-home-001) | 完成 Home / 会话、对话与投递 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-HOME |
@@ -79,9 +85,13 @@
 | [APP-PACKS-001](../02-modules/app/agent-packs/TODO.md#app-packs-001) | 完成 App / AgentPack 内容与安装体验 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-PACKS |
 | [APP-PACKS-101](../02-modules/app/agent-packs/TODO.md#app-packs-101) | 验收 AgentPack 安装升级与模式切换的真实闭环 | 验收 | 未开始 | P2 | APP-PACKS |
 | [APP-RENDERER-001](../02-modules/app/shared-renderer/TODO.md#app-renderer-001) | 完成 共享渲染层 / 路由与 API 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-RENDERER |
+| [APP-RENDERER-105](../02-modules/app/shared-renderer/TODO.md#app-renderer-105) | 通知、预览链接与显示模式菜单的叶层 UI 修复（Comment3/4/5） | 实现 | 已完成 | P2 | APP-RENDERER |
+| [APP-RENDERER-106](../02-modules/app/shared-renderer/TODO.md#app-renderer-106) | 收口空间导航和显式开发者入口 | 实现 | 已完成 | P2 | APP-RENDERER |
+| [APP-RENDERER-107](../02-modules/app/shared-renderer/TODO.md#app-renderer-107) | 搜索模态背景模糊与全局材质 | 实现 | 已完成 | P2 | APP-RENDERER |
 | [APP-SERVICES-001](../02-modules/app/local-services/TODO.md#app-services-001) | 完成 Desktop / 本地服务管理 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-SERVICES |
 | [APP-SERVICES-101](../02-modules/app/local-services/TODO.md#app-services-101) | 定义 App 与 Manager 的运行时发现和归属交接 | 方案 | 待方案 | P2 | APP-SERVICES |
 | [APP-SETTINGS-001](../02-modules/app/settings/TODO.md#app-settings-001) | 完成 Settings / 配置中心 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-SETTINGS |
+| [APP-SETTINGS-104](../02-modules/app/settings/TODO.md#app-settings-104) | 在关于设置提供默认关闭的 Debug Studio 本机开关 | 实现 | 已完成 | P2 | APP-SETTINGS |
 | [APP-UIE-COMPONENTS-001](../02-modules/app/uie-components/TODO.md#app-uie-components-001) | 完成 TinadecUI / UIE Components 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-UIE-COMPONENTS |
 | [APP-UIE-ENGINE-001](../02-modules/app/uie-engine/TODO.md#app-uie-engine-001) | 完成 TinadecUI / UIE Engine 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-UIE-ENGINE |
 | [APP-WEB-001](../02-modules/app/web/TODO.md#app-web-001) | 完成 Web / 浏览器平台适配 的逐功能审计与模块图精化 | 核查 | 待核查 | P2 | APP-WEB |

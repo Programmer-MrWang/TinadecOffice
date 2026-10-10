@@ -7,6 +7,7 @@
 | Feature ID | 功能/能力 | 实现判断 | 本轮验证层级 | 边界与剩余问题 | 证据 |
 | --- | --- | --- | --- | --- | --- |
 | APP-PACKS-F001 | GraphSeedPack 制品与 preview/install/upgrade bootstrap | 源码可见 | 本轮静态核对；未做功能验收 | App 持有制品，Core 拥有安装与不可变版本；preview 身份/digest/action、preview_id、ETag/If-Match 有校验。 | [apps/desktop/src/agentPacks/GraphSeedPack/manifest.json](../../../../../apps/desktop/src/agentPacks/GraphSeedPack/manifest.json)<br>[apps/desktop/src/agentPacks/graphSeedPackBootstrap.ts](../../../../../apps/desktop/src/agentPacks/graphSeedPackBootstrap.ts) |
+| APP-PACKS-F002 | 安装配置诊断与失败恢复 | 已验收 | 2026-10-09 Windows隔离专项：Gateway97/97、Desktop89/89、类型检查；真实Core/Gateway与Electron43.3.0最新组件源码验证400诊断→普通reconnect无preview/PUT→显式Retry201→重载inventory | 严格公开诊断投影、失败终态与单次显式重试。用户配置仅复制到owned temp；既有build基础CSS，实际组件由Vite编译。非完整打包App/安装器或三平台验收，不折算为F001全闭环完成。 | [APP-PACKS-102](TODO.md#app-packs-102)<br>[专项验证](../../../../../.tinadec_dev/evidence/2026-10-09-graphseed-fix/VALIDATION.md) |
 
 ## 状态词汇
 

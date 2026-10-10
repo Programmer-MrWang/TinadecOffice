@@ -8,6 +8,12 @@
 
 config/skills可写，runtime禁止，选中包只读，rg正glob不能开放保护根。源码工作目录与存储根分开；自由源码目录默认 `~/TinadecProjects`。MCP SDK server 自身为可信程序，其进程不继承文件/shell/search 的 OS 沙箱保证。详见[报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。
 
+## 2026-10-10 多文件夹工作区
+
+文件读写检查所有冻结源目录与受保护存储分类；搜索缺省遍历完整源集合，结果携带稳定 root_id 和相对路径。同名文件通过目录 ID 区分，越界目录和未授权新根拒绝。工作区快照使用相同目录集合并保留历史授权引用。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，TOOLS-FILES 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)

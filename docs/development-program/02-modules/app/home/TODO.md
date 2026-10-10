@@ -6,6 +6,71 @@
 
 状态：待核查 / 未开始 / 待方案 / 进行中 / 阻塞 / 待验收 / 已完成 / 不做 / 已被替代。优先级是初始建议，可在逐模块分析后调整。
 
+<a id="app-home-107"></a>
+
+### APP-HOME-107 侧边栏与多文件夹工作区
+
+- 类型：实现
+- 状态：待验收
+- 优先级：P1
+- 主责模块：APP-HOME
+- 前置依赖：复用 StorageScopeRegistry 独立作用域、TOML、受管 HTTP、现有迁移与工具沙箱；复用 shadcn-vue/Reka 及 UIE NavCard，不建立第二套业务存储
+- 关联功能：APP-HOME-F007；CORE-PERSISTENCE / CORE-TOOLS / TOOLS-SANDBOX / APP-LOCAL-STATE / APP-RENDERER 交叉引用此任务
+- 契约与证据：[正式工作区契约](../../../../workspaces.zh-CN.md)、[源码对照及验收报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)
+
+**问题、目标与触及范围**
+
+原侧边栏将项目折叠、选择与新会话上下文混在一起，单目录项目不能表达多个材料目录。本任务定义自由对话固定首位、工作区标题、纯折叠行、近期五条和当前旧会话、手动排序，并将创建/打开/编辑统一到多文件夹窗口。源目录授权由宿主维护；新运行冻结目录集合，主目录可切换但存储锚点和旧运行保持不变。实施顺序为模型与授权、初始化/接口、控制器、侧边栏/窗口、真实验收与文档。
+
+**验收条件**
+
+- [x] 工作区标题与各行折叠、悬停/聚焦控件、加号与菜单隔离、近期五条及旧会话、显示全部、手动排序与本机恢复有组件回归。
+- [x] 工作区独立加载失败不阻断其他工作区；新聊天沿当前上下文，发送框切换进入新对话，不静默迁移旧会话。
+- [x] 多目录原生选择、主目录与名称、重复目录、最后/主目录移除、明确打开已有工作区、取消及单次提交有实现与定向验证。
+- [x] project.toml 条件保存、注释保留、原子替换、并发和取消，主目录更换不改变存储位置，新旧工具上下文隔离有 API/SQLite 回归。
+- [x] Gateway 薄代理、OpenAPI 快照、生成 Desktop 类型与原生 IPC 路径数组同步。
+- [x] Windows Electron 实际组件连接真实隔离 Core/Gateway，原生多选、创建/编辑/打开、刷新恢复通过；工具子进程跨目录文件读写、搜索及越界拒绝通过。
+- [x] Linux Bubblewrap 0.13.0 / Landlock 实际内核目录隔离通过；两源目录位于隐式临时授权之外，Linux 工具专项 28/28。
+- [ ] macOS 实际内核目录隔离、Windows 低权限账号 Shell 全链分别取得证据，不把通用进程或平台返回型用例当沙箱通过。
+- [x] PostgreSQL 18.6 / pgvector 实库在空库和已有扩展命名空间两种环境通过；多作用域事实/向量隔离、主目录切换、重启、配置精度和扩展删除保护均实际运行。
+- [x] 最终源码/测试/文档闭环及平台边界写入报告并运行 reindex。
+
+**当前边界**
+
+实施、Windows 局部交互、Linux 内核及 PostgreSQL 实库验证已经完成；本机不能执行 macOS Seatbelt/桌面验收，CI 尚未运行。Windows 低权限账号初始化需要系统授权，自动化未接受安全确认；普通用户进程命令/Git 测试不替代该边界，任务保留待验收。完整 App/真实模型与安装包不因隔离组件夹具完成。APP-HOME-001 的整体模块审计继续独立。
+
+<a id="app-home-106"></a>
+
+### APP-HOME-106 项目选择器长列表与模式、权限展开指示
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P1
+- 主责模块：APP-HOME
+- 前置依赖：复用现有 ComposerBar / ComposerCommandPanel 与共享主题样式；APP-HOME-104已完成
+- 关联功能：APP-HOME-F006
+- 完成证据：[统一报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md)记录2026-10-09 Windows主页面与45项SFC夹具实测、12文件236项无skip与类型检查通过；[项目选择器实现](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/comment-project-picker.md)、[展开指示器与74项回归](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/composer-arrows.md)
+
+**目标与边界**
+
+修复 Composer 项目菜单最大高度和 UiScrollArea 内层 h-full 关系导致的列表裁切，以一个原生列表承担实际滚动，隐藏滚动条而不影响完整列表和键盘访问。模式、权限、项目箭头需要表达真实展开状态；模式/权限由命令面板实际页而非 initialPage 决定，项目由 showProjectDropdown 决定，指示器和 aria-expanded 使用同一状态。局部160ms变换过渡支持 reduced-motion。
+
+本任务及APP-HOME-F006专项已完成验收。45个伪项目只进入隔离SFC预览夹具，禁止真实 API，不登记用户项目。通用 UiScrollArea、完整 Home 审计、真实消息投递及欢迎页附件分别保持各自范围，不继承本次完成状态。
+
+**验收条件**
+
+- [x] 项目列表只保留一个原生纵向滚动容器，max-height根据实际可用空间限制；隐藏滚动条，项目行内边距与圆角使用共享样式。
+- [x] 完整45项可渲染与选择末项，Arrow/Home/End到达列表和末尾新建入口；Escape/选择恢复焦点，快速连续开合不聚焦已移除菜单。
+- [x] 模式/权限指示与 aria-expanded 同读 commandPanelOpen + 实际 page；同入口复点关闭、跨入口切页、返回根页和 Escape关闭均正确。独立旧 Selector 同读自身 showDropdown。
+- [x] 项目指示与 aria-expanded 同读 showProjectDropdown；三入口展开旋转180°、关闭复位，160ms transform过渡与 reduced-motion禁用规则已实现。
+- [x] ComposerBar73项和PermissionSelector1项共74项定向通过；重复运行同一文件不累计测试数，隔离夹具不登记真实项目。
+- [x] Windows1169×719主页面验证自由对话标签、8px圆角/4px内距、模式与权限实际180°旋转及切页复位；45项真实SFC夹具滚轮delta1100使列表scrollTop1100、portal不滚动，键盘到达末项/自由对话/新建入口，重新打开当前末项可见。
+- [x] 350px窄容器与工具栏clientWidth等于scrollWidth（350/334），菜单在视口内、页脚固定；滚动条两引擎隐藏规则和三箭头reduced-motion transition:none及方向正确，测试后恢复正常模式。
+
+**功能验收边界**
+
+上述勾选覆盖普通Windows浏览器UI、鼠标滚轮、键盘与隔离SFC预览。夹具list clientHeight238、scrollHeight1537，重新打开第45项时scrollTop约1298.86，选择/新建只执行夹具回调。该结论不包含触屏硬件、Linux/macOS、完整Home或真实项目登记；最终生产构建和其余UI专项结果由统一报告记录。
+
 <a id="app-home-104"></a>
 
 ### APP-HOME-104 统一输入框命令面板与会话运行设置

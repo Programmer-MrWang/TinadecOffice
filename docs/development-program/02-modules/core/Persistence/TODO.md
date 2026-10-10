@@ -34,3 +34,27 @@
 
 - [TinadecCore/Persistence/ServiceCollectionExtensions.cs](../../../../../TinadecCore/Persistence/ServiceCollectionExtensions.cs)
 
+<a id="core-persistence-101"></a>
+
+### CORE-PERSISTENCE-101 修复配置过滤唯一索引与活动版本来源校验
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P0
+- 主责模块：CORE-PERSISTENCE
+- 前置依赖：既有EF配置模型、TOML文档与投影事务；接口诊断和重试由APP-PACKS-102持有
+- 关联功能：CORE-PERSISTENCE-F003
+- 完成证据：[修复报告](../../../../../.tinadec_dev/reports/2026-10-09-graphseed-install-fix.zh-CN.md)、[后端专项](../../../../../.tinadec_dev/reports/2026-10-09-graphseed-configuration-validation-fix.zh-CN.md)
+
+**问题与目的**
+
+TOML预检忽略EF唯一索引过滤条件，将仅草稿名称唯一扩大到已发布资源，导致已有published meeting时GraphSeedPack发布被误拒。独立数据库重建还暴露当前提示词版本所有者键拼错。校验与数据库约束保持一致，失败保留文件/SQL，历史版本不能隐式成为新运行来源。
+
+**验收条件**
+
+- [x] published同名可共存、draft重名拒绝、普通唯一冲突拒绝、软删除名称可复用。
+- [x] 未知过滤表达式明确诊断，主键和历史版本不可变规则保留。
+- [x] 校验失败原文件字节不变，SQL无部分安装记录。
+- [x] 当前提示词版本可编译，缺失当前版本即使历史仍在也拒绝准入。
+- [x] GraphSeedPack3.0.1安装、独立数据库投影重建及旧包/历史引用回归通过，制品版本和摘要未修改；Windows专项不代替三平台/PG验收。
+

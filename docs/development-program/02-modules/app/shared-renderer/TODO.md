@@ -1,5 +1,86 @@
 # 共享渲染层 / 路由与 API：TODO
 
+<a id="app-renderer-107"></a>
+
+### APP-RENDERER-107 搜索模态背景模糊与全局材质
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P2
+- 主责模块：APP-RENDERER
+- 前置依赖：APP-RENDERER-103已完成；复用usePanelStyles与既有surface token
+- 关联功能：APP-RENDERER-F006
+- 完成证据：[专项报告](../../../../../.tinadec_dev/reports/2026-10-09-search-material.zh-CN.md)、[源码核查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/command-palette-material-audit.md)、[4文件50项定向回归](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/targeted-tests.log)、[类型检查](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/typecheck.log)、[浏览器记录](../../../../../.tinadec_dev/evidence/2026-10-09-search-material/browser-checks.json)
+
+**目标与边界**
+
+搜索面板打开时背景模糊。native dialog仍以showModal进入同一个top layer，普通浮窗与fullscreen共用生命周期。背景遮罩固定6px模糊，与面板全局opaque/translucent/blur材质独立；面板根绑定全局材质样式和data attribute，内部活动表面使用已有surface-hover token。无搜索专用材质存储，无body/filter遮罩或第二个搜索入口。
+
+**验收条件**
+
+- [x] 原生dialog直接复用getPanelStyle与getPanelDataAttributes，全局材质更改响应式更新根与内部表面。
+- [x] native::backdrop在普通浮窗与fullscreen下使用独立6px背景模糊，透明面板采样结果经浏览器确认。
+- [x] Windows1169×719实页验证opaque遮罩blur6、translucent46%根rgba alpha0.46/活动行0.82、blur14px/活动行0.62；全屏保留alpha0.46/filter14，活动结果使用surface-hover。
+- [x] 4文件50项搜索/打开关闭/Escape/焦点/fullscreen与材质定向回归、类型检查通过；Escape关闭后modal数量0且App根filter:none，用户原opaque/80/8已恢复。
+- [x] 主任务记录Windows浏览器可见效果并将APP-RENDERER-F006更新为已验收；未重跑全产品构建、安装器或Linux/macOS，模块整体任务保持独立。
+
+<a id="app-renderer-106"></a>
+
+### APP-RENDERER-106 收口空间导航和显式开发者入口
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P2
+- 主责模块：APP-RENDERER
+- 前置依赖：既有空间路由；APP-SETTINGS-104、APP-DEBUG-102提供同一本机偏好
+- 关联功能：APP-RENDERER-F005
+- 完成证据：[本轮报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments-2.zh-CN.md)、[导航行为回归](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/comment5-workbench-navigation.md)、[真实路由与偏好测试](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments-2/debug-preference-tests.md)
+
+**验收条件**
+
+- [x] 删除侧栏指挥中心及命令面板工作台首页导航；旧 /workbench 深链转 /space。
+- [x] Debug Studio 默认隐藏，直接路由先读取本机偏好；关闭时移出已打开调试页面；Electron打开窗口仍独立复核配置与可信主窗口。
+- [x] Windows1169×719实际浏览器验证默认隐藏、关于开关双向切换、跨页关闭与深链重定向；组件/真实router回归、类型检查通过。
+
+只收口产品入口与默认开关；运行事实、治理、恢复等业务服务保留。完整空间工作画面、Debug专用后端及安装器/非Windows验证保持各自任务。
+
+<a id="app-renderer-105"></a>
+
+### APP-RENDERER-105 通知、预览链接与显示模式菜单的叶层 UI 修复（Comment3/4/5）
+
+- 类型：实现
+- 状态：已完成
+- 优先级：P2
+- 主责模块：APP-RENDERER
+- 前置依赖：无；复用现有通知生命周期、预览导航和原生 Popover 显示模式选择
+- 关联功能：APP-RENDERER-F004
+- 完成证据：[本轮主报告](../../../../../.tinadec_dev/reports/2026-10-09-ui-comments.zh-CN.md)、[Comment3](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/comment3-notification-pin.md)、[Comment5](../../../../../.tinadec_dev/evidence/2026-10-09-ui-comments/comment-5-view-menu.md)
+
+**问题与范围**
+
+本任务统一持有本轮三个叶层UI问题，不扩展为布局引擎、通知生命周期或显示模式业务重构。
+
+- Comment3：NotificationIslandHost聚合堆叠与通知中心active列表删除标题前重复Pin及孤立样式；保留右侧不可手动关闭状态标识，胶囊/展开卡片/详情、useNotifications/GraphSeedPack语义不变。
+- Comment4：PreviewBrowserPanel快速链接的名称与地址上下排列；grid采用`14px minmax(0, 1fr)`，文本列`min-width:0`，地址置第二行/第二列并`overflow-wrap:anywhere`，保留原navigate与URL，不用固定宽度掩盖窄面板溢出。
+- Comment5：AppSidebar真实显示模式菜单采用原生popover invoker、160ms opacity/位移/缩放开合、display/overlay allow-discrete退出及starting-style；reduced-motion关闭过渡。beforetoggle同步aria-expanded，当前选项autofocus，Escape/轻触关闭由原生机制负责；选择立即hidePopover、恢复按钮焦点并emit change-view，不等待动画结束才切页。
+
+只读对照本地shadcn-vue/OpenCodeUI/openchamber并固定SHA，不安装或改参考项目。实际来源为上述三个组件；原业务事件、来源事实和关闭权限仍由既有模块持有。
+
+**验收条件**
+
+- [x] 两个列表标题前Pin删除，等级图标和右侧状态标识/关闭动作保留
+- [x] 无用pin-inline样式移除，通知持久策略及GraphSeedPack行为不修改
+- [x] 现有通知定向46passed/14skip，对原有Island14例skip如实记录，不新增实现镜像测试
+- [x] 快速链接名称/地址分行，grid文本列可收缩、长URL任意断行；主任务实页三项scrollWidth/clientWidth均236
+- [x] 原生显示模式菜单有真实160ms进入/退出；reduced-motion禁过渡，Escape和选项操作焦点恢复；AppSidebar12/12及类型检查通过
+- [x] 主任务最终Windows1169×719真实浏览器取证：两个列表标题内Pin0/右侧1；窄链接scrollWidth=clientWidth=225、长地址两行；退出动画中间态、reduced-motion与焦点通过；类型与独立Vite构建通过
+
+**最终实页证据**
+
+主任务观察三快速链接236宽和分窗225宽均无水平溢出，GatewayHealth窄宽URL高29px/两行；通知堆叠与通知中心标题Pin0/右侧Pin1。模式菜单退出中间态opacity0.914421、scale0.998288、y0.513477，减少动态效果transition为none，Escape与选项点击恢复按钮焦点。最终截图、85通过/14既有skip与范围边界见主报告。本任务限定范围已完成。
+
+本专项不完成APP-RENDERER-001整体审计，也不代表完整App或安装器验收。
+
 <a id="app-renderer-104"></a>
 
 ### APP-RENDERER-104 空间模式：会话画布、工作事实与可组合运行方式

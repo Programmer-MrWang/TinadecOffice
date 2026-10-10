@@ -8,6 +8,12 @@
 
 Windows scope/tier账号与并发ACL；Linux固定bwrap+Landlock；macOS逐保护根；永久host域拒绝。Linux 明确运行 `npm run setup:bwrap` 构建固定源或设置 `TINADEC_TOOLS_BWRAP_PATH`；发布校验0.13.0并复制到Tools同目录，缺失时打包失败。源码工作目录与存储根分开；自由源码目录默认 `~/TinadecProjects`。MCP SDK server 自身为可信程序，其进程不继承文件/shell/search 的 OS 沙箱保证。详见[报告](../../../../../.tinadec_dev/reports/2026-10-09-storage-resources.zh-CN.md)。
 
+## 2026-10-10 多文件夹工作区
+
+命令权限由冻结源目录集合构建。Windows 账号身份包含 scope、目录集合及主目录，私有 runner 通过可信 CLI 参数建立目录集合，TINADEC_HOME 使用宿主隔离用户根；Linux Bubblewrap/Landlock 与 macOS Seatbelt 接收全部目录。Windows 普通进程测试不替代低权限账号的系统 ACL 验收。
+
+本专项统一由 [APP-HOME-107](../../app/home/TODO.md#app-home-107) 记账，TOOLS-SANDBOX 保留本模块整体审计；交互与存储契约见 [workspaces.zh-CN.md](../../../../workspaces.zh-CN.md)，本轮证据与平台边界见 [实施报告](../../../../../.tinadec_dev/reports/2026-10-10-sidebar-workspaces.zh-CN.md)。
+
 ## 文档入口
 
 - [模块架构与边界](ARCHITECTURE.md) · [模块SVG](architecture.svg)
