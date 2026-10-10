@@ -159,7 +159,7 @@ public static class StorageEndpoints
                             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
                     }
                     if (modeVersionId is null)
-                        return Results.Conflict(new { code = "agent_mode_not_configured", message = "A published default Agent Mode must be configured before creating a session." });
+                        return AgentModeNotConfigured("A published default Agent Mode must be configured before creating a session.");
                     var modeVersion = await cfg.ModeVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == modeVersionId
                         && x.TenantId == tenant.Current.TenantId && x.WorkspaceId == tenant.Current.WorkspaceId
                         && x.Status == "published", ct).ConfigureAwait(false);
@@ -178,7 +178,7 @@ public static class StorageEndpoints
                     if (identity is null)
                     {
                         return request.ConversationNodeKey is null
-                            ? Results.Conflict(new { code = "agent_mode_not_configured", message = "The selected Agent Mode does not declare a conversation node." })
+                            ? AgentModeNotConfigured("The selected Agent Mode does not declare a conversation node.")
                             : Results.Json(new { code = "conversation_identity_invalid", message = $"conversation_node_key '{request.ConversationNodeKey}' is not a conversation-capable node of the selected mode." }, statusCode: StatusCodes.Status422UnprocessableEntity);
                     }
                     conversationNodeKey = identity.NodeKey;
@@ -222,8 +222,8 @@ public static class StorageEndpoints
                     requestedMode = await cfg.WorkspaceDefaults.AsNoTracking()
                         .Where(x => x.TenantId == session.TenantId && x.WorkspaceId == session.WorkspaceId && x.Status == "active" && x.ArchivedAt == null)
                         .Select(x => x.DefaultModeVersionId).FirstOrDefaultAsync(ct).ConfigureAwait(false);
-                if (requestedMode is null) return Results.Conflict(new { code = "agent_mode_not_configured", message = "No published default mode is configured." });
-            }
+                    if (requestedMode is null) return AgentModeNotConfigured("No published default mode is configured.");
+                }
                 if (requestedMode is { } requestedModeVersionId)
                 {
                     await using var cfg = await cfgFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -481,6 +481,10 @@ public static class StorageEndpoints
             catch (TinadecCore.Runtime.ActiveRunConflictException ex) { return Results.Conflict(new { code = "active_run_conflict", message = ex.Message, run_id = ex.RunId }); }
         });
     }
+
+    private static IResult AgentModeNotConfigured(string message) => Results.Problem(
+        statusCode: StatusCodes.Status409Conflict, title: "agent_mode_not_configured", detail: message,
+        extensions: new Dictionary<string, object?> { ["code"] = "agent_mode_not_configured", ["message"] = message });
 
     /// <summary>
     /// Projection for a registered workspace that could not mount. Mirrors ToProject so a client

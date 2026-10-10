@@ -34,6 +34,58 @@ public sealed partial class StorageApiTests : IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    [Fact]
+    public async Task MissingDefaultMode_CreateAndClearReturnClassifiedProblemsWithoutPartialWrites()
+    {
+        using var client = _factory!.CreateClient();
+        var store = _factory.Services.GetRequiredService<ProjectSessionStore>();
+        using var existing = await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Original" });
+        Assert.Equal(HttpStatusCode.Created, existing.StatusCode);
+        var existingBody = await existing.Content.ReadFromJsonAsync<JsonElement>();
+        var sessionId = existingBody.GetProperty("id").GetGuid();
+        var session = (await store.GetSessionAsync(sessionId))!;
+
+        // This legacy API factory owns an isolated database without TOML projections. Remove
+        // only its default pointer; the published mode and existing conversation remain intact.
+        await using (var cfg = await _factory.Services.GetRequiredService<IDbContextFactory<TinadecCore.AgentConfiguration.AgentConfigurationDbContext>>().CreateDbContextAsync())
+        {
+            var defaults = await cfg.WorkspaceDefaults.Where(x => x.Status == "active" && x.ArchivedAt == null).ToListAsync();
+            Assert.NotEmpty(defaults);
+            foreach (var row in defaults) row.DefaultModeVersionId = null;
+            await cfg.SaveChangesAsync();
+        }
+
+        using var created = await client.PostAsJsonAsync("/api/v1/sessions", new { title = "Must not save" });
+        await AssertMissingDefaultModeProblemAsync(created,
+            "A published default Agent Mode must be configured before creating a session.");
+        Assert.Equal(sessionId, Assert.Single(await store.ListSessionsAsync(null)).Id);
+
+        using var cleared = await client.PatchAsJsonAsync($"/api/v1/sessions/{sessionId}", new
+        {
+            title = "Must not rename", clear_mode_version = true, expected_settings_revision = session.SettingsRevision
+        });
+        await AssertMissingDefaultModeProblemAsync(cleared, "No published default mode is configured.");
+        var stored = await store.GetSessionAsync(sessionId);
+        Assert.Equal(session.Title, stored!.Title);
+        Assert.Equal(session.ModeVersionId, stored.ModeVersionId);
+        Assert.Equal(session.SettingsRevision, stored.SettingsRevision);
+        Assert.Equal(sessionId, Assert.Single(await store.ListSessionsAsync(null)).Id);
+
+        static async Task AssertMissingDefaultModeProblemAsync(HttpResponseMessage response, string message)
+        {
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+            var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("agent_mode_not_configured", problem.GetProperty("code").GetString());
+            Assert.Equal(message, problem.GetProperty("message").GetString());
+            Assert.Equal(message, problem.GetProperty("detail").GetString());
+            Assert.Equal("user_action_required", problem.GetProperty("category").GetString());
+            Assert.False(problem.GetProperty("retryable").GetBoolean());
+            Assert.Contains(problem.GetProperty("actions").EnumerateArray(), action => action.GetString() == "open_settings");
+            Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("trace_id").GetString()));
+        }
+    }
+
     /// <summary>
     /// A free conversation has no project, and renaming it must not require a published Agent
     /// Mode: the title-only PATCH is how the sidebar's rename affordance reaches Core.
