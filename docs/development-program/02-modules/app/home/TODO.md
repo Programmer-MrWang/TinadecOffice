@@ -43,6 +43,10 @@
 
 同一任务补齐宿主认证恢复、Core/Gateway共同就绪、显式scope优先级、跨作用域历史读取、任意生命周期挂载与坏登记隔离。保持用户数据、默认选择、包版本和摘要。错误契约：[产品文档](../../../../error-contract.zh-CN.md)；源码、真实/模拟验收分界和分组提交：[接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)。本轮 Windows 隔离证据与编译结果逐项登记，完整产品/平台仍保持上述待验收范围。
 
+**2026-10-10 宿主 IPC 跟进**
+
+旧 main 与新 preload/renderer 混用的缺 handler 错误已纳入本地协议失败处理：业务撤权、停止无效重试、共享 Banner 恢复和 Home 通知去重。DEV 明确整链 npm run dev，生产保留既有可信重启入口；迟到状态/手动重试不覆盖较新撤权。[现场、回归与 Electron 契约证据](../../../../../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md) 独立记录，本任务继续待验收，不重置用户数据或扩大平台完成声明。
+
 <a id="app-home-106"></a>
 
 ### APP-HOME-106 项目选择器长列表与模式、权限展开指示

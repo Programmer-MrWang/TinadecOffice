@@ -30,3 +30,5 @@
 dev 启动必须 Core、Gateway 和身份验证共同就绪，移除仅 Core 健康的回退。认证重验不自动停止未知服务，也不据健康超时重复启动受管服务；本地服务意外退出的自动拉起仍属独立生命周期范围。
 
 统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。
+
+宿主 IPC 跟进：现场旧 main 启动早于新 IPC 源码，Vite 重载不能更新主进程。DEV 恢复指引要求关闭开发进程、从仓库根重新 npm run dev；旧 app.relaunch 会触发 launcher 停止 Vite/同组服务，不作为整链恢复。未改启动器或自动重启用户服务。[源码时间对照与证据](../../../../../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md)。

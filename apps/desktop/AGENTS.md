@@ -1,5 +1,11 @@
 # DESKTOP APP KNOWLEDGE
 
+## 2026-10-10 Host IPC version mismatch
+
+APP-HOME-107 跟进：`lib/hostConnection.ts` 统一读取和重试宿主状态，已有 preload 缺方法或 host-status/host-retry 缺 handler 必须失败关闭为 restart_required / desktop_restart_required，其他 IPC 错误为 host_bridge_unavailable。只有完全没有 bridge 的浏览器读为 preview；独立注入 transport 的准入边界保留。`hostAccess` 先撤权再抛 ApiError，缓存 restart_required 避免重复 IPC；`useConnection` 停止无效计时器，广播与手动重试也遵循 revision 保护。App/Home 将本地故障交给共享 Banner，不伪装后端连接失败或重放写操作。
+
+DEV Banner 无自动重启按钮：旧 main 的 restart 会使开发启动器结束 Vite 与同组服务，必须关闭当前开发进程、从仓库根重新 `npm run dev`。生产可用可信 restart IPC，单飞等待且失败回到手动指引。未增加 watcher、自动停止用户进程或暴露启动凭据。Windows 真实 Electron main/preload/IPC/生产组件证据见 `.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md`；身份、health 和实际 relaunch 为夹具替代，不折算完整 App/安装器或业务后端验收。
+
 ## 2026-10-10 Interface regression and host recovery
 
 APP-HOME-107 本轮接口回归修复继续使用原模块任务入口，汇总见 `.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md`。Desktop 把公开服务健康与私有宿主身份验证分开：main 的 `hostConnection.cjs` 单飞验证并有限退避重试，周期失败立即撤权，身份错误保持 rejected，显式重试重新开始预算；初次本地服务初始化成功后，周期验证不重复启动服务。只有可信已登记主 frame 可查询/重试，普通业务 IPC 仍要求 ready，renderer/preload 不持有私钥。退出停止验证并阻止迟到结果重新授权。
@@ -43,8 +49,8 @@ The deb keeps Electron's existing dependency list and explicitly requires `libca
 scope-enabled Core 全部业务 API 要求私有宿主头，health/challenge 两个公开探针除外。main 先验证 Core/Gateway nonce/角色绑定 HMAC，不能按公开指纹复用伪服务；验证后仅为登记主/panel/debug 主frame在精确入口访问固定local API签发，导航/iframe/未知窗口/远程均不继承，重验失败撤权。敏感IPC同样复核主frame。dev共享启动key，仅Electron保留、Vite剥除，main收到后移除env；默认不开放CDP。Electron43.3.0隔离夹具已验证HTTP/SSE、HMAC、主/辅助路由、iframe拒绝、导航/端点撤权及redirect剥离，不替代完整产品UI或安装验收。
 
 **Last Updated:** 2026-10-10
-**Last Updated By:** APP-HOME-107 接口回归与宿主恢复；保留 UI、GraphSeedPack 和存储专项独立证据。
-**Last Verified Commit:** 607b7406（本轮五组代码提交）+ 文档工作树；Windows证据与未验收边界见 .tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md。
+**Last Updated By:** APP-HOME-107 宿主 IPC 版本不一致、业务撤权及开发整链恢复指引。
+**Last Verified Commit:** 5c799714（宿主 IPC 修复）+ 文档工作树；验证与边界见 .tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md。
 **Branch:** main
 
 ### 2026-10-08 工具设置

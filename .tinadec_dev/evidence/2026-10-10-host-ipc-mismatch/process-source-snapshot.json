@@ -1,0 +1,48 @@
+{
+  "captured_at": "2026-10-10T09:32:30.593Z",
+  "read_only": true,
+  "no_environment_read": true,
+  "no_process_stopped": true,
+  "actual_desktop_main": {
+    "pid": 43656,
+    "parent_pid": 48548,
+    "executable": "C:/git/agent/TinadecOffice/node_modules/electron/dist/electron.exe",
+    "entry": "electron .",
+    "started_at": "2026-10-10T14:45:53.625400+08:00"
+  },
+  "desktop_launcher": {
+    "pid": 30752,
+    "started_at": "2026-10-10T14:43:48.123311+08:00",
+    "entry": "scripts/dev.mjs"
+  },
+  "vite": {
+    "pid": 38476,
+    "started_at": "2026-10-10T14:43:51.920158+08:00"
+  },
+  "file_times": [
+    {
+      "file": "apps/desktop/electron/main.cjs",
+      "modified_at": "2026-10-10T07:49:48.534Z"
+    },
+    {
+      "file": "apps/desktop/electron/preload.cjs",
+      "modified_at": "2026-10-10T07:26:10.361Z"
+    },
+    {
+      "file": "apps/desktop/electron/hostConnection.cjs",
+      "modified_at": "2026-10-10T07:28:19.069Z"
+    },
+    {
+      "file": "apps/desktop/scripts/dev.mjs",
+      "modified_at": "2026-10-10T08:54:05.803Z"
+    }
+  ],
+  "source_handler_registration": {
+    "host_status": 193,
+    "host_retry": 197,
+    "when_ready": 531,
+    "create_window_after_ready": 592
+  },
+  "automatic_electron_file_watching": false,
+  "evidence_method": "Win32_Process selected identity/start time only; no environment or raw command line retained"
+}

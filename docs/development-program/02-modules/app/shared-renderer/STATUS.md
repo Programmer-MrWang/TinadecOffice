@@ -55,3 +55,5 @@
 useConnection 区分公开健康和可信宿主认证；全局提示展示预览、暂不可用与身份拒绝。两 API wrapper 先捕获请求 scope 再等待认证；搜索与 Debug 历史选择复用跨作用域读取器，按 scope+id 去重。
 
 统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。
+
+宿主 IPC 跟进：restart_required 为独立本地状态，业务请求保存 ApiError 不再误包装 Cannot connect backend；版本不一致停止无效轮询，较新宿主广播优先于迟到读取/手动重试。共享 Banner 使用现有材质：DEV 只有整链启动指引，生产单飞重启及失败指引。定向测试与 Windows 真实 Electron 组件证据见 [IPC 修复报告](../../../../../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md)；完整渲染模块审计独立。

@@ -30,3 +30,5 @@
 main/preload 使用独立宿主认证状态机。恢复 IPC 依据可信文档身份授权，首次失败与运行中瞬断撤权后仍可恢复；身份拒绝不自动重验，退出防迟到。
 
 统一范围、验收和边界由 [APP-HOME-107](../home/TODO.md#app-home-107) 与 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md) 持有。源码/组件回归、Windows 隔离 Electron 与真实 Core/Gateway 分别记录；完整 App、安装器和非 Windows 平台不因此标完成。
+
+宿主 IPC 跟进：生产 main/preload 的真实缺 handler 调用由共享 renderer helper 识别为需要重启，生产 Banner 到达既有可信 restart IPC。Windows 夹具仅拦截两个状态注册及实际 relaunch/exit；未停止用户桌面，也未新改 main/preload。恢复当前注册后重载得到 ready/connected。[证据与替代边界](../../../../../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md)。

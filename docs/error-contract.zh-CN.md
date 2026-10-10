@@ -115,6 +115,14 @@ retryable / actions / traceId / details / status）。页面用 `failure.set(val
 
 getHostStatus、状态订阅与 retryHostConnection 不包含凭据，按可信窗口文档身份准入，不依赖后端已认证。连接恢复只刷新读取；不重放创建、保存、安装。5173 显示界面预览说明，需要可信宿主的目录选择、存储和安装操作明确禁用，不以空数组或静默 no-op 伪装成功。宿主自动恢复验证不等于重新启动已退出的本地服务。
 
+### 本地 IPC 契约不可用
+
+Electron main 与页面可能在开发重载后属于不同版本。已有 preload 缺少状态方法，或调用 `tinadec:host-status` / `tinadec:host-retry` 返回 `No handler registered`，由共享桥适配器识别为 `restart_required`，业务准入抛 `desktop_restart_required`。其他 IPC 异常归为 `host_bridge_unavailable` / unavailable，不回传原始异常文本。已有 bridge 的异常不能降级为 ready 或浏览器 preview。
+
+这两类本地失败使用 `environment_unavailable`、`retryable=false` 和客户端合成状态 503；请求尚未发往后端，没有服务器 trace_id。版本不一致的 actions 为空，由共享宿主 Banner 提供专用恢复。初始工作区、诊断和运行就绪读取不再各自重复通知；连接层立即撤权，版本不一致停止启动及健康轮询和无效重试。迟到状态读取或重试回执不能覆盖较新的宿主广播撤权。
+
+开发环境展示“关闭当前开发进程，再从仓库根运行 npm run dev”的指引，不提供旧 `app.relaunch` 自动重启按钮：开发启动器收到 Electron 退出会停止 Vite，根启动器也会结束同组服务。生产环境已有可信 restart IPC 可提供单飞重启入口，调用失败显示手动关闭重开指引。此处理不新增启动器 watcher，不自动停止用户进程，不重放创建、保存或安装。源码、现场时间对照和 Windows Electron 夹具边界见 [IPC 修复报告](../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md)。
+
 ## 请求归属与局部读取失败
 
 请求发送前固定作用域，优先级为显式 storageId → 调用绑定 → 请求项目/会话/运行身份 → 未绑定列表默认 user → 当前选择。ApiError 保存客户端已捕获的 storageId，取消登记不能由服务端路径文本推导授权目标。

@@ -1,0 +1,101 @@
+{
+  "accepted": true,
+  "electron": "43.3.0",
+  "actual_main": true,
+  "actual_preload": true,
+  "actual_readiness_component": true,
+  "actual_bridge_helpers": true,
+  "actual_ipc": true,
+  "isolated_user_root": true,
+  "random_static_ui_port": true,
+  "missing_handlers": "only host-status and host-retry registrations intercepted",
+  "service_identity_and_lifecycle": "substituted; no Core/Gateway launched or queried",
+  "public_health": "substituted after readiness only",
+  "process_restart": "relaunch/exit intercepted and recorded",
+  "events": [
+    {
+      "step": "renderer_console",
+      "message": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "step": "real_preload_missing_status_handler",
+      "message": "Error invoking remote method 'tinadec:host-status': Error: No handler registered for 'tinadec:host-status'"
+    },
+    {
+      "step": "production_helper_and_banner",
+      "status": {
+        "state": "restart_required",
+        "managed": true,
+        "error": {
+          "code": "desktop_restart_required",
+          "message": "桌面主进程与界面版本不一致，请重新启动桌面应用。"
+        }
+      },
+      "retry": {
+        "state": "restart_required",
+        "managed": true,
+        "error": {
+          "code": "desktop_restart_required",
+          "message": "桌面主进程与界面版本不一致，请重新启动桌面应用。"
+        }
+      },
+      "blocked": {
+        "permitted": false,
+        "code": "desktop_restart_required",
+        "status": 503
+      },
+      "snapshot": {
+        "connection": "host_restart_required",
+        "host": {
+          "state": "restart_required",
+          "managed": true,
+          "error": {
+            "code": "desktop_restart_required",
+            "message": "桌面主进程与界面版本不一致，请重新启动桌面应用。"
+          }
+        },
+        "can_access_backend": false,
+        "health_reads": 0
+      }
+    },
+    {
+      "step": "existing_restart_ipc",
+      "relaunch_calls": 1,
+      "exit_codes": [
+        0
+      ],
+      "actual_process_restart": false
+    },
+    {
+      "step": "renderer_console",
+      "message": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "step": "development_guidance",
+      "manual_launcher_restart": true,
+      "no_restart_button": true
+    },
+    {
+      "step": "renderer_console",
+      "message": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://electronjs.org/docs/tutorial/security.\nThis warning will not show up\nonce the app is packaged."
+    },
+    {
+      "step": "current_production_registration",
+      "ready": {
+        "state": "ready",
+        "managed": true,
+        "checked_at": "2026-10-10T09:42:48.059Z"
+      },
+      "after_renderer_reload": {
+        "connection": "connected",
+        "host": {
+          "state": "ready",
+          "managed": true,
+          "checked_at": "2026-10-10T09:42:48.059Z"
+        },
+        "can_access_backend": true,
+        "health_reads": 1
+      }
+    }
+  ]
+}

@@ -50,3 +50,5 @@
 ## 2026-10-10 接口回归跟进
 
 APP-HOME-F007 同任务接通宿主准入与只读恢复、请求固定scope、跨作用域会话读取及错误出口。项目/doctor/readiness独立更新，损坏登记不阻断正常项目，归档/回收站历史不再只读user库。活跃流保留原游标与正文，运行清单读取失败保持原事实并显示恢复失败，不当作空清单删除句柄。组件回归与隔离真实服务、Electron证据见 [接口回归报告](../../../../../.tinadec_dev/reports/2026-10-10-interface-regression.zh-CN.md)；APP-HOME-107保持待验收，整体App和非Windows平台边界独立。
+
+宿主 IPC 跟进：缺 handler 或旧 preload 缺方法立即撤权为 desktop_restart_required，不再向三项初始读取发重复后端错误通知。共享 Banner 提示整链开发重启或生产桌面重启；保留已有事实、不重放写。当前专项回归与 Windows Electron 契约夹具边界见 [IPC 修复报告](../../../../../.tinadec_dev/reports/2026-10-10-host-ipc-mismatch.zh-CN.md)，不提升整体任务完成状态。

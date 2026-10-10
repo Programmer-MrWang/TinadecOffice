@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-10",
+  "task": "APP-HOME-107",
+  "source_baseline": "5c799714",
+  "results": [
+    {
+      "name": "initial shared bridge/admission/connection",
+      "command": "npx vitest run src/lib/hostConnection.test.ts src/lib/hostAccess.test.ts src/composables/useConnection.test.ts --maxWorkers=2",
+      "passed": 26,
+      "files": 3,
+      "exit_code": 0,
+      "phase": "before final retry revision patch"
+    },
+    {
+      "name": "primary diagnostic and recovery regression",
+      "command": "npx vitest run src/lib/hostConnection.test.ts src/lib/hostAccess.test.ts src/composables/useConnection.test.ts src/components/HostAvailabilityBanner.test.ts src/App.entry.test.ts src/controllers/HomeController.test.ts src/api.test.ts src/generated/agentPackClient.test.ts --maxWorkers=2",
+      "passed": 120,
+      "files": 8,
+      "duration_seconds": 7.56,
+      "exit_code": 0,
+      "phase": "before final retry revision patch"
+    },
+    {
+      "name": "final retry receipt ordering",
+      "command": "node ../../node_modules/vitest/vitest.mjs run src/composables/useConnection.test.ts --maxWorkers=1",
+      "passed": 19,
+      "files": 1,
+      "duration_seconds": 6.23,
+      "exit_code": 0
+    },
+    {
+      "name": "read/stream/workspace/settings regression",
+      "command": "npx vitest run src/lib/scopedEventSource.test.ts src/lib/runStream.test.ts src/lib/storageScope.test.ts src/lib/sessionEventBus.test.ts src/settings/sections/StorageSection.test.ts src/components/WorkspaceEditorDialog.test.ts src/pages/SearchNavigation.test.ts src/pages/SettingsPage.models.test.ts --maxWorkers=2",
+      "passed": 55,
+      "files": 8,
+      "duration_seconds": 14.93,
+      "exit_code": 0,
+      "first_run": {
+        "passed": 52,
+        "failed": 3,
+        "reason": "SearchNavigation legacy fixture omitted getHostStatus; fixed test bridge, product admission unchanged"
+      }
+    },
+    {
+      "name": "AgentPack related regression",
+      "command": "npx vitest run src/pages/SettingsPage.agentPack.test.ts src/agentPacks/graphSeedPackBootstrap.test.ts src/agentPacks/agentPackApi.test.ts --maxWorkers=2",
+      "passed": 22,
+      "files": 3,
+      "duration_seconds": 6.33,
+      "exit_code": 0
+    },
+    {
+      "name": "final Desktop typecheck",
+      "command": "npm run typecheck",
+      "exit_code": 0
+    },
+    {
+      "name": "final Desktop vitest suite",
+      "command": "npx vitest run --maxWorkers=2",
+      "exit_code": 0,
+      "passed": 1241,
+      "skipped": 14,
+      "files_passed": 135,
+      "files_skipped": 1,
+      "duration_seconds": 527.5,
+      "warnings": [
+        "Node localStorage/deprecation warnings",
+        "happy-dom teardown AbortError diagnostics; no failed test or nonzero exit"
+      ],
+      "source": "tool session 39887 final result"
+    },
+    {
+      "name": "final production Vite build",
+      "command": "node --max-old-space-size=8192 ../../node_modules/vite/bin/vite.js build",
+      "exit_code": 0,
+      "duration_reported": "14m 1s",
+      "modules_transformed": 6436,
+      "warnings": [
+        "VueUse pure annotations removed by Rollup",
+        "UieCanvas/UieShell barrel circular chunk warnings",
+        "chunks exceed 500 kB"
+      ],
+      "source": "tool session 78607 final result",
+      "current_code_commit": "5c799714",
+      "app_runtime_or_installer_acceptance": false
+    },
+    {
+      "name": "documentation reindex",
+      "command": "node docs/development-program/scripts/reindex.mjs",
+      "exit_code": 0,
+      "errors": 0,
+      "modules": 55,
+      "features": 141,
+      "tasks": 129,
+      "checked_links": 2240
+    }
+  ],
+  "electron": {
+    "accepted": true,
+    "evidence": "electron-acceptance.json",
+    "version": "43.3.0",
+    "actual": [
+      "main",
+      "preload",
+      "IPC",
+      "host bridge helpers",
+      "hostAccess gate",
+      "useConnection",
+      "HostAvailabilityBanner"
+    ],
+    "substitutions": [
+      "service identity and lifecycle",
+      "public health after ready",
+      "app.relaunch and app.exit recorded only"
+    ],
+    "later_change": "retry revision guard covered by final ordering unit tests",
+    "full_app_or_installer": false
+  },
+  "user_data": {
+    "no_user_process_stopped": true,
+    "actual_pid": 43656,
+    "start_time": "2026-10-10T14:45:53+08:00",
+    "no_user_configuration_or_database_changes": true,
+    "original_gitignore_sha256": "8ae4557735fcc7827a749de39bb3e423d34d2df987e572e8b922733b8fccd28c",
+    "gitignore_excluded_from_commits": true,
+    "pid_observation_phase": "initial source investigation and Electron fixture completion",
+    "final_read_only_observation": {
+      "old_main_present": false,
+      "new_main_pid": 7160,
+      "new_main_started_at": "2026-10-10T17:56:10.052437+08:00",
+      "agent_did_not_restart_it": true,
+      "current_window_readiness_verified": false
+    }
+  },
+  "not_verified": [
+    "complete packaged App",
+    "installer restart",
+    "actual development chain restart",
+    "Linux/macOS",
+    "PostgreSQL in this follow-up"
+  ],
+  "build_attempts": [
+    {
+      "command": "node --max-old-space-size=8192 ../../node_modules/vite/bin/vite.js build",
+      "state": "deliberately cancelled",
+      "reason": "Peer review found retry receipt revision guard gap; final source revision replaced this in-flight build.",
+      "owned_process_id": 61248,
+      "exit_code": 1
+    }
+  ]
+}
