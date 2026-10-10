@@ -361,6 +361,31 @@ describe('AppSidebar lifecycle management', () => {
     wrapper.unmount()
   })
 
+  it('offers only available active workspaces as migration targets and rejects a target that becomes unavailable', async () => {
+    const free = { ...session, id: 's-free', project_id: null, storage_id: 'user' }
+    const eligible = { ...project, storage_id: 'scope-active', lifecycle_status: 'active' as const, availability: 'ready' as const }
+    const invalid: ProjectDto[] = [
+      { ...project, id: 'broken', storage_id: 'scope-broken', lifecycle_status: 'active', availability: 'error' },
+      { ...project, id: 'unknown', storage_id: 'scope-unknown', lifecycle_status: null },
+      { ...project, id: 'unread', storage_id: 'scope-unread' },
+      { ...project, id: 'archived', storage_id: 'scope-archived', lifecycle_status: 'archived' },
+      { ...project, id: 'trashed', storage_id: 'scope-trashed', lifecycle_status: 'trashed' },
+    ]
+    const wrapper = factory({ projects: [eligible, ...invalid], sessions: [free], selectedProjectId: null, selectedSessionId: null })
+    const dialog = wrapper.get<HTMLDialogElement>('.sidebar-migration-dialog')
+    Object.defineProperty(dialog.element, 'showModal', { configurable: true, value: vi.fn() })
+    Object.defineProperty(dialog.element, 'close', { configurable: true, value: vi.fn() })
+    await wrapper.get('.free-conversation-group .session-row').trigger('contextmenu')
+    menuButtons().find(button => button.textContent?.trim() === 'sidebar.migrateSession')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+    expect(dialog.findAll('option').map(option => option.attributes('value'))).toEqual(['scope-active::p-1'])
+
+    await wrapper.setProps({ projects: [{ ...eligible, availability: 'error' }, ...invalid] })
+    await dialog.get('form').trigger('submit')
+    expect(wrapper.emitted('migrate-session')).toBeUndefined()
+    wrapper.unmount()
+  })
+
   it('lists a freshly created free conversation before its first message', () => {
     // A new conversation carries the default title until its first message
     // generates one; hiding that title made every fresh free conversation

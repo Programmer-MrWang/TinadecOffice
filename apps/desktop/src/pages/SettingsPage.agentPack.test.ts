@@ -389,14 +389,15 @@ describe('SettingsPage installed Agent Pack inventory', () => {
     wrapper.unmount()
   })
 
-  it('degrades to an empty inventory instead of failing when the listing route rejects', async () => {
+  it('shows a listing failure rather than an empty inventory when the route rejects', async () => {
     mocks.listAgentPacks.mockRejectedValue(new Error('404 not found'))
 
     const wrapper = await mountAgentCenter()
 
     const inventory = wrapper.find('[data-testid="installed-agent-packs"]')
     expect(inventory.exists()).toBe(true)
-    expect(inventory.text()).toContain('agentPack.installedEmpty')
+    expect(inventory.text()).not.toContain('agentPack.installedEmpty')
+    expect(wrapper.text()).toContain('404 not found')
     expect(wrapper.find('[data-testid="retired-pack-notice"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="graph-seed-pack-status"]').exists()).toBe(true)
 

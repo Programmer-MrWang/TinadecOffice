@@ -2,13 +2,25 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { generatedApi } from './client'
+import { setHostAccessStatus } from '@/lib/hostAccess'
+const originalBridge = window.tinadec
 import { GRAPH_SEED_PACK_ID, graphSeedPackEnvelope } from '@/agentPacks/GraphSeedPack'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  Object.defineProperty(window, 'tinadec', { configurable: true, value: originalBridge })
+  setHostAccessStatus({ state: 'ready', managed: true })
 })
 
 describe('generated agent pack client', () => {
+  it('blocks ETag reads and installation requests before fetch in preview', async () => {
+    Object.defineProperty(window, 'tinadec', { configurable: true, value: { getHostStatus: async () => ({ state: 'preview', managed: false }) } })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(generatedApi.getAgentPack('pack')).rejects.toMatchObject({ code: 'desktop_host_required' })
+    await expect(generatedApi.installAgentPack('pack', { preview_id: 'preview', envelope: graphSeedPackEnvelope }, { idempotency_key: 'preview-test' })).rejects.toMatchObject({ code: 'desktop_host_required' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
   it('keeps public problem diagnostics for both ETag and ordinary requests', async () => {
     const diagnostic = { code: 'configuration_unique', message: 'Duplicate draft slug.', severity: 'error' }
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ code: 'configuration_invalid',

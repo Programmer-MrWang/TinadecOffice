@@ -22,6 +22,7 @@ vi.mock('@/api', async (importOriginal) => {
     api: {
       ...original.api,
       listSessions: vi.fn(async () => []),
+      listStorageScopes: vi.fn(async () => [{ storage_id: 'user', scope_kind: 'user', storage_root: 'test', backend: 'sqlite', external: false, paths: {} }]),
       listModelProviders: vi.fn(async () => []),
       listProjects: vi.fn(async () => []),
       listAgents: vi.fn(async () => []),
@@ -140,7 +141,7 @@ describe('searchSpotlight', () => {
     const row = groups.find((group) => group.kind === 'conversation')?.items[0]
     expect(row?.label).toBe('pilot launcher seams')
     row?.action()
-    expect(host.calls).toEqual(['openSession("s-1")'])
+    expect(host.calls).toEqual(['openSession("user::s-1")'])
   })
 
   it('a provider display-name query matches a model row that selects that provider', async () => {
@@ -257,7 +258,7 @@ describe('searchSpotlight', () => {
     }))
     vi.mocked(api.listSessions).mockResolvedValue([cached, ...otherSessions])
     const groups = await searchSpotlight('crossproject42', hostWith({ sessions: [cached] }), t, [])
-    expect(api.listSessions).toHaveBeenCalledWith(undefined, expect.any(AbortSignal))
+    expect(api.listSessions).toHaveBeenCalledWith(undefined, expect.any(AbortSignal), 'user', 'active')
     expect(groups.find((group) => group.kind === 'conversation')?.items).toHaveLength(12)
   })
 
@@ -284,7 +285,7 @@ describe('searchSpotlight', () => {
     vi.mocked(api.listSessions).mockRejectedValue(new Error('Sessions unavailable'))
     const host = hostWith({ sessions: [{ id: 's1', project_id: 'p1', title: 'pilot', status: 'idle', created_at: '', updated_at: '', permission_mode: 'default', space_options: null, settings_revision: 0 }] })
     const group = (await searchSpotlight('pilot', host, t, [])).find((row) => row.kind === 'conversation')
-    expect(group?.error).toBe('Sessions unavailable')
+    expect(group?.error).toBe('user: Sessions unavailable')
     expect(group?.items[0]?.id).toBe('conversation.s1')
   })
 

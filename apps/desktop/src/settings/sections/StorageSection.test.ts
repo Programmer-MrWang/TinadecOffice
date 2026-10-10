@@ -2,6 +2,8 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import StorageSection from './StorageSection.vue'
+import { ApiError } from '@/lib/apiError'
+import { setHostAccessStatus } from '@/lib/hostAccess'
 
 const mocks = vi.hoisted(() => ({
   listStorageScopes: vi.fn(), getStorageStats: vi.fn(), getStorageDiagnostics: vi.fn(), getConfigurationDocument: vi.fn(),
@@ -11,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   closeStorageScope: vi.fn(), hostAction: vi.fn(),
 }))
 vi.mock('@/api', () => ({ api: mocks }))
-vi.mock('@/composables/useNotifications', () => ({ useNotifications: () => ({ confirm: mocks.confirm }) }))
+vi.mock('@/composables/useNotifications', async importOriginal => ({ ...(await importOriginal<typeof import('@/composables/useNotifications')>()), useNotifications: () => ({ confirm: mocks.confirm }) }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: { value: 'zh-CN' } }) }))
 
 const user = { storage_id: 'user', scope_kind: 'user', storage_root: 'C:/user', backend: 'sqlite', external: false, paths: { config: 'C:/user/config', cache: 'C:/user/cache' } }
@@ -20,6 +22,7 @@ const config = { document_id: 'runtime', path: 'C:/user/config/runtime.toml', te
 
 beforeEach(() => {
   vi.clearAllMocks()
+  setHostAccessStatus({ state: 'ready', managed: true })
   mocks.listStorageScopes.mockResolvedValue([user, project])
   mocks.getStorageStats.mockImplementation(async (id: string) => ({ storage_id: id, categories: [{ category: 'cache', path: 'C:/user/cache', size_bytes: 1024, file_count: 2, clearable: true }], diagnostics: [] }))
   mocks.getStorageDiagnostics.mockImplementation(async (id: string) => ({ storage_id: id, diagnostics: [{ code: 'credential_unbound', message: '凭据引用需要重新绑定', severity: 'warning' }] }))
@@ -43,6 +46,17 @@ it('waits for scope closing and lets the user cancel the captured request', asyn
   await wrapper.findAll('button').find(button => button.text() === '取消关闭')!.trigger('click'); await flushPromises()
   expect(signal.aborted).toBe(true); expect(wrapper.text()).toContain('关闭已取消')
   expect((wrapper.get('select').element as HTMLSelectElement).value).toBe(project.storage_id)
+  wrapper.unmount()
+})
+it('preserves CAS diagnostics and trace alongside the retained draft', async () => {
+  mocks.saveConfigurationDocument.mockRejectedValueOnce(new ApiError('configuration conflict', 412, { code: 'configuration_conflict', trace_id: 'cas-trace', actions: ['reload'], diagnostics: [{ code: 'configuration_hash_mismatch', message: 'changed file', severity: 'error' }] }))
+  const wrapper = mount(StorageSection); await flushPromises()
+  await wrapper.get('textarea').setValue('enabled = false\n')
+  await wrapper.findAll('button').find(button => button.text() === '保存配置')!.trigger('click'); await flushPromises()
+  expect(wrapper.text()).toContain('cas-trace')
+  expect(wrapper.text()).toContain('changed file')
+  expect(wrapper.text()).toContain('configuration_hash_mismatch')
+  expect(wrapper.text()).toContain('草稿保留')
   wrapper.unmount()
 })
 it('displays actual paths and preserves TOML drafts after a CAS conflict', async () => {
@@ -109,5 +123,40 @@ it('explains why a web client cannot execute maintenance without a trusted host'
   await wrapper.findAll('button').find(button => button.text() === '确认执行此预览')!.trigger('click'); await flushPromises()
   expect(wrapper.text()).toContain('需要可信主窗口宿主')
   expect(mocks.hostAction).not.toHaveBeenCalled(); expect(mocks.cleanupStorage).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+
+it.each(['cleanup', 'content', 'delete'] as const)('discards a late %s preview after reconnecting into another scope', async kind => {
+  let resolve!: (value: unknown) => void
+  const pending = new Promise(result => { resolve = result })
+  const mock = kind === 'cleanup' ? mocks.previewStorageCleanup : kind === 'content' ? mocks.previewContentCollection : mocks.previewStorageDeletion
+  mock.mockReturnValueOnce(pending)
+  const wrapper = mount(StorageSection); await flushPromises()
+  await wrapper.get('select').setValue(project.storage_id); await flushPromises()
+  const label = kind === 'cleanup' ? '预览清理' : kind === 'content' ? '预览内容回收' : '预览删除整个项目存储'
+  await wrapper.findAll('button').find(button => button.text() === label)!.trigger('click'); await flushPromises()
+  setHostAccessStatus({ state: 'unavailable', managed: true }); await flushPromises()
+  setHostAccessStatus({ state: 'ready', managed: true }); await flushPromises()
+  await wrapper.get('select').setValue('user'); await flushPromises()
+  resolve({ preview_id: 'late-preview', storage_id: project.storage_id, category: 'cache', path: 'C:/stale-project', file_count: 1, size_bytes: 128, references: ['stale-reference'], expires_at: '' }); await flushPromises()
+  expect(wrapper.text()).not.toContain('C:/stale-project'); expect(wrapper.text()).not.toContain('stale-reference')
+  expect(wrapper.findAll('button').some(button => button.text().startsWith('确认') && button.text().includes('预览'))).toBe(false)
+  expect(mocks.hostAction).not.toHaveBeenCalled()
+  wrapper.unmount()
+})
+it('does not apply late maintenance completion or stats to a newly selected scope', async () => {
+  mocks.previewContentCollection.mockResolvedValue({ preview_id: 'pending-collection', storage_id: project.storage_id, file_count: 1, size_bytes: 128, references: [], expires_at: '' })
+  let resolve!: () => void; mocks.hostAction.mockReturnValueOnce(new Promise<void>(result => { resolve = result }))
+  const wrapper = mount(StorageSection); await flushPromises()
+  await wrapper.get('select').setValue(project.storage_id); await flushPromises()
+  await wrapper.findAll('button').find(button => button.text() === '预览内容回收')!.trigger('click'); await flushPromises()
+  await wrapper.findAll('button').find(button => button.text() === '确认回收此预览')!.trigger('click'); await flushPromises()
+  setHostAccessStatus({ state: 'unavailable', managed: true }); await flushPromises()
+  setHostAccessStatus({ state: 'ready', managed: true }); await flushPromises()
+  await wrapper.get('select').setValue('user'); await flushPromises()
+  const reads = mocks.getStorageStats.mock.calls.length; resolve(); await flushPromises()
+  expect((wrapper.get('select').element as HTMLSelectElement).value).toBe('user')
+  expect(wrapper.text()).not.toContain('未被引用的内容已回收')
+  expect(mocks.getStorageStats).toHaveBeenCalledTimes(reads)
   wrapper.unmount()
 })

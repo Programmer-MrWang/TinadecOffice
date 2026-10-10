@@ -221,7 +221,7 @@ function normalizeError(error: unknown, fallback?: string): string {
  * kind; whoever owns navigation maps it to behaviour here.
  */
 export interface ErrorRecoveryHandlers {
-  retry?: () => void | Promise<void>
+  retry?: (error?: ApiError) => void | Promise<void>
   reload?: () => void | Promise<void>
   open_settings?: () => void | Promise<void>
   open_storage_settings?: () => void | Promise<void>
@@ -244,6 +244,11 @@ export function setErrorActionLabels(labels: Partial<Record<ApiErrorActionKind, 
   actionLabels = { ...actionLabels, ...labels }
 }
 
+export function getErrorActionLabel(kind: ApiErrorActionKind): string {
+  const defaults: Record<ApiErrorActionKind, string> = { retry: 'Retry', reload: 'Reload', open_settings: 'Open settings', open_storage_settings: 'Storage settings', open_tool_settings: 'Tool settings', unregister_workspace: 'Unregister', choose_folder: 'Choose folder' }
+  return actionLabels[kind] ?? defaults[kind]
+}
+
 /**
  * Turns a server-classified error into a ready-to-run notification action. Only the first
  * available handler wins: offering "retry" and "reload" side by side for one failure asks the
@@ -253,12 +258,12 @@ function recoveryActionFor(error: unknown): NotificationAction | undefined {
   if (!(error instanceof ApiError) || error.actions.length === 0) return undefined
   for (const kind of error.actions) {
     const run = recoveryHandlers[kind]
-    if (!run) continue
+    if (!run || (kind === 'unregister_workspace' && !error.storageId)) continue
     return {
       label: actionLabels[kind] ?? kind.replace(/_/g, ' '),
       run: () => {
-        if (kind === 'unregister_workspace') return (run as (id?: string) => void | Promise<void>)(error.instance)
-        return (run as () => void | Promise<void>)()
+        if (kind === 'unregister_workspace') return (run as (id?: string) => void | Promise<void>)(error.storageId)
+        return (run as (error?: ApiError) => void | Promise<void>)(error)
       },
     }
   }

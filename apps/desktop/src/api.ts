@@ -1,3 +1,4 @@
+import { assertHostAccess } from '@/lib/hostAccess'
 import type { AgentPackEnvelope } from '@/agentPacks/GraphSeedPack'
 import { CORE_EVENT_TYPES } from '@/events/coreEventTypes'
 import type { components } from '@/generated/schema'
@@ -39,12 +40,17 @@ export interface ProjectDto {
   external?: boolean | null;
   availability?: 'ready' | 'error';
   availability_error?: string;
+  availability_code?: string;
+  category?: import('@/lib/apiError').ApiErrorCategory;
+  retryable?: boolean;
+  actions?: import('@/lib/apiError').ApiErrorActionKind[];
+  trace_id?: string;
   storage_id?: string;
   id: string;
   name: string;
   path: string;
   created_at: string;
-  lifecycle_status?: 'active' | 'archived' | 'trashed';
+  lifecycle_status?: 'active' | 'archived' | 'trashed' | null;
   trashed_at?: string | null;
 }
 
@@ -2597,6 +2603,7 @@ async function requestResult<T>(path: string, init?: StorageRequestOptions): Pro
   if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
   let response: Response;
   try {
+    await assertHostAccess(path, init?.signal ?? undefined)
     response = await fetch(`${gatewayUrl}${normalized.path}`, {
       ...init,
       body: normalized.body,
@@ -2604,6 +2611,7 @@ async function requestResult<T>(path: string, init?: StorageRequestOptions): Pro
     });
   } catch (err) {
     if (isAbortError(err)) throw err
+    if (err instanceof ApiError) throw err
     // fetch() itself failed (network error, CORS blocked, etc.)
     const msg = err instanceof Error ? err.message : 'Network request failed';
     throw new Error(`Cannot connect to backend (${gatewayUrl}): ${msg}`);
@@ -2622,7 +2630,7 @@ async function requestResult<T>(path: string, init?: StorageRequestOptions): Pro
 
   if (!response.ok) {
     const message = extractErrorMessage(data, response.statusText);
-    throw new ApiError(message, response.status, data);
+    throw new ApiError(message, response.status, data, { storageId });
   }
 
   rememberStorageResult(path, data, storageId)
@@ -2845,7 +2853,7 @@ function streamAdmittedInteraction(
 
 export const api = {
   gatewayUrl,
-  listStorageScopes: () => request<StorageScopeDto[]>('/api/v1/storage/scopes', { storageId: 'user' }),
+  listStorageScopes: (signal?: AbortSignal) => request<StorageScopeDto[]>('/api/v1/storage/scopes', { storageId: 'user', signal }),
   openStorageScope: (input: { project_path: string; name?: string } & Partial<StorageConfigureInput> & Partial<import('@/lib/workspaces').WorkspaceInput>) => request<StorageScopeDto>('/api/v1/storage/scopes/open', { method: 'POST', storageId: 'user', body: JSON.stringify(input) }),
   previewWorkspace: (project_path: string) => request<import('@/lib/workspaces').WorkspacePreview>('/api/v1/storage/scopes/preview', { method: 'POST', storageId: 'user', body: JSON.stringify({ project_path }) }),
   readWorkspace: (storageId: string) => request<import('@/lib/workspaces').WorkspaceDefinition>(`/api/v1/storage/scopes/${encodeURIComponent(storageId)}/workspace`, { storageId: 'user' }),
@@ -2950,12 +2958,17 @@ export const api = {
   doctor: () => request<DoctorReportDto>('/api/v1/doctor'),
   readiness: () => request<RuntimeReadinessReceiptDto>('/api/v1/readiness'),
   getToolLayerReadiness: () => request<ToolLayerReadinessReceiptDto>('/api/v1/tool-layer-readiness'),
-  listProjects: (options?: { signal?: AbortSignal }) => request<ProjectDto[]>('/api/v1/projects', options),
+  listProjects: (options?: { signal?: AbortSignal; storageId?: string; lifecycleStatus?: 'active' | 'archived' | 'trashed' }) => request<ProjectDto[]>(`/api/v1/projects${options?.lifecycleStatus ? '?lifecycle_status=' + encodeURIComponent(options.lifecycleStatus) : ''}`, options),
   createProject: (name: string, path: string) => request<ProjectDto>('/api/v1/projects', {
     method: 'POST',
     body: JSON.stringify({ name, path })
   }),
-  listSessions: (projectId?: string, signal?: AbortSignal, storageId?: string) => request<SessionDto[]>(`/api/v1/sessions${projectId ? `?project_id=${encodeURIComponent(projectId)}` : ''}`, { signal, storageId, cache: 'no-store' }),
+  listSessions: (projectId?: string, signal?: AbortSignal, storageId?: string, lifecycleStatus?: 'active' | 'archived' | 'trashed') => {
+    const query = new URLSearchParams()
+    if (projectId) query.set('project_id', projectId)
+    if (lifecycleStatus) query.set('lifecycle_status', lifecycleStatus)
+    return request<SessionDto[]>(`/api/v1/sessions${query.size ? '?' + query : ''}`, { signal, storageId, cache: 'no-store' })
+  },
   // mode_version_id decides which agent holds the conversation. Omitted = the workspace default.
   createSession: (projectId?: string | null, title?: string, modeVersionId?: string | null, viewMode: 'flat' | 'space' = 'flat', settings?: SessionSettingsUpdate) => request<SessionDto>('/api/v1/sessions', {
     method: 'POST',
@@ -3254,8 +3267,8 @@ export const api = {
   // 用户级运行时绑定（配置体验改造 A）：pack 管理的智能体也可写，绕开 draft/publish。
   putAgentRuntimeBinding: (id: string, body: { mode: 'inherit' | 'route' | 'fixed'; provider_instance_id?: string | null; model?: string | null; route_purpose?: string | null; tool_scope?: string[] | null }) => request<Record<string, unknown>>(`/api/v1/agents/${encodeURIComponent(id)}/runtime-binding`, { method: 'PUT', body: JSON.stringify(body) }),
   archiveAgent: (id: string) => request<AgentDefinitionDto>(`/api/v1/agents/${encodeURIComponent(id)}/archive`, { method: 'POST' }),
-  getWorkspaceDefaults: () => request<WorkspaceDefaultsDto>('/api/v1/workspace-defaults'),
-  listAgentPacks: () => request<AgentPackDto[]>('/api/v1/agent-packs'),
+  getWorkspaceDefaults: (signal?: AbortSignal) => request<WorkspaceDefaultsDto>('/api/v1/workspace-defaults', { signal }),
+  listAgentPacks: (signal?: AbortSignal) => request<AgentPackDto[]>('/api/v1/agent-packs', { signal }),
   getAgentPack: async (packId: string) => withResponseEtag(await requestResult<AgentPackDetailDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}`)),
   // 包管理：卸载（不可逆，带 revision 守卫）、启用/禁用、设为工作区默认。
   purgeAgentPack: (packId: string, revision: number | string) => request<AgentPackPurgeDto>(`/api/v1/agent-packs/${encodeURIComponent(packId)}`, {

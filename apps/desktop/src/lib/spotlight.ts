@@ -1,3 +1,5 @@
+import { loadSessionCatalog } from '@/lib/sessionRoster'
+import { useHostAccess } from '@/lib/hostAccess'
 /**
  * The spotlight's item model and its search engine.
  *
@@ -137,7 +139,7 @@ async function boundedSource<T>(load: (signal: AbortSignal) => Promise<T>, paren
 }
 
 /** Cache each catalog as soon as it completes, without coupling it to slower sources. */
-async function loadCatalog<T>(key: keyof Catalogs, load: (signal: AbortSignal) => Promise<T[]>, signal?: AbortSignal): Promise<CatalogResult<T>> {
+async function loadCatalog<T>(key: keyof Catalogs, load: (signal: AbortSignal) => Promise<T[] | CatalogResult<T>>, signal?: AbortSignal): Promise<CatalogResult<T>> {
   const cached = catalogCache.get(key)
   if (cached) return cached as CatalogResult<T>
   const pending = catalogRequests.get(key)
@@ -146,9 +148,9 @@ async function loadCatalog<T>(key: keyof Catalogs, load: (signal: AbortSignal) =
   const request = (async () => {
     let result: CatalogResult<T>
     try {
-      const rows = await boundedSource(load, signal)
-      if (!Array.isArray(rows)) throw new Error('Invalid search source response.')
-      result = { rows }
+      const loaded = await boundedSource(load, signal)
+      result = Array.isArray(loaded) ? { rows: loaded } : loaded
+      if (!result || !Array.isArray(result.rows)) throw new Error('Invalid search source response.')
     } catch (error) {
       if (signal?.aborted) throw error
       result = { rows: [], error: errorMessage(error) }
@@ -400,12 +402,17 @@ export async function searchSpotlight(
     push({ kind: 'setting', items: rank(query, settingItems(host, t)) })
   }
   publish()
+  const access = useHostAccess()
+  if (!access.canAccessBackend.value) {
+    push({ kind: 'project', items: [], error: access.reason.value })
+    return ordered()
+  }
 
   let sessions: CatalogResult<SessionDto> | undefined
   let projects: ProjectDto[] = []
   const updateConversations = () => {
     if (!sessions) return
-    const rows = sessions.error ? host.loadedSessions() : sessions.rows
+    const rows = sessions.rows.length || !sessions.error ? sessions.rows : host.loadedSessions()
     push({ kind: 'conversation', items: rank(query, conversationItems(rows, projects, host, t)), error: sessions.error })
   }
 
@@ -424,7 +431,10 @@ export async function searchSpotlight(
   })
   await Promise.all([
     source('conversation', async () => {
-      sessions = await loadCatalog('sessions', (signal) => api.listSessions(undefined, signal), options.signal)
+      sessions = await loadCatalog('sessions', async signal => {
+        const result = await loadSessionCatalog({ signal, previous: host.loadedSessions() })
+        return { rows: result.rows, error: result.failures.map(failure => failure.source.storageId + ': ' + failure.error.message).join('; ') || undefined }
+      }, options.signal)
       updateConversations()
     }),
     source('project', async () => {

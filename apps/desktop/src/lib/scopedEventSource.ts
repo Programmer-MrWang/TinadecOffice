@@ -1,3 +1,4 @@
+import { assertHostAccess } from './hostAccess'
 /** Fetch-based SSE keeps the captured storage header on reconnects. */
 export class ScopedEventSource {
   private readonly events = new EventTarget()
@@ -34,19 +35,22 @@ export class ScopedEventSource {
   }
   private async connect() {
     if (this.closed) return
-    this.abort = new AbortController()
+    const request = new AbortController()
+    this.abort = request
     try {
-      const response = await this.fetchImpl(this.url, { signal: this.abort.signal, headers: {
+      await assertHostAccess(this.url, request.signal)
+      if (this.closed || request.signal.aborted) return
+      const response = await this.fetchImpl(this.url, { signal: request.signal, headers: {
         accept: 'text/event-stream', 'x-tinadec-storage-id': this.storageId,
         ...(this.cursor ? { 'last-event-id': this.cursor } : {}),
       } })
-      if (this.closed) { await response.body?.cancel(); return }
+      if (this.closed || request.signal.aborted) { await response.body?.cancel(); return }
       if (!response.ok || !response.body) throw new Error(`Event stream returned ${response.status}`)
       this.readyState = 1
       const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = ''
-      while (!this.closed) {
+      while (!this.closed && !request.signal.aborted) {
         const { done, value } = await reader.read()
-        if (this.closed) break
+        if (this.closed || request.signal.aborted) break
         buffer = (buffer + decoder.decode(value, { stream: !done })).replace(/\r\n/g, '\n')
         let boundary: number
         while ((boundary = buffer.indexOf('\n\n')) >= 0) { this.dispatchBlock(buffer.slice(0, boundary)); buffer = buffer.slice(boundary + 2) }

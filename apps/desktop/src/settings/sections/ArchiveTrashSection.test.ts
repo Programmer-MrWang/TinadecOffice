@@ -7,8 +7,9 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ t: (key: string, params?: Record<string, string>) => (params ? `${key}:${params.name}` : key) }),
 }))
 
-const { confirmMock, generatedApi } = vi.hoisted(() => ({
+const { confirmMock, generatedApi, scopeApi } = vi.hoisted(() => ({
   confirmMock: vi.fn(async (..._args: unknown[]) => true),
+  scopeApi: { listStorageScopes: vi.fn(), listSessions: vi.fn() },
   generatedApi: {
     listProjects: vi.fn(),
     listSessions: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('@/composables/useNotifications', () => ({
 }))
 
 vi.mock('@/generated/client', () => ({ generatedApi }))
+vi.mock('@/api', () => ({ api: scopeApi }))
 
 function stubLists() {
   generatedApi.listProjects.mockImplementation(async (status?: string) => {
@@ -50,13 +52,15 @@ describe('ArchiveTrashSection', () => {
     vi.clearAllMocks()
     confirmMock.mockResolvedValue(true)
     stubLists()
+    scopeApi.listStorageScopes.mockResolvedValue([{ storage_id: 'user' }])
+    scopeApi.listSessions.mockImplementation((_project?: string, _signal?: AbortSignal, _storage?: string, status?: string) => generatedApi.listSessions(_project, status))
   })
 
   it('lists archived and trashed projects and sessions with their parent project', async () => {
     const wrapper = mount(ArchiveTrashSection)
     await flushPromises()
-    expect(generatedApi.listProjects).toHaveBeenCalledWith('archived')
-    expect(generatedApi.listProjects).toHaveBeenCalledWith('trashed')
+    expect(generatedApi.listProjects).toHaveBeenCalledWith('archived', expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(generatedApi.listProjects).toHaveBeenCalledWith('trashed', expect.objectContaining({ signal: expect.any(AbortSignal) }))
     expect(wrapper.text()).toContain('Archived project')
     expect(wrapper.text()).toContain('Trashed session')
     expect(wrapper.text()).toContain('settings.sessionInProject:Trashed project')
@@ -86,7 +90,30 @@ describe('ArchiveTrashSection', () => {
     await buttons[1].trigger('click')
     await flushPromises()
     expect(confirmMock).toHaveBeenCalledTimes(1)
-    expect(generatedApi.purgeSession).toHaveBeenCalledWith('s-trashed')
+    expect(generatedApi.purgeSession).toHaveBeenCalledWith('user::s-trashed')
+  })
+
+  it('retains failed project history while refreshing other scopes and routes restores to the source', async () => {
+    scopeApi.listStorageScopes.mockResolvedValue([{ storage_id: 'user' }, { storage_id: 'project-scope' }])
+    scopeApi.listSessions.mockImplementation(async (_project, _signal, storage, status) => status === 'archived'
+      ? [{ id: 'same-id', title: storage + ' history', project_id: storage === 'user' ? null : 'p-active' }] : [])
+    const wrapper = mount(ArchiveTrashSection)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="archived-session-row"]')).toHaveLength(2)
+    const projectRow = wrapper.findAll('[data-testid="archived-session-row"]').find(row => row.text().includes('project-scope history'))!
+    scopeApi.listSessions.mockImplementation(async (_project, _signal, storage, status) => {
+      if (storage === 'project-scope') throw new Error('project database unavailable')
+      return status === 'archived' ? [{ id: 'new-user', title: 'updated user history', project_id: null }] : []
+    })
+    await projectRow.find('button').trigger('click')
+    await flushPromises()
+    expect(generatedApi.restoreSession).toHaveBeenCalledWith('project-scope::same-id')
+    expect(wrapper.text()).toContain('updated user history')
+    expect(wrapper.text()).toContain('project-scope history')
+    expect(wrapper.text()).toContain('project database unavailable')
+    expect(wrapper.text()).not.toContain('settings.emptyArchived')
+    expect(scopeApi.listSessions).toHaveBeenCalledWith(undefined, expect.any(AbortSignal), 'project-scope', 'archived')
+    wrapper.unmount()
   })
 
   it('does not purge when the confirmation is rejected', async () => {

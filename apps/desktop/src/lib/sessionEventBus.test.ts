@@ -2,7 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { api, type EventEnvelope } from '@/api'
 
 vi.mock('@/api', () => ({
@@ -59,6 +59,24 @@ afterEach(() => {
 })
 
 describe('sessionEventBus', () => {
+  it('does not open a preview stream and reconnects reads only after host authentication', async () => {
+    const { setHostAccessStatus } = await import('./hostAccess')
+    setHostAccessStatus({ state: 'preview', managed: false })
+    bus.followSession('project-scope::session')
+    const release = bus.subscribeToSessionEvents(() => {})
+    await nextTick()
+    expect(connect).not.toHaveBeenCalled()
+    setHostAccessStatus({ state: 'ready', managed: true })
+    await nextTick()
+    expect(connect).toHaveBeenCalledTimes(1)
+    setHostAccessStatus({ state: 'unavailable', managed: true })
+    await nextTick()
+    expect(liveSources[0]!.closed).toBe(1)
+    setHostAccessStatus({ state: 'ready', managed: true })
+    await nextTick()
+    expect(connect).toHaveBeenCalledTimes(2)
+    release()
+  })
   it('releases only its captured scope while closing and can resume on failure', () => {
     bus.followSession('original::same-session')
     const release = bus.subscribeToSessionEvents(() => {})

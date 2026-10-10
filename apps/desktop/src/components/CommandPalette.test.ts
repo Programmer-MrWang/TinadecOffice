@@ -19,6 +19,7 @@ vi.mock('vue-i18n', () => ({
 vi.mock('@/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/api')>()
   return { ...original, api: { ...original.api,
+    listStorageScopes: vi.fn(async () => [{ storage_id: 'user' }]),
     listProjects: vi.fn(async () => []), listSessions: vi.fn(async () => []),
     listModelProviders: vi.fn(async () => []), listAgents: vi.fn(async () => []),
     listAgentModes: vi.fn(async () => []), listPromptFragments: vi.fn(async () => []),

@@ -1,5 +1,8 @@
 export interface StorageDiagnostic { code?: string; severity?: string; message?: string; [key: string]: unknown }
 export interface StorageScopeDto {
+  availability?: 'ready' | 'error'
+  availability_error?: string; availability_code?: string; trace_id?: string
+  category?: import('@/lib/apiError').ApiErrorCategory; retryable?: boolean; actions?: import('@/lib/apiError').ApiErrorActionKind[]
   workspace?: import('@/lib/workspaces').WorkspaceDefinition | null
   storage_id: string; scope_kind: string; project_id?: string | null; project_root?: string | null
   storage_root: string; backend: string; external: boolean; allow_storage_write?: boolean; postgres_connection_reference?: string | null; restart_required?: boolean; requested_storage_root?: string

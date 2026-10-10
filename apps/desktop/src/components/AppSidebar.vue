@@ -136,7 +136,8 @@ const renaming = ref<{ kind: 'project' | 'session'; id: string } | null>(null)
 const migrationDialog = ref<HTMLDialogElement | null>(null)
 const migrationSession = ref<MenuTarget | null>(null)
 const migrationProject = ref('')
-const migrationProjects = computed(() => props.projects.filter(project => project.storage_id && (project.lifecycle_status ?? 'active') === 'active'))
+const migrationProjects = computed(() => props.projects.filter(project => project.storage_id
+  && project.availability !== 'error' && project.lifecycle_status === 'active'))
 const migrationAllowed = computed(() => menuTarget.value?.kind === 'session' && props.sessions.some(session => selectionKey(session) === menuTarget.value?.id && !session.project_id) && migrationProjects.value.length > 0)
 
 const menuProject = computed(() => menuTarget.value?.kind === 'project'
@@ -248,7 +249,7 @@ async function handleMenuSelect(key: string) {
   }
 }
 function submitMigration() {
-  if (!migrationSession.value || !migrationProject.value) return
+  if (!migrationSession.value || !migrationProjects.value.some(project => selectionKey(project) === migrationProject.value)) return
   emit('migrate-session', migrationSession.value.id, migrationProject.value)
   migrationDialog.value?.close(); migrationSession.value = null
 }

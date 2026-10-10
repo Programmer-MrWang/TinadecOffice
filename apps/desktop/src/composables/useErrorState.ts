@@ -1,3 +1,4 @@
+import { getErrorActionLabel } from './useNotifications'
 import { computed, ref, type Ref } from 'vue'
 import { ApiError, apiErrorDetails, type ApiErrorActionKind } from '@/lib/apiError'
 
@@ -100,15 +101,4 @@ export function recoveryActions(
 }
 
 /** Shared labels, mirroring the notification layer so both surfaces read the same. */
-export function errorActionLabel(kind: ApiErrorActionKind): string {
-  const labels: Record<ApiErrorActionKind, string> = {
-    retry: 'Retry',
-    reload: 'Reload',
-    open_settings: 'Open settings',
-    open_storage_settings: 'Storage settings',
-    open_tool_settings: 'Tool settings',
-    unregister_workspace: 'Unregister',
-    choose_folder: 'Choose folder',
-  }
-  return labels[kind]
-}
+export function errorActionLabel(kind: ApiErrorActionKind): string { return getErrorActionLabel(kind) }

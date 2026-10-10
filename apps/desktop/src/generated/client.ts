@@ -1,3 +1,4 @@
+import { assertHostAccess } from '@/lib/hostAccess'
 /**
  * Typed fetch wrapper aligned to the Gateway external contract (snake_case).
  * DTOs are type aliases into src/generated/schema.d.ts, which is generated from
@@ -9,7 +10,7 @@
 import type { components } from './schema'
 import { isAbortError } from '../lib/isAbortError'
 import { ApiError, apiErrorMessage } from '../lib/apiError'
-import { storageHeaders, captureStorageId, rememberStorageResult, normalizeStorageRequest } from '../lib/storageScope'
+import { storageHeaders, captureStorageId, rememberStorageResult, normalizeStorageRequest, type StorageRequestOptions } from '../lib/storageScope'
 
 type Schemas = components['schemas']
 
@@ -98,7 +99,7 @@ function gatewayUrl(): string {
   return w.tinadec?.gatewayUrl?.() ?? 'http://127.0.0.1:48730'
 }
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
+async function req<T>(path: string, init?: StorageRequestOptions): Promise<T> {
   const storageId = captureStorageId(path, init)
   const normalized = normalizeStorageRequest(path, init)
   const url = `${gatewayUrl()}${normalized.path}`
@@ -107,22 +108,23 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     const headers = storageHeaders(path, { ...init, storageId })
     headers.set('accept', 'application/json')
     if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
+    await assertHostAccess(path, init?.signal ?? undefined)
     res = await fetch(url, { ...init, body: normalized.body, headers })
   } catch (e) {
-    if (isAbortError(e)) throw e
+    if (isAbortError(e) || e instanceof ApiError) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
   }
   const text = await res.text()
   let data: unknown = null
   if (text) { try { data = JSON.parse(text) } catch { throw new Error(`Invalid JSON: ${text.slice(0,200)}`) } }
   if (!res.ok) {
-    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data)
+    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data, { storageId })
   }
   rememberStorageResult(path, data, storageId)
   return data as T
 }
 
-async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { etag: string | null }> {
+async function reqWithEtag<T>(path: string, init?: StorageRequestOptions): Promise<T & { etag: string | null }> {
   const storageId = captureStorageId(path, init)
   const normalized = normalizeStorageRequest(path, init)
   const url = `${gatewayUrl()}${normalized.path}`
@@ -131,16 +133,17 @@ async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { e
     const headers = storageHeaders(path, { ...init, storageId })
     headers.set('accept', 'application/json')
     if (init?.body && !headers.has('content-type')) headers.set('content-type', 'application/json')
+    await assertHostAccess(path, init?.signal ?? undefined)
     res = await fetch(url, { ...init, body: normalized.body, headers })
   } catch (e) {
-    if (isAbortError(e)) throw e
+    if (isAbortError(e) || e instanceof ApiError) throw e
     throw new Error(`Cannot connect to backend (${gatewayUrl()}): ${e instanceof Error ? e.message : String(e)}`)
   }
   const text = await res.text()
   let data: unknown = null
   if (text) { try { data = JSON.parse(text) } catch { throw new Error(`Invalid JSON: ${text.slice(0,200)}`) } }
   if (!res.ok) {
-    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data)
+    throw new ApiError(apiErrorMessage(data, res.statusText), res.status, data, { storageId })
   }
   const result = data as T
   rememberStorageResult(path, result, storageId)
@@ -152,19 +155,19 @@ async function reqWithEtag<T>(path: string, init?: RequestInit): Promise<T & { e
 
 export const generatedApi = {
   gatewayUrl,
-  listProjects: (lifecycleStatus?: LifecycleStatus) => req<ProjectDto[]>(`/api/v1/projects${lifecycleStatus ? `?lifecycle_status=${encodeURIComponent(lifecycleStatus)}` : ''}`),
+  listProjects: (lifecycleStatus?: LifecycleStatus, options?: { storageId?: string; signal?: AbortSignal }) => req<ProjectDto[]>(`/api/v1/projects${lifecycleStatus ? `?lifecycle_status=${encodeURIComponent(lifecycleStatus)}` : ''}`, options),
   createProject: (name: string, path: string) => req<ProjectDto>('/api/v1/projects', { method: 'POST', body: JSON.stringify({ name, path }) }),
   renameProject: (projectId: string, name: string) => req<ProjectDto>(`/api/v1/projects/${encodeURIComponent(projectId)}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
   archiveProject: (projectId: string) => req<void>(`/api/v1/projects/${encodeURIComponent(projectId)}/archive`, { method: 'POST' }),
   trashProject: (projectId: string) => req<void>(`/api/v1/projects/${encodeURIComponent(projectId)}/trash`, { method: 'POST' }),
   restoreProject: (projectId: string) => req<void>(`/api/v1/projects/${encodeURIComponent(projectId)}/restore`, { method: 'POST' }),
   purgeProject: (projectId: string) => req<void>(`/api/v1/projects/${encodeURIComponent(projectId)}`, { method: 'DELETE' }),
-  listSessions: (projectId?: string, lifecycleStatus?: LifecycleStatus) => {
+  listSessions: (projectId?: string, lifecycleStatus?: LifecycleStatus, options?: { storageId?: string; signal?: AbortSignal }) => {
     const params = new URLSearchParams()
     if (projectId) params.set('project_id', projectId)
     if (lifecycleStatus) params.set('lifecycle_status', lifecycleStatus)
     const suffix = params.toString() ? `?${params.toString()}` : ''
-    return req<SessionDto[]>(`/api/v1/sessions${suffix}`)
+    return req<SessionDto[]>(`/api/v1/sessions${suffix}`, options)
   },
   // A null project_id means "free conversation": omit the key entirely rather than
   // sending null, which the Gateway's create-session validator would reject.

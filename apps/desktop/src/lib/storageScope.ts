@@ -1,3 +1,4 @@
+import { assertHostAccess } from './hostAccess'
 /** Scope identity is captured before I/O. A later project selection cannot retarget it. */
 import { ref } from 'vue'
 export interface StorageRequestOptions extends RequestInit { storageId?: string }
@@ -44,12 +45,14 @@ export function normalizeStorageRequest(path: string, options?: StorageRequestOp
 
 export function captureStorageId(path: string, options?: StorageRequestOptions): string {
   if (options?.storageId) return options.storageId
-  // Host rosters aggregate scopes and must remain on the user authority.
-  if (/^\/api\/v1\/(storage\/|projects(?:\?|$)|sessions(?:\?|$))/.test(path) && (!options?.method || options.method === 'GET')) return 'user'
   if (callStorage) return callStorage
   const url = new URL(path, 'http://tinadec.local')
   const projectId = url.searchParams.get('project_id')
   if (projectId) return projectStorageId(projectId)
+  const querySession = url.searchParams.get('session_id')
+  if (querySession) return sessionStorageId(querySession)
+  const queryRun = url.searchParams.get('run_id')
+  if (queryRun) return runStorageId(queryRun)
   const pathProjectId = path.match(/^\/api\/v1\/projects\/([^/?]+)/)?.[1]
   if (pathProjectId) return projectStorageId(decodeURIComponent(pathProjectId))
   const sessionId = path.match(/^\/api\/v1\/sessions\/([^/?]+)/)?.[1]
@@ -64,6 +67,8 @@ export function captureStorageId(path: string, options?: StorageRequestOptions):
       if (body.run_id) return runStorageId(body.run_id)
     } catch { /* non JSON payload */ }
   }
+  // Unbound rosters default to user; explicit bindings and entity identities always win.
+  if (/^\/api\/v1\/(storage\/|projects(?:\?|$)|sessions(?:\?|$))/.test(path) && (!options?.method || options.method === 'GET')) return 'user'
   return selectedStorage.value
 }
 export function storageHeaders(path: string, options?: StorageRequestOptions): Headers {
@@ -71,9 +76,10 @@ export function storageHeaders(path: string, options?: StorageRequestOptions): H
   headers.set('x-tinadec-storage-id', captureStorageId(path, options))
   return headers
 }
-export function storageFetch(input: RequestInfo | URL, options?: StorageRequestOptions): Promise<Response> {
+export async function storageFetch(input: RequestInfo | URL, options?: StorageRequestOptions): Promise<Response> {
   const url = new URL(input instanceof Request ? input.url : String(input), 'http://tinadec.local')
   const headers = storageHeaders(url.pathname + url.search, options)
+  await assertHostAccess(url.pathname + url.search, options?.signal ?? undefined)
   return fetch(input, { ...options, headers })
 }
 export function rememberStorageResult(path: string, data: unknown, storageId: string) {

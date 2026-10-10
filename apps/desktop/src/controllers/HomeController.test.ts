@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
   listProjects: vi.fn(async () => []),
   doctor: vi.fn(async () => null),
   readiness: vi.fn(async () => ({ items: [] })),
-  listSessions: vi.fn(async () => []),
+  listSessions: vi.fn(async (_project?: string, _signal?: AbortSignal, _storage?: string) => []),
   readWorkspace: vi.fn(),
   createSession: vi.fn(),
   listMessages: vi.fn(async () => []),
@@ -100,6 +100,8 @@ vi.mock('@/composables/useAgentActivity', () => ({
 }))
 
 import { homeController } from './HomeController'
+import { setHostAccessStatus } from '@/lib/hostAccess'
+import * as durableStream from '@/lib/runStream'
 
 function seedProject(): void {
   homeController.projects.value = [
@@ -737,17 +739,93 @@ describe('HomeController initial load', () => {
 })
 
 describe('HomeController independent storage scopes', () => {
+  it('keeps workspace data when diagnostics fail during a read-only host recovery', async () => {
+    setHostAccessStatus({ state: 'unavailable', managed: true })
+    await nextTick()
+    h.listProjects.mockResolvedValueOnce([{ id: 'recover-project', storage_id: 'recover-scope', name: 'recovered', path: 'C:/recovered' }] as never)
+    h.doctor.mockRejectedValueOnce(new Error('diagnostic service failed'))
+    h.readiness.mockRejectedValueOnce(new Error('readiness service failed'))
+    h.listSessions.mockImplementation(async (_project?: string, _signal?: AbortSignal, storage?: string) => storage === 'recover-scope'
+      ? [{ id: 'recover-session', storage_id: storage, project_id: 'recover-project', title: 'retained' }] as never : [])
+    setHostAccessStatus({ state: 'ready', managed: true })
+    await flushPromises()
+    expect(homeController.projects.value[0]?.id).toBe('recover-project')
+    expect(homeController.sessions.value[0]?.id).toBe('recover-session')
+    expect(h.bannerError).toHaveBeenCalledWith(expect.objectContaining({ key: 'home-doctor' }))
+    expect(h.bannerError).toHaveBeenCalledWith(expect.objectContaining({ key: 'home-readiness' }))
+    expect(h.createSession).not.toHaveBeenCalled()
+    expect(h.migrateSession).not.toHaveBeenCalled()
+    h.listSessions.mockResolvedValue([])
+  })
+
   it('clears only the recovered workspace availability failure after a successful scoped retry', async () => {
     const first = { id: 'failed-a', storage_id: 'failed-scope-a', path: 'C:/failed-a', name: 'first', availability: 'error', availability_error: 'missing directory' }
     const second = { id: 'failed-b', storage_id: 'failed-scope-b', path: 'C:/failed-b', name: 'second', availability: 'error' }
     homeController.projects.value = [first, second] as never
     h.listSessions.mockResolvedValueOnce([])
-    h.readWorkspace.mockResolvedValueOnce({ name: 'recovered first', roots: [{ id: 'a', path: first.path }], primary_root_id: 'a', content_hash: 'recovered-hash' })
+    h.listProjects.mockImplementationOnce(async () => [{ id: first.id, storage_id: first.storage_id, name: 'recovered first', path: first.path, availability: 'ready', lifecycle_status: 'active', configuration_hash: 'recovered-hash' }] as never)
+      .mockResolvedValueOnce([]).mockResolvedValueOnce([])
     await homeController.retryWorkspaces('failed-scope-a::failed-a')
-    expect(h.readWorkspace).toHaveBeenCalledWith(first.storage_id)
+    expect(h.listProjects).toHaveBeenCalledWith({ storageId: first.storage_id, signal: expect.any(AbortSignal), lifecycleStatus: 'active' })
     expect(homeController.projects.value[0]).toMatchObject({ name: 'recovered first', availability: 'ready', configuration_hash: 'recovered-hash' })
     expect(homeController.projects.value[0]?.availability_error).toBeUndefined()
     expect(homeController.projects.value[1]).toEqual(second)
+  })
+  it('resumes the same run cursor after host recovery without duplicating streamed text', async () => {
+    homeController.setSelectedProject(null)
+    await flushPromises()
+    const project = { id: 'live-project', storage_id: 'live-scope', name: 'live', path: 'C:/live', lifecycle_status: 'active' }
+    const session = { id: 'live-session', storage_id: 'live-scope', project_id: project.id, view_mode: 'flat' }
+    homeController.projects.value = [project] as never
+    homeController.sessions.value = [session] as never
+    h.listProjects.mockResolvedValue([project] as never)
+    h.listSessions.mockImplementation(async (_project?: string, _signal?: AbortSignal, scope?: string) => scope === 'live-scope' ? [session] as never : [])
+    h.listRuns.mockResolvedValue([{ id: 'live-run', status: 'executing' }] as never)
+    const create = durableStream.createRunStream
+    let handle!: durableStream.RunStreamHandle
+    let connect!: ReturnType<typeof vi.spyOn>
+    const factory = vi.spyOn(durableStream, 'createRunStream').mockImplementation(options => {
+      handle = create(options)
+      connect = vi.spyOn(handle, 'connect').mockImplementation(() => { handle.status.value = 'open' })
+      vi.spyOn(handle, 'disconnect').mockImplementation(() => { handle.status.value = 'closed' })
+      return handle
+    })
+    try {
+      homeController.setSelectedSession('live-scope::live-session')
+      await flushPromises()
+      const chunk = { run_id: 'live-run', turn_id: null, message_id: null, seq: 7, kind: 'delta', occurred_at: '', payload: { delta: 'hello' } }
+      handle.pushChunkForTest(chunk)
+      expect(homeController.streamingText.value.get('live-run')).toBe('hello')
+      setHostAccessStatus({ state: 'unavailable', managed: true })
+      await nextTick()
+      expect(handle.status.value).toBe('closed')
+      h.listRuns.mockRejectedValueOnce(new Error('run roster unavailable'))
+      setHostAccessStatus({ state: 'ready', managed: true })
+      await flushPromises()
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(homeController.streamingText.value.get('live-run')).toBe('hello')
+      expect(handle.status.value).toBe('closed')
+      await homeController.loadMessagesAndApprovals()
+      expect(factory).toHaveBeenCalledTimes(1)
+      expect(connect).toHaveBeenLastCalledWith(7)
+      expect(handle.pushChunkForTest(chunk)).toBe(false)
+      handle.pushChunkForTest({ ...chunk, seq: 8, payload: { delta: ' world' } })
+      expect(homeController.streamingText.value.get('live-run')).toBe('hello world')
+    } finally {
+      factory.mockRestore()
+      h.listRuns.mockResolvedValue([]); h.listProjects.mockResolvedValue([]); h.listSessions.mockResolvedValue([])
+      homeController.setSelectedProject(null)
+      await flushPromises()
+    }
+  })
+  it('keeps the unknown lifecycle and diagnostics when a workspace retry still fails', async () => {
+    const project = { id: 'broken', storage_id: 'broken-scope', path: 'C:/broken', name: 'broken', availability: 'error', lifecycle_status: null, availability_error: 'database failed', availability_code: 'storage_database_unavailable', trace_id: 'scope-trace', actions: ['unregister_workspace'] }
+    homeController.projects.value = [project] as never
+    h.listSessions.mockResolvedValueOnce([])
+    h.listProjects.mockResolvedValueOnce([project] as never).mockResolvedValueOnce([]).mockResolvedValueOnce([])
+    await homeController.retryWorkspaces('broken-scope::broken')
+    expect(homeController.projects.value[0]).toEqual(project)
+    expect(homeController.workspaceLoadStates.value['broken-scope::broken']).toMatchObject({ status: 'error', error: { code: 'storage_database_unavailable', traceId: 'scope-trace', actions: ['unregister_workspace'] } })
   })
   it('retries one workspace without reloading or replacing another workspace roster', async () => {
     const first = { id: 'retry-a', storage_id: 'retry-scope-a', path: 'C:/retry-a', name: 'first' }

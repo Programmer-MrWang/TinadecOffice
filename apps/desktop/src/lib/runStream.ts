@@ -21,6 +21,7 @@
  */
 
 import { ref } from 'vue'
+import { assertHostAccess } from './hostAccess'
 import { runStorageId } from './storageScope'
 import type { SseChunk } from '@/generated/client'
 
@@ -184,6 +185,8 @@ export function createRunStream(options: RunStreamOptions): RunStreamHandle {
     const headers: Record<string, string> = { accept: 'text/event-stream', 'x-tinadec-storage-id': storageId }
     if (cursor != null) headers['last-event-id'] = String(cursor)
     try {
+      await assertHostAccess(`/api/v1/runs/${encodeURIComponent(options.runId)}/stream`, connectionAbort.signal)
+      if (stopped || connectionAbort.signal.aborted) return
       const response = await fetchImpl(`${gatewayUrl()}/api/v1/runs/${encodeURIComponent(options.runId)}/stream${search}`, {
         headers,
         signal: connectionAbort.signal,

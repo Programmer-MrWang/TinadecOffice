@@ -1,3 +1,7 @@
+import { ApiError } from '@/lib/apiError'
+import { useHostAccess } from '@/lib/hostAccess'
+import { readSessionRoster } from '@/lib/sessionRoster'
+import { toErrorState } from '@/composables/useErrorState'
 import { computed, ref, watch, type Ref } from 'vue'
 import { revealWorkspace } from '@/composables/useWorkspaceList'
 import {
@@ -93,6 +97,7 @@ const runs = ref<Array<{ id: string; status: string }>>([])
  */
 const queuedMessages = ref<Array<{ id: string; content: string; interactionId?: string; permission_mode?: PermissionLevel; mode_version_id?: string | null; meeting_model_override?: MeetingModelOverrideDto | null; clear_meeting_model_override?: boolean; space_options?: SpaceOptionsDto | null; attachment_ids?: string[] }>>([])
 const runStreams = new Map<string, RunStreamHandle>()
+let runStreamsSuspended = false
 const runText = new Map<string, string>()
 const provisionalReplies = new Set<string>()
 // 运行指示（问题 3 修复）：是否有活跃的 run 流。runStreams 是非响应式 Map，computed
@@ -261,47 +266,47 @@ async function run(label: string, action: () => Promise<void>) {
   }
 }
 
+let initialRead = 0
+let contextRestored = false
 async function loadInitial() {
+  const read = ++initialRead
   busy.value = true
-  try {
-    // GET /model-settings 是恒空的旧 stub（ControlPlaneEndpoints 501 家族），
-    // 模型事实一律来自 readiness/model-readiness/model-providers。
-    const [projectList, report, readinessReceipt] = await Promise.all([
-      api.listProjects(),
-      api.doctor(),
-      api.readiness(),
-    ])
-    projects.value = projectList
-    doctor.value = report
-    readiness.value = readinessReceipt
-    // 头部的模型名/地址改由统一 readiness receipt 供给（model_route/model_provider 项）。
-    const items = (readinessReceipt as { items?: Array<{ id: string; data?: { model?: string; base_url?: string } }> }).items ?? []
-    const routeData = items.find((item) => item.id === 'model_route')?.data
-    if (routeData?.model) modelName.value = routeData.model
-    if (routeData?.base_url) modelBaseUrl.value = routeData.base_url
-    suppressProjectSessionsReload = true
-    try {
-      const saved = localStorage.getItem('tinadec.workspace.context.v1')
-      const restored = projectList.find(project => selectionKey(project) === saved)
-      setSelectedStorage(restored?.storage_id ?? 'user')
-      selectedProjectId.value = restored?.id ?? null
-      await loadSessions()
-    } finally {
-      suppressProjectSessionsReload = false
-    }
-    dismissByKey('home-load')
-  } catch (err) {
-    if (isAbortError(err)) return
-    banner.error({
-      key: 'home-load',
-      title: '加载失败',
-      message: '加载数据失败',
-      details: err instanceof Error ? err.message : '加载失败',
-      action: { label: '重试', run: () => loadInitial() },
-    })
-  } finally {
-    busy.value = false
+  const failure = (reason: unknown, key: string, title: string) => {
+    if (read !== initialRead || isAbortError(reason)) return
+    const error = toErrorState(reason, '加载失败')
+    banner.error({ key, title, message: error.message, details: [error.details, error.traceId ? 'trace_id: ' + error.traceId : ''].filter(Boolean).join('\n'), action: { label: '重试', run: () => loadInitial() } })
   }
+  try {
+    await Promise.allSettled([
+      api.listProjects().then(async projectList => {
+        if (read !== initialRead) return
+        projects.value = projectList
+        const restoring = !contextRestored
+        if (restoring) suppressProjectSessionsReload = true
+        try {
+          if (restoring) {
+            const saved = localStorage.getItem('tinadec.workspace.context.v1')
+            const restored = projectList.find(project => selectionKey(project) === saved)
+            setSelectedStorage(restored?.storage_id ?? 'user')
+            selectedProjectId.value = restored?.id ?? null
+            contextRestored = true
+          }
+          await loadSessions()
+        } finally { if (restoring) suppressProjectSessionsReload = false }
+        if (read === initialRead) dismissByKey('home-load')
+      }).catch(reason => failure(reason, 'home-load', '工作区加载失败')),
+      api.doctor().then(report => { if (read === initialRead) { doctor.value = report; dismissByKey('home-doctor') } }).catch(reason => failure(reason, 'home-doctor', '诊断信息加载失败')),
+      api.readiness().then(receipt => {
+        if (read !== initialRead) return
+        readiness.value = receipt
+        const items = (receipt as { items?: Array<{ id: string; data?: { model?: string; base_url?: string } }> }).items ?? []
+        const route = items.find(item => item.id === 'model_route')?.data
+        if (route?.model) modelName.value = route.model
+        if (route?.base_url) modelBaseUrl.value = route.base_url
+        dismissByKey('home-readiness')
+      }).catch(reason => failure(reason, 'home-readiness', '运行就绪信息加载失败')),
+    ])
+  } finally { if (read === initialRead) busy.value = false }
 }
 
 let sessionListRead = 0
@@ -321,20 +326,14 @@ async function loadSessions() {
     const scopes = [{ storageId: 'user', projectId: undefined as string | undefined, key: 'user::free' },
       ...projects.value.map(project => ({ storageId: project.storage_id ?? projectStorageId(project.id), projectId: project.id, key: selectionKey(project) }))]
     workspaceLoadStates.value = Object.fromEntries(scopes.map(scope => [scope.key, { status: 'loading' as const }]))
-    const results = await Promise.allSettled(scopes.map(scope => api.listSessions(scope.projectId, loadAbort.signal, scope.storageId)))
-    // A late response from a previous project/session view must never replace the
-    // current roster. This is separate from the transcript read guard below:
-    // replacing the roster can move selectedSessionId back to an old conversation
-    // before the transcript guard ever has a chance to protect the model send.
-    if (read !== sessionListRead || loadAbort.signal.aborted) return
-    const roster: SessionDto[] = []
-    const states: Record<string, WorkspaceLoadState> = {}
-    results.forEach((result, index) => {
-      const scope = scopes[index]!
-      if (result.status === 'fulfilled') { roster.push(...result.value); states[scope.key] = { status: 'ready' } }
-      else { states[scope.key] = { status: 'error', message: result.reason instanceof Error ? result.reason.message : String(result.reason) }; roster.push(...sessions.value.filter(row => (row.storage_id ?? 'user') === scope.storageId)) }
+    const result = await readSessionRoster({
+      sources: scopes, previous: sessions.value, signal: loadAbort.signal,
+      read: (scope, signal) => api.listSessions(scope.projectId, signal, scope.storageId),
     })
-    sessions.value = roster
+    if (read !== sessionListRead || loadAbort.signal.aborted) return
+    const states: Record<string, WorkspaceLoadState> = Object.fromEntries(scopes.map(scope => [scope.key, { status: 'ready' as const }]))
+    for (const failure of result.failures) states[failure.source.key!] = { status: 'error', message: failure.error.message, error: failure.error }
+    sessions.value = result.rows
     workspaceLoadStates.value = states
     if (!selectedProjectId.value) {
       if (selectedSessionId.value && !visibleSessions.value.find((s) => s.id === selectedSessionId.value)) {
@@ -381,11 +380,18 @@ function installErrorRecovery(): void {
   setErrorRecoveryHandlers({
     // Retry refreshes the roster the failing request belonged to; reload is the same
     // read-only refresh, so both land in one implementation.
-    retry: () => refreshProjectsAndSessions(),
+    retry: async error => {
+      if (error?.code?.startsWith('host_') || error?.code === 'desktop_host_required') {
+        const status = await window.tinadec.retryHostConnection()
+        if (status.state === 'ready') await loadInitial()
+      } else await refreshProjectsAndSessions()
+    },
     reload: () => refreshProjectsAndSessions(),
-    unregister_workspace: (storageId?: string) => {
+    unregister_workspace: async (storageId?: string) => {
       const project = projects.value.find(row => (row.storage_id ?? projectStorageId(row.id)) === storageId)
-      return project ? unregisterWorkspace(selectionKey(project)) : undefined
+      if (!project) return
+      const approved = await useNotifications().confirm({ title: '取消工作区登记', message: '取消登记会保留配置、数据和源文件夹。', confirmLabel: '取消登记', destructive: true })
+      if (approved) await unregisterWorkspace(selectionKey(project))
     },
   })
 }
@@ -401,20 +407,31 @@ async function retryWorkspace(key: string) {
   workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'loading' } }
   try {
     const rows = await api.listSessions(project?.id, retry.signal, storage)
-    const recovered = project?.availability === 'error' ? await api.readWorkspace(storage) : null
+    let recovered: ProjectDto | null = null
+    if (project?.availability === 'error') {
+      const lists = await Promise.all(['active', 'archived', 'trashed'].map(lifecycleStatus => api.listProjects({ storageId: storage, signal: retry.signal, lifecycleStatus: lifecycleStatus as 'active' | 'archived' | 'trashed' })))
+      recovered = lists.flat().find(row => selectionKey(row) === key && row.availability !== 'error' && row.lifecycle_status != null) ?? null
+      if (!recovered) {
+        const unavailable = lists.flat().find(row => selectionKey(row) === key && row.availability === 'error') ?? project
+        throw new ApiError(unavailable.availability_error ?? '工作区状态仍无法读取。', 409, { ...unavailable, code: unavailable.availability_code ?? 'storage_scope_unavailable' }, { storageId: storage })
+      }
+    }
     if (read !== sessionListRead || retry.signal.aborted) return
-    if (recovered) projects.value = projects.value.map(row => selectionKey(row) === key ? {
-      ...row, ...recovered, path: recovered.roots.find(root => root.id === recovered.primary_root_id)!.path,
-      configuration_hash: recovered.content_hash, availability: 'ready', availability_error: undefined,
-      // Clear the whole failure contract, not only the message: a stale code/actions pair would
-      // keep offering "unregister" for a workspace that has just recovered.
-      availability_code: undefined, category: undefined, retryable: undefined, actions: undefined,
-    } : row)
+    if (recovered && recovered.lifecycle_status !== 'active') {
+      projects.value = projects.value.filter(row => selectionKey(row) !== key)
+      sessions.value = sessions.value.filter(row => (row.storage_id ?? 'user') !== storage || row.project_id !== project!.id)
+      if (selectedStorageId() === storage && selectedProjectId.value === project!.id) startNewConversation(null)
+      const states = { ...workspaceLoadStates.value }; delete states[key]; workspaceLoadStates.value = states
+      return
+    }
+    if (recovered) projects.value = projects.value.map(row => selectionKey(row) === key ? recovered! : row)
     sessions.value = [...sessions.value.filter(row => (row.storage_id ?? 'user') !== storage || (row.project_id ?? null) !== (project?.id ?? null)), ...rows]
     workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'ready' } }
   } catch (reason) {
-    if (!retry.signal.aborted && read === sessionListRead)
-      workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'error', message: reason instanceof Error ? reason.message : String(reason) } }
+    if (!retry.signal.aborted && read === sessionListRead && !isAbortError(reason)) {
+      const error = toErrorState(reason, '工作区读取失败')
+      workspaceLoadStates.value = { ...workspaceLoadStates.value, [key]: { status: 'error', message: error.message, error } }
+    }
   } finally { if (workspaceRetryAborts.get(key) === retry) workspaceRetryAborts.delete(key) }
 }
 
@@ -428,6 +445,7 @@ async function loadMessagesAndApprovals() {
   const { signal } = loadAbort
   const session = selectedSessionId.value
   const storage = selectedStorageId()
+  if (!canAccessBackend.value) { sessionLoadAbort = null; return }
   if (!selectedSessionId.value) {
     sessionLoadAbort = null
     messages.value = []
@@ -444,11 +462,12 @@ async function loadMessagesAndApprovals() {
     api.listApprovalRules(session!, signal).catch(() => [] as ApprovalRuleDto[]),
     api.getOrchestrationSnapshot(session!, signal),
     api.listToolExecutions(session!, { limit: 12 }, signal),
-    api.listRuns(session!, signal).catch(() => [] as unknown[]),
+    // An unavailable roster is not an empty roster: keep suspended stream cursors.
+    api.listRuns(session!, signal),
   ]).catch((error) => {
-    if (error instanceof DOMException && error.name === 'AbortError') return null
+    if (isAbortError(error) || session !== selectedSessionId.value || storage !== selectedStorageId() || read !== sessionRead) return null
     throw error
-  })
+  }).finally(() => { if (sessionLoadAbort === loadAbort) sessionLoadAbort = null })
   if (!loaded) return
   const [messageList, approvalList, ruleList, orchestrationSnapshot, toolTimeline, runList] = loaded
   if (session !== selectedSessionId.value || storage !== selectedStorageId() || read !== sessionRead) return
@@ -464,7 +483,7 @@ async function loadMessagesAndApprovals() {
   approvalRules.value = ruleList
   orchestration.value = orchestrationSnapshot
   toolExecutions.value = toolTimeline
-  runs.value = (Array.isArray(runList) ? runList : []).map((r) => ({ id: String((r as Record<string, unknown>).id), status: String((r as Record<string, unknown>).status ?? '') }))
+  runs.value = (Array.isArray(runList) ? runList : []).map((r) => ({ id: String(r.id), status: String(r.status ?? '') }))
   // 状态源统一（问题 3 修复）：ChatHeader 的 run-pills 读 Pinia runStore.runs，而
   // runStore.fetchRuns 此前只在无入口的 WorkbenchPage 调用 → Home 页 pills 恒空。
   // 把 Home 已拉取的 run 列表（含 session_id，WorkbenchPage.control 依赖）同步进 store。
@@ -478,7 +497,12 @@ async function loadMessagesAndApprovals() {
 
 
 function attachRun(runId: string) {
-  if (runStreams.has(runId)) return
+  if (!canAccessBackend.value) return
+  const existing = runStreams.get(runId)
+  if (existing) {
+    if (existing.status.value === 'closed' || existing.status.value === 'error') existing.connect(existing.lastSeq.value)
+    return
+  }
   const session = selectedSessionId.value
   const storage = selectedStorageId()
   const handle = createRunStream({
@@ -515,7 +539,7 @@ function attachRun(runId: string) {
           const message = payload.safe_error_message ?? payload.message ?? payload.error_category
           invokeError.value = typeof message === 'string' ? message : '运行失败'
         }
-        void loadMessagesAndApprovals()
+        void loadMessagesAndApprovals().catch(error => { if (!isAbortError(error)) notify.error(error, { title: '会话加载失败' }) })
         runStreams.get(runId)?.disconnect()
         runStreams.delete(runId)
         syncWorking()
@@ -532,13 +556,23 @@ function attachRun(runId: string) {
 }
 
 function attachActiveRuns() {
-  if (!selectedSessionId.value) return
+  if (!selectedSessionId.value || !canAccessBackend.value) return
+  if (runStreamsSuspended) {
+    const active = new Set(activeRuns.value.map(run => run.id))
+    for (const [id, stream] of runStreams) if (!active.has(id)) {
+      stream.disconnect(); runStreams.delete(id); runText.delete(id); provisionalReplies.delete(id)
+      const text = new Map(streamingText.value); text.delete(id); streamingText.value = text
+    }
+  }
   for (const run of activeRuns.value) attachRun(run.id)
+  runStreamsSuspended = false; syncWorking()
 }
 
 function openProject() { workspaceEditor.value = { open: true, projectKey: null } }
 function editWorkspace(projectKey: string) { workspaceEditor.value = { open: true, projectKey } }
+let explicitSelectionVersion = 0
 function startNewConversation(projectKey: string | null) {
+  explicitSelectionVersion++
   const identity = projectKey ? selectionIdentity(projectKey) : null
   sessionRead++; sessionLoadAbort?.abort()
   setSelectedStorage(identity?.storageId ?? projectStorageId(identity?.id))
@@ -678,11 +712,14 @@ async function monitorSessionTransfer(receipt: SessionTransferDto, task: TaskHan
     sessionTransfers.value = { ...sessionTransfers.value, [key]: receipt }
     if (receipt.status === 'failed' || receipt.status === 'cancelled') throw new Error(receipt.error ?? receipt.error_code ?? '会话迁移未完成')
     if (receipt.status === 'completed') {
-      sessions.value = await api.listSessions()
+      const followTarget = selectedStorageId() === receipt.source_storage_id && selectedSessionId.value === receipt.session_id
+      const selectionVersion = explicitSelectionVersion
+      await loadSessions()
       delete sessionTransfers.value[key]
-      if (selectedStorageId() === receipt.source_storage_id && selectedSessionId.value === receipt.session_id) {
+      if (followTarget && selectionVersion === explicitSelectionVersion) {
         setSelectedStorage(receipt.storage_id)
-        selectedProjectId.value = receipt.project_id
+        suppressProjectSessionsReload = true
+        try { selectedProjectId.value = receipt.project_id } finally { suppressProjectSessionsReload = false }
         selectedSessionId.value = receipt.session_id
         followSession(`${receipt.storage_id}::${receipt.session_id}`)
         await loadMessagesAndApprovals()
@@ -1159,7 +1196,7 @@ async function handleSessionEvent(event: EventEnvelope) {
 
 watch(selectedProjectId, id => {
   setSelectedStorage(projectStorageId(id))
-  if (suppressProjectSessionsReload) return
+  if (suppressProjectSessionsReload || !canAccessBackend.value) return
   void loadSessions()
 }, { flush: 'sync' })
 
@@ -1176,13 +1213,32 @@ watch([selectedSessionId, selectedStorage], ([, storageId], [, previousStorage])
   runText.clear()
   provisionalReplies.clear()
   streamingText.value = new Map()
-  void loadMessagesAndApprovals()
+  void loadMessagesAndApprovals().catch(error => { if (!isAbortError(error)) notify.error(error, { title: '会话加载失败' }) })
   followSession(currentSession.value ? selectionKey(currentSession.value) : selectedSessionId.value)
   queuedMessages.value = []
 })
 
 /** Start the controller's data pipeline (idempotent). */
 let started = false
+const { canAccessBackend } = useHostAccess()
+let recoveryRead = 0
+watch(canAccessBackend, ready => {
+  if (!started) return
+  const recovery = ++recoveryRead
+  if (ready) {
+    void loadInitial().then(async () => {
+      if (recovery !== recoveryRead || !canAccessBackend.value || !currentSession.value) return
+      const key = selectionKey(currentSession.value)
+      await loadMessagesAndApprovals()
+      if (recovery === recoveryRead && canAccessBackend.value && currentSession.value && selectionKey(currentSession.value) === key) followSession(key)
+    }).catch(error => { if (recovery === recoveryRead && !isAbortError(error)) notify.error(error, { title: '会话恢复失败' }) })
+    return
+  }
+  initialRead++; sessionListRead++; sessionListAbort?.abort(); sessionLoadAbort?.abort()
+  for (const stream of runStreams.values()) stream.disconnect()
+  suspendFollowingSession(currentSession.value ? selectionKey(currentSession.value) : selectedSessionId.value ?? '')
+  runStreamsSuspended = true; working.value = false; busy.value = false
+})
 function setViewMode(next: SessionView) {
   if (viewMode.value === next) return
   lastSessionByView[viewMode.value] = selectedSessionId.value
@@ -1198,7 +1254,7 @@ function setViewMode(next: SessionView) {
 function start() {
   if (started) return
   started = true
-  void loadInitial()
+  if (canAccessBackend.value) void loadInitial()
   subscribeToSessionEvents(handleSessionEvent)
   followSession(currentSession.value ? selectionKey(currentSession.value) : selectedSessionId.value)
 }
@@ -1303,6 +1359,7 @@ export const homeController = {
     startNewConversation(id)
   },
   setSelectedSession: (id: string) => {
+    explicitSelectionVersion++
     const identity = selectionIdentity(id)
     if (identity.storageId) setSelectedStorage(identity.storageId)
     const session = sessions.value.find(s => s.id === identity.id && (!s.storage_id || s.storage_id === selectedStorageId()))

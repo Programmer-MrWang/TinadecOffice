@@ -1,4 +1,5 @@
-import { ref, type Ref } from 'vue'
+import { ref, watch, type Ref } from 'vue'
+import { useHostAccess } from './hostAccess'
 import { api, type EventEnvelope } from '@/api'
 import { sessionStorageId, selectedStorageId } from './storageScope'
 
@@ -20,6 +21,7 @@ type Handler = (event: EventEnvelope) => unknown
  * per-session composable did before by not connecting at all.
  */
 const followed = ref<string | null>(null)
+const { canAccessBackend } = useHostAccess()
 
 interface Subscription {
   handler: Handler
@@ -55,7 +57,7 @@ function deliver(event: EventEnvelope) {
 
 function open() {
   close()
-  if (subscriptions.size === 0 || paused) return
+  if (subscriptions.size === 0 || paused || !canAccessBackend.value) return
   try {
     sourceStorageId = followed.value ? sessionStorageId(followed.value) : selectedStorageId()
     source = api.connectEvents(followed.value, deliver)
@@ -111,3 +113,5 @@ export function subscribeToSessionEvents(
     if (subscriptions.size === 0) close()
   }
 }
+
+watch(canAccessBackend, ready => { if (ready && !paused) open(); else if (!ready) close() })

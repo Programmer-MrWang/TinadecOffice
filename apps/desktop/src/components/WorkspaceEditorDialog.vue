@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useHostAccess } from '@/lib/hostAccess'
 import { recoveryActions, useErrorState } from '@/composables/useErrorState'
 import { computed, nextTick, ref, watch } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription, DialogClose } from 'reka-ui'
@@ -8,10 +9,13 @@ import { api } from '@/api'
 import { basenameFromPath } from '@/format'
 import { homeController as c } from '@/controllers/HomeController'
 import { selectionIdentity, projectStorageId } from '@/lib/storageScope'
-import { folderIdentity, workspaceIcons, workspaceColors, type WorkspaceRoot, type WorkspacePreview, type WorkspaceInput } from '@/lib/workspaces'
+import { folderIdentity, workspaceIcons, workspaceColors, type WorkspaceRoot, type WorkspaceDefinition, type WorkspacePreview, type WorkspaceInput } from '@/lib/workspaces'
 import { usePanelStyles } from '@/composables/usePanelStyles'
 
 const { getPanelStyle, getPanelDataAttributes } = usePanelStyles()
+const { canAccessBackend, reason: hostReason } = useHostAccess()
+const failureOperation = ref<'read' | 'preview' | 'submit'>('read')
+const latestWorkspace = ref<WorkspaceDefinition | null>(null)
 const form = ref<WorkspaceInput>({ name: '', roots: [], primary_root_id: '', icon: 'folder', color: 'default' })
 const nameEdited = ref(false), saving = ref(false), picking = ref(false), loading = ref(false), failure = useErrorState(), error = computed(() => failure.error.value?.message ?? ''), hash = ref('')
 const existing = ref<WorkspacePreview | null>(null)
@@ -22,29 +26,37 @@ const primary = computed(() => form.value.roots.find(root => root.id === form.va
  * The dialog's single read path. It is a named function so the retry/reload recovery actions
  * can honestly re-run it, instead of closing and reopening the dialog and hoping.
  */
-async function loadEditor(): Promise<void> {
+async function loadEditor(reset = false): Promise<void> {
   const version = ++read
   const key = editor.value.projectKey
-  form.value = { name: '', roots: [], primary_root_id: '', icon: 'folder', color: 'default' }
-  failure.clear(); existing.value = null; hash.value = ''; nameEdited.value = false; loading.value = false
+  if (reset) {
+    form.value = { name: '', roots: [], primary_root_id: '', icon: 'folder', color: 'default' }
+    existing.value = null; hash.value = ''; nameEdited.value = false; latestWorkspace.value = null
+  }
+  failure.clear(); loading.value = false; failureOperation.value = 'read'
   if (!key) return
   loading.value = true
   try {
     const identity = selectionIdentity(key)
     const workspace = await api.readWorkspace(identity.storageId ?? projectStorageId(identity.id))
     if (version !== read) return
-    form.value = { ...workspace, roots: workspace.roots.map(root => ({ ...root })) }; hash.value = workspace.content_hash; nameEdited.value = true
+    if (reset || !hash.value) applyWorkspace(workspace)
+    else if (workspace.content_hash !== hash.value) latestWorkspace.value = workspace
   } catch (reason) { if (version === read) failure.set(reason) }
   finally { if (version === read) loading.value = false }
 }
 
 watch(() => [editor.value.open, editor.value.projectKey] as const, async ([open]) => {
   if (!open) return
-  await loadEditor()
+  await loadEditor(true)
 }, { immediate: true })
 
 /** Re-runs the dialog's read path: the retry action for a failed workspace read. */
 async function reload(): Promise<void> { await loadEditor() }
+function applyWorkspace(workspace: WorkspaceDefinition) {
+  form.value = { ...workspace, roots: workspace.roots.map(root => ({ ...root })) }
+  hash.value = workspace.content_hash; nameEdited.value = true; latestWorkspace.value = null
+}
 /** Re-reads whatever this dialog is currently showing; used by the retry/reload recovery actions. */
 function setPrimary(root: WorkspaceRoot) {
   form.value.primary_root_id = root.id
@@ -57,7 +69,8 @@ function removeRoot(root: WorkspaceRoot) {
 async function addFolders() {
   if (picking.value || saving.value) return
   const version = read
-  picking.value = true; failure.clear()
+  if (!canAccessBackend.value) return
+  picking.value = true; failure.clear(); failureOperation.value = 'preview'
   try {
     const paths = await window.tinadec.selectWorkspaceFolders()
     if (version !== read) return
@@ -84,7 +97,8 @@ async function submit() {
   const saved = existing.value?.workspace
   const input = saved ?? form.value
   if (!input.name.trim() || !input.roots.length || (!saved && editor.value.projectKey && !hash.value)) return
-  saving.value = true; failure.clear()
+  if (!canAccessBackend.value) return
+  saving.value = true; failure.clear(); failureOperation.value = 'submit'
   try { await c.completeWorkspace(input, editor.value.projectKey, hash.value, existing.value?.project_path) }
   catch (reason) { failure.set(reason) }
   finally { saving.value = false }
@@ -94,12 +108,12 @@ async function submit() {
 // stale ETag are three different problems with three different next steps.
 const failureState = computed(() => failure.error.value)
 const failureRecovery = computed(() => recoveryActions(failure.error.value, {
-  // Re-running the dialog's own reads is the honest retry: it re-reads the workspace and
-  // re-runs the folder picker, which are the two things that can fail in this dialog.
-  retry: () => reload(),
-  reload: () => reload(),
+  // Read retries preserve the draft. Failed writes require a fresh read and an explicit save.
+  retry: failureOperation.value === 'read' ? () => reload() : failureOperation.value === 'preview' ? () => addFolders() : undefined,
+  reload: editor.value.projectKey ? () => reload() : undefined,
   choose_folder: () => addFolders(),
 }))
+
 </script>
 
 <template>
@@ -110,6 +124,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
         <form @submit.prevent="submit">
           <header><DialogTitle>{{ editor.projectKey ? '编辑工作区' : '新建工作区' }}</DialogTitle><DialogClose as-child><UiButton type="button" variant="ghost" size="icon" aria-label="关闭" :disabled="saving"><X :size="16" /></UiButton></DialogClose></header>
           <DialogDescription>添加已有源文件夹，在同一个工作区中管理对话与配置。</DialogDescription>
+          <p v-if="!canAccessBackend" role="status">{{ hostReason }}</p>
           <p v-if="loading" role="status"><LoaderCircle class="animate-spin" :size="16" />正在读取工作区…</p>
           <section v-else-if="existing?.workspace" class="workspace-existing">
             <h3>找到已有工作区</h3><strong>{{ existing.workspace.name }}</strong>
@@ -118,6 +133,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
             <UiButton type="button" variant="ghost" :disabled="saving" @click="existing = null">重新选择文件夹</UiButton>
           </section>
           <template v-else>
+            <section v-if="latestWorkspace" class="workspace-existing" role="status"><h3>配置已更新，当前草稿已保留</h3><strong>{{ latestWorkspace.name }}</strong><p v-for="root in latestWorkspace.roots" :key="root.id">{{ root.path }}</p><UiButton type="button" variant="outline" @click="applyWorkspace(latestWorkspace)">载入最新配置并替换草稿</UiButton></section>
             <section class="workspace-source-section">
               <h3>源文件夹</h3>
               <ul v-if="form.roots.length" class="workspace-source-list">
@@ -128,7 +144,7 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
                   <UiButton type="button" variant="ghost" size="icon" :aria-label="`移除 ${basenameFromPath(root.path)}`" :disabled="saving || root.id === form.primary_root_id || form.roots.length === 1" :title="root.id === form.primary_root_id ? '移除前请将另一个文件夹设为主要' : '移除引用，保留文件夹'" @click="removeRoot(root)"><Trash2 :size="14" /></UiButton>
                 </li>
               </ul>
-              <UiButton type="button" variant="outline" class="workspace-add-folders" :disabled="saving || picking" @click="addFolders"><FolderPlus :size="18" />{{ picking ? '正在选择…' : '添加源文件夹' }}</UiButton>
+              <UiButton type="button" variant="outline" class="workspace-add-folders" :disabled="saving || picking || !canAccessBackend" @click="addFolders"><FolderPlus :size="18" />{{ picking ? '正在选择…' : '添加源文件夹' }}</UiButton>
             </section>
             <label class="workspace-field">工作区名称<UiInput v-model="form.name" maxlength="128" placeholder="默认使用主文件夹名称" :disabled="saving" @update:model-value="nameEdited = true" /></label>
             <fieldset class="workspace-appearance" :disabled="saving"><legend>图标</legend><button v-for="(icon, key) in workspaceIcons" :key="key" type="button" :aria-label="`图标 ${key}`" :aria-pressed="form.icon === key" @click="form.icon = key"><component :is="icon" :size="18" /></button></fieldset>
@@ -137,12 +153,13 @@ const failureRecovery = computed(() => recoveryActions(failure.error.value, {
           </template>
           <div v-if="failureState" role="alert" class="workspace-error">
             <p>{{ failureState.message }}</p>
+            <p v-if="failureState.details" class="workspace-error-details">{{ failureState.details }}</p>
             <p v-if="failureState.traceId" class="workspace-error-trace">trace_id: {{ failureState.traceId }}</p>
             <div v-if="failureRecovery.length" class="workspace-error-actions">
               <UiButton v-for="action in failureRecovery" :key="action.kind" variant="outline" size="sm" @click="action.run()">{{ action.label }}</UiButton>
             </div>
           </div>
-          <footer><UiButton type="button" variant="ghost" :disabled="saving" @click="close(false)">取消</UiButton><UiButton type="submit" :disabled="saving || loading || picking || (!existing?.workspace && (!form.name.trim() || !form.roots.length || (!!editor.projectKey && !hash)))"><LoaderCircle v-if="saving" :size="16" class="animate-spin" />{{ existing ? '打开已有工作区' : editor.projectKey ? '保存' : '创建工作区' }}</UiButton></footer>
+          <footer><UiButton type="button" variant="ghost" :disabled="saving" @click="close(false)">取消</UiButton><UiButton type="submit" :disabled="!canAccessBackend || saving || loading || picking || (!existing?.workspace && (!form.name.trim() || !form.roots.length || (!!editor.projectKey && !hash)))"><LoaderCircle v-if="saving" :size="16" class="animate-spin" />{{ existing ? '打开已有工作区' : editor.projectKey ? '保存' : '创建工作区' }}</UiButton></footer>
         </form>
       </DialogContent>
     </DialogPortal>

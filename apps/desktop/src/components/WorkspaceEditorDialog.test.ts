@@ -46,4 +46,23 @@ describe('workspace editor', () => {
     expect(document.querySelector('.workspace-error')?.textContent).toContain('文件夹已添加')
     expect(document.querySelector<HTMLButtonElement>('[aria-label="移除 first"]')?.disabled).toBe(true); expect(h.complete).not.toHaveBeenCalled(); wrapper.unmount()
   })
+  it('keeps an edited draft after a failed save and a read retry, showing diagnostics', async () => {
+    const { ApiError } = await import('@/lib/apiError')
+    const saved = { name: 'Saved', roots: [{ id: 'main', path: 'C:/saved' }], primary_root_id: 'main', icon: 'code', color: 'blue', content_hash: 'hash' }
+    h.read.mockResolvedValue(saved)
+    const wrapper = mount(WorkspaceEditorDialog, { attachTo: document.body })
+    editor.value = { open: true, projectKey: 'scope::project' }; await flushPromises()
+    const input = document.querySelector<HTMLInputElement>('.workspace-dialog input')!
+    input.value = 'My draft'; input.dispatchEvent(new Event('input', { bubbles: true })); await flushPromises()
+    h.complete.mockRejectedValueOnce(new ApiError('Configuration changed', 412, { code: 'configuration_conflict', actions: ['reload'], diagnostics: [{ code: 'name', severity: 'error', message: 'name conflict', line: 2 }], trace_id: 'trace-save' }))
+    buttons('保存')[0]!.click(); await flushPromises()
+    expect(document.querySelector('.workspace-error')?.textContent).toContain('name conflict')
+    expect(document.querySelector('.workspace-error')?.textContent).toContain('trace-save')
+    document.querySelector<HTMLButtonElement>('.workspace-error-actions button')!.click(); await flushPromises()
+    expect(h.read).toHaveBeenCalledTimes(2)
+    expect(input.value).toBe('My draft')
+    expect(h.complete).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
 })

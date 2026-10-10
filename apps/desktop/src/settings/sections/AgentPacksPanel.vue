@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { useHostAccess } from '@/lib/hostAccess'
+import { useErrorState } from '@/composables/useErrorState'
+
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CopyPlus, PackageCheck, PackagePlus, RefreshCw, Trash2 } from '@lucide/vue'
 import { api as baseApi, type AgentPackDto } from '@/api'
@@ -26,6 +29,9 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { canAccessBackend, reason: hostReason } = useHostAccess()
+const inventoryFailure = useErrorState()
+const inventoryLoading = ref(false)
 const { notify, confirm, status } = useNotifications()
 
 const phase = computed(() => graphSeedPackState.value.phase)
@@ -60,17 +66,26 @@ const activePackId = computed(() => {
   return installedAgentPacks.value.find(item => item.default_mode_version_id === active)?.pack_id ?? null
 })
 
+let inventoryRead = 0
+let inventoryAbort: AbortController | null = null
+function cancelInventoryRead() { ++inventoryRead; inventoryAbort?.abort(); inventoryAbort = null; inventoryLoading.value = false }
 async function reloadPackInventory(): Promise<void> {
-  const [packs, defaults] = await Promise.all([
-    api.listAgentPacks().catch(() => [] as AgentPackDto[]),
-    api.getWorkspaceDefaults().catch(() => null),
-  ])
-  installedAgentPacks.value = packs
-  workspaceDefaultModeVersionId.value = defaults?.default_mode_version_id ?? null
+  if (!canAccessBackend.value || inventoryLoading.value) return
+  const read = ++inventoryRead
+  const request = new AbortController(); inventoryAbort = request
+  inventoryLoading.value = true; inventoryFailure.clear()
+  try {
+    const [packs, defaults] = await Promise.allSettled([api.listAgentPacks(request.signal), api.getWorkspaceDefaults(request.signal)])
+    if (read !== inventoryRead || request.signal.aborted || !canAccessBackend.value) return
+    if (packs.status === 'fulfilled') installedAgentPacks.value = packs.value
+    else inventoryFailure.set(packs.reason)
+    if (defaults.status === 'fulfilled') workspaceDefaultModeVersionId.value = defaults.value.default_mode_version_id ?? null
+    else if (!inventoryFailure.error.value) inventoryFailure.set(defaults.reason)
+  } finally { if (read === inventoryRead) { inventoryLoading.value = false; inventoryAbort = null } }
 }
 
 async function togglePackEnabled(pack: AgentPackDto): Promise<void> {
-  if (busyPackId.value !== null) return
+  if (busyPackId.value !== null || !canAccessBackend.value) return
   busyPackId.value = pack.pack_id
   try {
     await api.setAgentPackEnabled(pack.pack_id, pack.status === 'disabled')
@@ -89,7 +104,7 @@ async function togglePackEnabled(pack: AgentPackDto): Promise<void> {
 }
 
 async function adoptPackDefaults(pack: AgentPackDto): Promise<void> {
-  if (busyPackId.value !== null) return
+  if (busyPackId.value !== null || !canAccessBackend.value) return
   busyPackId.value = pack.pack_id
   try {
     await api.adoptAgentPackDefaults(pack.pack_id)
@@ -106,7 +121,7 @@ async function adoptPackDefaults(pack: AgentPackDto): Promise<void> {
 }
 
 async function uninstallPack(pack: AgentPackDto): Promise<void> {
-  if (busyPackId.value !== null) return
+  if (busyPackId.value !== null || !canAccessBackend.value) return
   // 不可逆：先确认，并把"会一起删掉什么"说清楚。卸载会连带删除该包的运行历史，
   // 所以文案必须点明，而不是笼统的"确定吗"。
   const confirmed = await confirm({
@@ -141,11 +156,15 @@ async function uninstallPack(pack: AgentPackDto): Promise<void> {
 }
 
 onMounted(() => { void reloadPackInventory() })
+watch(canAccessBackend, ready => { if (ready) void reloadPackInventory(); else cancelInventoryRead() })
+onBeforeUnmount(cancelInventoryRead)
 
 defineExpose({ reloadPackInventory })
 </script>
 
 <template>
+  <p v-if="!canAccessBackend" role="status">{{ hostReason }}</p>
+  <div v-if="inventoryFailure.error.value" role="alert" class="agent-pack-error"><p>{{ inventoryFailure.error.value.message }}</p><p v-if="inventoryFailure.error.value.details">{{ inventoryFailure.error.value.details }}</p><p v-if="inventoryFailure.error.value.traceId">trace_id: {{ inventoryFailure.error.value.traceId }}</p><UiButton variant="outline" size="sm" :disabled="inventoryLoading || !canAccessBackend" @click="reloadPackInventory">{{ t('settings.retry') }}</UiButton></div>
   <section class="agent-pack-status-band" data-testid="graph-seed-pack-status">
     <PackageCheck class="agent-pack-status-icon" aria-hidden="true" />
     <div class="agent-pack-status-copy">
@@ -174,7 +193,7 @@ defineExpose({ reloadPackInventory })
       <UiButton
         v-if="canApply"
         size="sm"
-        :disabled="busy"
+        :disabled="busy || !canAccessBackend"
         @click="installOrUpgradeGraphSeedPack"
       >
         <PackagePlus data-icon="inline-start" />
@@ -183,7 +202,7 @@ defineExpose({ reloadPackInventory })
       <UiButton
         variant="ghost"
         size="icon"
-        :disabled="busy"
+        :disabled="busy || !canAccessBackend"
         :title="t('agentPack.refreshStatus')"
         :aria-label="t('agentPack.refreshStatus')"
         @click="refreshGraphSeedPack"
@@ -199,7 +218,7 @@ defineExpose({ reloadPackInventory })
         {{ t('agentPack.installedCount', { count: installedAgentPacks.length }) }}
       </span>
     </div>
-    <p v-if="installedAgentPacks.length === 0" class="agent-pack-inventory-empty">
+    <p v-if="!inventoryLoading && !inventoryFailure.error.value && canAccessBackend && installedAgentPacks.length === 0" class="agent-pack-inventory-empty">
       {{ t('agentPack.installedEmpty') }}
     </p>
     <ul v-else class="agent-pack-inventory-list">
@@ -230,7 +249,7 @@ defineExpose({ reloadPackInventory })
             v-if="activePackId !== pack.pack_id"
             variant="outline"
             size="sm"
-            :disabled="busyPackId !== null"
+            :disabled="busyPackId !== null || !canAccessBackend"
             :data-testid="`agent-pack-adopt-${pack.pack_id}`"
             @click="adoptPackDefaults(pack)"
           >
@@ -239,7 +258,7 @@ defineExpose({ reloadPackInventory })
           <UiButton
             variant="outline"
             size="sm"
-            :disabled="busyPackId !== null"
+            :disabled="busyPackId !== null || !canAccessBackend"
             :data-testid="`agent-pack-toggle-${pack.pack_id}`"
             @click="togglePackEnabled(pack)"
           >
@@ -248,7 +267,7 @@ defineExpose({ reloadPackInventory })
           <UiButton
             variant="ghost"
             size="sm"
-            :disabled="busyPackId !== null"
+            :disabled="busyPackId !== null || !canAccessBackend"
             :data-testid="`agent-pack-uninstall-${pack.pack_id}`"
             @click="uninstallPack(pack)"
           >

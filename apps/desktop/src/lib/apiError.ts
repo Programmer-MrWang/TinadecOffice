@@ -107,6 +107,7 @@ export class ApiError extends Error {
   readonly status: number
   readonly code?: string
   readonly trace_id?: string
+  readonly storageId?: string
   readonly instance?: string
   readonly diagnostics: ApiDiagnostic[]
   /** Who can resolve this, per the server contract. */
@@ -116,9 +117,10 @@ export class ApiError extends Error {
   /** Stable recovery actions the UI may offer, already filtered to the known set. */
   readonly actions: ApiErrorActionKind[]
 
-  constructor(message: string, status: number, body: unknown) {
+  constructor(message: string, status: number, body: unknown, context?: { storageId?: string }) {
     super(message)
     this.name = 'ApiError'
+    this.storageId = context?.storageId
     this.status = status
     const data = record(body)
     this.code = typeof data?.code === 'string' ? data.code : undefined
