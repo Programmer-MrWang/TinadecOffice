@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import http from "http";
 import { ensureFreshViteCache, installedVersionResolver } from "./viteCacheGuard.mjs";
 import { developmentEnvironment } from "./developmentEnvironment.mjs";
+import { developmentBackendIsReady } from "./backendReadiness.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, "..");
@@ -101,24 +102,22 @@ function probeJson(url) {
 }
 
 async function backendIsReady() {
-  // Gateway 的 /api/v1/health 在自身健康但上游 Core 不可达时返回 503 + core_status:
-  // "unreachable"，就绪时才返回 200 + core_status: "ready"，所以它是现成的就绪信号。
-  const gateway = await probeJson(`${GATEWAY_URL}/api/v1/health`);
-  if (gateway && gateway.status === 200 && gateway.data?.core_status === "ready") return true;
-  // 只跑 Core（没有 Gateway）的场景：直接用 Core 自己的健康检查。
-  const core = await probeJson(`${CORE_URL}/api/v1/health`);
-  return Boolean(core && core.status === 200 && core.data?.name === "tinadec-core");
+  return developmentBackendIsReady({
+    gatewayUrl: GATEWAY_URL, coreUrl: CORE_URL,
+    token: process.env.TINADEC_HOST_CONTROL_TOKEN, probeJson,
+  });
 }
+
 
 async function waitForBackend() {
   if (!Number.isFinite(BACKEND_WAIT_MS) || BACKEND_WAIT_MS <= 0) {
     console.log("[dev] Backend readiness wait skipped (TINADEC_DEV_BACKEND_WAIT_MS<=0).");
-    return;
+    return false;
   }
 
   if (await backendIsReady()) {
     console.log("[dev] Backend is already ready.");
-    return;
+    return true;
   }
 
   const budgetSeconds = Math.round(BACKEND_WAIT_MS / 1000);
@@ -132,27 +131,28 @@ async function waitForBackend() {
     waited += 1;
     if (await backendIsReady()) {
       console.log(`[dev] Backend is ready after ${waited}s, starting Electron...`);
-      return;
+      return true;
     }
     if (waited % 15 === 0) console.log(`[dev]   still waiting for the backend (${waited}s)...`);
   }
 
-  console.warn(
-    `[dev] Backend not ready after ${budgetSeconds}s — starting Electron anyway; ` +
-      "the app will show its own backend state (Gateway 会返回 503 core_status=unreachable).",
-  );
+  console.warn(`[dev] Core/Gateway did not prove a ready shared development host within ${budgetSeconds}s. Opening the Electron recovery interface; host verification still blocks business requests. Start all hosts with npm run dev, then retry in the app.`);
+  return false;
 }
 
 async function main() {
+  let backendReady = false;
   try {
-    await Promise.all([waitForVite(), waitForBackend()]);
+    [, backendReady] = await Promise.all([waitForVite(), waitForBackend()]);
   } catch (err) {
     console.error(err.message);
     viteProcess.kill();
     process.exit(1);
   }
 
-  console.log("[dev] Vite is ready, starting Electron...");
+  console.log(backendReady
+    ? "[dev] Vite and the shared backend are ready, starting Electron..."
+    : "[dev] Vite is ready, starting the Electron recovery interface...");
 
   const electronProcess = isWindows
     ? spawn("npx electron .", [], createSpawnOpts({ VITE_DEV_SERVER_URL: "http://127.0.0.1:5173" }, true))

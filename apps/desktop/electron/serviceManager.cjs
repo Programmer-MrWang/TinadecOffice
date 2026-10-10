@@ -190,12 +190,15 @@ function createServiceManager({
     return child;
   }
 
-  async function waitForService(url, service, child, label, hostControlToken) {
+  async function waitForService(url, service, child, label, hostControlToken, signal) {
     const deadline = Date.now() + startupTimeoutMs;
     while (Date.now() < deadline) {
+      signal?.throwIfAborted();
       const probe = await probeService(url, service, { fetchImpl, timeoutMs: healthTimeoutMs });
+      signal?.throwIfAborted();
       if (probe.status === 'ready') {
-        await verifyHostIdentityImpl(new URL(url).origin, service, hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
+        await verifyHostIdentityImpl(new URL(url).origin, service, hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs, signal });
+        signal?.throwIfAborted();
         return;
       }
       if (probe.status === 'mismatch') {
@@ -316,11 +319,13 @@ function createServiceManager({
     };
   }
 
-  async function ensureLocalServices({ isPackaged, gatewayUrl, resourcesPath, localAppDataPath, hostControlToken, userStorageRoot }) {
+  async function ensureLocalServices({ isPackaged, gatewayUrl, resourcesPath, localAppDataPath, hostControlToken, userStorageRoot, signal }) {
+    signal?.throwIfAborted();
     if (!shouldManageLocalServices(isPackaged, gatewayUrl)) {
       return { started: false, ownsCore: false, ownsGateway: false };
     }
     if (stopping) await stopping;
+    signal?.throwIfAborted();
 
     const canonicalGatewayUrl = canonicalLocalGatewayUrl(gatewayUrl);
     const coreHealthUrl = `${CORE_URL}/api/v1/health`;
@@ -329,18 +334,20 @@ function createServiceManager({
       fetchImpl,
       timeoutMs: healthTimeoutMs,
     });
+    signal?.throwIfAborted();
     if (coreProbe.status === 'mismatch') {
       throw new Error(`Tinadec Core endpoint at ${coreHealthUrl} is occupied by an unexpected service.`);
     }
-    if (coreProbe.status === 'ready') await verifyHostIdentityImpl(CORE_URL, 'core', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
+    if (coreProbe.status === 'ready') await verifyHostIdentityImpl(CORE_URL, 'core', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs, signal });
     const gatewayProbe = await probeService(gatewayHealthUrl, 'gateway', {
       fetchImpl,
       timeoutMs: healthTimeoutMs,
     });
+    signal?.throwIfAborted();
     if (gatewayProbe.status === 'mismatch') {
       throw new Error(`Tinadec Gateway endpoint at ${gatewayHealthUrl} is occupied by an unexpected service.`);
     }
-    if (gatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
+    if (gatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs, signal });
     if (coreProbe.status === 'ready' && gatewayProbe.status === 'ready') {
       return {
         started: false,
@@ -349,10 +356,12 @@ function createServiceManager({
       };
     }
 
+    signal?.throwIfAborted();
     const runtime = requireRuntime(resourcesPath, localAppDataPath, userStorageRoot);
     const baseEnvironment = buildServiceEnvironment(runtime.paths, { ...environment, TINADEC_HOME: runtime.officeRoot, TINADEC_STORAGE_ID: 'user', ...(hostControlToken ? { TINADEC_HOST_CONTROL_TOKEN: hostControlToken } : {}) }, platform);
     const startedChildren = [];
     try {
+      signal?.throwIfAborted();
       if (coreProbe.status !== 'ready') {
         const core = startProcess(
           'core',
@@ -368,20 +377,23 @@ function createServiceManager({
           runtime.logsDir,
         );
         startedChildren.push(['core', core]);
-        await waitForService(coreHealthUrl, 'core', core, 'Tinadec Core', hostControlToken);
+        await waitForService(coreHealthUrl, 'core', core, 'Tinadec Core', hostControlToken, signal);
       }
 
+      signal?.throwIfAborted();
       let currentGatewayProbe = gatewayProbe;
       if (currentGatewayProbe.status !== 'ready') {
         currentGatewayProbe = await probeService(gatewayHealthUrl, 'gateway', {
           fetchImpl,
           timeoutMs: healthTimeoutMs,
         });
+        signal?.throwIfAborted();
         if (currentGatewayProbe.status === 'mismatch') {
           throw new Error(`Tinadec Gateway endpoint at ${gatewayHealthUrl} is occupied by an unexpected service.`);
         }
-        if (currentGatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs });
+        if (currentGatewayProbe.status === 'ready') await verifyHostIdentityImpl(canonicalGatewayUrl, 'gateway', hostControlToken, { fetchImpl, timeoutMs: healthTimeoutMs, signal });
       }
+      signal?.throwIfAborted();
       if (currentGatewayProbe.status !== 'ready') {
         const gateway = startProcess(
           'gateway',
@@ -397,9 +409,10 @@ function createServiceManager({
           runtime.logsDir,
         );
         startedChildren.push(['gateway', gateway]);
-        await waitForService(gatewayHealthUrl, 'gateway', gateway, 'Tinadec Gateway', hostControlToken);
+        await waitForService(gatewayHealthUrl, 'gateway', gateway, 'Tinadec Gateway', hostControlToken, signal);
       }
 
+      signal?.throwIfAborted();
       return {
         started: startedChildren.length > 0,
         ownsCore: ownedChildren.has('core'),

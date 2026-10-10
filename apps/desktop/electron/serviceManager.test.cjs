@@ -494,3 +494,13 @@ test('Linux starts services detached and terminates the process group, not just 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+ test('cancelled startup never starts a process after its initial health result arrives', async () => {
+  const controller = new AbortController(); let release; let starts = 0;
+  const manager = createServiceManager({ fetchImpl: () => new Promise(resolve => { release = resolve; }), spawnImpl: () => { starts++; } });
+  const pending = manager.ensureLocalServices({ isPackaged: true, gatewayUrl: DEFAULT_GATEWAY_URL, signal: controller.signal });
+  controller.abort(new Error('host shutting down'));
+  release(healthResponse(coreHealth));
+  await assert.rejects(pending, /host shutting down/);
+  assert.equal(starts, 0);
+});

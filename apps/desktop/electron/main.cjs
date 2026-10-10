@@ -41,12 +41,14 @@ const { discoverServices } = require('./serviceDiscovery.cjs');
 const { ensureLocalServices, stopLocalServices, canonicalLocalGatewayUrl } = require('./serviceManager.cjs');
 const { createHostControl } = require('./hostControl.cjs');
 const { verifyManagedHost } = require('./hostIdentity.cjs');
+const { createHostConnection } = require('./hostConnection.cjs');
 let trustedHostReady = false;
-let hostIdentityTimer;
+let hostConnection;
+let shuttingDown = false;
 const hostControl = createHostControl({ startupToken: process.env.TINADEC_HOST_CONTROL_TOKEN, isTrustedHost: () => trustedHostReady });
 // The development orchestrator can share a launch credential; keep it out of later renderer/terminal children.
 delete process.env.TINADEC_HOST_CONTROL_TOKEN;
-const { initializeTrustedHostRequests, registerTrustedHostWindow, isTrustedHostSender } = require('./trustedHostRequests.cjs');
+const { initializeTrustedHostRequests, registerTrustedHostWindow, isTrustedHostSender, isTrustedHostDocumentSender } = require('./trustedHostRequests.cjs');
 initializeTrustedHostRequests({
   token: hostControl.serviceToken,
   devServerUrl: process.env.VITE_DEV_SERVER_URL,
@@ -187,6 +189,26 @@ function appConfigSnapshot() {
   managed: hostPaths.source === 'environment', local_services: Boolean(canonicalLocalGatewayUrl(process.env.TINADEC_RESOLVED_GATEWAY_URL)),
   } };
 }
+// Readiness recovery needs the trusted document, even while business authorization is unavailable.
+ipcMain.handle('tinadec:host-status', (event) => {
+  if (!isTrustedHostDocumentSender(event)) throw new Error('Host status requires a trusted host page.');
+  return hostConnection?.snapshot() ?? { state: 'checking', managed: true };
+});
+ipcMain.handle('tinadec:host-retry', (event) => {
+  if (getMainWindow()?.webContents !== event.sender || !isTrustedHostDocumentSender(event)) throw new Error('Host retry requires the trusted main host page.');
+  return hostConnection?.retry() ?? { state: 'checking', managed: true };
+});
+function publishHostStatus(snapshot) {
+  trustedHostReady = snapshot.managed && snapshot.state === 'ready';
+  for (const win of BrowserWindow.getAllWindows()) {
+    const contents = win.webContents;
+    if (!win.isDestroyed() && !contents.isDestroyed()
+      && isTrustedHostDocumentSender({ sender: contents, senderFrame: contents.mainFrame })) {
+      contents.send('tinadec:host-status-changed', snapshot);
+    }
+  }
+}
+
 ipcMain.handle('tinadec:app-config', appConfigSnapshot);
 ipcMain.handle('tinadec:gateway-url-save', (_event, gatewayUrl) => saveGatewayUrl(appConfigFile(), gatewayUrl));
 ipcMain.handle('tinadec:gateway-url-reset', () => resetGatewayUrl(appConfigFile()));
@@ -497,8 +519,9 @@ registerTerminalIpc({
 
 // Persist panel states before quit and clean up terminals
 app.on('before-quit', () => {
+  shuttingDown = true;
   trustedHostReady = false;
-  clearInterval(hostIdentityTimer);
+  hostConnection?.stop();
   void stopLocalServices().catch(() => {});
   destroyAllTerminals();
   persistPanelStatesForQuit();
@@ -513,34 +536,38 @@ app.whenReady().then(async () => {
     app.quit(); return;
   }
   process.env.TINADEC_RESOLVED_GATEWAY_URL = gatewayUrl;
-  try {
-    await ensureLocalServices({
-      isPackaged: app.isPackaged,
-      gatewayUrl,
-      resourcesPath: process.resourcesPath,
-      userStorageRoot: hostPaths.root,
-      hostControlToken: hostControl.serviceToken,
-      localAppDataPath: process.env.LOCALAPPDATA,
-    });
-    if (canonicalLocalGatewayUrl(gatewayUrl)) {
-      trustedHostReady = await verifyManagedHost(hostControl.serviceToken);
-      let verifying = false;
-      hostIdentityTimer = setInterval(async () => {
-        if (verifying || !trustedHostReady) return;
-        verifying = true;
-        try { await verifyManagedHost(hostControl.serviceToken); }
-        catch (error) { trustedHostReady = false; console.error('[tinadec] trusted local host identity revoked:', error.message); }
-        finally { verifying = false; }
-      }, 15_000);
-      hostIdentityTimer.unref();
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[tinadec] packaged service startup failed:', message);
-    if (app.isPackaged) {
-      dialog.showErrorBox('TinadecOffice', `本地服务启动失败：${message}`);
-    }
-  }
+  const managed = Boolean(canonicalLocalGatewayUrl(gatewayUrl));
+  let localServicesInitialized = false;
+  hostConnection = createHostConnection({
+    managed,
+    // Packaged service startup can take up to two bounded 90-second waits.
+    verificationTimeoutMs: app.isPackaged ? 200_000 : 10_000,
+    onStatusChange: publishHostStatus,
+    verify: async ({ signal }) => {
+      signal.throwIfAborted();
+      if (!managed) return true;
+      if (!localServicesInitialized) {
+        await ensureLocalServices({
+          isPackaged: app.isPackaged,
+          gatewayUrl,
+          resourcesPath: process.resourcesPath,
+          userStorageRoot: hostPaths.root,
+          hostControlToken: hostControl.serviceToken,
+          localAppDataPath: process.env.LOCALAPPDATA,
+          signal,
+        });
+        signal.throwIfAborted();
+        localServicesInitialized = true;
+      }
+      signal.throwIfAborted();
+      return verifyManagedHost(hostControl.serviceToken, { signal });
+    },
+  });
+  // A temporary startup failure remains recoverable after the page opens.
+  const initialHost = await hostConnection.start();
+  if (shuttingDown) return;
+  if (initialHost.error) console.error('[tinadec] local host unavailable:', initialHost.error.code);
+
   registerAppBundleProtocol({ protocol, distDir: DIST_DIR });
   registerLocalMediaProtocol({ protocol });
   protocol.handle('tinadec-pet-preview', async (request) => {

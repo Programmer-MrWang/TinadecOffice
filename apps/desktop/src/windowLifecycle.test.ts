@@ -21,7 +21,9 @@ describe('child window lifecycle', () => {
   it('removes main-window size constraints and splash behavior', () => {
     expect(styles).toMatch(/:root\[data-skip-splash][\s\S]*min-width:\s*0;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/)
     expect(indexHtml).toMatch(/:root\[data-skip-splash] \.splash-placeholder\s*{[^}]*display:\s*none;/s)
-    expect(app).toContain('if (!isPetWindow && !isChildWindow) startConnection()')
+    // Child windows skip the splash but still observe their own host authorization.
+    expect(app).toContain('if (!isPetWindow) void startConnection()')
+    expect(app).toContain('const entryReady = ref(isChildWindow)')
     // TinadecUIE owns the main window layout; RouterView has no out-in
     // transition wrapper so the page host + card-frame material root stay stable.
     expect(app).not.toContain('mode="out-in"')

@@ -154,8 +154,10 @@ function mainConfigFixture(configFile) {
     './serviceManager.cjs': { canonicalLocalGatewayUrl: (url) => url === DEFAULT_GATEWAY_URL ? url : null },
     './hostControl.cjs': { createHostControl: () => ({ serviceToken: 'unused-fixture-credential' }) },
     './hostIdentity.cjs': {},
+    './hostConnection.cjs': {},
     './trustedHostRequests.cjs': {
       initializeTrustedHostRequests() {},
+      isTrustedHostDocumentSender: (event) => event.mainFrame === true,
       isTrustedHostSender: (event) => state.trusted && event.mainFrame === true,
     },
     './layoutStore.cjs': {},
@@ -304,5 +306,20 @@ test('TOML is authoritative and malformed configuration is never silently replac
     assert.throws(() => loadAppConfig(file, {}));
     assert.throws(() => saveGatewayUrl(file, 'https://valid.example.com', {}));
     assert.equal(fs.readFileSync(file, 'utf8'), 'gateway_url = "unterminated');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+ test('actual host status and retry remain accessible to the trusted main document after business authority is unavailable', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tinadec-host-status-ipc-'));
+  try {
+    const fixture = mainConfigFixture(path.join(root, 'desktop.toml'));
+    fixture.state.trusted = false;
+    const status = fixture.handlers.get('tinadec:host-status');
+    const retry = fixture.handlers.get('tinadec:host-retry');
+    assert.equal(status(fixture.event).state, 'checking');
+    assert.equal(retry(fixture.event).state, 'checking');
+    assert.throws(() => status({ ...fixture.event, mainFrame: false }), /trusted host page/);
+    assert.throws(() => retry(fixture.panelEvent), /trusted main host page/);
+    assert.throws(() => retry({ ...fixture.event, mainFrame: false }), /trusted main host page/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });

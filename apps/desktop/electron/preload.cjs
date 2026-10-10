@@ -3,6 +3,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('tinadec', {
   gatewayUrl: () => process.env.TINADEC_RESOLVED_GATEWAY_URL ?? process.env.TINADEC_GATEWAY_URL ?? 'http://127.0.0.1:48730',
   getAppConfig: () => ipcRenderer.invoke('tinadec:app-config'),
+  getHostStatus: () => ipcRenderer.invoke('tinadec:host-status'),
+  retryHostConnection: () => ipcRenderer.invoke('tinadec:host-retry'),
+  onHostStatusChanged: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('tinadec:host-status-changed', handler);
+    return () => ipcRenderer.removeListener('tinadec:host-status-changed', handler);
+  },
   setStorageWritePolicy: (storageId, allow) => ipcRenderer.invoke('tinadec:storage-write-policy', storageId, allow),
   storageAction: (storageId, action, input) => ipcRenderer.invoke('tinadec:storage-action', storageId, action, input),
   saveUserStorageRoot: (root) => ipcRenderer.invoke('tinadec:user-storage-root-save', root),

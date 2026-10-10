@@ -3,11 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h, nextTick, ref, shallowRef, type Component } from 'vue'
 import { mount } from '@vue/test-utils'
 import App from './App.vue'
+import { ensureGraphSeedPack } from '@/agentPacks/graphSeedPackBootstrap'
 
-const connection = vi.hoisted(() => ({ state: { value: 'connecting' }, start: vi.fn() }))
+const connection = vi.hoisted(() => ({ state: { value: 'connecting' }, hostStatus: { value: { state: 'checking', managed: true } }, start: vi.fn() }))
 const route = vi.hoisted(() => ({ name: 'home' as string | undefined }))
 vi.mock('@/composables/useConnection', () => ({
-  useConnection: () => ({ connectionState: connection.state, start: connection.start }),
+  useConnection: () => ({ connectionState: connection.state, hostStatus: connection.hostStatus, start: connection.start }),
   retryConnection: vi.fn(), CONNECTION_BANNER_KEY: 'backend',
 }))
 vi.mock('vue-router', () => ({
@@ -24,6 +25,7 @@ vi.mock('@/composables/useNotifications', () => ({
 }))
 vi.mock('@/agentPacks/graphSeedPackBootstrap', () => ({ ensureGraphSeedPack: vi.fn(), setGraphSeedPackTranslator: vi.fn() }))
 vi.mock('@/composables/useCommandPalette', () => ({ installPaletteKeybinding: () => vi.fn() }))
+vi.mock('@/components/HostAvailabilityBanner.vue', () => ({ default: defineComponent({ render: () => null }) }))
 vi.mock('@/components/AppSplash.vue', () => ({ default: defineComponent({ render: () => h('div', { class: 'app-splash' }) }) }))
 vi.mock('@/components/NotificationIslandHost.vue', () => ({ default: defineComponent({ render: () => h('div', { class: 'notifications' }) }) }))
 vi.mock('@/components/NotificationDetailDialog.vue', () => ({ default: defineComponent({ render: () => null }) }))
@@ -32,7 +34,7 @@ vi.mock('@/components/CommandPalette.vue', () => ({ default: defineComponent({ r
 
 describe('startup handoff', () => {
   let wrapper: ReturnType<typeof mount> | undefined
-  afterEach(() => { wrapper?.unmount(); vi.clearAllMocks() })
+  afterEach(() => { wrapper?.unmount(); vi.clearAllMocks(); window.history.replaceState(null, '', '/') })
 
   function start(name: string | undefined = 'home', pending = false) {
     route.name = name
@@ -107,5 +109,38 @@ describe('startup handoff', () => {
     await nextTick()
     expect(wrapper.get('.page').element).toBe(pageElement)
     expect(wrapper.get('.app-splash').classes()).toContain('app-splash--leaving')
+  })
+
+  it('does not bootstrap packages from preview or failed host authentication', async () => {
+    start()
+    connection.state.value = 'preview'
+    await nextTick()
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+    connection.state.value = 'host_unavailable'
+    await nextTick()
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+    connection.state.value = 'host_rejected'
+    await nextTick()
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
+  })
+  it('bootstraps once on authenticated startup and preserves failures across reconnect', async () => {
+    start()
+    connection.state.value = 'connected'
+    await nextTick()
+    expect(ensureGraphSeedPack).toHaveBeenCalledTimes(1)
+    connection.state.value = 'host_unavailable'
+    await nextTick()
+    connection.state.value = 'connected'
+    await nextTick()
+    expect(ensureGraphSeedPack).toHaveBeenCalledTimes(1)
+  })
+
+  it('child windows skip startup splash while subscribing to host readiness', () => {
+    window.history.replaceState(null, '', '/?splash=0#/panel')
+    const { wrapper } = start('panel')
+    expect(wrapper.find('.app-splash').exists()).toBe(false)
+    expect(wrapper.find('.page').exists()).toBe(true)
+    expect(connection.start).toHaveBeenCalledTimes(1)
+    expect(ensureGraphSeedPack).not.toHaveBeenCalled()
   })
 })

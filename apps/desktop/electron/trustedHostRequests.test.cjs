@@ -127,3 +127,14 @@ test('host IPC requires the same registered trusted main frame and loses authori
   contents.emit('did-navigate', {}, contents.url);
   assert.equal(controller.isTrustedSender(event), false);
 });
+
+ test('status and retry can identify a trusted document while business signing is revoked', () => {
+  const { controller, contents, send } = hostFixture({ isManagedHost: () => false });
+  const event = { sender: contents, senderFrame: contents.mainFrame };
+  assert.equal(controller.isTrustedDocumentSender(event), true);
+  assert.equal(controller.isTrustedSender(event), false);
+  assert.equal(send()['X-Tinadec-Host-Control'], undefined);
+  assert.equal(controller.isTrustedDocumentSender({ ...event, senderFrame: { ...contents.mainFrame, routingId: 10, parent: contents.mainFrame } }), false);
+  contents.emit('did-start-navigation', { isMainFrame: true, isInPlace: false });
+  assert.equal(controller.isTrustedDocumentSender(event), false);
+});

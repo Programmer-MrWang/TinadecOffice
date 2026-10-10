@@ -49,13 +49,15 @@ function createTrustedHostRequests({ token, devServerUrl, isManagedHost = () => 
       && frame.routingId === mainFrame.routingId && isTrustedDocument(frame.url));
   }
 
-  function isTrustedSender(event) {
+  function isTrustedDocumentSender(event) {
     try {
       const entry = windows.get(event.sender?.id);
-      return Boolean(isManagedHost() && entry && entry.contents === event.sender && !entry.suspended
+      return Boolean(entry && entry.contents === event.sender && !entry.suspended
         && !event.sender.isDestroyed() && isTrustedDocument(event.sender.getURL()) && trustedFrame(event.sender, event.senderFrame));
     } catch { return false; }
   }
+
+  function isTrustedSender(event) { return isManagedHost() && isTrustedDocumentSender(event); }
 
   function beforeSendHeaders(details, callback) {
     const headers = { ...details.requestHeaders };
@@ -83,7 +85,7 @@ function createTrustedHostRequests({ token, devServerUrl, isManagedHost = () => 
     contents.on('destroyed', () => { windows.delete(contents.id); });
   }
 
-  return { registerWindow, beforeSendHeaders, isTrustedDocument, isTrustedSender };
+  return { registerWindow, beforeSendHeaders, isTrustedDocument, isTrustedDocumentSender, isTrustedSender };
 }
 
 let controller;
@@ -96,5 +98,6 @@ function registerTrustedHostWindow(window) {
   controller.registerWindow(window);
 }
 function isTrustedHostSender(event) { return controller?.isTrustedSender(event) ?? false; }
+function isTrustedHostDocumentSender(event) { return controller?.isTrustedDocumentSender(event) ?? false; }
 
-module.exports = { createTrustedHostRequests, initializeTrustedHostRequests, registerTrustedHostWindow, isTrustedHostSender, isManagedApiUrl };
+module.exports = { createTrustedHostRequests, initializeTrustedHostRequests, registerTrustedHostWindow, isTrustedHostSender, isTrustedHostDocumentSender, isManagedApiUrl };

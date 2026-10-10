@@ -43,7 +43,9 @@ describe('local pet window shell', () => {
     expect(petStore).toContain('await fs.rename(temporary, destination)')
     expect(router).toContain("path: '/pet'")
     expect(app).toContain("const isPetWindow = window.location.hash.startsWith('#/pet')")
-    expect(app).toContain('if (!isPetWindow && !isChildWindow) startConnection()')
+    // Child windows skip the splash but still observe their own host authorization.
+    expect(app).toContain('if (!isPetWindow) void startConnection()')
+    expect(app).toContain('const entryReady = ref(isChildWindow)')
     expect(desktopPetPage).toContain('background: transparent !important')
     expect(desktopPetPage).toContain("from '@/pets/petRuntime'")
     expect(desktopPetPage).toContain('requestAnimationFrame(draw)')

@@ -11,6 +11,7 @@ import {
 import { useNotifications, startStatusSync } from '@/composables/useNotifications'
 import { ensureGraphSeedPack, setGraphSeedPackTranslator } from '@/agentPacks/graphSeedPackBootstrap'
 import AppSplash from '@/components/AppSplash.vue'
+import HostAvailabilityBanner from '@/components/HostAvailabilityBanner.vue'
 import NotificationIslandHost from '@/components/NotificationIslandHost.vue'
 import NotificationDetailDialog from '@/components/NotificationDetailDialog.vue'
 import SelectionContextMenu from '@/components/SelectionContextMenu.vue'
@@ -41,6 +42,7 @@ const isPetWindow = window.location.hash.startsWith('#/pet')
 const { t } = useI18n()
 setGraphSeedPackTranslator((key, params) => String(t(key, params ?? {})))
 const { connectionState, start: startConnection } = useConnection()
+let graphSeedBootstrapped = false
 const { status, dismissByKey } = useNotifications()
 let unsubscribeStatusSync: (() => void) | undefined
 let uninstallPaletteKeys: (() => void) | undefined
@@ -67,9 +69,14 @@ watch(connectionState, (state) => {
   if (isPetWindow || isChildWindow) return
   if (state === 'connected') {
     dismissByKey(CONNECTION_BANNER_KEY)
-    void ensureGraphSeedPack()
+    if (!graphSeedBootstrapped) {
+      graphSeedBootstrapped = true
+      void ensureGraphSeedPack()
+    }
     return
   }
+  if (state === 'host_unavailable' || state === 'host_rejected') { dismissByKey(CONNECTION_BANNER_KEY); return }
+  if (state === 'preview') { dismissByKey(CONNECTION_BANNER_KEY); return }
   if (state === 'timeout') {
     status.error({
       key: CONNECTION_BANNER_KEY,
@@ -92,7 +99,7 @@ watch(connectionState, (state) => {
 })
 
 onMounted(() => {
-  if (!isPetWindow && !isChildWindow) startConnection()
+  if (!isPetWindow) void startConnection()
   if (!isPetWindow) {
     unsubscribeStatusSync = startStatusSync()
     // The palette is the window's command surface, and a pet has no commands to run.
@@ -181,6 +188,7 @@ onBeforeUnmount(() => {
       <component :is="Component" @ready="onPageReady" @vue:mounted="onRouteMounted" />
     </RouterView>
   </div>
+  <HostAvailabilityBanner v-if="mainStarted && !isChildWindow" />
   <NotificationIslandHost v-if="entryReady" />
   <NotificationDetailDialog v-if="entryReady" />
   <SelectionContextMenu />

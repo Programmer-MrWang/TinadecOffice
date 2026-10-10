@@ -8,6 +8,7 @@
 // It is installed in main.ts ONLY when `window.tinadec` is already absent. In the
 // real Electron app the preload owns `window.tinadec` and this shim is skipped.
 
+import { setHostAccessStatus } from './hostAccess'
 const noop = () => {}
 
 function rejectNotAvailable(reason: string): Promise<never> {
@@ -23,7 +24,13 @@ export function installPreviewShimIfNeeded(): void {
   const previewDebugKey = 'tinadec.preview.debug-studio-enabled'
   function previewDebugEnabled(): boolean { return localStorage.getItem(previewDebugKey) === 'true' }
 
+  const hostStatus = { state: 'preview' as const, managed: false, error: { code: 'desktop_host_required', message: '界面预览：工作区、存储和安装操作请在桌面应用中进行。' } }
+  setHostAccessStatus(hostStatus)
   w.tinadec = {
+    getHostStatus: () => Promise.resolve(hostStatus),
+    onHostStatusChanged: () => noop,
+    retryHostConnection: () => Promise.resolve(hostStatus),
+    storageAction: () => rejectNotAvailable(hostStatus.error.message),
     gatewayUrl: () => 'http://127.0.0.1:48730',
     getAppConfig: () => Promise.resolve({ gateway_url: 'http://127.0.0.1:48730', source: 'environment', managed: true, debug_studio_enabled: previewDebugEnabled() }),
     saveDebugStudioEnabled: (enabled: boolean) => {
@@ -38,7 +45,7 @@ export function installPreviewShimIfNeeded(): void {
     saveGatewayUrl: () => rejectNotAvailable('preview'),
     resetGatewayUrl: () => rejectNotAvailable('preview'),
     restartApp: () => { window.location.reload(); return Promise.resolve() },
-    selectWorkspaceFolders: () => Promise.resolve([]),
+    selectWorkspaceFolders: () => rejectNotAvailable(hostStatus.error.message),
     minimizeWindow: noop,
     maximizeWindow: noop,
     closeWindow: noop,
