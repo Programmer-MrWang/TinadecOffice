@@ -1,5 +1,11 @@
 # DESKTOP APP KNOWLEDGE
 
+## 2026-10-11 Settings read recovery
+
+`backendRequest.ts` owns bounded GET/HEAD transport recovery for api.ts and generated/client.ts: 250/750ms, three attempts total, response body transport included, each attempt revalidates host access with captured storage identity. HTTP/JSON failures and mutations are never replayed; a lost write response becomes backend_write_outcome_unknown without retry. Binary/SSE paths retain their existing owners.
+
+Settings model/agent reads use `useRecoverableRead`: mount/ready refresh, cancellation on lost host/unmount, single flight, generation guards and explicit successful-empty versus failed state. Agent details load four at a time; failures retain directory/previous data and disable editing an invented blank definition. Recovery does not reseed a dirty editor, even if its identity disappears and reappears. Auxiliary failures remain scoped diagnostics. APP-HOME-107 owns task/status; current evidence and platform limits are in `.tinadec_dev/reports/2026-10-11-settings-recovery.zh-CN.md`.
+
 ## 2026-10-11 Styled dropdown migration (UiSelectField)
 
 `components/ui/select-field.vue` (exported as `UiSelectField`) is the styled replacement for native `<select>`: a trigger button plus a listbox teleported to `<body>` or the nearest open native `<dialog>` (to stay in the modal top layer), positioned by `lib/dropdownPlacement.ts`, with Arrow/Home/End/Enter/Escape/outside-click handling, dismissal on external scroll/resize/dialog close, disabled-option skipping, nullable `value`/`v-model` input and `change` output, `aria-controls` wired to the listbox id while open, and `--surface-*` material tokens. Legacy native-select CSS belongs on `.ui-select-trigger`, not its wrapper; the migrated compact/context rules are `.ui-select.compact .ui-select-trigger`, `.route-candidate-add .ui-select`, and `.tools-context-bar .ui-select-trigger`, and `.settings-select` now matches only the one remaining native select. Styles live in `styles.css` (`.ui-select*`). Migrated: settings General/Storage/Appearance/AgentModes/ToolResources/ToolCenter/PromptEngineering/ToolsOverview/Pets/TinaChat, Memory/Snapshots pages, AppSidebar migration picker, PreAuthorizationDialog, ToolCatalogBrowser, TraceTimeline, SessionSelector, ComposerBar steering picker, GitChangesView pull strategy. `ModelParametersEditor` keeps its native `<select>` deliberately: its provider reload watch reverts the form after a controlled choice, so a follow-up must fix that watch before migrating it. The composer's project/ask menus are separate, already-styled surfaces and are untouched. The 2026-10-11 review reproduced the modal top-layer defect in headless Chromium and type errors in vue-tsc; component/CSS regressions and all-Desktop checks are recorded in `.tinadec_dev/reports/2026-10-11-uncommitted-review-fixes.zh-CN.md`.
@@ -61,8 +67,8 @@ The deb keeps Electron's existing dependency list and explicitly requires `libca
 scope-enabled Core 全部业务 API 要求私有宿主头，health/challenge 两个公开探针除外。main 先验证 Core/Gateway nonce/角色绑定 HMAC，不能按公开指纹复用伪服务；验证后仅为登记主/panel/debug 主frame在精确入口访问固定local API签发，导航/iframe/未知窗口/远程均不继承，重验失败撤权。敏感IPC同样复核主frame。dev共享启动key，仅Electron保留、Vite剥除，main收到后移除env；默认不开放CDP。Electron43.3.0隔离夹具已验证HTTP/SSE、HMAC、主/辅助路由、iframe拒绝、导航/端点撤权及redirect剥离，不替代完整产品UI或安装验收。
 
 **Last Updated:** 2026-10-11
-**Last Updated By:** APP-UIE-COMPONENTS-102 首页 Git 信息卡；设置语言迁入常规页；全应用原生下拉迁移为 UiSelectField；宿主 IPC 条目保留。
-**Last Verified Commit:** 5d8096c + 工作树；语言迁移的定向测试与 vue-tsc 证据见 SettingsPage.smoke / settingsCssContract / spotlight，下拉迁移与死 CSS/aria 更正证据见 select-field.test.ts 与 Desktop 全量 140 文件/1268 通过；Home Git 证据见 .tinadec_dev/reports/2026-10-11-home-git-widget.zh-CN.md，宿主 IPC 历史见 2026-10-10-host-ipc-mismatch.zh-CN.md。
+**Last Updated By:** 合并上游 APP-HOME-107 智能体/模型目录读取恢复与本地 UiSelectField 迁移、设置语言迁入常规页、首页 Git 信息卡。
+**Last Verified Commit:** df0977f（Settings 与共享读取修复）+ 52b6775（合并前工作树）；上游对账见 .tinadec_dev/reports/2026-10-11-settings-recovery.zh-CN.md，下拉迁移与死 CSS/aria 更正见 select-field.test.ts 与 Desktop 全量 140 文件/1268 通过，Home Git 见 .tinadec_dev/reports/2026-10-11-home-git-widget.zh-CN.md。
 **Branch:** main
 
 ### 2026-10-08 工具设置
