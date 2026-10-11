@@ -40,7 +40,7 @@ const lastRead = computed(() => updatedAt.value == null ? ''
         <span class="git-widget-icon"><GitBranch :size="17" aria-hidden="true" /></span>
         <span class="git-widget-title">{{ t('context.homeGit') }}</span>
         <button type="button" class="git-widget-refresh" :disabled="!project || !businessReady || busy"
-          :aria-label="t('context.refreshGitPlan')" :title="t('context.refreshGitPlan')" @click="refresh(true)">
+          :aria-label="t('context.gitWidgetRefresh')" :title="t('context.gitWidgetRefresh')" @click="refresh(true)">
           <RefreshCw :size="15" aria-hidden="true" />
         </button>
       </div>

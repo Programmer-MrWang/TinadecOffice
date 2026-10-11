@@ -54,6 +54,8 @@ const portalTarget = ref<HTMLElement | 'body'>('body')
 let ownerDialog: HTMLDialogElement | null = null
 const placement = ref<DropdownPlacement>({ position: 'fixed', left: '0px' })
 const activeIndex = ref(0)
+const controlDisabled = computed(() => props.disabled === true)
+const activeOptionId = computed(() => (open.value ? `${menuId}-option-${activeIndex.value}` : undefined))
 
 // overflowY is carried as a CSS variable so the menu keeps a stable inline
 // style shape while the helper decides whether it may scroll.
@@ -108,7 +110,7 @@ function closeMenu(restoreFocus = false): void {
 function onDialogClose(): void { closeMenu() }
 
 function choose(option: SelectFieldOption): void {
-  if (option.disabled) return
+  if (controlDisabled.value || option.disabled) return
   // `v-model` binds to update:modelValue; callers that pass a literal
   // value/change pair use update:value. Emit both so either contract works.
   emit('update:modelValue', option.value)
@@ -144,6 +146,13 @@ function onTriggerKeydown(event: KeyboardEvent): void {
   }
 }
 
+function onMenuKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  event.preventDefault()
+  event.stopPropagation()
+  closeMenu(true)
+}
+
 function onPointerDownOutside(event: PointerEvent): void {
   const target = event.target as Node | null
   if (!target) return
@@ -168,6 +177,12 @@ watch(open, (isOpen) => {
   }
 })
 
+// A disabled control must not leave its teleported menu interactive: the
+// trigger button disables itself, but the menu lives outside it in the DOM.
+watch(controlDisabled, (isDisabled) => {
+  if (isDisabled) closeMenu()
+})
+
 onBeforeUnmount(() => {
   closeMenu()
   window.removeEventListener('pointerdown', onPointerDownOutside, true)
@@ -186,6 +201,7 @@ onBeforeUnmount(() => {
       aria-haspopup="listbox"
       :aria-expanded="open"
       :aria-controls="open ? menuId : undefined"
+      :aria-activedescendant="activeOptionId"
       :aria-label="ariaLabel"
       :disabled="disabled"
       v-bind="$attrs"
@@ -205,6 +221,7 @@ onBeforeUnmount(() => {
         role="listbox"
         :style="menuStyle"
         :aria-label="ariaLabel"
+      @keydown="onMenuKeydown"
       >
         <button
           v-for="(option, index) in options"
@@ -212,6 +229,7 @@ onBeforeUnmount(() => {
           type="button"
           class="ui-select-option"
           role="option"
+          :id="`${menuId}-option-${index}`"
           :aria-selected="option.value === currentValue"
           :disabled="option.disabled"
           :data-active="index === activeIndex"

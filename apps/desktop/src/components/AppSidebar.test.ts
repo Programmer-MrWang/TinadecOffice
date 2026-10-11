@@ -378,7 +378,7 @@ describe('AppSidebar lifecycle management', () => {
     await wrapper.get('.free-conversation-group .session-row').trigger('contextmenu')
     menuButtons().find(button => button.textContent?.trim() === 'sidebar.migrateSession')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
-    const select = dialog.get('.ui-select')
+    const select = dialog.get('.ui-select-trigger')
     await select.trigger('click')
     expect(Array.from(document.body.querySelectorAll('.ui-select-option')).map(option => option.getAttribute('data-value'))).toEqual(['scope-active::p-1'])
     await select.trigger('keydown', { key: 'Escape' })

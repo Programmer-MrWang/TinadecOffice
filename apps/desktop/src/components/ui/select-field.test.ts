@@ -54,6 +54,43 @@ describe('UiSelectField', () => {
     wrapper.unmount()
   })
 
+  it('points aria-activedescendant at the active option as the keyboard moves', async () => {
+    const wrapper = mount(UiSelectField, { props: { value: 'queued', options } })
+    await wrapper.get('.ui-select-trigger').trigger('click')
+    const first = wrapper.get('.ui-select-trigger').attributes('aria-activedescendant')
+    expect(first).toBeTruthy()
+    expect(document.body.querySelector('.ui-select-menu')?.querySelector(`#${first}`)).not.toBeNull()
+
+    await wrapper.get('.ui-select-trigger').trigger('keydown', { key: 'ArrowDown' })
+    const second = wrapper.get('.ui-select-trigger').attributes('aria-activedescendant')
+    expect(second).not.toBe(first)
+    expect(document.body.querySelector('.ui-select-menu')?.querySelector(`#${second}`)?.getAttribute('data-value')).toBe('parallel')
+    wrapper.unmount()
+  })
+
+  it('closes a teleported menu and blocks selection when the control becomes disabled', async () => {
+    const wrapper = mount(UiSelectField, { props: { value: 'queued', options } })
+    await wrapper.get('.ui-select-trigger').trigger('click')
+    document.body.querySelector<HTMLButtonElement>('.ui-select-option[data-value="ask"]')!.click()
+    expect(wrapper.emitted('change')).toHaveLength(1)
+
+    await wrapper.setProps({ disabled: true })
+    expect(document.body.querySelector('.ui-select-menu')).toBeNull()
+    document.body.querySelector<HTMLButtonElement>('.ui-select-option[data-value="ask"]')?.click()
+    expect(wrapper.emitted('change')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('exits the menu with Escape even when the key event originates on an option', async () => {
+    const wrapper = mount(UiSelectField, { props: { value: 'queued', options } })
+    await wrapper.get('.ui-select-trigger').trigger('click')
+    const option = document.body.querySelector<HTMLButtonElement>('.ui-select-option[data-value="parallel"]')!
+    option.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(document.body.querySelector('.ui-select-menu')).toBeNull()
+    wrapper.unmount()
+  })
+
   it('emits value and change when an option is chosen, then closes', async () => {
     const wrapper = mount(UiSelectField, { props: { value: 'queued', options } })
     await wrapper.get('.ui-select-trigger').trigger('click')

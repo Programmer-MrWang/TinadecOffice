@@ -10,6 +10,10 @@ Settings model/agent reads use `useRecoverableRead`: mount/ready refresh, cancel
 
 `components/ui/select-field.vue` (exported as `UiSelectField`) is the styled replacement for native `<select>`: a trigger button plus a listbox teleported to `<body>` or the nearest open native `<dialog>` (to stay in the modal top layer), positioned by `lib/dropdownPlacement.ts`, with Arrow/Home/End/Enter/Escape/outside-click handling, dismissal on external scroll/resize/dialog close, disabled-option skipping, nullable `value`/`v-model` input and `change` output, `aria-controls` wired to the listbox id while open, and `--surface-*` material tokens. Legacy native-select CSS belongs on `.ui-select-trigger`, not its wrapper; the migrated compact/context rules are `.ui-select.compact .ui-select-trigger`, `.route-candidate-add .ui-select`, and `.tools-context-bar .ui-select-trigger`, and `.settings-select` now matches only the one remaining native select. Styles live in `styles.css` (`.ui-select*`). Migrated: settings General/Storage/Appearance/AgentModes/ToolResources/ToolCenter/PromptEngineering/ToolsOverview/Pets/TinaChat, Memory/Snapshots pages, AppSidebar migration picker, PreAuthorizationDialog, ToolCatalogBrowser, TraceTimeline, SessionSelector, ComposerBar steering picker, GitChangesView pull strategy. `ModelParametersEditor` keeps its native `<select>` deliberately: its provider reload watch reverts the form after a controlled choice, so a follow-up must fix that watch before migrating it. The composer's project/ask menus are separate, already-styled surfaces and are untouched. The 2026-10-11 review reproduced the modal top-layer defect in headless Chromium and type errors in vue-tsc; component/CSS regressions and all-Desktop checks are recorded in `.tinadec_dev/reports/2026-10-11-uncommitted-review-fixes.zh-CN.md`.
 
+## 2026-10-11 CodeRabbit dropdown pass
+
+`aria-activedescendant` now points at the active option's stable id; the menu handles Escape itself (stop propagation so a native dialog does not close); a control that turns `disabled` while its teleported menu is open closes it and refuses to commit. `GitStatusWidget` uses the dedicated `context.gitWidgetRefresh` copy and the AppSidebar migration test targets `.ui-select-trigger`.
+
 ## 2026-10-11 Settings language moved into General
 
 语言选项从独立的两项分区迁入 `settings/sections/GeneralSection.vue`（常规页第三个分组），`LanguageSection.vue` 与设置导航中的 `language` 项、`SettingsSection` 类型、`CENTERED_SECTIONS` 条目一并删除。切换仍只写 `tinadec-locale`（`i18n.ts` 启动时读取）；`lang-options`/`lang-option` 样式与 `data-testid`（`language-options`/`lang-zh`/`lang-en`）保持不变。Spotlight 设置表跟随导航删除独立 language 行，`palette.kwLanguage` 关键词并入 general 行，搜"语言"仍落在常规页。相关断言更新在 `src/pages/SettingsPage.smoke.test.ts`、`src/settings/settingsCssContract.test.ts`、`src/lib/spotlight.test.ts`；无新增本地化键。
@@ -68,7 +72,7 @@ scope-enabled Core 全部业务 API 要求私有宿主头，health/challenge 两
 
 **Last Updated:** 2026-10-11
 **Last Updated By:** 合并上游 APP-HOME-107 智能体/模型目录读取恢复与本地 UiSelectField 迁移、设置语言迁入常规页、首页 Git 信息卡。
-**Last Verified Commit:** df0977f（Settings 与共享读取修复）+ 52b6775（合并前工作树）；上游对账见 .tinadec_dev/reports/2026-10-11-settings-recovery.zh-CN.md，下拉迁移与死 CSS/aria 更正见 select-field.test.ts 与 Desktop 全量 140 文件/1268 通过，Home Git 见 .tinadec_dev/reports/2026-10-11-home-git-widget.zh-CN.md。
+**Last Verified Commit:** df0977f（Settings 与共享读取修复）+ ff16bf4（合并上游后工作树）；上游对账见 .tinadec_dev/reports/2026-10-11-settings-recovery.zh-CN.md，下拉迁移、死 CSS/aria 更正与 CodeRabbit 修正见 select-field.test.ts 与 Desktop 全量 142 文件/1295 通过、TinadecUI 187 通过，Home Git 见 .tinadec_dev/reports/2026-10-11-home-git-widget.zh-CN.md。
 **Branch:** main
 
 ### 2026-10-08 工具设置
